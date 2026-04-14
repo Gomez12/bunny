@@ -96,6 +96,16 @@ for (const target of targets) {
   ]);
 
   if (exitCode === 0) {
+    // Re-sign darwin binaries: bun --compile embeds an invalid signature that
+    // macOS SIGKILL's on launch. Remove the bad signature first, then re-sign.
+    if (target.bunTarget.includes("darwin")) {
+      Bun.spawnSync(["codesign", "--remove-signature", outfile]);
+      const sign = Bun.spawnSync(["codesign", "--sign", "-", outfile]);
+      if (sign.exitCode !== 0) {
+        console.warn(`  ⚠ codesign failed: ${new TextDecoder().decode(sign.stderr)}`);
+      }
+    }
+
     try {
       const size = Bun.file(outfile).size;
       const mb = (size / 1_000_000).toFixed(1);

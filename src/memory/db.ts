@@ -7,10 +7,12 @@
  */
 
 import { Database } from "bun:sqlite";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import { paths } from "../paths.ts";
 import { errorMessage } from "../util/error.ts";
+// Static import so Bun embeds the file in compiled binaries.
+import schemaSql from "./schema.sql" with { type: "text" };
 
 // sqlite-vec is loaded lazily on first DB open to avoid blocking module init.
 let sqliteVecLoad: ((db: { loadExtension(f: string, e?: string): void }) => void) | undefined;
@@ -71,10 +73,6 @@ export async function openDb(dbPath: string, embedDim = 1536): Promise<Database>
 }
 
 function applySchema(db: Database, embedDim: number): void {
-  // Read the static schema from schema.sql (adjacent to this file).
-  const schemaPath = join(import.meta.dir, "schema.sql");
-  const schemaSql = readFileSync(schemaPath, "utf8");
-
   // Remove single-line comments before splitting, to avoid false ";" matches
   // inside comment text.
   const stripped = schemaSql.replace(/--[^\n]*/g, "");

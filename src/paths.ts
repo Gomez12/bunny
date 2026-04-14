@@ -11,16 +11,33 @@
  * portability and break the "copy the folder and it still works" guarantee.
  */
 
-import { isAbsolute, join, resolve } from "node:path";
+import { isAbsolute, join, resolve, dirname } from "node:path";
 
 const DEFAULT_SUBDIR = ".bunny";
+
+/**
+ * When running as a compiled Bun binary, `import.meta.path` is a virtual
+ * `/$bunfs/…` path. We use this to distinguish compiled from source/dev mode.
+ */
+const IS_COMPILED = import.meta.path.startsWith("/$bunfs/");
+
+/**
+ * Base directory for state storage.
+ *
+ * - Compiled binary: directory of the binary itself (`dirname(process.execPath)`)
+ *   so state stays portable alongside the binary regardless of cwd.
+ * - Dev / `bun run`: current working directory (project-relative, as before).
+ */
+function defaultBase(): string {
+  return IS_COMPILED ? dirname(process.execPath) : process.cwd();
+}
 
 /**
  * Resolve the root directory for Bunny's runtime state.
  *
  * Precedence:
  *  1. `$BUNNY_HOME` if set (absolute or relative to cwd)
- *  2. `./.bunny` under cwd
+ *  2. `.bunny` next to the binary (compiled) or under cwd (dev)
  *
  * The directory is **not** created here; callers that need it on disk should
  * `mkdir -p` it themselves.
@@ -30,7 +47,7 @@ export function resolveBunnyHome(env: NodeJS.ProcessEnv = process.env, cwd: stri
   if (override && override.length > 0) {
     return isAbsolute(override) ? override : resolve(cwd, override);
   }
-  return join(cwd, DEFAULT_SUBDIR);
+  return join(defaultBase(), DEFAULT_SUBDIR);
 }
 
 /**
