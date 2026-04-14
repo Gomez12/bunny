@@ -28,8 +28,8 @@ const IS_COMPILED = import.meta.path.startsWith("/$bunfs/");
  *   so state stays portable alongside the binary regardless of cwd.
  * - Dev / `bun run`: current working directory (project-relative, as before).
  */
-function defaultBase(): string {
-  return IS_COMPILED ? dirname(process.execPath) : process.cwd();
+function defaultBase(cwd: string): string {
+  return IS_COMPILED ? dirname(process.execPath) : cwd;
 }
 
 /**
@@ -47,7 +47,7 @@ export function resolveBunnyHome(env: NodeJS.ProcessEnv = process.env, cwd: stri
   if (override && override.length > 0) {
     return isAbsolute(override) ? override : resolve(cwd, override);
   }
-  return join(defaultBase(), DEFAULT_SUBDIR);
+  return join(defaultBase(cwd), DEFAULT_SUBDIR);
 }
 
 /**
@@ -67,5 +67,7 @@ export const paths = {
   db: () => resolveBunnyPath("db.sqlite"),
   logs: () => resolveBunnyPath("logs"),
   sessions: () => resolveBunnyPath("sessions"),
+  projects: () => resolveBunnyPath("projects"),
+  projectDir: (name: string) => resolveBunnyPath("projects", name),
   configFile: (cwd: string = process.cwd()) => join(cwd, "bunny.config.toml"),
 } as const;
