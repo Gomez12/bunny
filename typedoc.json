@@ -1,0 +1,19 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/index.ts"],
+  "entryPointStrategy": "expand",
+  "out": "docs/api",
+  "tsconfig": "tsconfig.json",
+  "excludeInternal": true,
+  "excludePrivate": true,
+  "readme": "docs/README.md",
+  "name": "Bunny",
+  "includeVersion": true,
+  "cleanOutputDir": true,
+  "categorizeByGroup": true,
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "notDocumented": false
+  }
+}

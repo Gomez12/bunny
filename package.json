@@ -1,0 +1,34 @@
+{
+  "name": "bunny",
+  "version": "0.0.1",
+  "description": "Bun-native AI agent with queue-backed logging and hybrid memory",
+  "private": true,
+  "type": "module",
+  "module": "src/index.ts",
+  "bin": {
+    "bunny": "./src/index.ts"
+  },
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "build": "bun run scripts/build.ts",
+    "build:platform": "bun run scripts/build.ts --platform",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "typecheck": "bun tsc --noEmit",
+    "docs": "typedoc",
+    "fmt": "bun x prettier --write src tests",
+    "check": "bun run typecheck && bun test"
+  },
+  "dependencies": {
+    "bunqueue": "latest",
+    "sqlite-vec": "latest"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typedoc": "latest",
+    "typescript": "latest"
+  },
+  "engines": {
+    "bun": ">=1.3.0"
+  }
+}

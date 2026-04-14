@@ -1,0 +1,30 @@
+# Bun
+node_modules/
+bun.lock
+bun.lockb
+
+# Bunny runtime state (portable, per-cwd)
+.bunny/
+tmp/
+
+# Built binaries
+dist/
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+
+# Generated docs
+docs/api/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test artefacts
+coverage/
+*.log

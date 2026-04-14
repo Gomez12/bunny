@@ -1,0 +1,30 @@
+# Bunny configuration (TOML). Loaded relative to cwd.
+# Env vars override these values.
+
+[llm]
+base_url = "https://api.openai.com/v1"
+model = "gpt-4o-mini"
+# profile = "openai"         # auto-detect if omitted
+# model_reasoning = "deepseek-reasoner"
+
+[embed]
+base_url = "https://api.openai.com/v1"
+model = "text-embedding-3-small"
+dim = 1536
+
+[memory]
+# Also index reasoning-channel messages for recall. Default off to keep
+# FTS/vector index focused on user-visible content.
+index_reasoning = false
+# Top-k passed back into context on each turn.
+recall_k = 8
+
+[render]
+# "collapsed" | "inline" | "hidden"
+reasoning = "collapsed"
+# Force colors on/off. Omit to auto-detect TTY.
+# color = true
+
+[queue]
+# Topics for logging events. Do not rename unless you also migrate events table.
+topics = ["llm", "tool", "memory"]
