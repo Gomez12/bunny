@@ -85,3 +85,9 @@ SSE event shapes live in `src/agent/sse_events.ts` and are imported by both `src
 - Provider-specific streaming quirks belong in `src/llm/profiles.ts`, not in `adapter.ts` or `stream.ts`.
 - Tests live under `tests/` mirroring `src/` layout. DB tests use `mkdtempSync` + `openDb(path)` for isolation.
 - Design decisions are captured in `docs/adr/` (numbered). Add a new ADR when making a non-trivial architectural choice.
+- **Before every commit**: verify that tests and docs still match reality.
+  - Run `bun test` — any broken or newly-uncovered module must get a test in `tests/` mirroring the source path.
+  - Update `README.md` if the user-facing workflow changed (new commands, new flags, new runtime requirements).
+  - Update `docs/README.md` and add/amend an ADR in `docs/adr/` for non-trivial architectural changes.
+  - Update this `CLAUDE.md` when conventions, build steps, or the high-level architecture shift.
+  - Do not commit if tests regress or if a user-visible change has no accompanying doc update — fix first, commit after.
