@@ -14,6 +14,7 @@ import { createBunnyQueue } from "../../src/queue/bunqueue.ts";
 import { createRenderer } from "../../src/agent/render.ts";
 import { runAgent } from "../../src/agent/loop.ts";
 import { ToolRegistry } from "../../src/tools/registry.ts";
+import { ensureProjectDir, writeProjectSystemPrompt } from "../../src/memory/project_assets.ts";
 import type { LlmConfig, EmbedConfig, MemoryConfig } from "../../src/config.ts";
 
 interface CapturedBody {
@@ -23,6 +24,7 @@ interface CapturedBody {
 let server: Server;
 let baseUrl: string;
 let tmp: string;
+let prevHome: string | undefined;
 const captured: CapturedBody[] = [];
 
 function sseFinal(text: string): string {
@@ -34,6 +36,8 @@ function sseFinal(text: string): string {
 
 beforeAll(() => {
   tmp = mkdtempSync(join(tmpdir(), "bunny-history-"));
+  prevHome = process.env["BUNNY_HOME"];
+  process.env["BUNNY_HOME"] = tmp;
   server = Bun.serve({
     port: 0,
     async fetch(req) {
@@ -50,6 +54,8 @@ beforeAll(() => {
 
 afterAll(() => {
   server.stop(true);
+  if (prevHome === undefined) delete process.env["BUNNY_HOME"];
+  else process.env["BUNNY_HOME"] = prevHome;
   rmSync(tmp, { recursive: true, force: true });
 });
 
@@ -107,6 +113,56 @@ describe("agent loop — verbatim history replay", () => {
     expect(secondMsgs[1]!.content).toBe("waar ligt amsterdam");
     expect(secondMsgs[2]!.content).toBe("reply-1");
     expect(secondMsgs[3]!.content).toBe("weet je dat zeker, ligt het niet in belgie");
+
+    await queue.close();
+    db.close();
+  });
+
+  test("project-level lastN override wins over the global memory config", async () => {
+    const db = await openDb(join(tmp, "history_proj.sqlite"), 4);
+    const queue = createBunnyQueue(db);
+    const renderer = createRenderer({ reasoningMode: "hidden", forceColor: false, out: { write: () => {} } });
+    const tools = new ToolRegistry();
+    // Global says replay 10 turns — the project cap should drop that to 0.
+    const memCfg: MemoryConfig = { indexReasoning: false, recallK: 4, lastN: 10 };
+
+    ensureProjectDir("histtest");
+    writeProjectSystemPrompt(
+      "histtest",
+      { prompt: "", append: true },
+      { lastN: 0, recallK: null },
+    );
+
+    const sessionId = "hist-proj";
+    captured.length = 0;
+
+    await runAgent({
+      prompt: "first",
+      sessionId,
+      project: "histtest",
+      llmCfg: makeLlmCfg(),
+      embedCfg: makeEmbedCfg(),
+      memoryCfg: memCfg,
+      tools,
+      db,
+      queue,
+      renderer,
+    });
+    await runAgent({
+      prompt: "second",
+      sessionId,
+      project: "histtest",
+      llmCfg: makeLlmCfg(),
+      embedCfg: makeEmbedCfg(),
+      memoryCfg: memCfg,
+      tools,
+      db,
+      queue,
+      renderer,
+    });
+
+    // Despite global lastN=10 the project override (0) wipes out verbatim replay.
+    expect(captured[1]!.messages.map((m) => m.role)).toEqual(["system", "user"]);
 
     await queue.close();
     db.close();

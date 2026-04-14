@@ -67,11 +67,15 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
 
   const projectAssets = loadProjectAssets(project);
 
+  // Per-project overrides win over the global memory config.
+  const effectiveLastN = projectAssets.memory.lastN ?? memoryCfg.lastN;
+  const effectiveRecallK = projectAssets.memory.recallK ?? memoryCfg.recallK;
+
   // ── Short-term history: verbatim replay of the last N turns ───────────────
   // Fetched BEFORE inserting the new user prompt so the current message isn't
   // duplicated. Keeps conversational coherence that recall alone misses when
   // the follow-up shares no tokens with the earlier turn.
-  const recentTurns = getRecentTurns(db, sessionId, memoryCfg.lastN);
+  const recentTurns = getRecentTurns(db, sessionId, effectiveLastN);
   const recentIds = new Set(recentTurns.map((t) => t.messageId));
 
   // ── Recall: BM25 + kNN over the rest of history, excluding verbatim rows ──
@@ -79,7 +83,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
     db,
     embedCfg,
     prompt,
-    memoryCfg.recallK,
+    effectiveRecallK,
     sessionId,
     project,
     recentIds,

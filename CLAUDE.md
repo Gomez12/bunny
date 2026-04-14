@@ -63,6 +63,8 @@ Hybrid recall (`src/memory/recall.ts:hybridRecall`) fuses BM25 (FTS5 trigram tok
 
 Short-term coherence is handled separately: the last `memory.last_n` (default 10) user/assistant *content* turns of the current session are replayed verbatim in every request (`getRecentTurns` in `src/memory/messages.ts`, spliced into `runAgent`'s `messages[]` between the system prompt and the new user message). Tool-call / tool-result / reasoning rows are skipped — they belong to completed inner loops. IDs of the replayed rows are passed to `hybridRecall` via `excludeIds` so recall never duplicates what's already in the payload. Set `last_n = 0` for recall-only mode.
 
+Both `last_n` and `recall_k` can be overridden per-project via the `last_n` / `recall_k` keys in `systemprompt.toml` (exposed as `lastN` / `recallK` in `ProjectAssets.memory` and in the project DTO). `runAgent` applies the override when present, otherwise inherits from the global `[memory]` block. The Projects tab in the web UI edits these fields alongside the system prompt.
+
 `messages` rows are one-per-semantic-unit: separate rows for `content`, `reasoning`, `tool_result` via the `channel` column. The FTS virtual table is synced via triggers on `channel='content'` only.
 
 ### Web UI

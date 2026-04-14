@@ -13,6 +13,24 @@ export interface SessionSummary {
   userId: string | null;
   username: string | null;
   displayName: string | null;
+  project: string;
+}
+
+export type ProjectVisibility = "public" | "private";
+
+export interface Project {
+  name: string;
+  description: string | null;
+  visibility: ProjectVisibility;
+  createdBy: string | null;
+  createdAt: number;
+  updatedAt: number;
+  systemPrompt: string;
+  appendMode: boolean;
+  /** null = inherit the global [memory] default (bunny.config.toml). */
+  lastN: number | null;
+  /** null = inherit the global [memory] default (bunny.config.toml). */
+  recallK: number | null;
 }
 
 export interface StoredMessage {
@@ -32,6 +50,7 @@ export interface StoredMessage {
   userId: string | null;
   username: string | null;
   displayName: string | null;
+  project: string;
 }
 
 export interface TurnStats {
@@ -146,11 +165,12 @@ export function groupTurns(messages: StoredMessage[]): HistoryTurn[] {
 
 export async function fetchSessions(
   search?: string,
-  opts: { scope?: "mine" | "all" } = {},
+  opts: { scope?: "mine" | "all"; project?: string } = {},
 ): Promise<SessionSummary[]> {
   const params = new URLSearchParams();
   if (search) params.set("q", search);
   if (opts.scope) params.set("scope", opts.scope);
+  if (opts.project) params.set("project", opts.project);
   const qs = params.toString();
   const url = qs ? `/api/sessions?${qs}` : "/api/sessions";
   const res = await fetch(url, { credentials: "include" });
@@ -179,7 +199,7 @@ export async function createSession(): Promise<string> {
  * Returns a promise that resolves when the stream ends and an abort function.
  */
 export function streamChat(
-  body: { sessionId: string; prompt: string },
+  body: { sessionId: string; prompt: string; project?: string },
   onEvent: (ev: ServerEvent) => void,
 ): { done: Promise<void>; abort: () => void } {
   const controller = new AbortController();
@@ -375,4 +395,56 @@ export async function createMyApiKey(
 
 export async function revokeMyApiKey(id: string): Promise<void> {
   await jsonFetch<{ ok: true }>(`/api/apikeys/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+// ── Projects ────────────────────────────────────────────────────────────────
+
+export async function fetchProjects(): Promise<Project[]> {
+  const { projects } = await jsonFetch<{ projects: Project[] }>("/api/projects");
+  return projects;
+}
+
+export async function fetchProject(name: string): Promise<Project> {
+  const { project } = await jsonFetch<{ project: Project }>(
+    `/api/projects/${encodeURIComponent(name)}`,
+  );
+  return project;
+}
+
+export async function createProject(input: {
+  name: string;
+  description?: string;
+  systemPrompt?: string;
+  appendMode?: boolean;
+  visibility?: ProjectVisibility;
+  lastN?: number | null;
+  recallK?: number | null;
+}): Promise<Project> {
+  const { project } = await jsonFetch<{ project: Project }>("/api/projects", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return project;
+}
+
+export async function updateProject(
+  name: string,
+  patch: {
+    description?: string | null;
+    systemPrompt?: string;
+    appendMode?: boolean;
+    visibility?: ProjectVisibility;
+    lastN?: number | null;
+    recallK?: number | null;
+  },
+): Promise<Project> {
+  const { project } = await jsonFetch<{ project: Project }>(
+    `/api/projects/${encodeURIComponent(name)}`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+  );
+  return project;
+}
+
+export async function deleteProject(name: string): Promise<void> {
+  await jsonFetch<{ ok: true }>(`/api/projects/${encodeURIComponent(name)}`, { method: "DELETE" });
 }

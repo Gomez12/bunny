@@ -20,6 +20,22 @@ import { authenticate } from "./auth_middleware.ts";
 import { handleAuthRoute } from "./auth_routes.ts";
 import { json } from "./http.ts";
 import type { User } from "../auth/users.ts";
+import {
+  createProject,
+  deleteProject,
+  getProject,
+  getSessionProject,
+  listProjects,
+  updateProject,
+  validateProjectName,
+  type Project,
+  type ProjectVisibility,
+} from "../memory/projects.ts";
+import {
+  ensureProjectDir,
+  loadProjectAssets,
+  writeProjectSystemPrompt,
+} from "../memory/project_assets.ts";
 
 export interface RouteCtx {
   db: Database;
@@ -38,14 +54,34 @@ export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<
   const user = await authenticate(ctx.db, req);
   if (!user) return json({ error: "unauthorized" }, 401);
 
-  // GET /api/sessions?q=...&scope=mine|all
+  // ── Projects ──────────────────────────────────────────────────────────────
+  if (pathname === "/api/projects" && req.method === "GET") {
+    const projects = listProjects(ctx.db).filter((p) => canSeeProject(p, user));
+    return json({
+      projects: projects.map((p) => toProjectDto(p)),
+    });
+  }
+  if (pathname === "/api/projects" && req.method === "POST") {
+    return handleCreateProject(req, ctx, user);
+  }
+  const projectMatch = pathname.match(/^\/api\/projects\/([^/]+)$/);
+  if (projectMatch) {
+    const name = decodeURIComponent(projectMatch[1]!);
+    if (req.method === "GET") return handleGetProject(ctx, user, name);
+    if (req.method === "PATCH") return handlePatchProject(req, ctx, user, name);
+    if (req.method === "DELETE") return handleDeleteProject(ctx, user, name);
+  }
+
+  // GET /api/sessions?q=...&scope=mine|all&project=<name>
   if (pathname === "/api/sessions" && req.method === "GET") {
     const q = url.searchParams.get("q") ?? undefined;
     const scope = url.searchParams.get("scope") ?? "mine";
+    const projectParam = url.searchParams.get("project")?.trim();
     // Admins may opt-in to the global view with scope=all; everyone else is
     // always restricted to their own sessions.
     const allowAll = user.role === "admin" && scope === "all";
-    const filter = allowAll ? {} : { userId: user.id };
+    const filter: { userId?: string; project?: string } = allowAll ? {} : { userId: user.id };
+    if (projectParam) filter.project = projectParam;
     const sessions = listSessions(ctx.db, { search: q, ...filter });
     return json({ sessions });
   }
@@ -82,9 +118,9 @@ function canAccessSession(ctx: RouteCtx, user: User, sessionId: string): boolean
 }
 
 async function handleChat(req: Request, ctx: RouteCtx, user: User): Promise<Response> {
-  let body: { sessionId?: string; prompt?: string };
+  let body: { sessionId?: string; prompt?: string; project?: string };
   try {
-    body = (await req.json()) as { sessionId?: string; prompt?: string };
+    body = (await req.json()) as { sessionId?: string; prompt?: string; project?: string };
   } catch {
     return json({ error: "invalid json" }, 400);
   }
@@ -97,6 +133,32 @@ async function handleChat(req: Request, ctx: RouteCtx, user: User): Promise<Resp
     return json({ error: "forbidden" }, 403);
   }
 
+  // Resolve + validate project: must match any existing session context.
+  let project: string;
+  try {
+    const requested = body.project ? validateProjectName(body.project) : undefined;
+    const existing = getSessionProject(ctx.db, sessionId);
+    const sessionHasRows = ctx.db
+      .prepare(`SELECT 1 AS x FROM messages WHERE session_id = ? LIMIT 1`)
+      .get(sessionId) as { x: number } | undefined;
+    if (sessionHasRows) {
+      if (requested && requested !== existing) {
+        return json(
+          { error: `session belongs to project '${existing}', got '${requested}'` },
+          409,
+        );
+      }
+      project = existing;
+    } else {
+      project = requested ?? validateProjectName(ctx.cfg.agent.defaultProject);
+    }
+    const pr = getProject(ctx.db, project);
+    if (!pr) return json({ error: `project '${project}' does not exist` }, 404);
+    if (!canSeeProject(pr, user)) return json({ error: "forbidden" }, 403);
+  } catch (e) {
+    return json({ error: errorMessage(e) }, 400);
+  }
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const sink = controllerSink(controller);
@@ -107,9 +169,11 @@ async function handleChat(req: Request, ctx: RouteCtx, user: User): Promise<Resp
           prompt,
           sessionId,
           userId: user.id,
+          project,
           llmCfg: ctx.cfg.llm,
           embedCfg: ctx.cfg.embed,
           memoryCfg: ctx.cfg.memory,
+          agentCfg: ctx.cfg.agent,
           tools: registry,
           db: ctx.db,
           queue: ctx.queue,
@@ -129,6 +193,194 @@ async function handleChat(req: Request, ctx: RouteCtx, user: User): Promise<Resp
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
       "X-Session-Id": sessionId,
+      "X-Project": project,
     },
   });
+}
+
+// ── Project helpers ─────────────────────────────────────────────────────────
+
+interface ProjectDto {
+  name: string;
+  description: string | null;
+  visibility: ProjectVisibility;
+  createdBy: string | null;
+  createdAt: number;
+  updatedAt: number;
+  systemPrompt: string;
+  appendMode: boolean;
+  /** null = inherit global [memory] default. */
+  lastN: number | null;
+  /** null = inherit global [memory] default. */
+  recallK: number | null;
+}
+
+function canSeeProject(p: Project, user: User): boolean {
+  if (p.visibility === "public") return true;
+  if (user.role === "admin") return true;
+  return p.createdBy === user.id;
+}
+
+function canEditProject(p: Project, user: User): boolean {
+  if (user.role === "admin") return true;
+  return p.createdBy === user.id;
+}
+
+function toProjectDto(p: Project): ProjectDto {
+  let systemPrompt = "";
+  let appendMode = true;
+  let lastN: number | null = null;
+  let recallK: number | null = null;
+  try {
+    const assets = loadProjectAssets(p.name);
+    systemPrompt = assets.systemPrompt.prompt;
+    appendMode = assets.systemPrompt.append;
+    lastN = assets.memory.lastN;
+    recallK = assets.memory.recallK;
+  } catch {
+    // Invalid name on disk (shouldn't happen post-validation) — fall through with defaults.
+  }
+  return {
+    name: p.name,
+    description: p.description,
+    visibility: p.visibility,
+    createdBy: p.createdBy,
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
+    systemPrompt,
+    appendMode,
+    lastN,
+    recallK,
+  };
+}
+
+async function handleCreateProject(req: Request, ctx: RouteCtx, user: User): Promise<Response> {
+  let body: {
+    name?: string;
+    description?: string | null;
+    systemPrompt?: string;
+    appendMode?: boolean;
+    visibility?: ProjectVisibility;
+    lastN?: number | null;
+    recallK?: number | null;
+  };
+  try {
+    body = (await req.json()) as typeof body;
+  } catch {
+    return json({ error: "invalid json" }, 400);
+  }
+  try {
+    const name = validateProjectName(body.name ?? "");
+    if (getProject(ctx.db, name)) {
+      return json({ error: `project '${name}' already exists` }, 409);
+    }
+    const lastN = coerceOverride(body.lastN);
+    const recallK = coerceOverride(body.recallK);
+    const created = createProject(ctx.db, {
+      name,
+      description: body.description ?? null,
+      visibility: body.visibility === "private" ? "private" : "public",
+      createdBy: user.id,
+    });
+    ensureProjectDir(name, {
+      systemPrompt: { prompt: body.systemPrompt ?? "", append: body.appendMode !== false },
+      memory: { lastN, recallK },
+    });
+    // The ensure helper only writes the stub on first creation; if the caller
+    // passed explicit fields, overwrite to make sure they stick.
+    if (
+      body.systemPrompt !== undefined ||
+      body.appendMode !== undefined ||
+      body.lastN !== undefined ||
+      body.recallK !== undefined
+    ) {
+      writeProjectSystemPrompt(
+        name,
+        { prompt: body.systemPrompt ?? "", append: body.appendMode !== false },
+        { lastN, recallK },
+      );
+    }
+    return json({ project: toProjectDto(created) }, 201);
+  } catch (e) {
+    return json({ error: errorMessage(e) }, 400);
+  }
+}
+
+function handleGetProject(ctx: RouteCtx, user: User, name: string): Response {
+  const p = getProject(ctx.db, name);
+  if (!p) return json({ error: "not found" }, 404);
+  if (!canSeeProject(p, user)) return json({ error: "forbidden" }, 403);
+  return json({ project: toProjectDto(p) });
+}
+
+async function handlePatchProject(
+  req: Request,
+  ctx: RouteCtx,
+  user: User,
+  name: string,
+): Promise<Response> {
+  const p = getProject(ctx.db, name);
+  if (!p) return json({ error: "not found" }, 404);
+  if (!canEditProject(p, user)) return json({ error: "forbidden" }, 403);
+  let body: {
+    description?: string | null;
+    systemPrompt?: string;
+    appendMode?: boolean;
+    visibility?: ProjectVisibility;
+    lastN?: number | null;
+    recallK?: number | null;
+  };
+  try {
+    body = (await req.json()) as typeof body;
+  } catch {
+    return json({ error: "invalid json" }, 400);
+  }
+  try {
+    const updated = updateProject(ctx.db, name, {
+      description: body.description,
+      visibility: body.visibility,
+    });
+    const touchesPrompt = body.systemPrompt !== undefined || body.appendMode !== undefined;
+    const touchesMemory = body.lastN !== undefined || body.recallK !== undefined;
+    if (touchesPrompt || touchesMemory) {
+      const current = loadProjectAssets(name);
+      writeProjectSystemPrompt(
+        name,
+        {
+          prompt: body.systemPrompt ?? current.systemPrompt.prompt,
+          append: body.appendMode !== undefined ? body.appendMode : current.systemPrompt.append,
+        },
+        touchesMemory
+          ? {
+              lastN: body.lastN === undefined ? current.memory.lastN : coerceOverride(body.lastN),
+              recallK:
+                body.recallK === undefined ? current.memory.recallK : coerceOverride(body.recallK),
+            }
+          : undefined,
+      );
+    }
+    return json({ project: toProjectDto(updated) });
+  } catch (e) {
+    return json({ error: errorMessage(e) }, 400);
+  }
+}
+
+/** Normalise an incoming override: `null`/negative/invalid → null; else floor to int. */
+function coerceOverride(raw: unknown): number | null {
+  if (raw === null || raw === undefined) return null;
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.floor(n);
+}
+
+function handleDeleteProject(ctx: RouteCtx, user: User, name: string): Response {
+  const p = getProject(ctx.db, name);
+  if (!p) return json({ error: "not found" }, 404);
+  if (!canEditProject(p, user)) return json({ error: "forbidden" }, 403);
+  try {
+    deleteProject(ctx.db, name);
+    return json({ ok: true });
+  } catch (e) {
+    return json({ error: errorMessage(e) }, 400);
+  }
 }
