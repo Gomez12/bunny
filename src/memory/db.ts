@@ -69,7 +69,28 @@ export async function openDb(dbPath: string, embedDim = 1536): Promise<Database>
   }
 
   applySchema(db, embedDim);
+  migrateMessages(db);
   return db;
+}
+
+/**
+ * Idempotent column additions for existing databases. SQLite errors with
+ * "duplicate column name" when a column already exists — we swallow that and
+ * treat any other error as fatal. Schema is append-only by convention.
+ */
+function migrateMessages(db: Database): void {
+  const addColumn = (ddl: string) => {
+    try {
+      db.run(ddl);
+    } catch (e) {
+      const msg = errorMessage(e);
+      if (!msg.includes("duplicate column")) throw e;
+    }
+  };
+  addColumn("ALTER TABLE messages ADD COLUMN ok INTEGER");
+  addColumn("ALTER TABLE messages ADD COLUMN duration_ms INTEGER");
+  addColumn("ALTER TABLE messages ADD COLUMN prompt_tokens INTEGER");
+  addColumn("ALTER TABLE messages ADD COLUMN completion_tokens INTEGER");
 }
 
 function applySchema(db: Database, embedDim: number): void {

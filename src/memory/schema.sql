@@ -25,11 +25,15 @@ CREATE TABLE IF NOT EXISTS messages (
   session_id   TEXT    NOT NULL,
   ts           INTEGER NOT NULL,           -- Unix ms
   role         TEXT    NOT NULL,           -- system | user | assistant | tool
-  channel      TEXT    NOT NULL DEFAULT 'content', -- content | reasoning | tool_result
+  channel      TEXT    NOT NULL DEFAULT 'content', -- content | reasoning | tool_call | tool_result
   content      TEXT,
-  tool_call_id TEXT,                       -- set on role=tool rows
+  tool_call_id TEXT,                       -- set on tool_call / tool_result rows
   tool_name    TEXT,
-  provider_sig TEXT                        -- thinking-block signature (Anthropic-compat)
+  provider_sig TEXT,                       -- thinking-block signature (Anthropic-compat)
+  ok           INTEGER,                    -- 1|0 on tool_result rows; NULL otherwise
+  duration_ms  INTEGER,                    -- LLM call duration on assistant content/reasoning rows
+  prompt_tokens     INTEGER,               -- tokens sent (per LLM call)
+  completion_tokens INTEGER                -- tokens generated (per LLM call)
 );
 CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, ts);
 

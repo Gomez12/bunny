@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import { createSession, fetchSessions, type SessionSummary } from "./api";
+import { createSession } from "./api";
 import ChatTab from "./tabs/ChatTab";
 import MessagesTab from "./tabs/MessagesTab";
-import SessionPicker from "./components/SessionPicker";
 
 type Tab = "chat" | "messages";
 
@@ -18,13 +17,6 @@ export default function App() {
   const [sessionId, setSessionId] = useState<string | null>(() =>
     localStorage.getItem(SESSION_STORAGE_KEY),
   );
-  const [sessions, setSessions] = useState<SessionSummary[]>([]);
-
-  const reloadSessions = () => {
-    fetchSessions()
-      .then(setSessions)
-      .catch((e) => console.error(e));
-  };
 
   useEffect(() => {
     if (sessionId) return;
@@ -33,12 +25,12 @@ export default function App() {
     })();
   }, [sessionId]);
 
-  useEffect(reloadSessions, []);
-
   const onNewSession = async () => {
     setSessionId(adoptSession(await createSession()));
-    // Don't refetch: a fresh session has no messages and won't appear in
-    // listSessions() until the first turn completes.
+  };
+
+  const onPickSession = (id: string) => {
+    setSessionId(adoptSession(id));
   };
 
   return (
@@ -62,21 +54,16 @@ export default function App() {
             Messages
           </button>
         </nav>
-        <div className="topbar-right">
-          {tab === "chat" && sessionId && (
-            <SessionPicker
-              sessions={sessions}
-              activeId={sessionId}
-              onPick={(id) => setSessionId(adoptSession(id))}
-              onNew={onNewSession}
-            />
-          )}
-        </div>
+        <div className="topbar-right" />
       </header>
 
       <main className="main">
         {tab === "chat" && sessionId && (
-          <ChatTab sessionId={sessionId} onTurnComplete={reloadSessions} />
+          <ChatTab
+            sessionId={sessionId}
+            onPickSession={onPickSession}
+            onNewSession={onNewSession}
+          />
         )}
         {tab === "messages" && <MessagesTab />}
       </main>

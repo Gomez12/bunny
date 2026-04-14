@@ -88,14 +88,28 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
     // Store assistant message (reasoning + content as separate rows).
     // Reasoning is inserted first so the Messages tab (ordered by ts ASC) shows
     // the thinking block above the answer — matching the reader's mental model.
+    // Stats (duration + tokens) are attached so the UI can show per-call
+    // throughput; only the content row carries them to avoid double-counting.
     const assistantContent = llmRes.message.content ?? "";
+    const stats = {
+      durationMs,
+      promptTokens: llmRes.usage?.promptTokens,
+      completionTokens: llmRes.usage?.completionTokens,
+    };
     if (llmRes.message.reasoning) {
       insertMessage(db, { sessionId, role: "assistant", channel: "reasoning", content: llmRes.message.reasoning });
     }
     if (assistantContent) {
-      const aid = insertMessage(db, { sessionId, role: "assistant", channel: "content", content: assistantContent });
+      const aid = insertMessage(db, {
+        sessionId,
+        role: "assistant",
+        channel: "content",
+        content: assistantContent,
+        ...stats,
+      });
       void indexMessage(db, embedCfg, aid, assistantContent);
     }
+    renderer.onStats(stats);
 
     messages.push(llmRes.message);
 
@@ -103,6 +117,19 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
     if (!llmRes.message.tool_calls || llmRes.message.tool_calls.length === 0) {
       renderer.onTurnEnd();
       return assistantContent;
+    }
+
+    // Persist each tool_call (args) as its own row so the UI can reconstruct
+    // the tool card on reload. Paired with the tool_result row via tool_call_id.
+    for (const tc of llmRes.message.tool_calls) {
+      insertMessage(db, {
+        sessionId,
+        role: "assistant",
+        channel: "tool_call",
+        content: tc.function.arguments,
+        toolCallId: tc.id,
+        toolName: tc.function.name,
+      });
     }
 
     // Execute tool calls in parallel.
@@ -133,6 +160,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
         content: result.output,
         toolCallId: tc.id,
         toolName: tc.function.name,
+        ok: result.ok,
       });
     }
   }

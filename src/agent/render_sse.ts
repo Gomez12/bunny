@@ -88,6 +88,15 @@ export function createSseRenderer(sink: SseSink): Renderer {
     });
   }
 
+  function onStats(stats: { durationMs: number; promptTokens?: number; completionTokens?: number }): void {
+    send(sink, {
+      type: "stats",
+      durationMs: stats.durationMs,
+      promptTokens: stats.promptTokens,
+      completionTokens: stats.completionTokens,
+    });
+  }
+
   function onError(message: string): void {
     send(sink, { type: "error", message });
   }
@@ -96,7 +105,7 @@ export function createSseRenderer(sink: SseSink): Renderer {
     send(sink, { type: "turn_end" });
   }
 
-  return { onDelta, onToolResult, onError, onTurnEnd };
+  return { onDelta, onToolResult, onStats, onError, onTurnEnd };
 }
 
 /** Emit the terminal `done` event and close the underlying stream. */

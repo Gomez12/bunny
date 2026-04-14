@@ -46,7 +46,7 @@ export default function Composer({ disabled, streaming, onSubmit, onAbort }: Pro
       />
       {streaming ? (
         <button type="button" className="btn btn--stop" onClick={onAbort}>
-          Stop
+          <span className="spinner spinner--on-dark" /> Stop
         </button>
       ) : (
         <button type="submit" className="btn btn--send" disabled={!value.trim() || disabled}>

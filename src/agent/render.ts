@@ -51,9 +51,16 @@ export const ANSI = {
  * Contract implemented by every renderer (CLI, SSE, tests). The agent loop
  * uses this shape and does not care about the underlying transport.
  */
+export interface TurnStats {
+  durationMs: number;
+  promptTokens?: number;
+  completionTokens?: number;
+}
+
 export interface Renderer {
   onDelta(delta: StreamDelta): void;
   onToolResult(name: string, result: ToolResult): void;
+  onStats(stats: TurnStats): void;
   onError(message: string): void;
   onTurnEnd(): void;
 }
@@ -155,6 +162,19 @@ export function createRenderer(opts: RendererOptions): Renderer {
     }
   }
 
+  /** Print a one-line stats footer: "⚡ 1.2s · 42 tok · 35 tok/s". */
+  function onStats(stats: TurnStats): void {
+    const secs = stats.durationMs / 1000;
+    const tokPerSec =
+      stats.completionTokens && stats.durationMs > 0
+        ? ((stats.completionTokens / stats.durationMs) * 1000).toFixed(1)
+        : null;
+    const parts = [`${secs.toFixed(2)}s`];
+    if (stats.completionTokens) parts.push(`${stats.completionTokens} tok`);
+    if (tokPerSec) parts.push(`${tokPerSec} tok/s`);
+    out.write(fmt.dim(`  ⚡ ${parts.join(" · ")}\n`));
+  }
+
   /** Print an error message. */
   function onError(message: string): void {
     out.write("\n" + fmt.red(fmt.bold("error: ") + message) + "\n");
@@ -171,5 +191,5 @@ export function createRenderer(opts: RendererOptions): Renderer {
     contentStarted = false;
   }
 
-  return { onDelta, onToolResult, onError, onTurnEnd };
+  return { onDelta, onToolResult, onStats, onError, onTurnEnd };
 }

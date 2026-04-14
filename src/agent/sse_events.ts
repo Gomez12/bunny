@@ -40,6 +40,13 @@ export interface SseUsageEvent {
   totalTokens: number;
 }
 
+export interface SseStatsEvent {
+  type: "stats";
+  durationMs: number;
+  promptTokens?: number;
+  completionTokens?: number;
+}
+
 export interface SseErrorEvent {
   type: "error";
   message: string;
@@ -59,6 +66,7 @@ export type SseEvent =
   | SseToolCallEvent
   | SseToolResultEvent
   | SseUsageEvent
+  | SseStatsEvent
   | SseErrorEvent
   | SseTurnEndEvent
   | SseDoneEvent;

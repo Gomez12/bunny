@@ -17,11 +17,125 @@ export interface StoredMessage {
   sessionId: string;
   ts: number;
   role: "system" | "user" | "assistant" | "tool";
-  channel: "content" | "reasoning" | "tool_result";
+  channel: "content" | "reasoning" | "tool_call" | "tool_result";
   content: string | null;
   toolCallId: string | null;
   toolName: string | null;
   providerSig: string | null;
+  ok: boolean | null;
+  durationMs: number | null;
+  promptTokens: number | null;
+  completionTokens: number | null;
+}
+
+export interface TurnStats {
+  durationMs: number;
+  promptTokens?: number;
+  completionTokens?: number;
+}
+
+/**
+ * Older turns were persisted as [content, reasoning]; newer turns as
+ * [reasoning, content]. Swap any legacy pair so the thinking block always
+ * renders above its answer.
+ */
+export function reorderReasoning(messages: StoredMessage[]): StoredMessage[] {
+  const out = messages.slice();
+  for (let i = 0; i < out.length - 1; i++) {
+    const a = out[i]!;
+    const b = out[i + 1]!;
+    if (
+      a.role === "assistant" &&
+      b.role === "assistant" &&
+      a.channel === "content" &&
+      b.channel === "reasoning"
+    ) {
+      out[i] = b;
+      out[i + 1] = a;
+    }
+  }
+  return out;
+}
+
+/** One assistant turn reconstructed from stored rows — matches the shape that
+ * `useSSEChat` produces for live streaming, so history and live conversation
+ * render identically. */
+export interface HistoryTurn {
+  id: string;
+  prompt: string;
+  reasoning: string;
+  content: string;
+  toolCalls: Array<{
+    id: string;
+    name: string;
+    args: string;
+    output?: string;
+    ok?: boolean;
+  }>;
+  /** Aggregated over every LLM call inside this user turn. */
+  stats: TurnStats | null;
+}
+
+/** Group rows into turns: every user message opens a new turn and all following
+ * assistant/tool rows fold into it until the next user message. Tool_call and
+ * tool_result rows are paired by tool_call_id so a reloaded conversation shows
+ * the same {args + output + ok} card as a live one. */
+export function groupTurns(messages: StoredMessage[]): HistoryTurn[] {
+  const turns: HistoryTurn[] = [];
+  let current: HistoryTurn | null = null;
+
+  for (const m of messages) {
+    if (m.role === "user") {
+      current = {
+        id: `turn-${m.id}`,
+        prompt: m.content ?? "",
+        reasoning: "",
+        content: "",
+        toolCalls: [],
+        stats: null,
+      };
+      turns.push(current);
+      continue;
+    }
+    if (!current) continue;
+
+    if (m.role === "assistant" && m.channel === "reasoning") {
+      current.reasoning += (current.reasoning ? "\n\n" : "") + (m.content ?? "");
+    } else if (m.role === "assistant" && m.channel === "content") {
+      current.content += (current.content ? "\n\n" : "") + (m.content ?? "");
+      if (m.durationMs != null) {
+        current.stats = {
+          durationMs: (current.stats?.durationMs ?? 0) + m.durationMs,
+          promptTokens: (current.stats?.promptTokens ?? 0) + (m.promptTokens ?? 0),
+          completionTokens: (current.stats?.completionTokens ?? 0) + (m.completionTokens ?? 0),
+        };
+      }
+    } else if (m.role === "assistant" && m.channel === "tool_call") {
+      current.toolCalls.push({
+        id: m.toolCallId ?? `anon-${m.id}`,
+        name: m.toolName ?? "tool",
+        args: m.content ?? "",
+      });
+    } else if (m.role === "tool" && m.channel === "tool_result") {
+      const match = m.toolCallId
+        ? current.toolCalls.find((tc) => tc.id === m.toolCallId)
+        : undefined;
+      if (match) {
+        match.output = m.content ?? "";
+        match.ok = m.ok ?? true;
+      } else {
+        // Legacy row (tool_call not persisted) — synthesise a card with just the result.
+        current.toolCalls.push({
+          id: m.toolCallId ?? `anon-${m.id}`,
+          name: m.toolName ?? "tool",
+          args: "",
+          output: m.content ?? "",
+          ok: m.ok ?? true,
+        });
+      }
+    }
+  }
+  return turns;
 }
 
 export async function fetchSessions(search?: string): Promise<SessionSummary[]> {
