@@ -11,6 +11,7 @@ cd web && bun install          # install frontend deps (separate package.json)
 # Run the CLI (single turn)
 bun run src/index.ts "<prompt>"
 bun run src/index.ts --session <id> --hide-reasoning "<prompt>"
+bun run src/index.ts --project <name> "<prompt>"   # auto-creates the project if missing
 
 # Run the web UI (two processes)
 bun run serve                  # Bun HTTP + SSE on :3000
@@ -60,6 +61,8 @@ The agent loop is transport-agnostic. When adding a new front-end, implement thi
 
 Hybrid recall (`src/memory/recall.ts:hybridRecall`) fuses BM25 (FTS5 trigram tokenizer, `src/memory/bm25.ts`) and kNN over embeddings (`sqlite-vec`, `src/memory/vector.ts`) with Reciprocal Rank Fusion (k=60). Top-`recall_k` (default 8) messages are injected into the system prompt before each turn. Embedding failures are non-fatal — the code still runs without an `EMBED_API_KEY`.
 
+Short-term coherence is handled separately: the last `memory.last_n` (default 10) user/assistant *content* turns of the current session are replayed verbatim in every request (`getRecentTurns` in `src/memory/messages.ts`, spliced into `runAgent`'s `messages[]` between the system prompt and the new user message). Tool-call / tool-result / reasoning rows are skipped — they belong to completed inner loops. IDs of the replayed rows are passed to `hybridRecall` via `excludeIds` so recall never duplicates what's already in the payload. Set `last_n = 0` for recall-only mode.
+
 `messages` rows are one-per-semantic-unit: separate rows for `content`, `reasoning`, `tool_result` via the `channel` column. The FTS virtual table is synced via triggers on `channel='content'` only.
 
 ### Web UI
@@ -69,9 +72,19 @@ Hybrid recall (`src/memory/recall.ts:hybridRecall`) fuses BM25 (FTS5 trigram tok
 - Serves `web/dist/` statically if it exists; otherwise shows a dev placeholder pointing at the Vite dev server.
 - Sets `idleTimeout: 0` — SSE streams can outlive the default timeout.
 
-The frontend (`web/`) is React + Vite with its own `package.json`. Three tabs: Chat (live SSE streaming via `fetch` body-reader, not `EventSource`, because we POST JSON), Messages (sessions listed via `listSessions()`, BM25-filtered when `q` is set) and Settings (profile, API keys, admin-only user management). Session id is persisted in `localStorage` under `bunny.activeSessionId`. The app boots by calling `GET /api/auth/me` — 401 drops the user on the login page, a `mustChangePassword` flag gates the forced-change page. All fetches use `credentials: "include"` so the `bunny_session` cookie rides along.
+The frontend (`web/`) is React + Vite with its own `package.json`. Four tabs: Chat (live SSE streaming via `fetch` body-reader, not `EventSource`, because we POST JSON), Messages (sessions listed via `listSessions()`, BM25-filtered when `q` is set, scoped to the active project), Projects (card grid with click-to-switch + create/edit dialog) and Settings (profile, API keys, admin-only user management). Session id is persisted in `localStorage` under `bunny.activeSessionId`, active project under `bunny.activeProject`. Switching project always starts a new session. The app boots by calling `GET /api/auth/me` — 401 drops the user on the login page, a `mustChangePassword` flag gates the forced-change page. All fetches use `credentials: "include"` so the `bunny_session` cookie rides along.
 
 SSE event shapes live in `src/agent/sse_events.ts` and are imported by both `src/agent/render_sse.ts` (backend) and `web/src/api.ts` (frontend) — single source of truth, compile-time drift guard. Vite's `server.fs.allow: [".."]` permits the cross-root import.
+
+### Projects
+
+Logical workspaces that group sessions/messages + on-disk assets. Source of truth for metadata lives in the `projects` table (name PK, description, visibility, created_by, timestamps); source of truth for the system prompt lives on disk at `$BUNNY_HOME/projects/<name>/systemprompt.toml` (`prompt`, `append`). Every `messages` row carries a `project` column; legacy NULL rows read back as `'general'` via `COALESCE(project, 'general')`. A session is locked to one project — `runAgent` errors on mismatch.
+
+The **default project name** and the **base system prompt** both come from `[agent]` in `bunny.config.toml` (`default_project`, `system_prompt`) with env overrides `BUNNY_DEFAULT_PROJECT` / `BUNNY_SYSTEM_PROMPT`. `runAgent` takes them via `RunAgentOptions.agentCfg`; `buildSystemMessage` falls back to a hard-coded prompt only in tests. Both the CLI boot (`src/index.ts`) and `startServer` seed the configured default project at startup on top of the always-present `general` row.
+
+Entry points: `src/memory/projects.ts` (CRUD + `validateProjectName` + `getSessionProject`), `src/memory/project_assets.ts` (`ensureProjectDir`, `loadProjectSystemPrompt`, `writeProjectSystemPrompt`). System-prompt composition happens in `src/agent/prompt.ts:buildSystemMessage` — `append=true` (default) concatenates after the base prompt, `append=false` replaces it. Recall (`hybridRecall`, `searchBM25`, `searchVector`) all accept a `project` filter so projects never leak into each other.
+
+CLI: `--project <name>` auto-creates DB row + directory when missing. HTTP: `GET/POST /api/projects`, `GET/PATCH/DELETE /api/projects/:name`; `?project=<name>` on `/api/sessions`; optional `project` field on the `POST /api/chat` body. Web UI: fourth tab "Projects" shows cards, click-to-switch (starts a fresh session), + dialog for create/edit. Project name is immutable (PK + dir); only description, visibility, and system prompt can change. See [ADR 0008](./docs/adr/0008-projects.md).
 
 ### Auth
 

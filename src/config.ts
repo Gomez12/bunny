@@ -37,6 +37,12 @@ export interface EmbedConfig {
 export interface MemoryConfig {
   indexReasoning: boolean;
   recallK: number;
+  /**
+   * How many recent user/assistant content turns to replay verbatim in every
+   * request. Keeps short-term conversational coherence that BM25+kNN recall
+   * alone can miss. 0 disables verbatim replay (recall-only mode).
+   */
+  lastN: number;
 }
 
 export interface RenderConfig {
@@ -57,6 +63,13 @@ export interface AuthConfig {
   sessionTtlHours: number;
 }
 
+export interface AgentConfig {
+  /** Base system prompt prepended to every conversation (before project overrides). */
+  systemPrompt: string;
+  /** Default project name used when the caller doesn't specify one. */
+  defaultProject: string;
+}
+
 export interface BunnyConfig {
   llm: LlmConfig;
   embed: EmbedConfig;
@@ -64,6 +77,7 @@ export interface BunnyConfig {
   render: RenderConfig;
   queue: QueueConfig;
   auth: AuthConfig;
+  agent: AgentConfig;
   sessionId: string | undefined;
 }
 
@@ -73,10 +87,11 @@ export interface BunnyConfig {
 interface TomlShape {
   llm?: Partial<{ base_url: string; model: string; model_reasoning: string; profile: string }>;
   embed?: Partial<{ base_url: string; model: string; dim: number }>;
-  memory?: Partial<{ index_reasoning: boolean; recall_k: number }>;
+  memory?: Partial<{ index_reasoning: boolean; recall_k: number; last_n: number }>;
   render?: Partial<{ reasoning: string; color: boolean }>;
   queue?: Partial<{ topics: string[] }>;
   auth?: Partial<{ default_admin_username: string; default_admin_password: string; session_ttl_hours: number }>;
+  agent?: Partial<{ system_prompt: string; default_project: string }>;
 }
 
 const DEFAULTS = {
@@ -93,13 +108,21 @@ const DEFAULTS = {
     model: "text-embedding-3-small",
     dim: 1536,
   },
-  memory: { indexReasoning: false, recallK: 8 },
+  memory: { indexReasoning: false, recallK: 8, lastN: 10 },
   render: { reasoning: "collapsed" as ReasoningRenderMode, color: undefined as boolean | undefined },
   queue: { topics: ["llm", "tool", "memory"] as readonly string[] },
   auth: {
     defaultAdminUsername: "admin",
     defaultAdminPassword: "change-me",
     sessionTtlHours: 168,
+  },
+  agent: {
+    systemPrompt: `You are Bunny, a helpful AI coding agent.
+
+You have access to tools for reading, listing, and editing files in the working directory.
+Use tools when you need to inspect or modify files. Think step-by-step before acting.
+When you are done, reply with your final answer without making any more tool calls.`,
+    defaultProject: "general",
   },
 } as const;
 
@@ -160,6 +183,7 @@ export function loadConfig(opts: { env?: NodeJS.ProcessEnv; cwd?: string } = {})
   const memory: MemoryConfig = {
     indexReasoning: toml.memory?.index_reasoning ?? DEFAULTS.memory.indexReasoning,
     recallK: toml.memory?.recall_k ?? DEFAULTS.memory.recallK,
+    lastN: toml.memory?.last_n ?? DEFAULTS.memory.lastN,
   };
 
   const render: RenderConfig = {
@@ -185,6 +209,15 @@ export function loadConfig(opts: { env?: NodeJS.ProcessEnv; cwd?: string } = {})
     ),
   };
 
+  const agent: AgentConfig = {
+    systemPrompt:
+      env["BUNNY_SYSTEM_PROMPT"] ?? toml.agent?.system_prompt ?? DEFAULTS.agent.systemPrompt,
+    defaultProject:
+      env["BUNNY_DEFAULT_PROJECT"] ??
+      toml.agent?.default_project ??
+      DEFAULTS.agent.defaultProject,
+  };
+
   return {
     llm,
     embed,
@@ -192,6 +225,7 @@ export function loadConfig(opts: { env?: NodeJS.ProcessEnv; cwd?: string } = {})
     render,
     queue,
     auth,
+    agent,
     sessionId: env["BUNNY_SESSION"],
   };
 }

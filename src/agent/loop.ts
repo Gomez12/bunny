@@ -12,7 +12,7 @@
  * Memory is indexed after each complete turn and recalled before the next.
  */
 
-import type { LlmConfig, EmbedConfig, MemoryConfig } from "../config.ts";
+import type { LlmConfig, EmbedConfig, MemoryConfig, AgentConfig } from "../config.ts";
 import type { ChatMessage } from "../llm/types.ts";
 import type { ToolRegistry } from "../tools/registry.ts";
 import type { Database } from "bun:sqlite";
@@ -21,10 +21,12 @@ import type { Renderer } from "./render.ts";
 
 import { chat } from "../llm/adapter.ts";
 import { buildSystemMessage } from "./prompt.ts";
-import { insertMessage } from "../memory/messages.ts";
+import { insertMessage, getRecentTurns } from "../memory/messages.ts";
 import { upsertEmbedding } from "../memory/vector.ts";
 import { embed } from "../memory/embed.ts";
 import { hybridRecall } from "../memory/recall.ts";
+import { DEFAULT_PROJECT, getSessionProject } from "../memory/projects.ts";
+import { loadProjectAssets } from "../memory/project_assets.ts";
 
 const MAX_TOOL_ITERATIONS = 20;
 
@@ -33,9 +35,13 @@ export interface RunAgentOptions {
   sessionId: string;
   /** Owning user id — stamped onto every message/event produced this turn. */
   userId?: string;
+  /** Owning project. Defaults to `agentCfg.defaultProject` / 'general' when omitted. */
+  project?: string;
   llmCfg: LlmConfig;
   embedCfg: EmbedConfig;
   memoryCfg: MemoryConfig;
+  /** Optional — carries the base system prompt + default project name from config. */
+  agentCfg?: AgentConfig;
   tools: ToolRegistry;
   db: Database;
   queue: BunnyQueue;
@@ -44,19 +50,53 @@ export interface RunAgentOptions {
 
 /** Run one user turn through the agent loop. Returns the final assistant response. */
 export async function runAgent(opts: RunAgentOptions): Promise<string> {
-  const { prompt, sessionId, userId, llmCfg, embedCfg, memoryCfg, tools, db, queue, renderer } = opts;
+  const { prompt, sessionId, userId, llmCfg, embedCfg, memoryCfg, agentCfg, tools, db, queue, renderer } = opts;
+  const project = opts.project ?? agentCfg?.defaultProject ?? DEFAULT_PROJECT;
 
-  // ── Recall: inject relevant past messages into system prompt ──────────────
-  const recall = await hybridRecall(db, embedCfg, prompt, memoryCfg.recallK, sessionId).catch(() => []);
-  const systemMsg = buildSystemMessage(recall);
+  // Enforce the "one project per session" invariant: once a session has any
+  // messages, every subsequent turn must target the same project.
+  const existingProject = getSessionProject(db, sessionId);
+  const hasExisting = db
+    .prepare(`SELECT 1 AS x FROM messages WHERE session_id = ? LIMIT 1`)
+    .get(sessionId) as { x: number } | undefined;
+  if (hasExisting && existingProject !== project) {
+    throw new Error(
+      `session '${sessionId}' belongs to project '${existingProject}', cannot run under '${project}'`,
+    );
+  }
+
+  const projectAssets = loadProjectAssets(project);
+
+  // ── Short-term history: verbatim replay of the last N turns ───────────────
+  // Fetched BEFORE inserting the new user prompt so the current message isn't
+  // duplicated. Keeps conversational coherence that recall alone misses when
+  // the follow-up shares no tokens with the earlier turn.
+  const recentTurns = getRecentTurns(db, sessionId, memoryCfg.lastN);
+  const recentIds = new Set(recentTurns.map((t) => t.messageId));
+
+  // ── Recall: BM25 + kNN over the rest of history, excluding verbatim rows ──
+  const recall = await hybridRecall(
+    db,
+    embedCfg,
+    prompt,
+    memoryCfg.recallK,
+    sessionId,
+    project,
+    recentIds,
+  ).catch(() => []);
+  const systemMsg = buildSystemMessage({ recall, projectAssets, baseSystem: agentCfg?.systemPrompt });
 
   // ── Store the user message ────────────────────────────────────────────────
-  const userMsgId = insertMessage(db, { sessionId, userId, role: "user", content: prompt });
+  const userMsgId = insertMessage(db, { sessionId, userId, project, role: "user", content: prompt });
   void indexMessage(db, embedCfg, userMsgId, prompt);
   void queue.log({ topic: "memory", kind: "index", sessionId, data: { role: "user" } });
 
   // Build the conversation history for this turn.
-  const messages: ChatMessage[] = [systemMsg, { role: "user", content: prompt }];
+  const messages: ChatMessage[] = [
+    systemMsg,
+    ...recentTurns.map(({ role, content }) => ({ role, content })),
+    { role: "user", content: prompt },
+  ];
 
   // ── Inner loop ────────────────────────────────────────────────────────────
   let iterations = 0;
@@ -99,12 +139,13 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
       completionTokens: llmRes.usage?.completionTokens,
     };
     if (llmRes.message.reasoning) {
-      insertMessage(db, { sessionId, userId, role: "assistant", channel: "reasoning", content: llmRes.message.reasoning });
+      insertMessage(db, { sessionId, userId, project, role: "assistant", channel: "reasoning", content: llmRes.message.reasoning });
     }
     if (assistantContent) {
       const aid = insertMessage(db, {
         sessionId,
         userId,
+        project,
         role: "assistant",
         channel: "content",
         content: assistantContent,
@@ -128,6 +169,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
       insertMessage(db, {
         sessionId,
         userId,
+        project,
         role: "assistant",
         channel: "tool_call",
         content: tc.function.arguments,
@@ -160,6 +202,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
       insertMessage(db, {
         sessionId,
         userId,
+        project,
         role: "tool",
         channel: "tool_result",
         content: result.output,

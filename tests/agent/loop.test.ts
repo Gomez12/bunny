@@ -115,7 +115,7 @@ function makeEmbedCfg(): EmbedConfig {
 }
 
 function makeMemCfg(): MemoryConfig {
-  return { indexReasoning: false, recallK: 4 };
+  return { indexReasoning: false, recallK: 4, lastN: 10 };
 }
 
 describe("agent loop — full turn", () => {

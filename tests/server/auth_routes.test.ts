@@ -16,10 +16,11 @@ let ctx: RouteCtx;
 const cfg: BunnyConfig = {
   llm: { baseUrl: "", apiKey: "", model: "x", modelReasoning: undefined, profile: undefined },
   embed: { baseUrl: "", apiKey: "", model: "x", dim: 1536 },
-  memory: { indexReasoning: false, recallK: 8 },
+  memory: { indexReasoning: false, recallK: 8, lastN: 10 },
   render: { reasoning: "collapsed", color: undefined },
   queue: { topics: [] },
   auth: { defaultAdminUsername: "admin", defaultAdminPassword: "pw-initial", sessionTtlHours: 1 },
+  agent: { systemPrompt: "You are Bunny.", defaultProject: "general" },
   sessionId: undefined,
 };
 

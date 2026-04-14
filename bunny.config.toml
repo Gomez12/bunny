@@ -16,8 +16,11 @@ dim = 1536
 # Also index reasoning-channel messages for recall. Default off to keep
 # FTS/vector index focused on user-visible content.
 index_reasoning = false
-# Top-k passed back into context on each turn.
+# Top-k passed back into context on each turn (hybrid BM25 + vector recall).
 recall_k = 8
+# How many recent user/assistant turns to replay verbatim in every request.
+# Keeps short-term coherence that recall alone can miss. 0 = recall-only.
+last_n = 10
 
 [render]
 # "collapsed" | "inline" | "hidden"
@@ -28,3 +31,20 @@ reasoning = "collapsed"
 [queue]
 # Topics for logging events. Do not rename unless you also migrate events table.
 topics = ["llm", "tool", "memory"]
+
+[agent]
+# Default project for new sessions when the caller doesn't pass --project.
+# Must match the project-name regex (^[a-z0-9][a-z0-9_-]{0,62}$).
+# Env: BUNNY_DEFAULT_PROJECT.
+default_project = "general"
+
+# Base system prompt prepended to every turn (before per-project overrides).
+# A project's systemprompt.toml can extend this (append = true) or replace it
+# entirely (append = false). Env: BUNNY_SYSTEM_PROMPT.
+system_prompt = """
+You are Bunny, a helpful AI coding agent.
+
+You have access to tools for reading, listing, and editing files in the working directory.
+Use tools when you need to inspect or modify files. Think step-by-step before acting.
+When you are done, reply with your final answer without making any more tool calls.
+"""

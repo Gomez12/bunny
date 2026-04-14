@@ -3,6 +3,7 @@
  */
 
 import type { Database } from "bun:sqlite";
+import type { ChatMessage } from "../llm/types.ts";
 
 export type MessageRole = "system" | "user" | "assistant" | "tool";
 export type MessageChannel = "content" | "reasoning" | "tool_call" | "tool_result";
@@ -27,6 +28,8 @@ export interface StoredMessage {
   userId: string | null;
   username: string | null;
   displayName: string | null;
+  /** Owning project ('general' for legacy/null rows). */
+  project: string;
 }
 
 export interface InsertMessageOpts {
@@ -42,12 +45,14 @@ export interface InsertMessageOpts {
   promptTokens?: number;
   completionTokens?: number;
   userId?: string | null;
+  /** Owning project name. Defaults to 'general' when omitted. */
+  project?: string | null;
 }
 
 export function insertMessage(db: Database, opts: InsertMessageOpts): number {
   const stmt = db.prepare(`
-    INSERT INTO messages (session_id, ts, role, channel, content, tool_call_id, tool_name, provider_sig, ok, duration_ms, prompt_tokens, completion_tokens, user_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO messages (session_id, ts, role, channel, content, tool_call_id, tool_name, provider_sig, ok, duration_ms, prompt_tokens, completion_tokens, user_id, project)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     RETURNING id
   `);
   const row = stmt.get(
@@ -64,8 +69,46 @@ export function insertMessage(db: Database, opts: InsertMessageOpts): number {
     opts.promptTokens ?? null,
     opts.completionTokens ?? null,
     opts.userId ?? null,
+    opts.project ?? "general",
   ) as { id: number } | undefined;
   return row?.id ?? 0;
+}
+
+/**
+ * Return the last `limit` user/assistant *content* messages of a session in
+ * chronological (oldest-first) order, ready to be spliced into a ChatRequest
+ * as verbatim conversation history. Tool-call / tool-result / reasoning rows
+ * are deliberately excluded — they belong to already-completed inner loops
+ * and replaying them without their siblings confuses the LLM.
+ *
+ * The returned array never includes rows with NULL content. Each message is
+ * tagged with its DB id on a non-standard `messageId` property so callers can
+ * de-duplicate against recall results.
+ */
+export function getRecentTurns(
+  db: Database,
+  sessionId: string,
+  limit: number,
+): Array<ChatMessage & { messageId: number }> {
+  if (limit <= 0) return [];
+  const rows = db
+    .prepare(
+      `SELECT id, role, content FROM messages
+       WHERE session_id = ?
+         AND channel = 'content'
+         AND role IN ('user', 'assistant')
+         AND content IS NOT NULL
+         AND content != ''
+       ORDER BY ts DESC, id DESC
+       LIMIT ?`,
+    )
+    .all(sessionId, limit) as Array<{ id: number; role: string; content: string }>;
+  // Re-reverse into chronological order.
+  return rows.reverse().map((r) => ({
+    role: r.role as "user" | "assistant",
+    content: r.content,
+    messageId: r.id,
+  }));
 }
 
 export function getMessagesBySession(db: Database, sessionId: string): StoredMessage[] {
@@ -73,7 +116,7 @@ export function getMessagesBySession(db: Database, sessionId: string): StoredMes
     .prepare(
       `SELECT m.id, m.session_id, m.ts, m.role, m.channel, m.content, m.tool_call_id,
               m.tool_name, m.provider_sig, m.ok, m.duration_ms, m.prompt_tokens,
-              m.completion_tokens, m.user_id,
+              m.completion_tokens, m.user_id, COALESCE(m.project, 'general') AS project,
               u.username AS username, u.display_name AS display_name
        FROM messages m
        LEFT JOIN users u ON u.id = m.user_id
@@ -94,6 +137,7 @@ export function getMessagesBySession(db: Database, sessionId: string): StoredMes
     prompt_tokens: number | null;
     completion_tokens: number | null;
     user_id: string | null;
+    project: string;
     username: string | null;
     display_name: string | null;
   }>;
@@ -112,6 +156,7 @@ export function getMessagesBySession(db: Database, sessionId: string): StoredMes
     promptTokens: r.prompt_tokens,
     completionTokens: r.completion_tokens,
     userId: r.user_id,
+    project: r.project,
     username: r.username,
     displayName: r.display_name,
   }));
