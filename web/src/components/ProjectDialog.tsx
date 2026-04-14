@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { Project, ProjectVisibility } from "../api";
+// Cross-root import: vite is configured with fs.allow: [".."] so the frontend
+// can pin itself to the backend's validation rule instead of drifting.
+import { PROJECT_NAME_RE } from "../../../src/memory/project_name";
 
 export interface ProjectDialogValue {
   name: string;
@@ -20,17 +23,6 @@ interface Props {
   onSubmit: (value: ProjectDialogValue) => Promise<void>;
 }
 
-const NAME_RE = /^[a-z0-9][a-z0-9_-]{0,62}$/;
-
-/** Return null (= inherit), a non-negative integer, or "invalid". */
-function parseOverride(raw: string): number | null | "invalid" {
-  const t = raw.trim();
-  if (t === "") return null;
-  const n = Number(t);
-  if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n)) return "invalid";
-  return n;
-}
-
 export default function ProjectDialog({ mode, initial, onClose, onSubmit }: Props) {
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
@@ -47,7 +39,7 @@ export default function ProjectDialog({ mode, initial, onClose, onSubmit }: Prop
     if (mode === "create") nameRef.current?.focus();
   }, [mode]);
 
-  const nameValid = mode === "edit" || NAME_RE.test(name.trim().toLowerCase());
+  const nameValid = mode === "edit" || PROJECT_NAME_RE.test(name.trim().toLowerCase());
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,9 +47,9 @@ export default function ProjectDialog({ mode, initial, onClose, onSubmit }: Prop
       setError("Name must be lowercase letters, digits, _ or - (max 63 chars).");
       return;
     }
-    const parsedLastN = parseOverride(lastN);
-    const parsedRecallK = parseOverride(recallK);
-    if (parsedLastN === "invalid" || parsedRecallK === "invalid") {
+    const parsedLastN = validateOverride(lastN);
+    const parsedRecallK = validateOverride(recallK);
+    if (parsedLastN === undefined || parsedRecallK === undefined) {
       setError("Memory overrides must be blank or a non-negative integer.");
       return;
     }
@@ -194,4 +186,16 @@ export default function ProjectDialog({ mode, initial, onClose, onSubmit }: Prop
       </div>
     </div>
   );
+}
+
+/**
+ * Blank input → `null` (inherit global). Non-negative integer → number.
+ * Anything else → `undefined` to signal a validation error to the caller.
+ */
+function validateOverride(raw: string): number | null | undefined {
+  const t = raw.trim();
+  if (t === "") return null;
+  const n = Number(t);
+  if (!Number.isInteger(n) || n < 0) return undefined;
+  return n;
 }

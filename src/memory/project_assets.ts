@@ -1,16 +1,11 @@
 /**
- * On-disk assets that augment a project's agent behaviour.
- *
- * Each project has a directory under `$BUNNY_HOME/projects/<name>/`. Today we
- * read a single `systemprompt.toml` — future additions (skills.md,
- * shortcuts.toml, wiki/) will land alongside it and be aggregated through
- * {@link loadProjectAssets}.
- *
- * The TOML file is the source of truth for the prompt text; the DB row only
- * stores metadata.
+ * On-disk assets for a project: one `systemprompt.toml` under
+ * `$BUNNY_HOME/projects/<name>/` carrying the prompt text + per-project memory
+ * overrides. The DB row stores metadata; this file is the source of truth for
+ * prompt content and tuning.
  */
 
-import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { paths } from "../paths.ts";
 import { validateProjectName } from "./projects.ts";
@@ -23,9 +18,8 @@ export interface ProjectSystemPrompt {
 }
 
 /**
- * Per-project memory overrides. Any field left `null` means "inherit from the
- * global `[memory]` block in `bunny.config.toml`". Stored inline in the
- * project's `systemprompt.toml` so a single file captures all runtime tuning.
+ * Per-project memory overrides. A `null` field means "inherit the global
+ * `[memory]` value in `bunny.config.toml`".
  */
 export interface ProjectMemoryOverrides {
   lastN: number | null;
@@ -37,30 +31,26 @@ export interface ProjectAssets {
   memory: ProjectMemoryOverrides;
 }
 
-const SYSTEMPROMPT_FILE = "systemprompt.toml";
-
-export function projectDir(name: string): string {
-  return paths.projectDir(validateProjectName(name));
-}
-
-/**
- * A single file on disk (`systemprompt.toml`) carries both the system-prompt
- * text and the per-project memory overrides. A partial patch can touch one
- * concern without clobbering the other.
- */
 export interface ProjectOverridesPatch {
   systemPrompt?: Partial<ProjectSystemPrompt>;
   memory?: Partial<ProjectMemoryOverrides>;
 }
 
+const SYSTEMPROMPT_FILE = "systemprompt.toml";
+
 const DEFAULT_SYSTEM_PROMPT: ProjectSystemPrompt = { prompt: "", append: true };
 const DEFAULT_MEMORY: ProjectMemoryOverrides = { lastN: null, recallK: null };
+
+export function projectDir(name: string): string {
+  return paths.projectDir(validateProjectName(name));
+}
 
 /** Create the on-disk project directory (and a stub systemprompt.toml) if missing. */
 export function ensureProjectDir(name: string, initial?: ProjectOverridesPatch): string {
   const dir = projectDir(name);
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  mkdirSync(dir, { recursive: true });
   const file = join(dir, SYSTEMPROMPT_FILE);
+  // Never clobber an existing prompt file — only seed the stub on first create.
   if (!existsSync(file)) {
     writeFileSync(
       file,
@@ -81,7 +71,7 @@ export function writeProjectSystemPrompt(
   memory?: Partial<ProjectMemoryOverrides>,
 ): void {
   const dir = projectDir(name);
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  mkdirSync(dir, { recursive: true });
   const current = loadProjectAssets(name);
   writeFileSync(
     join(dir, SYSTEMPROMPT_FILE),
@@ -101,9 +91,6 @@ export function loadProjectSystemPrompt(name: string): ProjectSystemPrompt {
 /** Aggregate all per-project on-disk assets into a single value. */
 export function loadProjectAssets(name: string): ProjectAssets {
   const file = join(projectDir(name), SYSTEMPROMPT_FILE);
-  if (!existsSync(file)) {
-    return { systemPrompt: { ...DEFAULT_SYSTEM_PROMPT }, memory: { ...DEFAULT_MEMORY } };
-  }
   try {
     const text = readFileSync(file, "utf8");
     const parsed = Bun.TOML.parse(text) as {
@@ -116,16 +103,26 @@ export function loadProjectAssets(name: string): ProjectAssets {
     const append = parsed.append === undefined ? true : Boolean(parsed.append);
     return {
       systemPrompt: { prompt, append },
-      memory: { lastN: parseOverride(parsed.last_n), recallK: parseOverride(parsed.recall_k) },
+      memory: {
+        lastN: parseMemoryOverride(parsed.last_n),
+        recallK: parseMemoryOverride(parsed.recall_k),
+      },
     };
   } catch {
+    // Missing file or malformed TOML → defaults (non-fatal).
     return { systemPrompt: { ...DEFAULT_SYSTEM_PROMPT }, memory: { ...DEFAULT_MEMORY } };
   }
 }
 
-function parseOverride(raw: unknown): number | null {
-  if (typeof raw !== "number" || !Number.isFinite(raw) || raw < 0) return null;
-  return Math.floor(raw);
+/**
+ * Normalise an incoming memory override value. Accepts JSON numbers and
+ * number-like strings; returns `null` for anything else (blank, negative,
+ * NaN, non-numeric) so "invalid" and "inherit global" map to the same state.
+ */
+export function parseMemoryOverride(raw: unknown): number | null {
+  const n = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN;
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.floor(n);
 }
 
 function renderSystemPromptToml(
@@ -134,7 +131,6 @@ function renderSystemPromptToml(
 ): string {
   const prompt = sp.prompt ?? "";
   const append = sp.append === undefined ? true : sp.append;
-  // Escape closing triple-quotes defensively.
   const escaped = prompt.replace(/"""/g, '\\"\\"\\"');
 
   const memoryLines: string[] = [];

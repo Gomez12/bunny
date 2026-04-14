@@ -34,6 +34,7 @@ import {
 import {
   ensureProjectDir,
   loadProjectAssets,
+  parseMemoryOverride,
   writeProjectSystemPrompt,
 } from "../memory/project_assets.ts";
 
@@ -138,10 +139,7 @@ async function handleChat(req: Request, ctx: RouteCtx, user: User): Promise<Resp
   try {
     const requested = body.project ? validateProjectName(body.project) : undefined;
     const existing = getSessionProject(ctx.db, sessionId);
-    const sessionHasRows = ctx.db
-      .prepare(`SELECT 1 AS x FROM messages WHERE session_id = ? LIMIT 1`)
-      .get(sessionId) as { x: number } | undefined;
-    if (sessionHasRows) {
+    if (existing !== null) {
       if (requested && requested !== existing) {
         return json(
           { error: `session belongs to project '${existing}', got '${requested}'` },
@@ -254,18 +252,20 @@ function toProjectDto(p: Project): ProjectDto {
   };
 }
 
+interface ProjectBody {
+  name?: string;
+  description?: string | null;
+  systemPrompt?: string;
+  appendMode?: boolean;
+  visibility?: ProjectVisibility;
+  lastN?: number | null;
+  recallK?: number | null;
+}
+
 async function handleCreateProject(req: Request, ctx: RouteCtx, user: User): Promise<Response> {
-  let body: {
-    name?: string;
-    description?: string | null;
-    systemPrompt?: string;
-    appendMode?: boolean;
-    visibility?: ProjectVisibility;
-    lastN?: number | null;
-    recallK?: number | null;
-  };
+  let body: ProjectBody;
   try {
-    body = (await req.json()) as typeof body;
+    body = (await req.json()) as ProjectBody;
   } catch {
     return json({ error: "invalid json" }, 400);
   }
@@ -274,32 +274,19 @@ async function handleCreateProject(req: Request, ctx: RouteCtx, user: User): Pro
     if (getProject(ctx.db, name)) {
       return json({ error: `project '${name}' already exists` }, 409);
     }
-    const lastN = coerceOverride(body.lastN);
-    const recallK = coerceOverride(body.recallK);
     const created = createProject(ctx.db, {
       name,
       description: body.description ?? null,
       visibility: body.visibility === "private" ? "private" : "public",
       createdBy: user.id,
     });
-    ensureProjectDir(name, {
-      systemPrompt: { prompt: body.systemPrompt ?? "", append: body.appendMode !== false },
-      memory: { lastN, recallK },
-    });
-    // The ensure helper only writes the stub on first creation; if the caller
-    // passed explicit fields, overwrite to make sure they stick.
-    if (
-      body.systemPrompt !== undefined ||
-      body.appendMode !== undefined ||
-      body.lastN !== undefined ||
-      body.recallK !== undefined
-    ) {
-      writeProjectSystemPrompt(
-        name,
-        { prompt: body.systemPrompt ?? "", append: body.appendMode !== false },
-        { lastN, recallK },
-      );
-    }
+    // Fresh project: mkdir then write once. No second load/overwrite.
+    ensureProjectDir(name);
+    writeProjectSystemPrompt(
+      name,
+      { prompt: body.systemPrompt ?? "", append: body.appendMode !== false },
+      { lastN: parseMemoryOverride(body.lastN), recallK: parseMemoryOverride(body.recallK) },
+    );
     return json({ project: toProjectDto(created) }, 201);
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -322,16 +309,9 @@ async function handlePatchProject(
   const p = getProject(ctx.db, name);
   if (!p) return json({ error: "not found" }, 404);
   if (!canEditProject(p, user)) return json({ error: "forbidden" }, 403);
-  let body: {
-    description?: string | null;
-    systemPrompt?: string;
-    appendMode?: boolean;
-    visibility?: ProjectVisibility;
-    lastN?: number | null;
-    recallK?: number | null;
-  };
+  let body: ProjectBody;
   try {
-    body = (await req.json()) as typeof body;
+    body = (await req.json()) as ProjectBody;
   } catch {
     return json({ error: "invalid json" }, 400);
   }
@@ -343,34 +323,23 @@ async function handlePatchProject(
     const touchesPrompt = body.systemPrompt !== undefined || body.appendMode !== undefined;
     const touchesMemory = body.lastN !== undefined || body.recallK !== undefined;
     if (touchesPrompt || touchesMemory) {
-      const current = loadProjectAssets(name);
-      writeProjectSystemPrompt(
-        name,
-        {
-          prompt: body.systemPrompt ?? current.systemPrompt.prompt,
-          append: body.appendMode !== undefined ? body.appendMode : current.systemPrompt.append,
-        },
-        touchesMemory
-          ? {
-              lastN: body.lastN === undefined ? current.memory.lastN : coerceOverride(body.lastN),
-              recallK:
-                body.recallK === undefined ? current.memory.recallK : coerceOverride(body.recallK),
-            }
-          : undefined,
-      );
+      // writeProjectSystemPrompt internally merges with the current on-disk
+      // state, so partial patches only need to name the fields that changed.
+      const sp: Partial<{ prompt: string; append: boolean }> = {};
+      if (body.systemPrompt !== undefined) sp.prompt = body.systemPrompt;
+      if (body.appendMode !== undefined) sp.append = body.appendMode;
+      const memory = touchesMemory
+        ? {
+            ...(body.lastN !== undefined ? { lastN: parseMemoryOverride(body.lastN) } : {}),
+            ...(body.recallK !== undefined ? { recallK: parseMemoryOverride(body.recallK) } : {}),
+          }
+        : undefined;
+      writeProjectSystemPrompt(name, sp, memory);
     }
     return json({ project: toProjectDto(updated) });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
   }
-}
-
-/** Normalise an incoming override: `null`/negative/invalid → null; else floor to int. */
-function coerceOverride(raw: unknown): number | null {
-  if (raw === null || raw === undefined) return null;
-  const n = typeof raw === "number" ? raw : Number(raw);
-  if (!Number.isFinite(n) || n < 0) return null;
-  return Math.floor(n);
 }
 
 function handleDeleteProject(ctx: RouteCtx, user: User, name: string): Response {

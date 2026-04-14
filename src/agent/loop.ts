@@ -8,8 +8,10 @@
  *     if tool_calls → execute each → append results → continue inner
  *     else          → done, return final response
  *
- * The queue is used to log every LLM request/response and tool call/result.
- * Memory is indexed after each complete turn and recalled before the next.
+ * Every LLM request/response and tool call/result is logged via the queue.
+ * Context on each turn comes from three sources: the (possibly project-scoped)
+ * system prompt, the last-N user/assistant turns replayed verbatim, and
+ * hybrid BM25+kNN recall over the rest of history.
  */
 
 import type { LlmConfig, EmbedConfig, MemoryConfig, AgentConfig } from "../config.ts";
@@ -53,32 +55,25 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
   const { prompt, sessionId, userId, llmCfg, embedCfg, memoryCfg, agentCfg, tools, db, queue, renderer } = opts;
   const project = opts.project ?? agentCfg?.defaultProject ?? DEFAULT_PROJECT;
 
-  // Enforce the "one project per session" invariant: once a session has any
-  // messages, every subsequent turn must target the same project.
+  // One project per session: a session that already has messages cannot
+  // switch projects mid-stream.
   const existingProject = getSessionProject(db, sessionId);
-  const hasExisting = db
-    .prepare(`SELECT 1 AS x FROM messages WHERE session_id = ? LIMIT 1`)
-    .get(sessionId) as { x: number } | undefined;
-  if (hasExisting && existingProject !== project) {
+  if (existingProject !== null && existingProject !== project) {
     throw new Error(
       `session '${sessionId}' belongs to project '${existingProject}', cannot run under '${project}'`,
     );
   }
 
   const projectAssets = loadProjectAssets(project);
-
-  // Per-project overrides win over the global memory config.
   const effectiveLastN = projectAssets.memory.lastN ?? memoryCfg.lastN;
   const effectiveRecallK = projectAssets.memory.recallK ?? memoryCfg.recallK;
 
-  // ── Short-term history: verbatim replay of the last N turns ───────────────
-  // Fetched BEFORE inserting the new user prompt so the current message isn't
-  // duplicated. Keeps conversational coherence that recall alone misses when
-  // the follow-up shares no tokens with the earlier turn.
+  // Short-term history is fetched before the new user row is inserted so the
+  // current prompt isn't duplicated. Recall then skips the same IDs via
+  // `excludeIds` so the LLM never sees a row twice.
   const recentTurns = getRecentTurns(db, sessionId, effectiveLastN);
   const recentIds = new Set(recentTurns.map((t) => t.messageId));
 
-  // ── Recall: BM25 + kNN over the rest of history, excluding verbatim rows ──
   const recall = await hybridRecall(
     db,
     embedCfg,
@@ -90,19 +85,16 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
   ).catch(() => []);
   const systemMsg = buildSystemMessage({ recall, projectAssets, baseSystem: agentCfg?.systemPrompt });
 
-  // ── Store the user message ────────────────────────────────────────────────
   const userMsgId = insertMessage(db, { sessionId, userId, project, role: "user", content: prompt });
   void indexMessage(db, embedCfg, userMsgId, prompt);
   void queue.log({ topic: "memory", kind: "index", sessionId, data: { role: "user" } });
 
-  // Build the conversation history for this turn.
   const messages: ChatMessage[] = [
     systemMsg,
     ...recentTurns.map(({ role, content }) => ({ role, content })),
     { role: "user", content: prompt },
   ];
 
-  // ── Inner loop ────────────────────────────────────────────────────────────
   let iterations = 0;
 
   while (iterations++ < MAX_TOOL_ITERATIONS) {
