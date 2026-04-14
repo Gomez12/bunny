@@ -1,0 +1,106 @@
+/**
+ * SSE renderer — serialises agent events as JSON payloads pushed through a
+ * `ReadableStreamDefaultController<Uint8Array>`. The frontend consumes them
+ * via `fetch` + a streaming body reader. Event shapes live in `sse_events.ts`
+ * so backend and frontend stay in sync via a shared type.
+ */
+
+import type { StreamDelta } from "../llm/types.ts";
+import type { ToolResult } from "../tools/registry.ts";
+import type { Renderer } from "./render.ts";
+import type { SseEvent } from "./sse_events.ts";
+
+const encoder = new TextEncoder();
+
+export interface SseSink {
+  enqueue(chunk: Uint8Array): void;
+  close(): void;
+}
+
+/**
+ * Adapts any `ReadableStreamDefaultController<Uint8Array>` to a plain sink.
+ * Ignores errors raised when the stream has already been closed (e.g. client
+ * disconnect) so renderer callbacks never throw back into the agent loop.
+ */
+export function controllerSink(controller: ReadableStreamDefaultController<Uint8Array>): SseSink {
+  let closed = false;
+  return {
+    enqueue(chunk) {
+      if (closed) return;
+      try {
+        controller.enqueue(chunk);
+      } catch {
+        closed = true;
+      }
+    },
+    close() {
+      if (closed) return;
+      closed = true;
+      try {
+        controller.close();
+      } catch {
+        /* already closed */
+      }
+    },
+  };
+}
+
+function send(sink: SseSink, payload: SseEvent): void {
+  sink.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+}
+
+export function createSseRenderer(sink: SseSink): Renderer {
+  function onDelta(delta: StreamDelta): void {
+    switch (delta.channel) {
+      case "content":
+        send(sink, { type: "content", text: delta.text });
+        break;
+      case "reasoning":
+        send(sink, { type: "reasoning", text: delta.text });
+        break;
+      case "tool_call":
+        send(sink, {
+          type: "tool_call",
+          name: delta.name,
+          id: delta.id,
+          argsDelta: delta.argsDelta,
+          callIndex: delta.callIndex,
+        });
+        break;
+      case "usage":
+        send(sink, {
+          type: "usage",
+          promptTokens: delta.promptTokens,
+          completionTokens: delta.completionTokens,
+          totalTokens: delta.totalTokens,
+        });
+        break;
+    }
+  }
+
+  function onToolResult(name: string, result: ToolResult): void {
+    send(sink, {
+      type: "tool_result",
+      name,
+      ok: result.ok,
+      output: result.output,
+      error: result.error,
+    });
+  }
+
+  function onError(message: string): void {
+    send(sink, { type: "error", message });
+  }
+
+  function onTurnEnd(): void {
+    send(sink, { type: "turn_end" });
+  }
+
+  return { onDelta, onToolResult, onError, onTurnEnd };
+}
+
+/** Emit the terminal `done` event and close the underlying stream. */
+export function finishSse(sink: SseSink): void {
+  send(sink, { type: "done" });
+  sink.close();
+}

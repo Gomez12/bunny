@@ -47,6 +47,17 @@ export const ANSI = {
 // ---------------------------------------------------------------------------
 // Renderer
 
+/**
+ * Contract implemented by every renderer (CLI, SSE, tests). The agent loop
+ * uses this shape and does not care about the underlying transport.
+ */
+export interface Renderer {
+  onDelta(delta: StreamDelta): void;
+  onToolResult(name: string, result: ToolResult): void;
+  onError(message: string): void;
+  onTurnEnd(): void;
+}
+
 export interface RendererOptions {
   reasoningMode: ReasoningRenderMode;
   /**
@@ -59,7 +70,7 @@ export interface RendererOptions {
   out?: { write(s: string): void };
 }
 
-export function createRenderer(opts: RendererOptions) {
+export function createRenderer(opts: RendererOptions): Renderer {
   const color = opts.forceColor ?? process.stdout.isTTY ?? false;
   const out = opts.out ?? { write: (s: string) => process.stdout.write(s) };
   const mode = opts.reasoningMode;
@@ -162,5 +173,3 @@ export function createRenderer(opts: RendererOptions) {
 
   return { onDelta, onToolResult, onError, onTurnEnd };
 }
-
-export type Renderer = ReturnType<typeof createRenderer>;

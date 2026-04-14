@@ -85,14 +85,16 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
       durationMs,
     });
 
-    // Store assistant message (content + optional reasoning as separate rows).
+    // Store assistant message (reasoning + content as separate rows).
+    // Reasoning is inserted first so the Messages tab (ordered by ts ASC) shows
+    // the thinking block above the answer — matching the reader's mental model.
     const assistantContent = llmRes.message.content ?? "";
+    if (llmRes.message.reasoning) {
+      insertMessage(db, { sessionId, role: "assistant", channel: "reasoning", content: llmRes.message.reasoning });
+    }
     if (assistantContent) {
       const aid = insertMessage(db, { sessionId, role: "assistant", channel: "content", content: assistantContent });
       void indexMessage(db, embedCfg, aid, assistantContent);
-    }
-    if (llmRes.message.reasoning) {
-      insertMessage(db, { sessionId, role: "assistant", channel: "reasoning", content: llmRes.message.reasoning });
     }
 
     messages.push(llmRes.message);

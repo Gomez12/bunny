@@ -6,6 +6,7 @@
  *   bunny <prompt>
  *   bunny --session <id> <prompt>
  *   bunny --hide-reasoning <prompt>
+ *   bunny serve [--port=3000]
  *
  * State is stored in $BUNNY_HOME (default: ./.bunny/).
  * Configure via bunny.config.toml or environment variables.
@@ -19,6 +20,7 @@ import { createBunnyQueue } from "./queue/bunqueue.ts";
 import { createRenderer } from "./agent/render.ts";
 import { runAgent } from "./agent/loop.ts";
 import { registry } from "./tools/index.ts";
+import { startServer, parsePortFlag } from "./server/index.ts";
 import { mkdirSync, existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 
@@ -42,10 +44,17 @@ function parseArgs(argv: string[]): { prompt: string; session?: string; hideReas
 }
 
 async function main(argv: string[]): Promise<number> {
+  // `bunny serve [--port=NNNN]` — start the web UI server instead of a CLI turn.
+  if (argv[2] === "serve") {
+    await startServer({ port: parsePortFlag(argv) });
+    await new Promise<void>(() => {}); // Block forever — Bun.serve runs in the background.
+    return 0;
+  }
+
   const { prompt, session, hideReasoning } = parseArgs(argv);
 
   if (!prompt) {
-    process.stderr.write("usage: bunny [--session <id>] [--hide-reasoning] <prompt>\n");
+    process.stderr.write("usage: bunny [--session <id>] [--hide-reasoning] <prompt>\n       bunny serve [--port=3000]\n");
     return 2;
   }
 

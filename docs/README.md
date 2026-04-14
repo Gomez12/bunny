@@ -43,6 +43,10 @@ Volgende turn leest `recall.hybrid(prompt, k=8)` uit memory — top-k messages v
 
 Reasoning wordt op `messages.channel='reasoning'` bewaard (zichtbaar in UI, niet meegenomen in recall tenzij `[memory].index_reasoning = true`), en **niet** teruggestuurd naar de LLM in vervolgturns — behalve voor providers waar dat vereist is (Anthropic thinking-blocks met signature roundtrip).
 
+## Web UI
+
+Naast de CLI draait Bunny een web-UI (`bunny serve`) met twee tabs: **Chat** (live streaming) en **Messages** (alle eerdere sessies, BM25-zoekbaar). Zie [ADR 0006](./adr/0006-web-ui.md) voor de opzet. De agent loop is ongewijzigd — de webserver plugt op dezelfde `Renderer`-interface als de CLI (via `createSseRenderer`).
+
 ## Zie ook
 
 - [ADR 0001 — Bun als runtime](./adr/0001-bun-runtime.md)
@@ -50,3 +54,4 @@ Reasoning wordt op `messages.channel='reasoning'` bewaard (zichtbaar in UI, niet
 - ADR 0003 — SQLite FTS5 + sqlite-vec hybrid memory _(TBD)_
 - ADR 0004 — Bunqueue als spine _(TBD)_
 - ADR 0005 — Streaming en reasoning-normalisatie _(TBD)_
+- [ADR 0006 — Web UI (Chat + Messages)](./adr/0006-web-ui.md)

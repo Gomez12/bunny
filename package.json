@@ -10,6 +10,10 @@
   },
   "scripts": {
     "start": "bun run src/index.ts",
+    "serve": "bun run src/server/index.ts",
+    "serve:watch": "bun --watch src/server/index.ts",
+    "web:dev": "bun --cwd web run dev",
+    "web:build": "bun --cwd web run build",
     "build": "bun run scripts/build.ts",
     "build:platform": "bun run scripts/build.ts --platform",
     "test": "bun test",
