@@ -45,7 +45,7 @@ Reasoning wordt op `messages.channel='reasoning'` bewaard (zichtbaar in UI, niet
 
 ## Web UI
 
-Naast de CLI draait Bunny een web-UI (`bunny serve`) met twee tabs: **Chat** (live streaming) en **Messages** (alle eerdere sessies, BM25-zoekbaar). Zie [ADR 0006](./adr/0006-web-ui.md) voor de opzet. De agent loop is ongewijzigd — de webserver plugt op dezelfde `Renderer`-interface als de CLI (via `createSseRenderer`).
+Naast de CLI draait Bunny een web-UI (`bunny serve`) met drie tabs: **Chat** (live streaming), **Messages** (alle eerdere sessies, BM25-zoekbaar) en **Settings** (eigen profiel, API keys, en user-beheer voor admins). Zie [ADR 0006](./adr/0006-web-ui.md) voor de UI-opzet en [ADR 0007](./adr/0007-auth-and-users.md) voor de auth-laag. De agent loop is ongewijzigd — de webserver plugt op dezelfde `Renderer`-interface als de CLI (via `createSseRenderer`) en geeft de geauthenticeerde `userId` mee aan `runAgent`.
 
 ## Zie ook
 
@@ -55,3 +55,4 @@ Naast de CLI draait Bunny een web-UI (`bunny serve`) met twee tabs: **Chat** (li
 - ADR 0004 — Bunqueue als spine _(TBD)_
 - ADR 0005 — Streaming en reasoning-normalisatie _(TBD)_
 - [ADR 0006 — Web UI (Chat + Messages)](./adr/0006-web-ui.md)
+- [ADR 0007 — Authenticatie, users, rollen en API keys](./adr/0007-auth-and-users.md)

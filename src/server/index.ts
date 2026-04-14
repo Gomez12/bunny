@@ -20,14 +20,25 @@ import { errorMessage } from "../util/error.ts";
 import { safePath } from "../util/path.ts";
 import { handleApi, type RouteCtx } from "./routes.ts";
 import { webBundle } from "./web_bundle.ts";
+import { ensureSeedUsers } from "../auth/seed.ts";
 
 const DEFAULT_PORT = 3000;
 
-const CORS_HEADERS: Record<string, string> = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+const CORS_BASE_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Credentials": "true",
+  Vary: "Origin",
 };
+
+function corsHeaders(req: Request): Record<string, string> {
+  // Credentials mode forbids wildcard origins, so echo the caller's Origin
+  // when present. Same-origin requests (Vite proxy) don't set Origin → skip.
+  const origin = req.headers.get("origin");
+  return origin
+    ? { ...CORS_BASE_HEADERS, "Access-Control-Allow-Origin": origin }
+    : { ...CORS_BASE_HEADERS };
+}
 
 export interface ServeOptions {
   port?: number;
@@ -48,6 +59,7 @@ export async function startServer(opts: ServeOptions = {}): Promise<{ stop: () =
   if (!existsSync(home)) mkdirSync(home, { recursive: true });
 
   const db = await getDb({ embedDim: cfg.embed.dim });
+  await ensureSeedUsers(db, cfg.auth);
   const queue = createBunnyQueue(db);
   const ctx: RouteCtx = { db, queue, cfg };
 
@@ -63,7 +75,7 @@ export async function startServer(opts: ServeOptions = {}): Promise<{ stop: () =
       const url = new URL(req.url);
 
       if (req.method === "OPTIONS") {
-        return new Response(null, { status: 204, headers: CORS_HEADERS });
+        return new Response(null, { status: 204, headers: corsHeaders(req) });
       }
 
       let res: Response;
@@ -87,7 +99,7 @@ export async function startServer(opts: ServeOptions = {}): Promise<{ stop: () =
         });
       }
 
-      for (const [k, v] of Object.entries(CORS_HEADERS)) {
+      for (const [k, v] of Object.entries(corsHeaders(req))) {
         res.headers.set(k, v);
       }
       return res;

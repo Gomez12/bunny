@@ -31,6 +31,8 @@ const MAX_TOOL_ITERATIONS = 20;
 export interface RunAgentOptions {
   prompt: string;
   sessionId: string;
+  /** Owning user id — stamped onto every message/event produced this turn. */
+  userId?: string;
   llmCfg: LlmConfig;
   embedCfg: EmbedConfig;
   memoryCfg: MemoryConfig;
@@ -42,15 +44,15 @@ export interface RunAgentOptions {
 
 /** Run one user turn through the agent loop. Returns the final assistant response. */
 export async function runAgent(opts: RunAgentOptions): Promise<string> {
-  const { prompt, sessionId, llmCfg, embedCfg, memoryCfg, tools, db, queue, renderer } = opts;
+  const { prompt, sessionId, userId, llmCfg, embedCfg, memoryCfg, tools, db, queue, renderer } = opts;
 
   // ── Recall: inject relevant past messages into system prompt ──────────────
   const recall = await hybridRecall(db, embedCfg, prompt, memoryCfg.recallK, sessionId).catch(() => []);
   const systemMsg = buildSystemMessage(recall);
 
   // ── Store the user message ────────────────────────────────────────────────
-  const userId = insertMessage(db, { sessionId, role: "user", content: prompt });
-  void indexMessage(db, embedCfg, userId, prompt);
+  const userMsgId = insertMessage(db, { sessionId, userId, role: "user", content: prompt });
+  void indexMessage(db, embedCfg, userMsgId, prompt);
   void queue.log({ topic: "memory", kind: "index", sessionId, data: { role: "user" } });
 
   // Build the conversation history for this turn.
@@ -97,11 +99,12 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
       completionTokens: llmRes.usage?.completionTokens,
     };
     if (llmRes.message.reasoning) {
-      insertMessage(db, { sessionId, role: "assistant", channel: "reasoning", content: llmRes.message.reasoning });
+      insertMessage(db, { sessionId, userId, role: "assistant", channel: "reasoning", content: llmRes.message.reasoning });
     }
     if (assistantContent) {
       const aid = insertMessage(db, {
         sessionId,
+        userId,
         role: "assistant",
         channel: "content",
         content: assistantContent,
@@ -124,6 +127,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
     for (const tc of llmRes.message.tool_calls) {
       insertMessage(db, {
         sessionId,
+        userId,
         role: "assistant",
         channel: "tool_call",
         content: tc.function.arguments,
@@ -155,6 +159,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
       messages.push({ role: "tool", content: result.output, tool_call_id: tc.id });
       insertMessage(db, {
         sessionId,
+        userId,
         role: "tool",
         channel: "tool_result",
         content: result.output,

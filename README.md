@@ -44,6 +44,35 @@ De Vite-bundle wordt bij `build` als `import … with { type: "file" }` in het b
 
 Zie [`docs/adr/0006-web-ui.md`](./docs/adr/0006-web-ui.md) voor de architectuurkeuzes.
 
+## Authentication
+
+Bij de eerste `bunny serve` boot maakt de server een admin aan op basis van je config (default: `admin` / `change-me`). Je moet bij de eerste login in de web-UI een nieuw wachtwoord kiezen.
+
+Configureer in `bunny.config.toml`:
+
+```toml
+[auth]
+default_admin_username = "admin"
+default_admin_password = "change-me"   # override via BUNNY_DEFAULT_ADMIN_PASSWORD
+session_ttl_hours = 168                # 7 dagen
+```
+
+Users beheer je in de web-UI onder **Settings → Users** (admin-only). Gewone users zien alleen hun eigen sessies; admins zien alles.
+
+### CLI met een API key
+
+Elke user kan in **Settings → API keys** een key met naam + optionele expiry aanmaken. Het plaintext secret is één keer zichtbaar — bewaar het direct.
+
+```sh
+BUNNY_API_KEY=bny_xxxx_yyyy bun run src/index.ts "hoi"
+# of
+bun run src/index.ts --api-key bny_xxxx_yyyy "hoi"
+```
+
+Zonder key draait de CLI onder de geseedde `system` user (backward-compat).
+
+Zie [`docs/adr/0007-auth-and-users.md`](./docs/adr/0007-auth-and-users.md) voor de architectuurkeuzes.
+
 ## Development
 
 ```sh

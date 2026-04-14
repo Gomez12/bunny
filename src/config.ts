@@ -48,12 +48,22 @@ export interface QueueConfig {
   topics: readonly string[];
 }
 
+export interface AuthConfig {
+  /** Username for the seeded admin user (only used when `users` table is empty). */
+  defaultAdminUsername: string;
+  /** Password for the seeded admin user. User is forced to change it on first login. */
+  defaultAdminPassword: string;
+  /** Web session cookie TTL in hours. */
+  sessionTtlHours: number;
+}
+
 export interface BunnyConfig {
   llm: LlmConfig;
   embed: EmbedConfig;
   memory: MemoryConfig;
   render: RenderConfig;
   queue: QueueConfig;
+  auth: AuthConfig;
   sessionId: string | undefined;
 }
 
@@ -66,6 +76,7 @@ interface TomlShape {
   memory?: Partial<{ index_reasoning: boolean; recall_k: number }>;
   render?: Partial<{ reasoning: string; color: boolean }>;
   queue?: Partial<{ topics: string[] }>;
+  auth?: Partial<{ default_admin_username: string; default_admin_password: string; session_ttl_hours: number }>;
 }
 
 const DEFAULTS = {
@@ -85,6 +96,11 @@ const DEFAULTS = {
   memory: { indexReasoning: false, recallK: 8 },
   render: { reasoning: "collapsed" as ReasoningRenderMode, color: undefined as boolean | undefined },
   queue: { topics: ["llm", "tool", "memory"] as readonly string[] },
+  auth: {
+    defaultAdminUsername: "admin",
+    defaultAdminPassword: "change-me",
+    sessionTtlHours: 168,
+  },
 } as const;
 
 const VALID_PROFILES: readonly LlmProfile[] = ["openai", "deepseek", "openrouter", "ollama", "anthropic-compat"];
@@ -155,12 +171,27 @@ export function loadConfig(opts: { env?: NodeJS.ProcessEnv; cwd?: string } = {})
     topics: toml.queue?.topics ?? DEFAULTS.queue.topics,
   };
 
+  const auth: AuthConfig = {
+    defaultAdminUsername:
+      env["BUNNY_DEFAULT_ADMIN_USERNAME"] ??
+      toml.auth?.default_admin_username ??
+      DEFAULTS.auth.defaultAdminUsername,
+    defaultAdminPassword:
+      env["BUNNY_DEFAULT_ADMIN_PASSWORD"] ??
+      toml.auth?.default_admin_password ??
+      DEFAULTS.auth.defaultAdminPassword,
+    sessionTtlHours: Number(
+      env["BUNNY_SESSION_TTL_HOURS"] ?? toml.auth?.session_ttl_hours ?? DEFAULTS.auth.sessionTtlHours,
+    ),
+  };
+
   return {
     llm,
     embed,
     memory,
     render,
     queue,
+    auth,
     sessionId: env["BUNNY_SESSION"],
   };
 }

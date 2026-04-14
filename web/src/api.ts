@@ -10,6 +10,9 @@ export interface SessionSummary {
   firstTs: number;
   lastTs: number;
   messageCount: number;
+  userId: string | null;
+  username: string | null;
+  displayName: string | null;
 }
 
 export interface StoredMessage {
@@ -26,6 +29,9 @@ export interface StoredMessage {
   durationMs: number | null;
   promptTokens: number | null;
   completionTokens: number | null;
+  userId: string | null;
+  username: string | null;
+  displayName: string | null;
 }
 
 export interface TurnStats {
@@ -138,9 +144,16 @@ export function groupTurns(messages: StoredMessage[]): HistoryTurn[] {
   return turns;
 }
 
-export async function fetchSessions(search?: string): Promise<SessionSummary[]> {
-  const url = search ? `/api/sessions?q=${encodeURIComponent(search)}` : "/api/sessions";
-  const res = await fetch(url);
+export async function fetchSessions(
+  search?: string,
+  opts: { scope?: "mine" | "all" } = {},
+): Promise<SessionSummary[]> {
+  const params = new URLSearchParams();
+  if (search) params.set("q", search);
+  if (opts.scope) params.set("scope", opts.scope);
+  const qs = params.toString();
+  const url = qs ? `/api/sessions?${qs}` : "/api/sessions";
+  const res = await fetch(url, { credentials: "include" });
   if (!res.ok) throw new Error(`GET ${url} → ${res.status}`);
   const data = (await res.json()) as { sessions: SessionSummary[] };
   return data.sessions;
@@ -148,14 +161,14 @@ export async function fetchSessions(search?: string): Promise<SessionSummary[]> 
 
 export async function fetchMessages(sessionId: string): Promise<StoredMessage[]> {
   const url = `/api/sessions/${encodeURIComponent(sessionId)}/messages`;
-  const res = await fetch(url);
+  const res = await fetch(url, { credentials: "include" });
   if (!res.ok) throw new Error(`GET ${url} → ${res.status}`);
   const data = (await res.json()) as { messages: StoredMessage[] };
   return data.messages;
 }
 
 export async function createSession(): Promise<string> {
-  const res = await fetch("/api/sessions", { method: "POST" });
+  const res = await fetch("/api/sessions", { method: "POST", credentials: "include" });
   if (!res.ok) throw new Error(`POST /api/sessions → ${res.status}`);
   const data = (await res.json()) as { sessionId: string };
   return data.sessionId;
@@ -176,6 +189,7 @@ export function streamChat(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      credentials: "include",
       signal: controller.signal,
     });
 
@@ -212,4 +226,153 @@ export function streamChat(
   })();
 
   return { done, abort: () => controller.abort() };
+}
+
+// ── Auth & user management ──────────────────────────────────────────────────
+
+export type UserRole = "admin" | "user";
+
+export interface AuthUser {
+  id: string;
+  username: string;
+  role: UserRole;
+  displayName: string | null;
+  email: string | null;
+  mustChangePassword: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ApiKeyMeta {
+  id: string;
+  userId: string;
+  name: string;
+  prefix: string;
+  createdAt: number;
+  expiresAt: number | null;
+  lastUsedAt: number | null;
+  revokedAt: number | null;
+}
+
+async function jsonFetch<T>(url: string, init: RequestInit = {}): Promise<T> {
+  const res = await fetch(url, {
+    credentials: "include",
+    ...init,
+    headers: {
+      ...(init.body ? { "Content-Type": "application/json" } : {}),
+      ...(init.headers ?? {}),
+    },
+  });
+  if (!res.ok) {
+    let msg = `${init.method ?? "GET"} ${url} → ${res.status}`;
+    try {
+      const err = (await res.json()) as { error?: string };
+      if (err?.error) msg = err.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(msg);
+  }
+  if (res.status === 204) return undefined as T;
+  return (await res.json()) as T;
+}
+
+export async function login(username: string, password: string): Promise<AuthUser> {
+  const { user } = await jsonFetch<{ user: AuthUser }>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ username, password }),
+  });
+  return user;
+}
+
+export async function logout(): Promise<void> {
+  await jsonFetch<{ ok: true }>("/api/auth/logout", { method: "POST" });
+}
+
+export async function fetchMe(): Promise<AuthUser | null> {
+  try {
+    const { user } = await jsonFetch<{ user: AuthUser }>("/api/auth/me");
+    return user;
+  } catch {
+    return null;
+  }
+}
+
+export async function changeOwnPassword(currentPassword: string, newPassword: string): Promise<void> {
+  await jsonFetch<{ ok: true }>("/api/auth/password", {
+    method: "POST",
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
+
+export async function updateOwnProfile(patch: {
+  displayName?: string | null;
+  email?: string | null;
+}): Promise<AuthUser> {
+  const { user } = await jsonFetch<{ user: AuthUser }>("/api/users/me", {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  return user;
+}
+
+export async function listUsers(q = ""): Promise<AuthUser[]> {
+  const qs = q ? `?q=${encodeURIComponent(q)}` : "";
+  const { users } = await jsonFetch<{ users: AuthUser[] }>(`/api/users${qs}`);
+  return users;
+}
+
+export async function adminCreateUser(input: {
+  username: string;
+  password: string;
+  role: UserRole;
+  displayName?: string;
+  email?: string;
+}): Promise<AuthUser> {
+  const { user } = await jsonFetch<{ user: AuthUser }>("/api/users", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return user;
+}
+
+export async function adminUpdateUser(
+  id: string,
+  patch: { role?: UserRole; displayName?: string | null; email?: string | null },
+): Promise<AuthUser> {
+  const { user } = await jsonFetch<{ user: AuthUser }>(`/api/users/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  return user;
+}
+
+export async function adminResetPassword(id: string, password: string): Promise<void> {
+  await jsonFetch<{ ok: true }>(`/api/users/${encodeURIComponent(id)}/password`, {
+    method: "POST",
+    body: JSON.stringify({ password }),
+  });
+}
+
+export async function adminDeleteUser(id: string): Promise<void> {
+  await jsonFetch<{ ok: true }>(`/api/users/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export async function listMyApiKeys(): Promise<ApiKeyMeta[]> {
+  const { keys } = await jsonFetch<{ keys: ApiKeyMeta[] }>("/api/apikeys");
+  return keys;
+}
+
+export async function createMyApiKey(
+  name: string,
+  opts: { ttlDays?: number } = {},
+): Promise<{ key: string; meta: ApiKeyMeta }> {
+  return jsonFetch<{ key: string; meta: ApiKeyMeta }>("/api/apikeys", {
+    method: "POST",
+    body: JSON.stringify({ name, ttlDays: opts.ttlDays }),
+  });
+}
+
+export async function revokeMyApiKey(id: string): Promise<void> {
+  await jsonFetch<{ ok: true }>(`/api/apikeys/${encodeURIComponent(id)}`, { method: "DELETE" });
 }

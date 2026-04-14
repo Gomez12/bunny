@@ -23,6 +23,10 @@ export interface StoredMessage {
   durationMs: number | null;
   promptTokens: number | null;
   completionTokens: number | null;
+  /** Owner of the message (null for legacy rows). */
+  userId: string | null;
+  username: string | null;
+  displayName: string | null;
 }
 
 export interface InsertMessageOpts {
@@ -37,12 +41,13 @@ export interface InsertMessageOpts {
   durationMs?: number;
   promptTokens?: number;
   completionTokens?: number;
+  userId?: string | null;
 }
 
 export function insertMessage(db: Database, opts: InsertMessageOpts): number {
   const stmt = db.prepare(`
-    INSERT INTO messages (session_id, ts, role, channel, content, tool_call_id, tool_name, provider_sig, ok, duration_ms, prompt_tokens, completion_tokens)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO messages (session_id, ts, role, channel, content, tool_call_id, tool_name, provider_sig, ok, duration_ms, prompt_tokens, completion_tokens, user_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     RETURNING id
   `);
   const row = stmt.get(
@@ -58,6 +63,7 @@ export function insertMessage(db: Database, opts: InsertMessageOpts): number {
     opts.durationMs ?? null,
     opts.promptTokens ?? null,
     opts.completionTokens ?? null,
+    opts.userId ?? null,
   ) as { id: number } | undefined;
   return row?.id ?? 0;
 }
@@ -65,9 +71,13 @@ export function insertMessage(db: Database, opts: InsertMessageOpts): number {
 export function getMessagesBySession(db: Database, sessionId: string): StoredMessage[] {
   const rows = db
     .prepare(
-      `SELECT id, session_id, ts, role, channel, content, tool_call_id, tool_name, provider_sig, ok,
-              duration_ms, prompt_tokens, completion_tokens
-       FROM messages WHERE session_id = ? ORDER BY ts ASC`,
+      `SELECT m.id, m.session_id, m.ts, m.role, m.channel, m.content, m.tool_call_id,
+              m.tool_name, m.provider_sig, m.ok, m.duration_ms, m.prompt_tokens,
+              m.completion_tokens, m.user_id,
+              u.username AS username, u.display_name AS display_name
+       FROM messages m
+       LEFT JOIN users u ON u.id = m.user_id
+       WHERE m.session_id = ? ORDER BY m.ts ASC`,
     )
     .all(sessionId) as Array<{
     id: number;
@@ -83,6 +93,9 @@ export function getMessagesBySession(db: Database, sessionId: string): StoredMes
     duration_ms: number | null;
     prompt_tokens: number | null;
     completion_tokens: number | null;
+    user_id: string | null;
+    username: string | null;
+    display_name: string | null;
   }>;
   return rows.map((r) => ({
     id: r.id,
@@ -98,5 +111,8 @@ export function getMessagesBySession(db: Database, sessionId: string): StoredMes
     durationMs: r.duration_ms,
     promptTokens: r.prompt_tokens,
     completionTokens: r.completion_tokens,
+    userId: r.user_id,
+    username: r.username,
+    displayName: r.display_name,
   }));
 }

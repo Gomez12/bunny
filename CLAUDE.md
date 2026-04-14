@@ -33,7 +33,7 @@ bun run build                  # compile standalone binary via scripts/build.ts
 
 **Runtime requirement:** Bun ≥ 1.3.0. Node is not supported — the project relies on `bun:sqlite`, `Bun.serve`, `Bun.TOML`, `bun:test`.
 
-**State location:** everything lands in `./.bunny/` relative to cwd (override via `$BUNNY_HOME`). Portable by design — no `$HOME/.config`. API keys come from env (`LLM_API_KEY`, `EMBED_API_KEY`); see `.env.example`. Project-level choices go in `bunny.config.toml`.
+**State location:** everything lands in `./.bunny/` relative to cwd (override via `$BUNNY_HOME`). Portable by design — no `$HOME/.config`. LLM/embed API keys come from env (`LLM_API_KEY`, `EMBED_API_KEY`); user-facing API keys (`BUNNY_API_KEY` for the CLI) are minted per user via the web UI. Seeded-admin credentials can be overridden with `BUNNY_DEFAULT_ADMIN_PASSWORD`. Project-level choices go in `bunny.config.toml` (incl. `[auth]` block).
 
 ## Architecture
 
@@ -69,9 +69,13 @@ Hybrid recall (`src/memory/recall.ts:hybridRecall`) fuses BM25 (FTS5 trigram tok
 - Serves `web/dist/` statically if it exists; otherwise shows a dev placeholder pointing at the Vite dev server.
 - Sets `idleTimeout: 0` — SSE streams can outlive the default timeout.
 
-The frontend (`web/`) is React + Vite with its own `package.json`. Two tabs: Chat (live SSE streaming via `fetch` body-reader, not `EventSource`, because we POST JSON) and Messages (sessions listed via `listSessions()`, BM25-filtered when `q` is set). Session id is persisted in `localStorage` under `bunny.activeSessionId`.
+The frontend (`web/`) is React + Vite with its own `package.json`. Three tabs: Chat (live SSE streaming via `fetch` body-reader, not `EventSource`, because we POST JSON), Messages (sessions listed via `listSessions()`, BM25-filtered when `q` is set) and Settings (profile, API keys, admin-only user management). Session id is persisted in `localStorage` under `bunny.activeSessionId`. The app boots by calling `GET /api/auth/me` — 401 drops the user on the login page, a `mustChangePassword` flag gates the forced-change page. All fetches use `credentials: "include"` so the `bunny_session` cookie rides along.
 
 SSE event shapes live in `src/agent/sse_events.ts` and are imported by both `src/agent/render_sse.ts` (backend) and `web/src/api.ts` (frontend) — single source of truth, compile-time drift guard. Vite's `server.fs.allow: [".."]` permits the cross-root import.
+
+### Auth
+
+Authentication lives in `src/auth/` (`users.ts`, `sessions.ts`, `apikeys.ts`, `password.ts`, `seed.ts`). Passwords are hashed with `Bun.password` (argon2id). `src/server/auth_middleware.ts:authenticate` tries `Authorization: Bearer bny_…` (API key) before the `bunny_session` HTTP-only cookie; routes in `src/server/auth_routes.ts` own `/api/auth/*`, `/api/users*`, `/api/apikeys*`. The other `/api/*` routes now require `authenticate` to succeed and stamp `user_id` on every `insertMessage` / event via `RunAgentOptions.userId`. On boot the server seeds an admin (from `cfg.auth.defaultAdmin*`) plus a `system` user used by the CLI when no `BUNNY_API_KEY` is provided. Non-admins only see their own sessions in `listSessions` / `/api/sessions/:id/messages`.
 
 ### Portable binary with embedded UI
 

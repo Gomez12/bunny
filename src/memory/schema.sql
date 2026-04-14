@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS events (
   session_id  TEXT,
   payload_json TEXT,                     -- full job payload (input + output)
   duration_ms INTEGER,
-  error       TEXT                       -- null on success
+  error       TEXT,                      -- null on success
+  user_id     TEXT                       -- owning user (null for anonymous/historical)
 );
 CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id, ts);
 CREATE INDEX IF NOT EXISTS idx_events_topic   ON events(topic, ts);
@@ -33,7 +34,8 @@ CREATE TABLE IF NOT EXISTS messages (
   ok           INTEGER,                    -- 1|0 on tool_result rows; NULL otherwise
   duration_ms  INTEGER,                    -- LLM call duration on assistant content/reasoning rows
   prompt_tokens     INTEGER,               -- tokens sent (per LLM call)
-  completion_tokens INTEGER                -- tokens generated (per LLM call)
+  completion_tokens INTEGER,                -- tokens generated (per LLM call)
+  user_id      TEXT                         -- owning user (null for anonymous/historical)
 );
 CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, ts);
 
@@ -64,6 +66,42 @@ BEGIN
   INSERT INTO messages_fts(messages_fts, rowid, content) VALUES ('delete', OLD.id, OLD.content);
   INSERT INTO messages_fts(rowid, content) VALUES (NEW.id, NEW.content);
 END;
+
+-- ── Users & Auth ─────────────────────────────────────────────────────────────
+-- Authentication tables. Roles: 'admin' | 'user'.
+CREATE TABLE IF NOT EXISTS users (
+  id             TEXT    PRIMARY KEY,
+  username       TEXT    NOT NULL UNIQUE,
+  password_hash  TEXT    NOT NULL,
+  role           TEXT    NOT NULL DEFAULT 'user',
+  display_name   TEXT,
+  email          TEXT,
+  must_change_pw INTEGER NOT NULL DEFAULT 0,
+  created_at     INTEGER NOT NULL,
+  updated_at     INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  token      TEXT    PRIMARY KEY,
+  user_id    TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  last_seen  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_user ON auth_sessions(user_id);
+
+CREATE TABLE IF NOT EXISTS api_keys (
+  id           TEXT    PRIMARY KEY,
+  user_id      TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name         TEXT    NOT NULL,
+  key_hash     TEXT    NOT NULL UNIQUE,
+  prefix       TEXT    NOT NULL,
+  created_at   INTEGER NOT NULL,
+  expires_at   INTEGER,
+  last_used_at INTEGER,
+  revoked_at   INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id);
 
 -- ── Embeddings ───────────────────────────────────────────────────────────────
 -- Created dynamically by db.ts using the configured dimension (default 1536)

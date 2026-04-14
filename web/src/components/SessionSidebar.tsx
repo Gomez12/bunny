@@ -7,6 +7,10 @@ interface Props {
   onNew: () => void;
   /** Bump this to force a refetch (e.g. after a turn completes). */
   refreshKey?: unknown;
+  /** "mine" (default) or "all" — only honored server-side for admins. */
+  scope?: "mine" | "all";
+  /** Show owner badge next to each session (useful under Messages for admins). */
+  showOwner?: boolean;
 }
 
 function sameSessions(a: SessionSummary[], b: SessionSummary[]): boolean {
@@ -17,21 +21,28 @@ function sameSessions(a: SessionSummary[], b: SessionSummary[]): boolean {
   return true;
 }
 
-export default function SessionSidebar({ activeId, onPick, onNew, refreshKey }: Props) {
+export default function SessionSidebar({
+  activeId,
+  onPick,
+  onNew,
+  refreshKey,
+  scope,
+  showOwner,
+}: Props) {
   const [search, setSearch] = useState("");
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
 
   useEffect(() => {
     const t = setTimeout(async () => {
       try {
-        const list = await fetchSessions(search.trim() || undefined);
+        const list = await fetchSessions(search.trim() || undefined, { scope });
         setSessions((prev) => (sameSessions(prev, list) ? prev : list));
       } catch (e) {
         console.error(e);
       }
     }, 200);
     return () => clearTimeout(t);
-  }, [search, refreshKey]);
+  }, [search, refreshKey, scope]);
 
   return (
     <aside className="sidebar">
@@ -60,7 +71,14 @@ export default function SessionSidebar({ activeId, onPick, onNew, refreshKey }: 
               title={new Date(s.lastTs).toLocaleString()}
             >
               <div className="sidebar__item-title">{s.title || "(untitled)"}</div>
-              <div className="sidebar__item-meta">{s.messageCount} msg</div>
+              <div className="sidebar__item-meta">
+                {showOwner && (
+                  <span className="sidebar__owner">
+                    {s.displayName || s.username || "anonymous"}
+                  </span>
+                )}
+                <span>{s.messageCount} msg</span>
+              </div>
             </button>
           </li>
         ))}

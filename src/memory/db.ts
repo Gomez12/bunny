@@ -69,7 +69,7 @@ export async function openDb(dbPath: string, embedDim = 1536): Promise<Database>
   }
 
   applySchema(db, embedDim);
-  migrateMessages(db);
+  migrateColumns(db);
   return db;
 }
 
@@ -78,7 +78,7 @@ export async function openDb(dbPath: string, embedDim = 1536): Promise<Database>
  * "duplicate column name" when a column already exists — we swallow that and
  * treat any other error as fatal. Schema is append-only by convention.
  */
-function migrateMessages(db: Database): void {
+function migrateColumns(db: Database): void {
   const addColumn = (ddl: string) => {
     try {
       db.run(ddl);
@@ -91,6 +91,10 @@ function migrateMessages(db: Database): void {
   addColumn("ALTER TABLE messages ADD COLUMN duration_ms INTEGER");
   addColumn("ALTER TABLE messages ADD COLUMN prompt_tokens INTEGER");
   addColumn("ALTER TABLE messages ADD COLUMN completion_tokens INTEGER");
+  addColumn("ALTER TABLE messages ADD COLUMN user_id TEXT");
+  addColumn("ALTER TABLE events ADD COLUMN user_id TEXT");
+  db.run("CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_id)");
+  db.run("CREATE INDEX IF NOT EXISTS idx_messages_session_user ON messages(session_id, user_id)");
 }
 
 function applySchema(db: Database, embedDim: number): void {
