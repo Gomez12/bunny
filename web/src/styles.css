@@ -726,3 +726,171 @@ button {
   color: var(--text);
   border: 1px solid var(--border);
 }
+
+/* ── Projects ───────────────────────────────────────────────────────────── */
+.project-pill {
+  font-size: 11px;
+  padding: 2px 8px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: white;
+  letter-spacing: 0.02em;
+}
+.projects {
+  padding: 24px 32px;
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+  overflow-y: auto;
+}
+.projects__header h1 { margin: 0 0 4px 0; font-size: 20px; }
+.projects__header p { margin: 0 0 20px 0; color: var(--text-dim); font-size: 13px; }
+.projects__error {
+  background: var(--error-bg, #fee);
+  color: var(--error-fg, #900);
+  border: 1px solid var(--error-border, #fbb);
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+.project-card {
+  position: relative;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms, transform 120ms;
+  overflow: hidden;
+}
+.project-card:hover { border-color: var(--accent); }
+.project-card--active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.project-card--new {
+  align-items: center;
+  justify-content: center;
+  border-style: dashed;
+  color: var(--text-dim);
+  background: transparent;
+}
+.project-card--new:hover { color: var(--text); }
+.project-card--loading { padding: 20px; color: var(--text-dim); }
+.project-card__plus { font-size: 28px; line-height: 1; margin-bottom: 6px; }
+.project-card__hint { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+.project-card__body {
+  all: unset;
+  cursor: pointer;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+.project-card__title { font-weight: 600; font-size: 15px; color: var(--text); }
+.project-card__desc { font-size: 13px; color: var(--text-dim); flex: 1; }
+.project-card__meta { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.project-card__vis {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.project-card__vis--private { border-color: var(--accent); color: var(--accent); }
+.project-card__active {
+  font-size: 10px;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: white;
+}
+.project-card__actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+}
+.project-card__edit {
+  all: unset;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+  color: var(--text-dim);
+  background: transparent;
+  font-size: 13px;
+  line-height: 1;
+}
+.project-card__edit:hover { background: var(--border); color: var(--text); }
+
+/* ── Project dialog ────────────────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+/* Wider modal variant for the project editor — the prompt textarea and the
+   double-column rows need the room. */
+.modal.modal--wide { width: 600px; }
+
+.project-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+.project-form h2 { margin: 0; font-size: 18px; }
+.project-form__field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-dim); min-width: 0; }
+.project-form__field input, .project-form__field textarea, .project-form__field select {
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+.project-form__field textarea { resize: vertical; min-height: 140px; font-family: inherit; }
+.project-form__row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+/* Each field inside a row shares the width equally; min-width:0 prevents
+   long hint text from blowing the column out. */
+.project-form__row > .project-form__field { flex: 1 1 0; min-width: 0; }
+/* Row-level choice labels must stay horizontal — override the column layout
+   that `.modal label` applies more specifically by default. */
+.project-form .project-form__choice {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--text);
+  flex: 1 1 0;
+  min-width: 0;
+}
+.project-form .project-form__choice select { flex: 0 0 auto; }
+.project-form__hint { font-size: 11px; color: var(--text-dim); }
+.project-form__hint--error { color: var(--error-fg, #d33); }
+.project-form__error {
+  background: var(--error-bg, #fee);
+  color: var(--error-fg, #900);
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.project-form__actions { display: flex; gap: 8px; justify-content: flex-end; }

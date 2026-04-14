@@ -83,7 +83,7 @@ export default function ProjectDialog({ mode, initial, onClose, onSubmit }: Prop
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
         <form onSubmit={handleSubmit} className="project-form">
           <h2>{mode === "create" ? "New project" : `Edit ${initial?.name}`}</h2>
 
