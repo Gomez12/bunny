@@ -6,20 +6,11 @@
  */
 
 import { readFileSync } from "node:fs";
-import { resolve, relative } from "node:path";
+import { safePath } from "../util/path.ts";
+import { errorMessage } from "../util/error.ts";
 import type { ToolResult } from "./registry.ts";
 
 const MAX_BYTES = 200_000; // ~200 KB — reasonable LLM context budget
-
-function safePath(rawPath: string): string {
-  const abs = resolve(process.cwd(), rawPath);
-  // Prevent path traversal outside cwd.
-  const rel = relative(process.cwd(), abs);
-  if (rel.startsWith("..")) {
-    throw new Error(`Path escapes working directory: ${rawPath}`);
-  }
-  return abs;
-}
 
 export function readFileHandler(args: Record<string, unknown>): ToolResult {
   const rawPath = args["path"];
@@ -31,7 +22,7 @@ export function readFileHandler(args: Record<string, unknown>): ToolResult {
   try {
     abs = safePath(rawPath);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = errorMessage(e);
     return { ok: false, output: msg, error: msg };
   }
 
@@ -46,7 +37,7 @@ export function readFileHandler(args: Record<string, unknown>): ToolResult {
     }
     return { ok: true, output: buf.toString("utf8") };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = errorMessage(e);
     return { ok: false, output: msg, error: msg };
   }
 }

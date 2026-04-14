@@ -120,7 +120,7 @@ function makeMemCfg(): MemoryConfig {
 
 describe("agent loop — full turn", () => {
   test("calls LLM twice: first with tool_call, then final answer", async () => {
-    const db = openDb(join(tmp, "agent.sqlite"), 4);
+    const db = await openDb(join(tmp, "agent.sqlite"), 4);
     const queue = createBunnyQueue(db);
 
     const output: string[] = [];

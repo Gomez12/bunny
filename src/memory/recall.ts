@@ -12,8 +12,6 @@ import type { EmbedConfig } from "../config.ts";
 import { searchBM25 } from "./bm25.ts";
 import { searchVector } from "./vector.ts";
 import { embed } from "./embed.ts";
-import { getMessagesBySession } from "./messages.ts";
-import type { StoredMessage } from "./messages.ts";
 
 const RRF_K = 60;
 
@@ -82,16 +80,13 @@ export async function hybridRecall(
   const sessionMap = new Map<number, string>(bm25Results.map((r) => [r.messageId, r.sessionId]));
 
   if (missingIds.length > 0) {
-    // We don't have a "select by ID list" helper, so iterate sessions.
-    // In practice this path only fires when a message appears in vector-but-not-BM25 results.
-    for (const id of missingIds) {
-      const placeholder = db
-        .prepare(`SELECT content, session_id FROM messages WHERE id = ?`)
-        .get(id) as { content: string | null; session_id: string } | undefined;
-      if (placeholder) {
-        contentMap.set(id, placeholder.content);
-        sessionMap.set(id, placeholder.session_id);
-      }
+    const placeholders = missingIds.map(() => "?").join(", ");
+    const rows = db
+      .prepare(`SELECT id, content, session_id FROM messages WHERE id IN (${placeholders})`)
+      .all(...missingIds) as { id: number; content: string | null; session_id: string }[];
+    for (const row of rows) {
+      contentMap.set(row.id, row.content);
+      sessionMap.set(row.id, row.session_id);
     }
   }
 

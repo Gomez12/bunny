@@ -10,9 +10,9 @@ import type { Database } from "bun:sqlite";
 let tmp: string;
 let db: Database;
 
-function setup() {
+async function setup() {
   tmp = mkdtempSync(join(tmpdir(), "bunny-q-"));
-  db = openDb(join(tmp, "q.sqlite"));
+  db = await openDb(join(tmp, "q.sqlite"));
   return db;
 }
 
@@ -23,7 +23,7 @@ afterEach(() => {
 
 describe("createBunnyQueue", () => {
   test("log() inserts an event into the events table", async () => {
-    const db = setup();
+    const db = await setup();
     const q = createBunnyQueue(db);
 
     await q.log({ topic: "llm", kind: "request", sessionId: "s1", data: { prompt: "hello" } });
@@ -40,7 +40,7 @@ describe("createBunnyQueue", () => {
   });
 
   test("multiple log() calls all reach the events table", async () => {
-    const db = setup();
+    const db = await setup();
     const q = createBunnyQueue(db);
 
     await q.log({ topic: "llm", kind: "request" });
@@ -59,7 +59,7 @@ describe("createBunnyQueue", () => {
   });
 
   test("error field is persisted", async () => {
-    const db = setup();
+    const db = await setup();
     const q = createBunnyQueue(db);
 
     await q.log({ topic: "llm", kind: "response", error: "timeout" });

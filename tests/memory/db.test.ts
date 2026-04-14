@@ -9,7 +9,7 @@ import { upsertEmbedding, searchVector } from "../../src/memory/vector.ts";
 
 let tmp: string;
 
-function newDb() {
+async function newDb() {
   tmp = mkdtempSync(join(tmpdir(), "bunny-db-"));
   return openDb(join(tmp, "test.sqlite"));
 }
@@ -19,8 +19,8 @@ afterEach(() => {
 });
 
 describe("schema + messages", () => {
-  test("opens database and tables exist", () => {
-    const db = newDb();
+  test("opens database and tables exist", async () => {
+    const db = await newDb();
     const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[];
     const names = tables.map((t) => t.name);
     expect(names).toContain("events");
@@ -28,15 +28,15 @@ describe("schema + messages", () => {
     db.close();
   });
 
-  test("insertMessage persists a row", () => {
-    const db = newDb();
+  test("insertMessage persists a row", async () => {
+    const db = await newDb();
     const id = insertMessage(db, { sessionId: "s1", role: "user", content: "hello bunny" });
     expect(id).toBeGreaterThan(0);
     db.close();
   });
 
-  test("getMessagesBySession returns rows in insertion order", () => {
-    const db = newDb();
+  test("getMessagesBySession returns rows in insertion order", async () => {
+    const db = await newDb();
     insertMessage(db, { sessionId: "sess", role: "user", content: "first" });
     insertMessage(db, { sessionId: "sess", role: "assistant", content: "second" });
     const rows = getMessagesBySession(db, "sess");
@@ -46,8 +46,8 @@ describe("schema + messages", () => {
     db.close();
   });
 
-  test("stores reasoning channel separately", () => {
-    const db = newDb();
+  test("stores reasoning channel separately", async () => {
+    const db = await newDb();
     insertMessage(db, { sessionId: "s2", role: "assistant", channel: "reasoning", content: "let me think" });
     insertMessage(db, { sessionId: "s2", role: "assistant", channel: "content", content: "the answer" });
     const rows = getMessagesBySession(db, "s2");
@@ -58,8 +58,8 @@ describe("schema + messages", () => {
 });
 
 describe("BM25 / FTS5", () => {
-  test("searchBM25 finds inserted content messages", () => {
-    const db = newDb();
+  test("searchBM25 finds inserted content messages", async () => {
+    const db = await newDb();
     insertMessage(db, { sessionId: "s3", role: "user", content: "the quick brown fox" });
     insertMessage(db, { sessionId: "s3", role: "user", content: "pack my box with five dozen liquor jugs" });
     const results = searchBM25(db, "quick brown fox", 10);
@@ -68,29 +68,29 @@ describe("BM25 / FTS5", () => {
     db.close();
   });
 
-  test("searchBM25 does not find reasoning-channel text", () => {
-    const db = newDb();
+  test("searchBM25 does not find reasoning-channel text", async () => {
+    const db = await newDb();
     insertMessage(db, { sessionId: "s4", role: "assistant", channel: "reasoning", content: "secret internal thought" });
     const results = searchBM25(db, "secret internal", 10);
     expect(results).toHaveLength(0);
     db.close();
   });
 
-  test("searchBM25 returns empty for empty query", () => {
-    const db = newDb();
+  test("searchBM25 returns empty for empty query", async () => {
+    const db = await newDb();
     expect(searchBM25(db, "", 10)).toHaveLength(0);
     db.close();
   });
 });
 
 describe("vector embeddings", () => {
-  test("upsertEmbedding and searchVector work when sqlite-vec is available", () => {
-    const db = newDb();
+  test("upsertEmbedding and searchVector work when sqlite-vec is available", async () => {
+    const db = await newDb();
     const dim = 4;
 
     // Reopen with dim=4 to get a small embeddings table.
     db.close();
-    const db4 = openDb(join(tmp!, "test4.sqlite"), dim);
+    const db4 = await openDb(join(tmp!, "test4.sqlite"), dim);
 
     const id = insertMessage(db4, { sessionId: "sv", role: "user", content: "vectors are fun" });
     // Store a simple [1,0,0,0] vector.

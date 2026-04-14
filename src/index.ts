@@ -14,6 +14,7 @@
 import { loadConfig } from "./config.ts";
 import { paths } from "./paths.ts";
 import { getDb } from "./memory/db.ts";
+import { errorMessage } from "./util/error.ts";
 import { createBunnyQueue } from "./queue/bunqueue.ts";
 import { createRenderer } from "./agent/render.ts";
 import { runAgent } from "./agent/loop.ts";
@@ -55,7 +56,7 @@ async function main(argv: string[]): Promise<number> {
   const home = paths.home();
   if (!existsSync(home)) mkdirSync(home, { recursive: true });
 
-  const db = getDb({ embedDim: cfg.embed.dim });
+  const db = await getDb({ embedDim: cfg.embed.dim });
   const queue = createBunnyQueue(db);
   const renderer = createRenderer({
     reasoningMode: hideReasoning ? "hidden" : cfg.render.reasoning,
@@ -75,8 +76,7 @@ async function main(argv: string[]): Promise<number> {
       renderer,
     });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    renderer.onError(msg);
+    renderer.onError(errorMessage(e));
     await queue.close();
     return 1;
   }

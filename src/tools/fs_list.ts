@@ -7,17 +7,10 @@
  */
 
 import { readdirSync, statSync } from "node:fs";
-import { join, resolve, relative } from "node:path";
+import { join } from "node:path";
+import { safePath } from "../util/path.ts";
+import { errorMessage } from "../util/error.ts";
 import type { ToolResult } from "./registry.ts";
-
-function safePath(rawPath: string): string {
-  const abs = resolve(process.cwd(), rawPath);
-  const rel = relative(process.cwd(), abs);
-  if (rel.startsWith("..")) {
-    throw new Error(`Path escapes working directory: ${rawPath}`);
-  }
-  return abs;
-}
 
 export function listDirHandler(args: Record<string, unknown>): ToolResult {
   const rawPath = (args["path"] as string | undefined) ?? ".";
@@ -27,7 +20,7 @@ export function listDirHandler(args: Record<string, unknown>): ToolResult {
   try {
     abs = safePath(rawPath);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = errorMessage(e);
     return { ok: false, output: msg, error: msg };
   }
 
@@ -45,7 +38,7 @@ export function listDirHandler(args: Record<string, unknown>): ToolResult {
       });
     return { ok: true, output: lines.length > 0 ? lines.join("\n") : "(empty directory)" };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = errorMessage(e);
     return { ok: false, output: msg, error: msg };
   }
 }

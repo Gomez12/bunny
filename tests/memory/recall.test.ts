@@ -20,7 +20,7 @@ import type { EmbedConfig } from "../../src/config.ts";
 
 let tmp: string;
 
-function setup() {
+async function setup() {
   tmp = mkdtempSync(join(tmpdir(), "bunny-recall-"));
   return openDb(join(tmp, "recall.sqlite"), 4);
 }
@@ -37,8 +37,8 @@ const mockEmbedCfg: EmbedConfig = {
 };
 
 describe("searchBM25", () => {
-  test("returns results ranked by relevance", () => {
-    const db = setup();
+  test("returns results ranked by relevance", async () => {
+    const db = await setup();
     insertMessage(db, { sessionId: "s1", role: "user", content: "how to install bun runtime" });
     insertMessage(db, { sessionId: "s1", role: "assistant", content: "bun is a fast javascript runtime" });
     insertMessage(db, { sessionId: "s1", role: "user", content: "what is typescript?" });
@@ -51,8 +51,8 @@ describe("searchBM25", () => {
     db.close();
   });
 
-  test("session filter restricts results", () => {
-    const db = setup();
+  test("session filter restricts results", async () => {
+    const db = await setup();
     insertMessage(db, { sessionId: "a", role: "user", content: "alpha bun runtime" });
     insertMessage(db, { sessionId: "b", role: "user", content: "beta bun runtime" });
 
@@ -64,7 +64,7 @@ describe("searchBM25", () => {
 
 describe("hybridRecall", () => {
   test("returns messages relevant to the query (BM25 path since no vectors)", async () => {
-    const db = setup();
+    const db = await setup();
     insertMessage(db, { sessionId: "s1", role: "user", content: "I love using bun for TypeScript" });
     insertMessage(db, { sessionId: "s1", role: "user", content: "python is also great" });
     insertMessage(db, { sessionId: "s1", role: "user", content: "bun test is really fast" });
@@ -77,14 +77,14 @@ describe("hybridRecall", () => {
   });
 
   test("returns empty array when no messages exist", async () => {
-    const db = setup();
+    const db = await setup();
     const results = await hybridRecall(db, mockEmbedCfg, "anything", 5);
     expect(results).toHaveLength(0);
     db.close();
   });
 
   test("rrfScore is positive", async () => {
-    const db = setup();
+    const db = await setup();
     insertMessage(db, { sessionId: "s1", role: "user", content: "bunny is the best agent" });
     const results = await hybridRecall(db, mockEmbedCfg, "bunny agent", 5);
     for (const r of results) {

@@ -10,17 +10,21 @@ import { Database } from "bun:sqlite";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { paths } from "../paths.ts";
+import { errorMessage } from "../util/error.ts";
 
-// sqlite-vec ships platform-specific native binaries.
+// sqlite-vec is loaded lazily on first DB open to avoid blocking module init.
 let sqliteVecLoad: ((db: { loadExtension(f: string, e?: string): void }) => void) | undefined;
+let sqliteVecAttempted = false;
 
-try {
-  const mod = await import("sqlite-vec");
-  sqliteVecLoad = mod.load;
-} catch {
-  // sqlite-vec may not be available in test environments without the native
-  // binary installed. Vector search will be disabled, but FTS5 / events still work.
-  console.warn("[bunny/db] sqlite-vec not available — vector search disabled");
+async function ensureSqliteVec(): Promise<void> {
+  if (sqliteVecAttempted) return;
+  sqliteVecAttempted = true;
+  try {
+    const mod = await import("sqlite-vec");
+    sqliteVecLoad = mod.load;
+  } catch {
+    // sqlite-vec binary not available — vector search degrades to empty results.
+  }
 }
 
 export interface DbOptions {
@@ -34,16 +38,18 @@ let _db: Database | undefined;
 let _dbPath: string | undefined;
 
 /** Return the shared database, opening and migrating it if necessary. */
-export function getDb(opts: DbOptions = {}): Database {
+export async function getDb(opts: DbOptions = {}): Promise<Database> {
   const dbPath = opts.dbPath ?? paths.db();
   if (_db && _dbPath === dbPath) return _db;
-  _db = openDb(dbPath, opts.embedDim ?? 1536);
+  _db = await openDb(dbPath, opts.embedDim ?? 1536);
   _dbPath = dbPath;
   return _db;
 }
 
 /** Open a database at `dbPath`, applying schema and loading extensions. */
-export function openDb(dbPath: string, embedDim = 1536): Database {
+export async function openDb(dbPath: string, embedDim = 1536): Promise<Database> {
+  await ensureSqliteVec();
+
   const dir = dirname(dbPath);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 
@@ -52,12 +58,11 @@ export function openDb(dbPath: string, embedDim = 1536): Database {
   db.run("PRAGMA synchronous = NORMAL");
   db.run("PRAGMA foreign_keys = ON");
 
-  // Load sqlite-vec if available.
   if (sqliteVecLoad) {
     try {
       sqliteVecLoad(db);
     } catch (e) {
-      console.warn("[bunny/db] Could not load sqlite-vec extension:", e);
+      console.warn("[bunny/db] Could not load sqlite-vec extension:", errorMessage(e));
     }
   }
 
@@ -84,8 +89,7 @@ function applySchema(db: Database, embedDim: number): void {
       db.run(stmt);
     } catch (e) {
       // Skip expected errors like "table already exists" when IF NOT EXISTS is absent.
-      const msg = e instanceof Error ? e.message : String(e);
-      if (!msg.includes("already exists")) throw e;
+      if (!errorMessage(e).includes("already exists")) throw e;
     }
   }
 
@@ -96,7 +100,7 @@ function applySchema(db: Database, embedDim: number): void {
          USING vec0(message_id INTEGER PRIMARY KEY, embedding FLOAT[${embedDim}])`,
     );
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = errorMessage(e);
     // Not fatal if sqlite-vec is absent.
     if (!msg.includes("no such module") && !msg.includes("already exists")) throw e;
   }

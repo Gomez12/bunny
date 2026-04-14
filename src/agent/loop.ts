@@ -50,7 +50,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
 
   // ── Store the user message ────────────────────────────────────────────────
   const userId = insertMessage(db, { sessionId, role: "user", content: prompt });
-  void indexMessage(db, embedCfg, userId, prompt, memoryCfg);
+  void indexMessage(db, embedCfg, userId, prompt);
   void queue.log({ topic: "memory", kind: "index", sessionId, data: { role: "user" } });
 
   // Build the conversation history for this turn.
@@ -89,11 +89,9 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
     const assistantContent = llmRes.message.content ?? "";
     if (assistantContent) {
       const aid = insertMessage(db, { sessionId, role: "assistant", channel: "content", content: assistantContent });
-      void indexMessage(db, embedCfg, aid, assistantContent, memoryCfg);
+      void indexMessage(db, embedCfg, aid, assistantContent);
     }
-    if (llmRes.message.reasoning && memoryCfg.indexReasoning) {
-      insertMessage(db, { sessionId, role: "assistant", channel: "reasoning", content: llmRes.message.reasoning });
-    } else if (llmRes.message.reasoning) {
+    if (llmRes.message.reasoning) {
       insertMessage(db, { sessionId, role: "assistant", channel: "reasoning", content: llmRes.message.reasoning });
     }
 
@@ -105,32 +103,27 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
       return assistantContent;
     }
 
-    // Execute each tool call.
-    for (const tc of llmRes.message.tool_calls) {
-      void queue.log({ topic: "tool", kind: "call", sessionId, data: { name: tc.function.name } });
-      const t1 = Date.now();
+    // Execute tool calls in parallel.
+    const toolResults = await Promise.all(
+      llmRes.message.tool_calls.map(async (tc) => {
+        void queue.log({ topic: "tool", kind: "call", sessionId, data: { name: tc.function.name } });
+        const t1 = Date.now();
+        const result = await tools.call(tc.function.name, tc.function.arguments);
+        void queue.log({
+          topic: "tool",
+          kind: "result",
+          sessionId,
+          data: { name: tc.function.name, ok: result.ok },
+          durationMs: Date.now() - t1,
+          error: result.ok ? undefined : result.error,
+        });
+        return { tc, result };
+      }),
+    );
 
-      const result = await tools.call(tc.function.name, tc.function.arguments);
-
-      void queue.log({
-        topic: "tool",
-        kind: "result",
-        sessionId,
-        data: { name: tc.function.name, ok: result.ok },
-        durationMs: Date.now() - t1,
-        error: result.ok ? undefined : result.error,
-      });
-
+    for (const { tc, result } of toolResults) {
       renderer.onToolResult(tc.function.name, result);
-
-      const toolMsg: ChatMessage = {
-        role: "tool",
-        content: result.output,
-        tool_call_id: tc.id,
-      };
-      messages.push(toolMsg);
-
-      // Store tool result.
+      messages.push({ role: "tool", content: result.output, tool_call_id: tc.id });
       insertMessage(db, {
         sessionId,
         role: "tool",
@@ -152,7 +145,6 @@ async function indexMessage(
   embedCfg: EmbedConfig,
   messageId: number,
   text: string,
-  _memoryCfg: MemoryConfig,
 ): Promise<void> {
   try {
     const vec = await embed(embedCfg, text);

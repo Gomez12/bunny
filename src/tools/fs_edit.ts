@@ -7,17 +7,9 @@
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
-import { resolve, relative } from "node:path";
+import { safePath } from "../util/path.ts";
+import { errorMessage } from "../util/error.ts";
 import type { ToolResult } from "./registry.ts";
-
-function safePath(rawPath: string): string {
-  const abs = resolve(process.cwd(), rawPath);
-  const rel = relative(process.cwd(), abs);
-  if (rel.startsWith("..")) {
-    throw new Error(`Path escapes working directory: ${rawPath}`);
-  }
-  return abs;
-}
 
 export function editFileHandler(args: Record<string, unknown>): ToolResult {
   const rawPath = args["path"];
@@ -38,7 +30,7 @@ export function editFileHandler(args: Record<string, unknown>): ToolResult {
   try {
     abs = safePath(rawPath);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = errorMessage(e);
     return { ok: false, output: msg, error: msg };
   }
 
@@ -46,7 +38,7 @@ export function editFileHandler(args: Record<string, unknown>): ToolResult {
   try {
     content = readFileSync(abs, "utf8");
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = errorMessage(e);
     return { ok: false, output: `Could not read ${rawPath}: ${msg}`, error: msg };
   }
 
@@ -71,7 +63,7 @@ export function editFileHandler(args: Record<string, unknown>): ToolResult {
     writeFileSync(abs, updated, "utf8");
     return { ok: true, output: `Successfully edited ${rawPath}` };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = errorMessage(e);
     return { ok: false, output: `Could not write ${rawPath}: ${msg}`, error: msg };
   }
 }
