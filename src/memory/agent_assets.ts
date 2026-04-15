@@ -7,7 +7,7 @@
  * is the source of truth for prompt content and tuning.
  */
 
-import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { paths } from "../paths.ts";
 import { validateAgentName } from "./agents.ts";
@@ -88,9 +88,28 @@ export function writeAgentAssets(name: string, patch: AgentOverridesPatch): void
   writeFileSync(join(dir, CONFIG_FILE), renderConfigToml(sp, memory, tools, allowedSubagents), "utf8");
 }
 
+/** mtime-keyed cache so runAgent doesn't re-read + re-parse on every turn. */
+const assetsCache = new Map<string, { mtimeMs: number; assets: AgentAssets }>();
+
 /** Read config.toml. Returns defaults when missing or malformed. */
 export function loadAgentAssets(name: string): AgentAssets {
   const file = join(agentDir(name), CONFIG_FILE);
+  let mtimeMs = -1;
+  try {
+    mtimeMs = statSync(file).mtimeMs;
+  } catch {
+    // Missing file — fall through to defaults below.
+  }
+  const hit = assetsCache.get(file);
+  if (hit && hit.mtimeMs === mtimeMs) return hit.assets;
+  if (mtimeMs < 0) {
+    return {
+      systemPrompt: { ...DEFAULT_SYSTEM_PROMPT },
+      memory: { ...DEFAULT_MEMORY },
+      tools: undefined,
+      allowedSubagents: [],
+    };
+  }
   try {
     const text = readFileSync(file, "utf8");
     const parsed = Bun.TOML.parse(text) as {
@@ -103,7 +122,7 @@ export function loadAgentAssets(name: string): AgentAssets {
     };
     const prompt = typeof parsed.prompt === "string" ? parsed.prompt : "";
     const append = parsed.append === undefined ? false : Boolean(parsed.append);
-    return {
+    const assets: AgentAssets = {
       systemPrompt: { prompt, append },
       memory: {
         lastN: parseMemoryOverride(parsed.last_n),
@@ -112,6 +131,8 @@ export function loadAgentAssets(name: string): AgentAssets {
       tools: parseStringList(parsed.tools),
       allowedSubagents: parseStringList(parsed.allowed_subagents) ?? [],
     };
+    assetsCache.set(file, { mtimeMs, assets });
+    return assets;
   } catch {
     return {
       systemPrompt: { ...DEFAULT_SYSTEM_PROMPT },

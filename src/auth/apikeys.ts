@@ -7,8 +7,11 @@
  */
 
 import type { Database } from "bun:sqlite";
+import { prep } from "../memory/prepared.ts";
 
 const KEY_PREFIX = "bny_";
+/** Minimum gap between `last_used_at` writes per API key. */
+const LAST_USED_THROTTLE_MS = 60_000;
 
 function randomHex(bytes: number): string {
   const buf = new Uint8Array(bytes);
@@ -76,7 +79,8 @@ export async function createApiKey(
   const secret = `${KEY_PREFIX}${prefix}_${secretPart}`;
   const keyHash = await sha256Hex(secret);
   const now = Date.now();
-  db.prepare(
+  prep(
+    db,
     `INSERT INTO api_keys (id, user_id, name, key_hash, prefix, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
   ).run(id, userId, name, keyHash, prefix, now, expiresAt);
   return {
@@ -97,30 +101,40 @@ export async function createApiKey(
 export async function validateApiKey(db: Database, raw: string): Promise<{ userId: string; id: string } | null> {
   if (!raw || !raw.startsWith(KEY_PREFIX)) return null;
   const keyHash = await sha256Hex(raw);
-  const row = db
-    .prepare(
-      `SELECT id, user_id, expires_at, revoked_at FROM api_keys WHERE key_hash = ?`,
-    )
-    .get(keyHash) as
-    | { id: string; user_id: string; expires_at: number | null; revoked_at: number | null }
+  const row = prep(
+    db,
+    `SELECT id, user_id, expires_at, revoked_at, last_used_at FROM api_keys WHERE key_hash = ?`,
+  ).get(keyHash) as
+    | {
+        id: string;
+        user_id: string;
+        expires_at: number | null;
+        revoked_at: number | null;
+        last_used_at: number | null;
+      }
     | null;
   if (!row) return null;
   if (row.revoked_at !== null) return null;
-  if (row.expires_at !== null && row.expires_at < Date.now()) return null;
-  db.prepare(`UPDATE api_keys SET last_used_at = ? WHERE id = ?`).run(Date.now(), row.id);
+  const now = Date.now();
+  if (row.expires_at !== null && row.expires_at < now) return null;
+  // Throttle last_used_at writes — they're telemetry, not auth-critical.
+  if (row.last_used_at === null || now - row.last_used_at >= LAST_USED_THROTTLE_MS) {
+    prep(db, `UPDATE api_keys SET last_used_at = ? WHERE id = ?`).run(now, row.id);
+  }
   return { userId: row.user_id, id: row.id };
 }
 
 export function listApiKeys(db: Database, userId: string): ApiKeyMeta[] {
-  const rows = db
-    .prepare(`SELECT * FROM api_keys WHERE user_id = ? ORDER BY created_at DESC`)
-    .all(userId) as ApiKeyRow[];
+  const rows = prep(db, `SELECT * FROM api_keys WHERE user_id = ? ORDER BY created_at DESC`).all(
+    userId,
+  ) as ApiKeyRow[];
   return rows.map(rowToMeta);
 }
 
 export function revokeApiKey(db: Database, id: string, userId: string): boolean {
-  const res = db
-    .prepare(`UPDATE api_keys SET revoked_at = ? WHERE id = ? AND user_id = ? AND revoked_at IS NULL`)
-    .run(Date.now(), id, userId);
+  const res = prep(
+    db,
+    `UPDATE api_keys SET revoked_at = ? WHERE id = ? AND user_id = ? AND revoked_at IS NULL`,
+  ).run(Date.now(), id, userId);
   return (res.changes ?? 0) > 0;
 }

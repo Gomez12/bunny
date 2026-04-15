@@ -4,6 +4,8 @@
 
 import type { Database } from "bun:sqlite";
 import type { ChatMessage } from "../llm/types.ts";
+import { prep } from "./prepared.ts";
+import { invalidateSessionOwners } from "./sessions.ts";
 
 export type MessageRole = "system" | "user" | "assistant" | "tool";
 export type MessageChannel = "content" | "reasoning" | "tool_call" | "tool_result";
@@ -53,13 +55,14 @@ export interface InsertMessageOpts {
   author?: string | null;
 }
 
-export function insertMessage(db: Database, opts: InsertMessageOpts): number {
-  const stmt = db.prepare(`
+const INSERT_MESSAGE_SQL = `
     INSERT INTO messages (session_id, ts, role, channel, content, tool_call_id, tool_name, provider_sig, ok, duration_ms, prompt_tokens, completion_tokens, user_id, project, author)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     RETURNING id
-  `);
-  const row = stmt.get(
+  `;
+
+export function insertMessage(db: Database, opts: InsertMessageOpts): number {
+  const row = prep(db, INSERT_MESSAGE_SQL).get(
     opts.sessionId,
     Date.now(),
     opts.role,
@@ -76,6 +79,7 @@ export function insertMessage(db: Database, opts: InsertMessageOpts): number {
     opts.project ?? "general",
     opts.author ?? null,
   ) as { id: number } | undefined;
+  if (opts.userId) invalidateSessionOwners(db, opts.sessionId);
   return row?.id ?? 0;
 }
 
@@ -102,28 +106,24 @@ export function getRecentTurns(
   ownAuthor?: string | null | undefined,
 ): Array<ChatMessage & { messageId: number }> {
   if (limit <= 0) return [];
-  const clauses = [
-    "session_id = ?",
-    "channel = 'content'",
-    "role IN ('user', 'assistant')",
-    "content IS NOT NULL",
-    "content != ''",
-  ];
+  const baseClauses =
+    "session_id = ? AND channel = 'content' AND role IN ('user', 'assistant') AND content IS NOT NULL AND content != ''";
   const params: (string | number | null)[] = [sessionId];
+  let sql: string;
   if (ownAuthor !== undefined) {
-    // User turns always pass; assistant turns must match the scope.
-    clauses.push("(role = 'user' OR (role = 'assistant' AND author IS ?))");
+    sql = `SELECT id, role, content FROM messages
+           WHERE ${baseClauses} AND (role = 'user' OR (role = 'assistant' AND author IS ?))
+           ORDER BY ts DESC, id DESC
+           LIMIT ?`;
     params.push(ownAuthor);
+  } else {
+    sql = `SELECT id, role, content FROM messages
+           WHERE ${baseClauses}
+           ORDER BY ts DESC, id DESC
+           LIMIT ?`;
   }
   params.push(limit);
-  const rows = db
-    .prepare(
-      `SELECT id, role, content FROM messages
-       WHERE ${clauses.join(" AND ")}
-       ORDER BY ts DESC, id DESC
-       LIMIT ?`,
-    )
-    .all(...params) as Array<{ id: number; role: string; content: string }>;
+  const rows = prep(db, sql).all(...params) as Array<{ id: number; role: string; content: string }>;
   return rows.reverse().map((r) => ({
     role: r.role as "user" | "assistant",
     content: r.content,

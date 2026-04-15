@@ -12,6 +12,7 @@ import { randomUUID } from "node:crypto";
 
 import { getMessagesBySession } from "../memory/messages.ts";
 import { getSessionOwners, listSessions } from "../memory/sessions.ts";
+import { setSessionHiddenFromChat } from "../memory/session_visibility.ts";
 import { listEventFacets, listEvents, type ListEventsFilter } from "../memory/events.ts";
 import { runAgent } from "../agent/loop.ts";
 import { createSseRenderer, controllerSink, finishSse } from "../agent/render_sse.ts";
@@ -128,18 +129,44 @@ export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<
     if (req.method === "DELETE") return handleDeleteProject(ctx, user, name);
   }
 
-  // GET /api/sessions?q=...&scope=mine|all&project=<name>
+  // GET /api/sessions?q=...&scope=mine|all&project=<name>&excludeHidden=1
   if (pathname === "/api/sessions" && req.method === "GET") {
     const q = url.searchParams.get("q") ?? undefined;
     const scope = url.searchParams.get("scope") ?? "mine";
     const projectParam = url.searchParams.get("project")?.trim();
+    const excludeHidden = url.searchParams.get("excludeHidden") === "1";
     // Admins may opt-in to the global view with scope=all; everyone else is
     // always restricted to their own sessions.
     const allowAll = user.role === "admin" && scope === "all";
     const filter: { userId?: string; project?: string } = allowAll ? {} : { userId: user.id };
     if (projectParam) filter.project = projectParam;
-    const sessions = listSessions(ctx.db, { search: q, ...filter });
+    const sessions = listSessions(ctx.db, {
+      search: q,
+      ...filter,
+      viewerId: user.id,
+      excludeHidden,
+    });
     return json({ sessions });
+  }
+
+  // PATCH /api/sessions/:id — toggle per-user visibility flags
+  const sessionPatchMatch = pathname.match(/^\/api\/sessions\/([^/]+)$/);
+  if (sessionPatchMatch && req.method === "PATCH") {
+    const sessionId = decodeURIComponent(sessionPatchMatch[1]!);
+    if (!canAccessSession(ctx, user, sessionId)) {
+      return json({ error: "forbidden" }, 403);
+    }
+    let body: { hiddenFromChat?: boolean };
+    try {
+      body = (await req.json()) as { hiddenFromChat?: boolean };
+    } catch {
+      return json({ error: "invalid json" }, 400);
+    }
+    if (typeof body.hiddenFromChat !== "boolean") {
+      return json({ error: "hiddenFromChat (boolean) is required" }, 400);
+    }
+    setSessionHiddenFromChat(ctx.db, user.id, sessionId, body.hiddenFromChat);
+    return json({ ok: true, sessionId, hiddenFromChat: body.hiddenFromChat });
   }
 
   // POST /api/sessions → create a new session id

@@ -1,16 +1,19 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { createSession, fetchMe, logout, type AuthUser } from "./api";
-import ChatTab from "./tabs/ChatTab";
-import MessagesTab from "./tabs/MessagesTab";
-import ProjectsTab from "./tabs/ProjectsTab";
-import AgentsTab from "./tabs/AgentsTab";
-import BoardTab from "./tabs/BoardTab";
-import FilesTab from "./tabs/FilesTab";
-import LogsTab from "./tabs/LogsTab";
-import TasksTab from "./tabs/TasksTab";
 import LoginPage from "./pages/LoginPage";
 import ChangePasswordPage from "./pages/ChangePasswordPage";
-import SettingsPage from "./pages/SettingsPage";
+
+// Tabs + pages are route-level — lazy-load so the initial bundle stays small
+// (mermaid, highlight.js, react-markdown, @dnd-kit end up in their own chunks).
+const ChatTab = lazy(() => import("./tabs/ChatTab"));
+const MessagesTab = lazy(() => import("./tabs/MessagesTab"));
+const ProjectsTab = lazy(() => import("./tabs/ProjectsTab"));
+const AgentsTab = lazy(() => import("./tabs/AgentsTab"));
+const BoardTab = lazy(() => import("./tabs/BoardTab"));
+const FilesTab = lazy(() => import("./tabs/FilesTab"));
+const LogsTab = lazy(() => import("./tabs/LogsTab"));
+const TasksTab = lazy(() => import("./tabs/TasksTab"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 
 type Tab = "chat" | "messages" | "board" | "files" | "tasks" | "projects" | "agents" | "logs" | "settings";
 
@@ -177,34 +180,36 @@ export default function App() {
       </header>
 
       <main className="main">
-        {tab === "chat" && sessionId && (
-          <ChatTab
-            sessionId={sessionId}
-            project={activeProject}
-            currentUser={user}
-            onPickSession={onPickSession}
-            onNewSession={onNewSession}
-          />
-        )}
-        {tab === "messages" && <MessagesTab currentUser={user} project={activeProject} />}
-        {tab === "board" && (
-          <BoardTab
-            project={activeProject}
-            currentUser={user}
-            onOpenInChat={(sid) => {
-              onPickSession(sid);
-              setTab("chat");
-            }}
-          />
-        )}
-        {tab === "projects" && (
-          <ProjectsTab currentUser={user} activeProject={activeProject} onPickProject={onPickProject} />
-        )}
-        {tab === "agents" && <AgentsTab currentUser={user} activeProject={activeProject} />}
-        {tab === "files" && <FilesTab project={activeProject} currentUser={user} />}
-        {tab === "tasks" && <TasksTab currentUser={user} />}
-        {tab === "logs" && user.role === "admin" && <LogsTab />}
-        {tab === "settings" && <SettingsPage user={user} onUserUpdated={setUser} />}
+        <Suspense fallback={<div className="app-loading">Loading…</div>}>
+          {tab === "chat" && sessionId && (
+            <ChatTab
+              sessionId={sessionId}
+              project={activeProject}
+              currentUser={user}
+              onPickSession={onPickSession}
+              onNewSession={onNewSession}
+            />
+          )}
+          {tab === "messages" && <MessagesTab currentUser={user} project={activeProject} />}
+          {tab === "board" && (
+            <BoardTab
+              project={activeProject}
+              currentUser={user}
+              onOpenInChat={(sid) => {
+                onPickSession(sid);
+                setTab("chat");
+              }}
+            />
+          )}
+          {tab === "projects" && (
+            <ProjectsTab currentUser={user} activeProject={activeProject} onPickProject={onPickProject} />
+          )}
+          {tab === "agents" && <AgentsTab currentUser={user} activeProject={activeProject} />}
+          {tab === "files" && <FilesTab project={activeProject} currentUser={user} />}
+          {tab === "tasks" && <TasksTab currentUser={user} />}
+          {tab === "logs" && user.role === "admin" && <LogsTab />}
+          {tab === "settings" && <SettingsPage user={user} onUserUpdated={setUser} />}
+        </Suspense>
       </main>
     </div>
   );

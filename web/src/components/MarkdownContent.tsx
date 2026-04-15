@@ -1,4 +1,4 @@
-import { isValidElement, useState, type ReactNode } from "react";
+import { isValidElement, memo, useEffect, useRef, useState, type ReactNode } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
@@ -48,8 +48,50 @@ interface Props {
   text: string;
 }
 
-export default function MarkdownContent({ text }: Props) {
+/**
+ * Minimum gap (ms) between re-parses while `text` is still changing. Keeps the
+ * rendered markdown fresh during streaming (no wait-till-end), but caps the
+ * parse rate so token-per-ms deltas don't melt the main thread.
+ */
+const STREAM_FLUSH_MS = 120;
+
+function MarkdownContentImpl({ text }: Props) {
   const [mode, setMode] = useState<"md" | "raw">("md");
+  // Throttled view of `text`: updates at most every STREAM_FLUSH_MS while the
+  // prop is still changing, and always catches up once it stops.
+  const [displayed, setDisplayed] = useState(text);
+  const latestRef = useRef(text);
+  latestRef.current = text;
+  const pendingRef = useRef<number | null>(null);
+  const lastFlushRef = useRef(0);
+
+  useEffect(() => {
+    if (displayed === text) return;
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const elapsed = now - lastFlushRef.current;
+    if (elapsed >= STREAM_FLUSH_MS) {
+      lastFlushRef.current = now;
+      setDisplayed(text);
+      return;
+    }
+    if (pendingRef.current !== null) return;
+    pendingRef.current = window.setTimeout(() => {
+      pendingRef.current = null;
+      lastFlushRef.current =
+        typeof performance !== "undefined" ? performance.now() : Date.now();
+      setDisplayed(latestRef.current);
+    }, STREAM_FLUSH_MS - elapsed);
+  }, [text, displayed]);
+
+  useEffect(
+    () => () => {
+      if (pendingRef.current !== null) {
+        clearTimeout(pendingRef.current);
+        pendingRef.current = null;
+      }
+    },
+    [],
+  );
   return (
     <div className="bubble__content-wrap">
       <button
@@ -67,7 +109,7 @@ export default function MarkdownContent({ text }: Props) {
             rehypePlugins={REHYPE_PLUGINS}
             components={COMPONENTS}
           >
-            {text}
+            {displayed}
           </ReactMarkdown>
         </div>
       ) : (
@@ -76,3 +118,8 @@ export default function MarkdownContent({ text }: Props) {
     </div>
   );
 }
+
+// Memoised so a parent re-render (e.g. streaming a *different* turn) doesn't
+// re-parse markdown for finalised history turns whose `text` hasn't changed.
+const MarkdownContent = memo(MarkdownContentImpl);
+export default MarkdownContent;

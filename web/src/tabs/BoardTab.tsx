@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   DndContext,
+  DragOverlay,
   PointerSensor,
   closestCorners,
+  defaultDropAnimationSideEffects,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import {
@@ -27,6 +30,7 @@ import {
   type Swimlane,
 } from "../api";
 import BoardColumn from "../components/BoardColumn";
+import { BoardCardPreview } from "../components/BoardCard";
 import CardDialog, { type CardDialogValue } from "../components/CardDialog";
 
 interface Props {
@@ -47,6 +51,11 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
   const [projectAgents, setProjectAgents] = useState<Agent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<CardDialogState>({ kind: "closed" });
+  const [dragging, setDragging] = useState<
+    | { kind: "card"; card: BoardCardModel }
+    | { kind: "lane"; lane: Swimlane }
+    | null
+  >(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -159,7 +168,22 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
   // a card still register as clicks rather than drags.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
+  const handleDragStart = (event: DragStartEvent) => {
+    if (!board) return;
+    const id = String(event.active.id);
+    if (id.startsWith("card-")) {
+      const card = board.cards.find((c) => c.id === Number(id.slice(5)));
+      if (card) setDragging({ kind: "card", card });
+    } else if (id.startsWith("lane-")) {
+      const lane = board.swimlanes.find((l) => l.id === Number(id.slice(5)));
+      if (lane) setDragging({ kind: "lane", lane });
+    }
+  };
+
+  const handleDragCancel = () => setDragging(null);
+
   const handleDragEnd = async (event: DragEndEvent) => {
+    setDragging(null);
     if (!board) return;
     const { active, over } = event;
     if (!over) return;
@@ -300,7 +324,13 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
 
       {error && <div className="board__error">{error}</div>}
 
-      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
       <SortableContext
         items={board.swimlanes.map((l) => `lane-${l.id}`)}
         strategy={horizontalListSortingStrategy}
@@ -325,6 +355,26 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
         ))}
       </div>
       </SortableContext>
+      <DragOverlay
+        dropAnimation={{
+          duration: 180,
+          easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)",
+          sideEffects: defaultDropAnimationSideEffects({
+            styles: { active: { opacity: "0.4" } },
+          }),
+        }}
+      >
+        {dragging?.kind === "card" && (
+          <div className="board-card-overlay">
+            <BoardCardPreview card={dragging.card} />
+          </div>
+        )}
+        {dragging?.kind === "lane" && (
+          <div className="board-column-overlay">
+            <div className="board-column-overlay__title">{dragging.lane.name}</div>
+          </div>
+        )}
+      </DragOverlay>
       </DndContext>
 
       {dialog.kind !== "closed" && (

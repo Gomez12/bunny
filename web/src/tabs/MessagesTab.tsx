@@ -50,6 +50,7 @@ export default function MessagesTab({ currentUser, project }: Props) {
         scope={isAdmin ? "all" : "mine"}
         showOwner={isAdmin}
         project={project}
+        allowToggleHidden
       />
       <section className="messages__transcript">
         {loading && <div className="messages__loading">Loading…</div>}

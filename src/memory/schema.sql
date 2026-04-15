@@ -145,6 +145,19 @@ CREATE TABLE IF NOT EXISTS api_keys (
 );
 CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id);
 
+-- ── Per-user session visibility ──────────────────────────────────────────────
+-- Lets a user hide a session from their own chat sidebar without affecting any
+-- other user. The session itself remains intact and stays visible under the
+-- Messages tab, where the user can unhide it. One row per (user, session).
+CREATE TABLE IF NOT EXISTS session_visibility (
+  user_id          TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  session_id       TEXT    NOT NULL,
+  hidden_from_chat INTEGER NOT NULL DEFAULT 0,
+  updated_at       INTEGER NOT NULL,
+  PRIMARY KEY (user_id, session_id)
+);
+CREATE INDEX IF NOT EXISTS idx_session_visibility_session ON session_visibility(session_id);
+
 -- ── Boards ───────────────────────────────────────────────────────────────────
 -- Trello-style kanban per project: configurable swimlanes (columns) with cards
 -- that can be assigned to either a user or an agent (mutually exclusive).

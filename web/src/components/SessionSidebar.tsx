@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { fetchSessions, type SessionSummary } from "../api";
+import {
+  fetchSessions,
+  setSessionHiddenFromChat,
+  type SessionSummary,
+} from "../api";
 
 interface Props {
   activeId: string | null;
@@ -13,12 +17,22 @@ interface Props {
   showOwner?: boolean;
   /** Restrict the listed sessions to a single project. */
   project?: string;
+  /** Drop sessions the viewer has hidden from chat. Default false. */
+  excludeHidden?: boolean;
+  /** Render a per-row hide/unhide control. Default false. */
+  allowToggleHidden?: boolean;
 }
 
 function sameSessions(a: SessionSummary[], b: SessionSummary[]): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
-    if (a[i]!.sessionId !== b[i]!.sessionId || a[i]!.lastTs !== b[i]!.lastTs) return false;
+    if (
+      a[i]!.sessionId !== b[i]!.sessionId ||
+      a[i]!.lastTs !== b[i]!.lastTs ||
+      a[i]!.hiddenFromChat !== b[i]!.hiddenFromChat
+    ) {
+      return false;
+    }
   }
   return true;
 }
@@ -31,21 +45,46 @@ export default function SessionSidebar({
   scope,
   showOwner,
   project,
+  excludeHidden,
+  allowToggleHidden,
 }: Props) {
   const [search, setSearch] = useState("");
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [localBump, setLocalBump] = useState(0);
 
   useEffect(() => {
     const t = setTimeout(async () => {
       try {
-        const list = await fetchSessions(search.trim() || undefined, { scope, project });
+        const list = await fetchSessions(search.trim() || undefined, {
+          scope,
+          project,
+          excludeHidden,
+        });
         setSessions((prev) => (sameSessions(prev, list) ? prev : list));
       } catch (e) {
         console.error(e);
       }
     }, 200);
     return () => clearTimeout(t);
-  }, [search, refreshKey, scope, project]);
+  }, [search, refreshKey, scope, project, excludeHidden, localBump]);
+
+  const toggleHidden = async (s: SessionSummary) => {
+    const next = !s.hiddenFromChat;
+    // Optimistic: when excluding hidden ones, immediately drop the row;
+    // otherwise just flip the flag and keep it in place.
+    setSessions((prev) =>
+      excludeHidden && next
+        ? prev.filter((p) => p.sessionId !== s.sessionId)
+        : prev.map((p) => (p.sessionId === s.sessionId ? { ...p, hiddenFromChat: next } : p)),
+    );
+    try {
+      await setSessionHiddenFromChat(s.sessionId, next);
+    } catch (e) {
+      console.error(e);
+      // Roll back by refetching.
+      setLocalBump((n) => n + 1);
+    }
+  };
 
   return (
     <aside className="sidebar">
@@ -65,13 +104,18 @@ export default function SessionSidebar({
           <li className="sidebar__empty">No sessions yet.</li>
         )}
         {sessions.map((s) => (
-          <li key={s.sessionId}>
+          <li key={s.sessionId} className="sidebar__row">
             <button
-              className={`sidebar__item ${
-                s.sessionId === activeId ? "sidebar__item--active" : ""
-              }`}
+              className={
+                "sidebar__item" +
+                (s.sessionId === activeId ? " sidebar__item--active" : "") +
+                (s.hiddenFromChat ? " sidebar__item--hidden" : "")
+              }
               onClick={() => onPick(s.sessionId)}
-              title={new Date(s.lastTs).toLocaleString()}
+              title={
+                (s.hiddenFromChat ? "(hidden from chat)\n" : "") +
+                new Date(s.lastTs).toLocaleString()
+              }
             >
               <div className="sidebar__item-title">{s.title || "(untitled)"}</div>
               <div className="sidebar__item-meta">
@@ -81,8 +125,23 @@ export default function SessionSidebar({
                   </span>
                 )}
                 <span>{s.messageCount} msg</span>
+                {s.hiddenFromChat && <span className="sidebar__hidden-badge">hidden</span>}
               </div>
             </button>
+            {allowToggleHidden && (
+              <button
+                type="button"
+                className="sidebar__hide-btn"
+                title={s.hiddenFromChat ? "Show in chat" : "Hide from chat"}
+                aria-label={s.hiddenFromChat ? "Show in chat" : "Hide from chat"}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void toggleHidden(s);
+                }}
+              >
+                {s.hiddenFromChat ? "👁" : "✕"}
+              </button>
+            )}
           </li>
         ))}
       </ul>

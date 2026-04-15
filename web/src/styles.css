@@ -209,6 +209,57 @@ button {
   padding: 8px 10px;
 }
 
+.sidebar__row {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+.sidebar__row .sidebar__item {
+  flex: 1;
+  min-width: 0;
+}
+.sidebar__hide-btn {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
+  padding: 0 8px;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+.sidebar__row:hover .sidebar__hide-btn,
+.sidebar__hide-btn:focus {
+  opacity: 1;
+}
+.sidebar__hide-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.sidebar__item--hidden {
+  opacity: 0.55;
+}
+.sidebar__item--hidden .sidebar__item-title {
+  font-style: italic;
+}
+.sidebar__hidden-badge {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--text-faint);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+/* Always show the toggle button on hidden rows so users can find the unhide control. */
+.sidebar__row:has(.sidebar__item--hidden) .sidebar__hide-btn {
+  opacity: 0.7;
+}
+
 /* ── Chat tab ────────────────────────────────────────────────── */
 .chat {
   display: grid;
@@ -269,6 +320,11 @@ button {
   border-radius: var(--radius);
   padding: 8px;
 }
+.composer__field {
+  flex: 1;
+  position: relative;
+  display: flex;
+}
 .composer__input {
   flex: 1;
   background: transparent;
@@ -281,6 +337,66 @@ button {
   min-height: 24px;
   max-height: 200px;
   line-height: 1.5;
+}
+
+.mention-popup {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  z-index: 10;
+}
+.mention-popup__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.92em;
+  color: var(--text);
+}
+.mention-popup__item--active {
+  background: var(--accent-soft, rgba(120, 120, 255, 0.18));
+}
+.mention-popup__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  font-size: 0.72em;
+  font-weight: 600;
+  flex-shrink: 0;
+  color: #fff;
+}
+.mention-popup__badge--agent {
+  background: #6f56d8;
+}
+.mention-popup__badge--user {
+  background: #2f8f5e;
+}
+.mention-popup__label {
+  font-weight: 500;
+}
+.mention-popup__hint {
+  color: var(--text-dim);
+  font-size: 0.85em;
+  margin-left: auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 55%;
 }
 
 .turn {
@@ -1188,9 +1304,63 @@ button {
   border-color: var(--accent);
   background: rgba(124, 92, 255, 0.04);
 }
+
+/* The card stays in its slot while the DragOverlay clone follows the cursor.
+ * Fade the source + dashed outline so the placeholder position is obvious. */
 .board-card--dragging {
   cursor: grabbing;
+  opacity: 0.35;
+  background: rgba(124, 92, 255, 0.05);
+  border-style: dashed;
+  border-color: var(--accent);
+  box-shadow: none;
 }
+.board-card--dragging * {
+  pointer-events: none;
+}
+
+/* Sibling card that the dragged card will land above — show a thick top
+ * accent so the user sees exactly where it will drop. */
+.board-card--drop-target {
+  box-shadow: inset 0 3px 0 0 var(--accent);
+}
+
+/* Clone rendered inside <DragOverlay> — small tilt + shadow so it reads as
+ * floating. No cursor: grabbing on the overlay; dnd-kit sets it on the body. */
+.board-card-overlay .board-card {
+  cursor: grabbing;
+  transform: rotate(1.5deg);
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.35),
+    0 0 0 1px var(--accent);
+  background: var(--surface);
+  opacity: 1;
+}
+.board-card--preview { pointer-events: none; }
+.board-card__title--static {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: inherit;
+}
+
+/* Lane preview — mirrors the dragged column visually while it's in flight. */
+.board-column-overlay {
+  min-width: 280px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.38);
+  transform: rotate(1deg);
+  cursor: grabbing;
+  font-weight: 600;
+}
+.board-column-overlay__title { color: var(--text); }
+
 .board-card { cursor: grab; }
 
 /* ── Card run log ──────────────────────────────────────────── */

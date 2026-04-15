@@ -6,6 +6,7 @@
  */
 
 import type { Database } from "bun:sqlite";
+import { prep } from "./prepared.ts";
 
 export interface VectorResult {
   messageId: number;
@@ -38,15 +39,16 @@ export function searchVector(
   const fetchK = needsPostFilter ? k * 4 : k;
 
   try {
-    const rows = db
-      .prepare(
-        `SELECT message_id, distance
-         FROM embeddings
-         WHERE embedding MATCH ?
-           AND k = ?
-         ORDER BY distance`,
-      )
-      .all(queryBlob, fetchK) as Array<{ message_id: number; distance: number }>;
+    // vec0 does not support joins inside a MATCH query, so we over-fetch and
+    // post-filter. The kNN shape is fixed; cache its prepared statement.
+    const rows = prep(
+      db,
+      `SELECT message_id, distance
+       FROM embeddings
+       WHERE embedding MATCH ?
+         AND k = ?
+       ORDER BY distance`,
+    ).all(queryBlob, fetchK) as Array<{ message_id: number; distance: number }>;
     if (!needsPostFilter || rows.length === 0) {
       return rows.slice(0, k).map((r) => ({ messageId: r.message_id, distance: r.distance }));
     }
@@ -62,9 +64,13 @@ export function searchVector(
       filterClauses.push(`(role = 'user' OR author IS ?)`);
       filterParams.push(ownAuthor ?? null);
     }
-    const allowed = db
-      .prepare(`SELECT id FROM messages WHERE ${filterClauses.join(" AND ")}`)
-      .all(...filterParams) as Array<{ id: number }>;
+    // IN-list length varies per call, so the post-filter prepare cannot be
+    // cached without bucketing; but vs. the kNN itself, parse time is a rounding
+    // error. `prep` still benefits repeated hits for the same result set size.
+    const allowed = prep(
+      db,
+      `SELECT id FROM messages WHERE ${filterClauses.join(" AND ")}`,
+    ).all(...filterParams) as Array<{ id: number }>;
     const allowedSet = new Set(allowed.map((r) => r.id));
     return rows
       .filter((r) => allowedSet.has(r.message_id))
@@ -84,9 +90,10 @@ export function searchVector(
 export function upsertEmbedding(db: Database, messageId: number, embedding: number[]): void {
   const blob = float32ArrayToBlob(embedding);
   try {
-    db.prepare(
-      `INSERT OR REPLACE INTO embeddings(message_id, embedding) VALUES (?, ?)`,
-    ).run(messageId, blob);
+    prep(db, `INSERT OR REPLACE INTO embeddings(message_id, embedding) VALUES (?, ?)`).run(
+      messageId,
+      blob,
+    );
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (msg.includes("no such module") || msg.includes("no such table")) return;

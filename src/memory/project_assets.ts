@@ -5,7 +5,7 @@
  * prompt content and tuning.
  */
 
-import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { paths } from "../paths.ts";
 import { validateProjectName } from "./projects.ts";
@@ -101,9 +101,27 @@ export function loadProjectSystemPrompt(name: string): ProjectSystemPrompt {
   return loadProjectAssets(name).systemPrompt;
 }
 
+/** mtime-keyed cache so runAgent doesn't re-read + re-parse on every turn. */
+const assetsCache = new Map<string, { mtimeMs: number; assets: ProjectAssets }>();
+
 /** Aggregate all per-project on-disk assets into a single value. */
 export function loadProjectAssets(name: string): ProjectAssets {
   const file = join(projectDir(name), SYSTEMPROMPT_FILE);
+  let mtimeMs = -1;
+  try {
+    mtimeMs = statSync(file).mtimeMs;
+  } catch {
+    // File may not exist — fall through to defaults below.
+  }
+  const hit = assetsCache.get(file);
+  if (hit && hit.mtimeMs === mtimeMs) return hit.assets;
+  if (mtimeMs < 0) {
+    const defaults: ProjectAssets = {
+      systemPrompt: { ...DEFAULT_SYSTEM_PROMPT },
+      memory: { ...DEFAULT_MEMORY },
+    };
+    return defaults;
+  }
   try {
     const text = readFileSync(file, "utf8");
     const parsed = Bun.TOML.parse(text) as {
@@ -114,15 +132,17 @@ export function loadProjectAssets(name: string): ProjectAssets {
     };
     const prompt = typeof parsed.prompt === "string" ? parsed.prompt : "";
     const append = parsed.append === undefined ? true : Boolean(parsed.append);
-    return {
+    const assets: ProjectAssets = {
       systemPrompt: { prompt, append },
       memory: {
         lastN: parseMemoryOverride(parsed.last_n),
         recallK: parseMemoryOverride(parsed.recall_k),
       },
     };
+    assetsCache.set(file, { mtimeMs, assets });
+    return assets;
   } catch {
-    // Missing file or malformed TOML → defaults (non-fatal).
+    // Malformed TOML → defaults (non-fatal). Don't cache so a fix takes effect.
     return { systemPrompt: { ...DEFAULT_SYSTEM_PROMPT }, memory: { ...DEFAULT_MEMORY } };
   }
 }

@@ -67,6 +67,8 @@ export default function ChatTab({
         onNew={onNewSession}
         refreshKey={refreshKey}
         project={project}
+        excludeHidden
+        allowToggleHidden
       />
       <div className="chat__main">
         <div className="chat__scroll" ref={scrollRef}>
@@ -128,6 +130,7 @@ export default function ChatTab({
             streaming={streaming}
             onSubmit={send}
             onAbort={abort}
+            project={project}
           />
         </div>
       </div>

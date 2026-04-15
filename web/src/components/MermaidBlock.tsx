@@ -1,24 +1,32 @@
 import { useEffect, useRef, useState } from "react";
-import mermaid from "mermaid";
 
-let initialized = false;
-function initMermaid() {
-  if (initialized) return;
-  initialized = true;
-  mermaid.initialize({
-    startOnLoad: false,
-    theme: "dark",
-    securityLevel: "loose",
-    fontFamily:
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif',
-    flowchart: { useMaxWidth: false, htmlLabels: true, padding: 12 },
-    sequence: { useMaxWidth: false },
-    gantt: { useMaxWidth: false },
-    class: { useMaxWidth: false },
-    state: { useMaxWidth: false },
-    er: { useMaxWidth: false },
-    journey: { useMaxWidth: false },
-  });
+type MermaidLib = typeof import("mermaid")["default"];
+
+// Lazily load mermaid the first time a diagram is actually rendered; it's a
+// ~600KB dep and most chat turns never use it.
+let mermaidPromise: Promise<MermaidLib> | undefined;
+function loadMermaid(): Promise<MermaidLib> {
+  if (!mermaidPromise) {
+    mermaidPromise = import("mermaid").then((mod) => {
+      const m = mod.default;
+      m.initialize({
+        startOnLoad: false,
+        theme: "dark",
+        securityLevel: "loose",
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif',
+        flowchart: { useMaxWidth: false, htmlLabels: true, padding: 12 },
+        sequence: { useMaxWidth: false },
+        gantt: { useMaxWidth: false },
+        class: { useMaxWidth: false },
+        state: { useMaxWidth: false },
+        er: { useMaxWidth: false },
+        journey: { useMaxWidth: false },
+      });
+      return m;
+    });
+  }
+  return mermaidPromise;
 }
 
 interface Props {
@@ -37,12 +45,14 @@ export default function MermaidBlock({ code }: Props) {
   useEffect(() => {
     if (mode !== "diagram") return;
     if (!nodeRef.current) return;
-    initMermaid();
     let cancelled = false;
     setErr(null);
     const node = nodeRef.current;
-    mermaid
-      .run({ nodes: [node], suppressErrors: true })
+    loadMermaid()
+      .then((m) => {
+        if (cancelled) return;
+        return m.run({ nodes: [node], suppressErrors: true });
+      })
       .catch((e: unknown) => {
         if (cancelled) return;
         // eslint-disable-next-line no-console

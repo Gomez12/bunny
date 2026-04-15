@@ -21,17 +21,72 @@ function cardStatus(card: BoardCardModel): CardVisualStatus {
   return "idle";
 }
 
+/**
+ * Presentational card body — shared between the sortable card in a column and
+ * the floating `DragOverlay` preview that follows the cursor.
+ */
+function CardBody({ card }: { card: BoardCardModel }) {
+  const status = cardStatus(card);
+  return (
+    <>
+      <div className="board-card__title board-card__title--static">{card.title}</div>
+      {card.description && <p className="board-card__desc">{card.description}</p>}
+      <div className="board-card__meta">
+        {card.assigneeAgent && (
+          <span className="board-card__assignee board-card__assignee--agent">
+            @{card.assigneeAgent}
+          </span>
+        )}
+        {card.assigneeUserId && !card.assigneeAgent && (
+          <span className="board-card__assignee board-card__assignee--user">
+            👤 {card.assigneeUserId.slice(0, 8)}
+          </span>
+        )}
+        {!card.assigneeAgent && !card.assigneeUserId && (
+          <span className="board-card__assignee board-card__assignee--none">unassigned</span>
+        )}
+        {card.autoRun && (
+          <span className="board-card__badge board-card__badge--auto" title="Auto-run pending">
+            ⚡ auto
+          </span>
+        )}
+        {status === "running" && (
+          <span className="board-card__badge board-card__badge--running">running…</span>
+        )}
+        {status === "answered" && (
+          <span className="board-card__badge board-card__badge--answered" title="Agent has answered">
+            ✓ answered
+          </span>
+        )}
+        {status === "errored" && (
+          <span className="board-card__badge board-card__badge--error">error</span>
+        )}
+      </div>
+    </>
+  );
+}
+
+/** Non-sortable snapshot of a card, used as the DragOverlay preview. */
+export function BoardCardPreview({ card }: { card: BoardCardModel }) {
+  const status = cardStatus(card);
+  return (
+    <div className={`board-card board-card--${status} board-card--preview`}>
+      <CardBody card={card} />
+    </div>
+  );
+}
+
 export default function BoardCard({ card, lanes, canEdit, onEdit, onMove, onArchive }: Props) {
   const otherLanes = lanes.filter((l) => l.id !== card.swimlaneId);
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: `card-${card.id}`,
-    data: { type: "card", cardId: card.id, swimlaneId: card.swimlaneId },
-    disabled: !canEdit,
-  });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } =
+    useSortable({
+      id: `card-${card.id}`,
+      data: { type: "card", cardId: card.id, swimlaneId: card.swimlaneId },
+      disabled: !canEdit,
+    });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.4 : 1,
   };
   const status = cardStatus(card);
   return (
@@ -40,7 +95,11 @@ export default function BoardCard({ card, lanes, canEdit, onEdit, onMove, onArch
       style={style}
       {...attributes}
       {...listeners}
-      className={`board-card board-card--${status} ${isDragging ? "board-card--dragging" : ""}`}
+      className={
+        `board-card board-card--${status}` +
+        (isDragging ? " board-card--dragging" : "") +
+        (isOver && !isDragging ? " board-card--drop-target" : "")
+      }
     >
       <button className="board-card__title" onClick={onEdit} disabled={!canEdit} title="Edit card">
         {card.title}

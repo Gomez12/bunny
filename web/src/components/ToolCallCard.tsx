@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 
 interface Props {
   name: string;
@@ -9,7 +9,7 @@ interface Props {
   defaultOpen?: boolean;
 }
 
-export default function ToolCallCard({
+function ToolCallCardImpl({
   name,
   args,
   ok,
@@ -45,3 +45,6 @@ export default function ToolCallCard({
     </div>
   );
 }
+
+const ToolCallCard = memo(ToolCallCardImpl);
+export default ToolCallCard;

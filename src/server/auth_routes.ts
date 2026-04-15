@@ -96,6 +96,18 @@ export async function handleAuthRoute(
     return patchOwnProfile(req, ctx, user);
   }
 
+  // Lightweight directory for @mention autocomplete — exposes username + display
+  // name only (no role, email, timestamps), available to any signed-in user.
+  if (pathname === "/api/users/directory" && req.method === "GET") {
+    const q = url.searchParams.get("q") ?? undefined;
+    const users = listUsers(ctx.db, { q, limit: 200 }).map((u) => ({
+      id: u.id,
+      username: u.username,
+      displayName: u.displayName,
+    }));
+    return json({ users });
+  }
+
   // API keys (own)
   if (pathname === "/api/apikeys" && req.method === "GET") {
     return json({ keys: listApiKeys(ctx.db, user.id) });

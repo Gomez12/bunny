@@ -59,6 +59,10 @@ export async function openDb(dbPath: string, embedDim = 1536): Promise<Database>
   db.run("PRAGMA journal_mode = WAL");
   db.run("PRAGMA synchronous = NORMAL");
   db.run("PRAGMA foreign_keys = ON");
+  db.run("PRAGMA temp_store = MEMORY");
+  db.run("PRAGMA mmap_size = 268435456");
+  db.run("PRAGMA cache_size = -65536");
+  db.run("PRAGMA busy_timeout = 5000");
 
   if (sqliteVecLoad) {
     try {
@@ -103,6 +107,10 @@ function migrateColumns(db: Database): void {
   db.run("CREATE INDEX IF NOT EXISTS idx_messages_session_user ON messages(session_id, user_id)");
   db.run("CREATE INDEX IF NOT EXISTS idx_messages_project ON messages(project, ts)");
   db.run("CREATE INDEX IF NOT EXISTS idx_messages_author ON messages(author)");
+  // Covers the per-session first-user-row lookup used by listSessions.
+  db.run(
+    "CREATE INDEX IF NOT EXISTS idx_messages_session_role_channel_ts ON messages(session_id, role, channel, ts)",
+  );
   // Auto-seed the 'general' project so every install has a default workspace.
   const now = Date.now();
   db.run(

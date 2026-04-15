@@ -133,6 +133,30 @@ describe("auth routes", () => {
     expect((search.body as { users: unknown[] }).users.length).toBe(1);
   });
 
+  test("non-admin can read /api/users/directory (lightweight mention list)", async () => {
+    await createUser(db, { username: "bob", password: "pw-bob", displayName: "Bob B." });
+    await createUser(db, { username: "carol", password: "pw-carol" });
+    const login = await req("POST", "/api/auth/login", {
+      body: { username: "bob", password: "pw-bob" },
+    });
+    const cookie = extractCookie(login.res)!;
+
+    const all = await req("GET", "/api/users/directory", { cookie });
+    expect(all.res.status).toBe(200);
+    const users = (all.body as { users: Array<{ username: string; displayName: string | null }> })
+      .users;
+    const usernames = users.map((u) => u.username);
+    expect(usernames).toContain("bob");
+    expect(usernames).toContain("carol");
+    // Lightweight payload: no email, role, timestamps.
+    for (const u of users) {
+      expect(Object.keys(u).sort()).toEqual(["displayName", "id", "username"]);
+    }
+
+    const search = await req("GET", "/api/users/directory?q=carol", { cookie });
+    expect((search.body as { users: unknown[] }).users.length).toBe(1);
+  });
+
   test("api key grants bearer access", async () => {
     await createUser(db, { username: "carol", password: "pw-carol" });
     const login = await req("POST", "/api/auth/login", {

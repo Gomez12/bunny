@@ -142,7 +142,14 @@ Authentication lives in `src/auth/` (`users.ts`, `sessions.ts`, `apikeys.ts`, `p
 ## Conventions
 
 - **TOML over YAML** for config; `.env` only for secrets.
-- Use English for user-facing docs, commit messages, and code identifiers.
+- **English only, always.** Every artefact written to the repo or to GitHub must be in English — no Dutch, no mixed language. This is non-negotiable and applies to:
+  - commit messages and commit bodies (including any trailers)
+  - PR titles, PR descriptions, and PR/issue comments
+  - all Markdown (`README.md`, `CLAUDE.md`, `docs/**`, ADRs)
+  - code identifiers, code comments, log strings, error messages
+  - test names and test descriptions
+  - TOML/JSON `description` fields and seeded sample data
+  Chat replies to the user may follow the user's language (e.g. Dutch) — but everything that lands in `git log`, the file tree, or GitHub does not. If you catch yourself typing Dutch in any of the above, stop and rewrite in English before committing.
 - When changing `src/memory/schema.sql`, add new columns rather than altering existing ones — the schema is append-only because state is long-lived in `$BUNNY_HOME`.
 - Provider-specific streaming quirks belong in `src/llm/profiles.ts`, not in `adapter.ts` or `stream.ts`.
 - Tests live under `tests/` mirroring `src/` layout. DB tests use `mkdtempSync` + `openDb(path)` for isolation.

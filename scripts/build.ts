@@ -170,9 +170,11 @@ try {
   buildWeb();
   writeBundleManifest();
 
-  for (const target of targets) {
+  // Cross-compile targets are independent — run them concurrently with a cap
+  // to bound peak memory. Each `bun build --compile` comfortably uses ~500MB.
+  const CONCURRENCY = Math.max(1, Math.min(targets.length, 3));
+  async function buildOne(target: Target): Promise<void> {
     const outfile = join(DIST, target.outfile);
-    process.stdout.write(`Building ${target.id.padEnd(16)} → dist/${target.outfile} … `);
 
     const proc = Bun.spawn(
       [
@@ -192,36 +194,53 @@ try {
       new Response(proc.stderr).text(),
     ]);
 
-    if (exitCode === 0) {
-      // Re-sign darwin binaries: bun --compile embeds an invalid signature that
-      // macOS SIGKILL's on launch. Remove the bad signature first, then re-sign.
-      // Only possible on macOS — on other hosts (CI Linux) we skip and users
-      // can re-sign locally with `codesign --sign - bunny-darwin-*`.
-      if (target.bunTarget.includes("darwin") && process.platform === "darwin") {
-        try {
-          Bun.spawnSync(["codesign", "--remove-signature", outfile]);
-          const sign = Bun.spawnSync(["codesign", "--sign", "-", outfile]);
-          if (sign.exitCode !== 0) {
-            console.warn(`  ⚠ codesign failed: ${new TextDecoder().decode(sign.stderr)}`);
-          }
-        } catch (err) {
-          console.warn(`  ⚠ codesign skipped: ${err}`);
-        }
-      }
-
-      try {
-        const size = Bun.file(outfile).size;
-        const mb = (size / 1_000_000).toFixed(1);
-        console.log(`✓  (${mb} MB)`);
-      } catch {
-        console.log("✓");
-      }
-    } else {
-      console.log("✗  FAILED");
+    if (exitCode !== 0) {
+      console.log(`✗  ${target.id.padEnd(16)} FAILED`);
       process.stderr.write(stderr);
       failed++;
+      return;
+    }
+
+    // Re-sign darwin binaries: bun --compile embeds an invalid signature that
+    // macOS SIGKILL's on launch. Remove the bad signature first, then re-sign.
+    // Only possible on macOS — on other hosts (CI Linux) we skip and users
+    // can re-sign locally with `codesign --sign - bunny-darwin-*`.
+    if (target.bunTarget.includes("darwin") && process.platform === "darwin") {
+      try {
+        Bun.spawnSync(["codesign", "--remove-signature", outfile]);
+        const sign = Bun.spawnSync(["codesign", "--sign", "-", outfile]);
+        if (sign.exitCode !== 0) {
+          console.warn(`  ⚠ ${target.id} codesign failed: ${new TextDecoder().decode(sign.stderr)}`);
+        }
+      } catch (err) {
+        console.warn(`  ⚠ ${target.id} codesign skipped: ${err}`);
+      }
+    }
+
+    try {
+      const size = Bun.file(outfile).size;
+      const mb = (size / 1_000_000).toFixed(1);
+      console.log(`✓  ${target.id.padEnd(16)} (${mb} MB) → dist/${target.outfile}`);
+    } catch {
+      console.log(`✓  ${target.id}`);
     }
   }
+
+  process.stdout.write(`Building ${targets.length} target(s) (concurrency=${CONCURRENCY})…\n`);
+  const queue = [...targets];
+  const runners: Promise<void>[] = [];
+  for (let i = 0; i < CONCURRENCY; i++) {
+    runners.push(
+      (async () => {
+        while (queue.length > 0) {
+          const t = queue.shift();
+          if (!t) break;
+          await buildOne(t);
+        }
+      })(),
+    );
+  }
+  await Promise.all(runners);
 } finally {
   // Always restore the stub so git stays clean and `bun test` works.
   restoreBundleStub();

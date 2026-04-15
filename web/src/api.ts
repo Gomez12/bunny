@@ -14,6 +14,8 @@ export interface SessionSummary {
   username: string | null;
   displayName: string | null;
   project: string;
+  /** True iff the *current viewer* has hidden this session from their chat sidebar. */
+  hiddenFromChat: boolean;
 }
 
 export type ProjectVisibility = "public" | "private";
@@ -172,18 +174,29 @@ export function groupTurns(messages: StoredMessage[]): HistoryTurn[] {
 
 export async function fetchSessions(
   search?: string,
-  opts: { scope?: "mine" | "all"; project?: string } = {},
+  opts: { scope?: "mine" | "all"; project?: string; excludeHidden?: boolean } = {},
 ): Promise<SessionSummary[]> {
   const params = new URLSearchParams();
   if (search) params.set("q", search);
   if (opts.scope) params.set("scope", opts.scope);
   if (opts.project) params.set("project", opts.project);
+  if (opts.excludeHidden) params.set("excludeHidden", "1");
   const qs = params.toString();
   const url = qs ? `/api/sessions?${qs}` : "/api/sessions";
   const res = await fetch(url, { credentials: "include" });
   if (!res.ok) throw new Error(`GET ${url} → ${res.status}`);
   const data = (await res.json()) as { sessions: SessionSummary[] };
   return data.sessions;
+}
+
+export async function setSessionHiddenFromChat(
+  sessionId: string,
+  hiddenFromChat: boolean,
+): Promise<void> {
+  await jsonFetch<{ ok: true }>(`/api/sessions/${encodeURIComponent(sessionId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ hiddenFromChat }),
+  });
 }
 
 export async function fetchMessages(sessionId: string): Promise<StoredMessage[]> {
@@ -352,6 +365,18 @@ export async function updateOwnProfile(patch: {
     body: JSON.stringify(patch),
   });
   return user;
+}
+
+export interface DirectoryUser {
+  id: string;
+  username: string;
+  displayName: string | null;
+}
+
+export async function fetchUserDirectory(q = ""): Promise<DirectoryUser[]> {
+  const qs = q ? `?q=${encodeURIComponent(q)}` : "";
+  const { users } = await jsonFetch<{ users: DirectoryUser[] }>(`/api/users/directory${qs}`);
+  return users;
 }
 
 export async function listUsers(q = ""): Promise<AuthUser[]> {

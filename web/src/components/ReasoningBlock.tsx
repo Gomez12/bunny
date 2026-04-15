@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 
 interface Props {
   text: string;
   defaultOpen?: boolean;
 }
 
-export default function ReasoningBlock({ text, defaultOpen = false }: Props) {
+function ReasoningBlockImpl({ text, defaultOpen = false }: Props) {
   const [open, setOpen] = useState(defaultOpen);
   if (!text.trim()) return null;
   return (
@@ -17,3 +17,6 @@ export default function ReasoningBlock({ text, defaultOpen = false }: Props) {
     </div>
   );
 }
+
+const ReasoningBlock = memo(ReasoningBlockImpl);
+export default ReasoningBlock;
