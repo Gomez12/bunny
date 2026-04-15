@@ -26,6 +26,7 @@ export const DEFAULT_PROJECT = "general";
 
 import { PROJECT_NAME_RE } from "./project_name.ts";
 import { validateSlugName } from "./slug.ts";
+import { seedDefaultSwimlanes } from "./board_swimlanes.ts";
 
 export { PROJECT_NAME_RE };
 
@@ -89,6 +90,7 @@ export function createProject(db: Database, opts: CreateProjectOpts): Project {
     now,
     now,
   );
+  seedDefaultSwimlanes(db, name);
   return getProject(db, name)!;
 }
 

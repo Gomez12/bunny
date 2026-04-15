@@ -143,6 +143,59 @@ CREATE TABLE IF NOT EXISTS api_keys (
 );
 CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id);
 
+-- ── Boards ───────────────────────────────────────────────────────────────────
+-- Trello-style kanban per project: configurable swimlanes (columns) with cards
+-- that can be assigned to either a user or an agent (mutually exclusive).
+-- Cards assigned to an agent can be "run" — see board_card_runs.
+-- 1 board per project; the `project` column is the scope key (no separate
+-- boards table), consistent with `project_agents`.
+
+CREATE TABLE IF NOT EXISTS board_swimlanes (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  project     TEXT    NOT NULL,
+  name        TEXT    NOT NULL,
+  position    INTEGER NOT NULL,
+  wip_limit   INTEGER,
+  created_at  INTEGER NOT NULL,
+  updated_at  INTEGER NOT NULL,
+  UNIQUE(project, name)
+);
+CREATE INDEX IF NOT EXISTS idx_swimlanes_project ON board_swimlanes(project, position);
+
+CREATE TABLE IF NOT EXISTS board_cards (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  project           TEXT    NOT NULL,
+  swimlane_id       INTEGER NOT NULL,
+  position          INTEGER NOT NULL,             -- sparse, stappen van 100
+  title             TEXT    NOT NULL,
+  description       TEXT    NOT NULL DEFAULT '',
+  assignee_user_id  TEXT,                          -- mutex met assignee_agent
+  assignee_agent    TEXT,
+  created_by        TEXT    NOT NULL,
+  created_at        INTEGER NOT NULL,
+  updated_at        INTEGER NOT NULL,
+  archived_at       INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_cards_project  ON board_cards(project, swimlane_id, position);
+CREATE INDEX IF NOT EXISTS idx_cards_assignee ON board_cards(assignee_user_id);
+CREATE INDEX IF NOT EXISTS idx_cards_agent    ON board_cards(assignee_agent);
+
+CREATE TABLE IF NOT EXISTS board_card_runs (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  card_id       INTEGER NOT NULL,
+  session_id    TEXT    NOT NULL,
+  agent         TEXT    NOT NULL,
+  triggered_by  TEXT    NOT NULL,                  -- user.id of 'scheduler'
+  trigger_kind  TEXT    NOT NULL,                  -- 'manual' | 'scheduled'
+  status        TEXT    NOT NULL,                  -- queued | running | done | error
+  started_at    INTEGER NOT NULL,
+  finished_at   INTEGER,
+  final_answer  TEXT,
+  error         TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_card_runs_card    ON board_card_runs(card_id, started_at);
+CREATE INDEX IF NOT EXISTS idx_card_runs_session ON board_card_runs(session_id);
+
 -- ── Embeddings ───────────────────────────────────────────────────────────────
 -- Created dynamically by db.ts using the configured dimension (default 1536)
 -- because the dimension must be baked into the vec0 CREATE statement.
