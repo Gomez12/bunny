@@ -36,6 +36,21 @@ import { registry } from "../tools/index.ts";
 import { CALL_AGENT_TOOL_NAME } from "../tools/call_agent.ts";
 import { BOARD_TOOL_NAMES } from "../tools/board.ts";
 
+// Tool catalogue exposed to agents: real registry tools (minus the implicit
+// `call_agent`) plus the closure-bound board tool names. The registry is
+// frozen after `src/tools/index.ts` runs at boot, so memoise on first call.
+let cachedToolNames: readonly string[] | undefined;
+let cachedToolNameSet: Set<string> | undefined;
+function availableToolNames(): readonly string[] {
+  return (cachedToolNames ??= [
+    ...registry.names().filter((n) => n !== CALL_AGENT_TOOL_NAME),
+    ...BOARD_TOOL_NAMES,
+  ]);
+}
+function knownToolSet(): Set<string> {
+  return (cachedToolNameSet ??= new Set(availableToolNames()));
+}
+
 export interface AgentRouteCtx {
   db: Database;
   /** Project every new agent is auto-linked to so it shows up in the default chat. */
@@ -51,16 +66,10 @@ export async function handleAgentRoute(
   const { pathname } = url;
 
   if (pathname === "/api/tools" && req.method === "GET") {
-    // Advertise tool names available to agents. `call_agent` is hidden — it
-    // is injected implicitly when an agent has allowed subagents. Board
-    // tools live on per-run closures (project-bound), but they ARE selectable
-    // because including them in the whitelist toggles whether an agent has
-    // board access at all.
-    const names = [
-      ...registry.names().filter((n) => n !== CALL_AGENT_TOOL_NAME),
-      ...BOARD_TOOL_NAMES,
-    ];
-    return json({ tools: names });
+    // `call_agent` is injected implicitly via allowed_subagents and stays
+    // out of the picker. Board tools ARE selectable — listing them in an
+    // agent's whitelist is how board access gets toggled.
+    return json({ tools: availableToolNames() });
   }
 
   if (pathname === "/api/agents" && req.method === "GET") {
@@ -363,13 +372,7 @@ function handleUnlinkAgent(
 
 function sanitiseToolList(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
-  // Mirror `/api/tools`: real registry tools (minus call_agent) plus the
-  // closure-bound board tool names. call_agent stays implicit via
-  // allowed_subagents.
-  const known = new Set<string>([
-    ...registry.names().filter((n) => n !== CALL_AGENT_TOOL_NAME),
-    ...BOARD_TOOL_NAMES,
-  ]);
+  const known = knownToolSet();
   return raw
     .filter((x): x is string => typeof x === "string")
     .map((s) => s.trim())

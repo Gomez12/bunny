@@ -42,9 +42,15 @@ import {
 } from "../memory/agents.ts";
 import { loadAgentAssets } from "../memory/agent_assets.ts";
 import { makeCallAgentTool, CALL_AGENT_TOOL_NAME } from "../tools/call_agent.ts";
-import { makeBoardTools, BOARD_TOOL_NAMES } from "../tools/board.ts";
+import { makeBoardTools, BOARD_TOOL_NAMES, type BoardToolContext } from "../tools/board.ts";
 
 const MAX_TOOL_ITERATIONS = 20;
+
+// Tool names whose handlers live on per-run closures, not the singleton.
+// Scrubbed from the agent's static whitelist before `subset()` so they don't
+// get silently dropped (subset only copies tools that actually exist on the
+// base registry; these are added via `extras` below).
+const DYNAMIC_TOOL_NAMES = new Set<string>([CALL_AGENT_TOOL_NAME, ...BOARD_TOOL_NAMES]);
 
 export interface RunAgentOptions {
   prompt: string;
@@ -160,16 +166,13 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
     { role: "user", content: prompt },
   ];
 
-  // Build the per-run tool registry: filtered by the agent's whitelist, with
-  // `call_agent` spliced in when the agent has allowed subagents and the
-  // closure-bound board tools spliced in for the current project.
+  // Per-run registry: agent's whitelist plus closure-bound extras
+  // (`call_agent` when subagents are allowed, board tools always).
   const runTools = buildRunRegistry({
     baseTools: tools,
     agentAssets,
     callDepth,
-    db,
-    project,
-    userId: userId ?? "system",
+    boardCtx: { db, project, userId: userId ?? "system" },
     invokeSubagent: async (subName, subPrompt) => {
       // Subagents run with a silent renderer so only their final answer
       // reaches the UI via the `call_agent` tool_result — no parent-labelled
@@ -307,9 +310,7 @@ interface BuildRunRegistryOpts {
   baseTools: ToolRegistry;
   agentAssets: { tools: string[] | undefined; allowedSubagents: string[] } | undefined;
   callDepth: number;
-  db: Database;
-  project: string;
-  userId: string;
+  boardCtx: BoardToolContext;
   invokeSubagent: (name: string, prompt: string) => Promise<string>;
 }
 
@@ -318,11 +319,8 @@ function buildRunRegistry(opts: BuildRunRegistryOpts): ToolRegistry {
   const whitelist = agentAssets?.tools; // undefined = all tools
   const allowedSubagents = agentAssets?.allowedSubagents ?? [];
 
-  // Closure-bound extras (board, optionally call_agent). Both are filtered
-  // by the agent's whitelist when one is set; an agent inheriting all tools
-  // gets every extra by default.
   const extras: ReturnType<typeof makeBoardTools> = [];
-  const allBoard = makeBoardTools({ db: opts.db, project: opts.project, userId: opts.userId });
+  const allBoard = makeBoardTools(opts.boardCtx);
   if (whitelist) {
     const allow = new Set(whitelist);
     for (const t of allBoard) if (allow.has(t.name)) extras.push(t);
@@ -340,11 +338,7 @@ function buildRunRegistry(opts: BuildRunRegistryOpts): ToolRegistry {
     );
   }
 
-  // Strip dynamic tool names from the base whitelist — `subset()` would
-  // silently drop them since they don't live on the singleton, then they'd
-  // get re-added via `extras` anyway.
-  const dynamic = new Set<string>([CALL_AGENT_TOOL_NAME, ...BOARD_TOOL_NAMES]);
-  const filtered = whitelist ? whitelist.filter((n) => !dynamic.has(n)) : undefined;
+  const filtered = whitelist ? whitelist.filter((n) => !DYNAMIC_TOOL_NAMES.has(n)) : undefined;
   return baseTools.subset(filtered, extras);
 }
 
