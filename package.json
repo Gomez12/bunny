@@ -1,6 +1,6 @@
 {
   "name": "bunny",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Bun-native AI agent with queue-backed logging and hybrid memory",
   "private": true,
   "type": "module",
