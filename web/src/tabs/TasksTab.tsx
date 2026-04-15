@@ -311,8 +311,8 @@ function TaskDialog({ mode, initial, handlers, isAdmin, onClose, onSaved }: Dial
   };
 
   return (
-    <div className="modal" role="dialog" aria-modal>
-      <div className="modal__card">
+    <div className="modal-backdrop" role="dialog" aria-modal onClick={onClose}>
+      <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
         <header className="modal__header">
           <h2>{mode === "create" ? "New task" : `Edit '${initial?.name}'`}</h2>
           <button className="modal__close" onClick={onClose} aria-label="Close">

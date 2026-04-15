@@ -159,17 +159,17 @@ export default function FilesTab({ project, currentUser }: Props) {
         </nav>
         <div className="files-actions">
           {path && (
-            <button className="btn btn-secondary" onClick={goUp}>
+            <button className="btn btn--ghost" onClick={goUp}>
               ↑ Up
             </button>
           )}
           {canEdit && (
             <>
-              <button className="btn btn-secondary" onClick={onNewFolder}>
+              <button className="btn btn--ghost" onClick={onNewFolder}>
                 New folder
               </button>
               <button
-                className="btn btn-primary"
+                className="btn btn--send"
                 onClick={() => fileInputRef.current?.click()}
               >
                 Upload
@@ -242,7 +242,7 @@ export default function FilesTab({ project, currentUser }: Props) {
                     <td className="files-row-actions">
                       {e.kind === "file" && (
                         <a
-                          className="btn btn-secondary btn-sm"
+                          className="btn btn--ghost btn--sm"
                           href={workspaceDownloadUrl(project, e.path)}
                         >
                           Download
@@ -250,11 +250,11 @@ export default function FilesTab({ project, currentUser }: Props) {
                       )}
                       {canEdit && !locked && (
                         <>
-                          <button className="btn btn-sm" onClick={() => onRename(e)}>
+                          <button className="btn btn--sm" onClick={() => onRename(e)}>
                             Rename
                           </button>
                           <button
-                            className="btn btn-danger btn-sm"
+                            className="btn btn--danger btn--sm"
                             onClick={() => onDelete(e)}
                           >
                             Delete
