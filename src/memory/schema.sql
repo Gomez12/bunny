@@ -156,6 +156,7 @@ CREATE TABLE IF NOT EXISTS board_swimlanes (
   name        TEXT    NOT NULL,
   position    INTEGER NOT NULL,
   wip_limit   INTEGER,
+  auto_run    INTEGER NOT NULL DEFAULT 0,       -- 1 = scheduler tick will auto-run agent cards here
   created_at  INTEGER NOT NULL,
   updated_at  INTEGER NOT NULL,
   UNIQUE(project, name)
@@ -171,6 +172,7 @@ CREATE TABLE IF NOT EXISTS board_cards (
   description       TEXT    NOT NULL DEFAULT '',
   assignee_user_id  TEXT,                          -- mutex met assignee_agent
   assignee_agent    TEXT,
+  auto_run          INTEGER NOT NULL DEFAULT 0,    -- 1 = eligible for auto-run scan (cleared on enqueue)
   created_by        TEXT    NOT NULL,
   created_at        INTEGER NOT NULL,
   updated_at        INTEGER NOT NULL,
@@ -195,6 +197,34 @@ CREATE TABLE IF NOT EXISTS board_card_runs (
 );
 CREATE INDEX IF NOT EXISTS idx_card_runs_card    ON board_card_runs(card_id, started_at);
 CREATE INDEX IF NOT EXISTS idx_card_runs_session ON board_card_runs(session_id);
+
+-- ── Scheduled tasks ──────────────────────────────────────────────────────────
+-- Generiek scheduler-subsysteem: rijen representeren periodiek werk waarvan de
+-- naam van de handler de enige koppeling is naar de code. De ticker
+-- (src/scheduler/ticker.ts) selecteert rijen met next_run_at <= now, voert de
+-- geregistreerde handler uit en berekent de volgende next_run_at via cron.
+-- System-taken worden door iedereen ingezien, maar alleen admins mogen ze
+-- wijzigen; user-taken zijn eigendom van hun owner_user_id.
+CREATE TABLE IF NOT EXISTS scheduled_tasks (
+  id             TEXT    PRIMARY KEY,
+  kind           TEXT    NOT NULL CHECK (kind IN ('system','user')),
+  handler        TEXT    NOT NULL,                -- bv. 'board.auto_run_scan'
+  name           TEXT    NOT NULL,
+  description    TEXT,
+  cron_expr      TEXT    NOT NULL,                -- 5-veld cron
+  payload        TEXT,                            -- JSON; handler-specifiek
+  enabled        INTEGER NOT NULL DEFAULT 1,
+  owner_user_id  TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  last_run_at    INTEGER,
+  last_status    TEXT,                            -- 'ok' | 'error'
+  last_error     TEXT,
+  next_run_at    INTEGER NOT NULL,
+  created_at     INTEGER NOT NULL,
+  updated_at     INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sched_due   ON scheduled_tasks(enabled, next_run_at);
+CREATE INDEX IF NOT EXISTS idx_sched_owner ON scheduled_tasks(owner_user_id);
+CREATE INDEX IF NOT EXISTS idx_sched_kind  ON scheduled_tasks(kind);
 
 -- ── Embeddings ───────────────────────────────────────────────────────────────
 -- Created dynamically by db.ts using the configured dimension (default 1536)

@@ -129,6 +129,7 @@ export interface SwimlaneDto {
   name: string;
   position: number;
   wipLimit: number | null;
+  autoRun: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -142,10 +143,13 @@ export interface CardDto {
   description: string;
   assigneeUserId: string | null;
   assigneeAgent: string | null;
+  autoRun: boolean;
   createdBy: string;
   createdAt: number;
   updatedAt: number;
   archivedAt: number | null;
+  /** Most recent run status (computed), or null when the card has never run. */
+  latestRunStatus?: "queued" | "running" | "done" | "error" | null;
 }
 
 export interface CardRunDto {
@@ -189,8 +193,33 @@ function handleGetBoard(ctx: BoardRouteCtx, user: User, rawProject: string): Res
   seedDefaultSwimlanes(ctx.db, project);
 
   const swimlanes = listSwimlanes(ctx.db, project).map(toSwimlaneDto);
-  const cards = listCards(ctx.db, project).map(toCardDto);
+  const latestRuns = latestRunStatusByCard(ctx.db, project);
+  const cards = listCards(ctx.db, project).map((c) => ({
+    ...toCardDto(c),
+    latestRunStatus: latestRuns.get(c.id) ?? null,
+  }));
   return json({ project, swimlanes, cards });
+}
+
+/** Map card-id → status of its most recent run. */
+function latestRunStatusByCard(
+  db: Database,
+  project: string,
+): Map<number, "queued" | "running" | "done" | "error"> {
+  const rows = db
+    .prepare(
+      `SELECT r.card_id AS card_id, r.status AS status
+         FROM board_card_runs r
+         JOIN board_cards c ON c.id = r.card_id
+        WHERE c.project = ?
+          AND r.id IN (
+            SELECT MAX(id) FROM board_card_runs GROUP BY card_id
+          )`,
+    )
+    .all(project) as Array<{ card_id: number; status: string }>;
+  const map = new Map<number, "queued" | "running" | "done" | "error">();
+  for (const r of rows) map.set(r.card_id, r.status as "queued" | "running" | "done" | "error");
+  return map;
 }
 
 function handleGetCard(ctx: BoardRouteCtx, user: User, id: number): Response {
@@ -217,6 +246,7 @@ interface SwimlaneBody {
   name?: string;
   position?: number;
   wipLimit?: number | null;
+  autoRun?: boolean;
 }
 
 async function handleCreateSwimlane(
@@ -243,6 +273,7 @@ async function handleCreateSwimlane(
       name,
       position: body.position,
       wipLimit: body.wipLimit ?? null,
+      autoRun: body.autoRun === true,
     });
     return json({ swimlane: toSwimlaneDto(lane) }, 201);
   } catch (e) {
@@ -267,6 +298,7 @@ async function handlePatchSwimlane(
       name: body.name,
       position: body.position,
       wipLimit: body.wipLimit,
+      autoRun: body.autoRun,
     });
     return json({ swimlane: toSwimlaneDto(updated) });
   } catch (e) {
@@ -294,6 +326,7 @@ interface CardBody {
   description?: string;
   assigneeUserId?: string | null;
   assigneeAgent?: string | null;
+  autoRun?: boolean;
   position?: number;
 }
 
@@ -335,6 +368,7 @@ async function handleCreateCard(
       description: body.description ?? "",
       assigneeUserId: body.assigneeUserId ?? null,
       assigneeAgent,
+      autoRun: body.autoRun,
       createdBy: user.id,
       position: body.position,
     });
@@ -374,6 +408,7 @@ async function handlePatchCard(
       description: body.description,
       assigneeUserId: body.assigneeUserId,
       assigneeAgent: body.assigneeAgent,
+      autoRun: body.autoRun,
       swimlaneId: body.swimlaneId,
       position: body.position,
     });

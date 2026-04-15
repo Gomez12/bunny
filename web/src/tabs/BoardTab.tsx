@@ -7,6 +7,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
+import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import {
   archiveCard,
   createCard,
@@ -102,6 +103,15 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
     }
   };
 
+  const handleToggleLaneAutoRun = async (lane: Swimlane) => {
+    try {
+      await patchSwimlane(lane.id, { autoRun: !lane.autoRun });
+      await refresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const handleDeleteLane = async (lane: Swimlane) => {
     if (!confirm(`Delete swimlane '${lane.name}'?`)) return;
     try {
@@ -120,6 +130,7 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
         description: v.description,
         assigneeUserId: v.assigneeUserId,
         assigneeAgent: v.assigneeAgent,
+        autoRun: v.autoRun,
       });
     } else if (dialog.kind === "edit") {
       await patchCard(dialog.card.id, {
@@ -128,6 +139,7 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
         description: v.description,
         assigneeUserId: v.assigneeUserId,
         assigneeAgent: v.assigneeAgent,
+        autoRun: v.autoRun,
       });
     }
     await refresh();
@@ -153,12 +165,51 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
     if (!over) return;
 
     const activeId = String(active.id);
+    const overId = String(over.id);
+
+    if (activeId.startsWith("lane-")) {
+      if (!overId.startsWith("lane-") || activeId === overId) return;
+      const laneId = Number(activeId.slice("lane-".length));
+      const overLaneId = Number(overId.slice("lane-".length));
+      const lanes = [...board.swimlanes].sort((a, b) => a.position - b.position);
+      const fromIdx = lanes.findIndex((l) => l.id === laneId);
+      const toIdx = lanes.findIndex((l) => l.id === overLaneId);
+      if (fromIdx === -1 || toIdx === -1) return;
+      const reordered = [...lanes];
+      const [moved] = reordered.splice(fromIdx, 1);
+      reordered.splice(toIdx, 0, moved!);
+      const prev = reordered[toIdx - 1];
+      const next = reordered[toIdx + 1];
+      let newPos: number;
+      if (!prev) newPos = (next!.position || 100) - 100;
+      else if (!next) newPos = prev.position + 100;
+      else newPos = Math.floor((prev.position + next.position) / 2);
+      if (prev && next && newPos === prev.position) {
+        // Positions collided — re-space all lanes by issuing a full pass.
+        // Simpler: bail out and refresh; user can retry. Rare with step=100.
+        await refresh();
+        return;
+      }
+      const snapshot = board;
+      setBoard({
+        ...board,
+        swimlanes: reordered.map((l) => (l.id === laneId ? { ...l, position: newPos } : l)),
+      });
+      try {
+        await patchSwimlane(laneId, { position: newPos });
+        await refresh();
+      } catch (e) {
+        setBoard(snapshot);
+        alert(e instanceof Error ? e.message : String(e));
+      }
+      return;
+    }
+
     if (!activeId.startsWith("card-")) return;
     const cardId = Number(activeId.slice("card-".length));
     const card = board.cards.find((c) => c.id === cardId);
     if (!card) return;
 
-    const overId = String(over.id);
     let targetLaneId: number;
     let beforeCardId: number | undefined;
     let afterCardId: number | undefined;
@@ -250,6 +301,10 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
       {error && <div className="board__error">{error}</div>}
 
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
+      <SortableContext
+        items={board.swimlanes.map((l) => `lane-${l.id}`)}
+        strategy={horizontalListSortingStrategy}
+      >
       <div className="board__columns">
         {board.swimlanes.map((lane) => (
           <BoardColumn
@@ -261,6 +316,7 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
             canEditCard={canEditCard}
             onAddCard={() => setDialog({ kind: "create", swimlaneId: lane.id })}
             onEditLane={() => handleEditLane(lane)}
+            onToggleAutoRun={() => handleToggleLaneAutoRun(lane)}
             onDeleteLane={() => handleDeleteLane(lane)}
             onEditCard={(c) => setDialog({ kind: "edit", card: c })}
             onMoveCard={handleMoveCard}
@@ -268,6 +324,7 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
           />
         ))}
       </div>
+      </SortableContext>
       </DndContext>
 
       {dialog.kind !== "closed" && (

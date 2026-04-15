@@ -44,7 +44,7 @@ Cards met een agent-assignee kun je via de **Run**-knop in de card-dialog laten 
 
 ## Web UI
 
-Bunny heeft ook een tab-based web-UI: **Chat** (live streaming), **Messages** (alle eerdere sessies uit SQLite, doorzoekbaar via BM25), **Board** (kanban per project), **Projects**, **Agents** en **Settings**.
+Bunny heeft ook een tab-based web-UI: **Chat** (live streaming), **Messages** (alle eerdere sessies uit SQLite, doorzoekbaar via BM25), **Board** (kanban per project, met optionele auto-run per swimlane en per card), **Files** (workspace-bestanden per project, upload/download/drag-and-drop), **Tasks** (systeem- en gebruikertaken met cron-schedule), **Projects**, **Agents** en **Settings**.
 
 ```sh
 # terminal 1 — backend (Bun HTTP + SSE)

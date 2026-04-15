@@ -45,10 +45,23 @@ export function projectDir(name: string): string {
   return paths.projectDir(validateProjectName(name));
 }
 
+/** Root of the per-project file workspace (`<projectDir>/workspace`). */
+export function workspaceDir(name: string): string {
+  return join(projectDir(name), "workspace");
+}
+
+/** Default subdirectories created inside every workspace. */
+export const WORKSPACE_DEFAULT_SUBDIRS = ["input", "output"] as const;
+
 /** Create the on-disk project directory (and a stub systemprompt.toml) if missing. */
 export function ensureProjectDir(name: string, initial?: ProjectOverridesPatch): string {
   const dir = projectDir(name);
   mkdirSync(dir, { recursive: true });
+  // Seed workspace + its default subdirs. Idempotent — mkdir recursive skips
+  // existing paths, so this also backfills legacy projects on the next access.
+  for (const sub of WORKSPACE_DEFAULT_SUBDIRS) {
+    mkdirSync(join(dir, "workspace", sub), { recursive: true });
+  }
   const file = join(dir, SYSTEMPROMPT_FILE);
   // Never clobber an existing prompt file — only seed the stub on first create.
   if (!existsSync(file)) {

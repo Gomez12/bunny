@@ -28,7 +28,23 @@ beforeEach(async () => {
   tmp = mkdtempSync(join(tmpdir(), "bunny-routes-"));
   db = await openDb(join(tmp, "test.sqlite"));
   await ensureSeedUsers(db, cfg.auth);
-  ctx = { db, cfg, queue: { log: () => {}, close: async () => {} } as unknown as RouteCtx["queue"] };
+  ctx = {
+    db,
+    cfg,
+    queue: { log: () => {}, close: async () => {} } as unknown as RouteCtx["queue"],
+    scheduler: {
+      stop: () => {},
+      tick: async () => {},
+      runTask: async () => {},
+    },
+    handlerRegistry: {
+      register: () => {},
+      get: () => undefined,
+      list: () => [],
+      unregister: () => {},
+      reset: () => {},
+    },
+  };
 });
 
 afterEach(() => {

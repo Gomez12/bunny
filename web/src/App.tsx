@@ -5,11 +5,14 @@ import MessagesTab from "./tabs/MessagesTab";
 import ProjectsTab from "./tabs/ProjectsTab";
 import AgentsTab from "./tabs/AgentsTab";
 import BoardTab from "./tabs/BoardTab";
+import FilesTab from "./tabs/FilesTab";
+import LogsTab from "./tabs/LogsTab";
+import TasksTab from "./tabs/TasksTab";
 import LoginPage from "./pages/LoginPage";
 import ChangePasswordPage from "./pages/ChangePasswordPage";
 import SettingsPage from "./pages/SettingsPage";
 
-type Tab = "chat" | "messages" | "board" | "projects" | "agents" | "settings";
+type Tab = "chat" | "messages" | "board" | "files" | "tasks" | "projects" | "agents" | "logs" | "settings";
 
 const SESSION_STORAGE_KEY = "bunny.activeSessionId";
 const PROJECT_STORAGE_KEY = "bunny.activeProject";
@@ -124,6 +127,18 @@ export default function App() {
             Board
           </button>
           <button
+            className={`tab ${tab === "files" ? "tab--active" : ""}`}
+            onClick={() => setTab("files")}
+          >
+            Files
+          </button>
+          <button
+            className={`tab ${tab === "tasks" ? "tab--active" : ""}`}
+            onClick={() => setTab("tasks")}
+          >
+            Tasks
+          </button>
+          <button
             className={`tab ${tab === "projects" ? "tab--active" : ""}`}
             onClick={() => setTab("projects")}
           >
@@ -135,6 +150,14 @@ export default function App() {
           >
             Agents
           </button>
+          {user.role === "admin" && (
+            <button
+              className={`tab ${tab === "logs" ? "tab--active" : ""}`}
+              onClick={() => setTab("logs")}
+            >
+              Logs
+            </button>
+          )}
           <button
             className={`tab ${tab === "settings" ? "tab--active" : ""}`}
             onClick={() => setTab("settings")}
@@ -177,6 +200,9 @@ export default function App() {
           <ProjectsTab currentUser={user} activeProject={activeProject} onPickProject={onPickProject} />
         )}
         {tab === "agents" && <AgentsTab currentUser={user} activeProject={activeProject} />}
+        {tab === "files" && <FilesTab project={activeProject} currentUser={user} />}
+        {tab === "tasks" && <TasksTab currentUser={user} />}
+        {tab === "logs" && user.role === "admin" && <LogsTab />}
         {tab === "settings" && <SettingsPage user={user} onUserUpdated={setUser} />}
       </main>
     </div>

@@ -18,6 +18,7 @@ export interface Swimlane {
   name: string;
   position: number;
   wipLimit: number | null;
+  autoRun: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -28,6 +29,7 @@ interface SwimlaneRow {
   name: string;
   position: number;
   wip_limit: number | null;
+  auto_run: number;
   created_at: number;
   updated_at: number;
 }
@@ -39,12 +41,13 @@ function rowToSwimlane(r: SwimlaneRow): Swimlane {
     name: r.name,
     position: r.position,
     wipLimit: r.wip_limit,
+    autoRun: (r.auto_run ?? 0) !== 0,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
 }
 
-const SELECT_COLS = `id, project, name, position, wip_limit, created_at, updated_at`;
+const SELECT_COLS = `id, project, name, position, wip_limit, auto_run, created_at, updated_at`;
 
 export function listSwimlanes(db: Database, project: string): Swimlane[] {
   const rows = db
@@ -68,6 +71,7 @@ export interface CreateSwimlaneOpts {
   name: string;
   position?: number;
   wipLimit?: number | null;
+  autoRun?: boolean;
 }
 
 export function createSwimlane(db: Database, opts: CreateSwimlaneOpts): Swimlane {
@@ -75,10 +79,18 @@ export function createSwimlane(db: Database, opts: CreateSwimlaneOpts): Swimlane
   const position = opts.position ?? nextPosition(db, opts.project);
   const info = db
     .prepare(
-      `INSERT INTO board_swimlanes(project, name, position, wip_limit, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO board_swimlanes(project, name, position, wip_limit, auto_run, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(opts.project, opts.name, position, opts.wipLimit ?? null, now, now);
+    .run(
+      opts.project,
+      opts.name,
+      position,
+      opts.wipLimit ?? null,
+      opts.autoRun ? 1 : 0,
+      now,
+      now,
+    );
   return getSwimlane(db, Number(info.lastInsertRowid))!;
 }
 
@@ -86,6 +98,7 @@ export interface UpdateSwimlanePatch {
   name?: string;
   position?: number;
   wipLimit?: number | null;
+  autoRun?: boolean;
 }
 
 export function updateSwimlane(db: Database, id: number, patch: UpdateSwimlanePatch): Swimlane {
@@ -94,11 +107,12 @@ export function updateSwimlane(db: Database, id: number, patch: UpdateSwimlanePa
   const name = patch.name ?? existing.name;
   const position = patch.position ?? existing.position;
   const wipLimit = patch.wipLimit === undefined ? existing.wipLimit : patch.wipLimit;
+  const autoRun = patch.autoRun === undefined ? existing.autoRun : patch.autoRun;
   db.prepare(
     `UPDATE board_swimlanes
-     SET name = ?, position = ?, wip_limit = ?, updated_at = ?
+     SET name = ?, position = ?, wip_limit = ?, auto_run = ?, updated_at = ?
      WHERE id = ?`,
-  ).run(name, position, wipLimit, Date.now(), id);
+  ).run(name, position, wipLimit, autoRun ? 1 : 0, Date.now(), id);
   return getSwimlane(db, id)!;
 }
 

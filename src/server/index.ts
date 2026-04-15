@@ -23,6 +23,11 @@ import { webBundle } from "./web_bundle.ts";
 import { ensureSeedUsers } from "../auth/seed.ts";
 import { ensureProject, validateProjectName } from "../memory/projects.ts";
 import { ensureProjectDir } from "../memory/project_assets.ts";
+import { defaultHandlerRegistry } from "../scheduler/handlers.ts";
+import { startScheduler } from "../scheduler/ticker.ts";
+import { computeNextRun } from "../scheduler/cron.ts";
+import { ensureSystemTask } from "../memory/scheduled_tasks.ts";
+import { BOARD_AUTO_RUN_HANDLER, registerBoardAutoRun } from "../board/auto_run_handler.ts";
 
 const DEFAULT_PORT = 3000;
 
@@ -71,7 +76,35 @@ export async function startServer(opts: ServeOptions = {}): Promise<{ stop: () =
     console.warn("[bunny] invalid [agent].default_project:", errorMessage(e));
   }
   const queue = createBunnyQueue(db);
-  const ctx: RouteCtx = { db, queue, cfg };
+
+  registerBoardAutoRun(defaultHandlerRegistry);
+  const bootNow = Date.now();
+  const boardAutoRunCron = "*/5 * * * *";
+  try {
+    ensureSystemTask(db, BOARD_AUTO_RUN_HANDLER, {
+      name: "Board auto-run scan",
+      description:
+        "Start cards assigned to an agent in auto-run swimlanes (every 5 minutes).",
+      cronExpr: boardAutoRunCron,
+      nextRunAt: computeNextRun(boardAutoRunCron, bootNow),
+    });
+  } catch (e) {
+    console.warn("[bunny] failed to seed board.auto_run_scan:", errorMessage(e));
+  }
+  const scheduler = startScheduler({
+    db,
+    queue,
+    cfg,
+    registry: defaultHandlerRegistry,
+  });
+
+  const ctx: RouteCtx = {
+    db,
+    queue,
+    cfg,
+    scheduler,
+    handlerRegistry: defaultHandlerRegistry,
+  };
 
   const port = opts.port ?? DEFAULT_PORT;
   const webRoot = opts.webRoot ? resolve(opts.webRoot) : resolve(process.cwd(), "web/dist");
@@ -128,6 +161,7 @@ export async function startServer(opts: ServeOptions = {}): Promise<{ stop: () =
   return {
     url: baseUrl,
     async stop() {
+      scheduler.stop();
       server.stop();
       await queue.close();
     },

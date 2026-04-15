@@ -1,5 +1,6 @@
-import { useDroppable } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import type { CSSProperties } from "react";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { BoardCard as BoardCardModel, Swimlane } from "../api";
 import BoardCard from "./BoardCard";
 
@@ -11,6 +12,7 @@ interface Props {
   canEditCard: (c: BoardCardModel) => boolean;
   onAddCard: () => void;
   onEditLane: () => void;
+  onToggleAutoRun: () => void;
   onDeleteLane: () => void;
   onEditCard: (c: BoardCardModel) => void;
   onMoveCard: (cardId: number, toLaneId: number) => void;
@@ -25,19 +27,48 @@ export default function BoardColumn({
   canEditCard,
   onAddCard,
   onEditLane,
+  onToggleAutoRun,
   onDeleteLane,
   onEditCard,
   onMoveCard,
   onArchiveCard,
 }: Props) {
-  const { setNodeRef, isOver } = useDroppable({
+  const {
+    setNodeRef,
+    isOver,
+    transform,
+    transition,
+    isDragging,
+    attributes,
+    listeners,
+  } = useSortable({
     id: `lane-${lane.id}`,
     data: { type: "lane", swimlaneId: lane.id },
   });
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : undefined,
+  };
   return (
-    <div ref={setNodeRef} className={`board-column ${isOver ? "board-column--over" : ""}`}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`board-column ${isOver ? "board-column--over" : ""} ${lane.autoRun ? "board-column--auto" : ""}`}
+    >
       <header className="board-column__header">
         <div className="board-column__title">
+          {canManageLane && (
+            <button
+              className="board-column__handle"
+              title="Drag to reorder lane"
+              aria-label="Drag to reorder lane"
+              {...attributes}
+              {...listeners}
+            >
+              ⋮⋮
+            </button>
+          )}
           {lane.name}
           <span className="board-column__count">{cards.length}</span>
           {lane.wipLimit != null && (
@@ -50,6 +81,13 @@ export default function BoardColumn({
         </div>
         {canManageLane && (
           <div className="board-column__actions">
+            <button
+              onClick={onToggleAutoRun}
+              title={lane.autoRun ? "Disable auto-run" : "Enable auto-run"}
+              aria-label="Toggle auto-run"
+            >
+              {lane.autoRun ? "⚡" : "⌁"}
+            </button>
             <button onClick={onEditLane} title="Edit lane">
               ✎
             </button>

@@ -24,6 +24,7 @@ export interface Card {
   description: string;
   assigneeUserId: string | null;
   assigneeAgent: string | null;
+  autoRun: boolean;
   createdBy: string;
   createdAt: number;
   updatedAt: number;
@@ -39,6 +40,7 @@ interface CardRow {
   description: string;
   assignee_user_id: string | null;
   assignee_agent: string | null;
+  auto_run: number;
   created_by: string;
   created_at: number;
   updated_at: number;
@@ -55,6 +57,7 @@ function rowToCard(r: CardRow): Card {
     description: r.description,
     assigneeUserId: r.assignee_user_id,
     assigneeAgent: r.assignee_agent,
+    autoRun: (r.auto_run ?? 0) !== 0,
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -63,7 +66,7 @@ function rowToCard(r: CardRow): Card {
 }
 
 const SELECT_COLS = `id, project, swimlane_id, position, title, description,
-                     assignee_user_id, assignee_agent, created_by,
+                     assignee_user_id, assignee_agent, auto_run, created_by,
                      created_at, updated_at, archived_at`;
 
 export interface ListCardsOpts {
@@ -96,6 +99,8 @@ export interface CreateCardOpts {
   description?: string;
   assigneeUserId?: string | null;
   assigneeAgent?: string | null;
+  /** When omitted, defaults to `true` iff an agent is the assignee. */
+  autoRun?: boolean;
   createdBy: string;
   position?: number;
 }
@@ -106,12 +111,13 @@ export function createCard(db: Database, opts: CreateCardOpts): Card {
   if (!title) throw new Error("card title is required");
   const now = Date.now();
   const position = opts.position ?? nextPosition(db, opts.swimlaneId);
+  const autoRun = opts.autoRun ?? Boolean(opts.assigneeAgent);
   const info = db
     .prepare(
       `INSERT INTO board_cards(project, swimlane_id, position, title, description,
-                               assignee_user_id, assignee_agent, created_by,
+                               assignee_user_id, assignee_agent, auto_run, created_by,
                                created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       opts.project,
@@ -121,6 +127,7 @@ export function createCard(db: Database, opts: CreateCardOpts): Card {
       opts.description ?? "",
       opts.assigneeUserId ?? null,
       opts.assigneeAgent ?? null,
+      autoRun ? 1 : 0,
       opts.createdBy,
       now,
       now,
@@ -133,6 +140,7 @@ export interface UpdateCardPatch {
   description?: string;
   assigneeUserId?: string | null;
   assigneeAgent?: string | null;
+  autoRun?: boolean;
   swimlaneId?: number;
   position?: number;
 }
@@ -148,13 +156,49 @@ export function updateCard(db: Database, id: number, patch: UpdateCardPatch): Ca
   const description = patch.description ?? existing.description;
   const swimlaneId = patch.swimlaneId ?? existing.swimlaneId;
   const position = patch.position ?? existing.position;
+  // Auto-run defaulting: when the caller newly assigns an agent without
+  // specifying `autoRun`, flip it on so the scheduled scan can pick it up.
+  let autoRun: boolean;
+  if (patch.autoRun !== undefined) {
+    autoRun = patch.autoRun;
+  } else if (
+    patch.assigneeAgent !== undefined &&
+    patch.assigneeAgent &&
+    patch.assigneeAgent !== existing.assigneeAgent
+  ) {
+    autoRun = true;
+  } else {
+    autoRun = existing.autoRun;
+  }
   db.prepare(
     `UPDATE board_cards
      SET title = ?, description = ?, assignee_user_id = ?, assignee_agent = ?,
-         swimlane_id = ?, position = ?, updated_at = ?
+         auto_run = ?, swimlane_id = ?, position = ?, updated_at = ?
      WHERE id = ?`,
-  ).run(title, description, assigneeUser, assigneeAgent, swimlaneId, position, Date.now(), id);
+  ).run(
+    title,
+    description,
+    assigneeUser,
+    assigneeAgent,
+    autoRun ? 1 : 0,
+    swimlaneId,
+    position,
+    Date.now(),
+    id,
+  );
   return getCard(db, id)!;
+}
+
+/**
+ * Atomically clear the `auto_run` flag on a card. Returns `true` iff the row
+ * was still marked — used by the scheduler to reserve a card for exactly one
+ * enqueue even if two ticks race.
+ */
+export function clearAutoRun(db: Database, id: number): boolean {
+  const info = db
+    .prepare(`UPDATE board_cards SET auto_run = 0, updated_at = ? WHERE id = ? AND auto_run = 1`)
+    .run(Date.now(), id);
+  return info.changes > 0;
 }
 
 export interface MoveCardOpts {

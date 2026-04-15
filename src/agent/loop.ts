@@ -43,6 +43,7 @@ import {
 import { loadAgentAssets } from "../memory/agent_assets.ts";
 import { makeCallAgentTool, CALL_AGENT_TOOL_NAME } from "../tools/call_agent.ts";
 import { makeBoardTools, BOARD_TOOL_NAMES, type BoardToolContext } from "../tools/board.ts";
+import { makeWorkspaceTools, WORKSPACE_TOOL_NAMES } from "../tools/workspace.ts";
 
 const MAX_TOOL_ITERATIONS = 20;
 
@@ -50,7 +51,11 @@ const MAX_TOOL_ITERATIONS = 20;
 // Scrubbed from the agent's static whitelist before `subset()` so they don't
 // get silently dropped (subset only copies tools that actually exist on the
 // base registry; these are added via `extras` below).
-const DYNAMIC_TOOL_NAMES = new Set<string>([CALL_AGENT_TOOL_NAME, ...BOARD_TOOL_NAMES]);
+const DYNAMIC_TOOL_NAMES = new Set<string>([
+  CALL_AGENT_TOOL_NAME,
+  ...BOARD_TOOL_NAMES,
+  ...WORKSPACE_TOOL_NAMES,
+]);
 
 export interface RunAgentOptions {
   prompt: string;
@@ -321,11 +326,14 @@ function buildRunRegistry(opts: BuildRunRegistryOpts): ToolRegistry {
 
   const extras: ReturnType<typeof makeBoardTools> = [];
   const allBoard = makeBoardTools(opts.boardCtx);
+  const allWorkspace = makeWorkspaceTools({ project: opts.boardCtx.project });
   if (whitelist) {
     const allow = new Set(whitelist);
     for (const t of allBoard) if (allow.has(t.name)) extras.push(t);
+    for (const t of allWorkspace) if (allow.has(t.name)) extras.push(t);
   } else {
     extras.push(...allBoard);
+    extras.push(...allWorkspace);
   }
 
   if (allowedSubagents.length > 0) {

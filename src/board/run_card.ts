@@ -21,7 +21,7 @@ import type { ToolRegistry } from "../tools/registry.ts";
 import { runAgent } from "../agent/loop.ts";
 import { createSseRenderer, finishSse, type SseSink } from "../agent/render_sse.ts";
 import { errorMessage } from "../util/error.ts";
-import { getCard } from "../memory/board_cards.ts";
+import { clearAutoRun, getCard } from "../memory/board_cards.ts";
 import { isAgentLinkedToProject } from "../memory/agents.ts";
 import {
   createRun,
@@ -118,6 +118,9 @@ export async function runCard(opts: RunCardOpts): Promise<RunCardResult> {
   if (!isAgentLinkedToProject(opts.db, card.project, agentName)) {
     throw new Error(`agent '${agentName}' is not available in project '${card.project}'`);
   }
+
+  // Prevent scheduler re-queue while a run is pending.
+  clearAutoRun(opts.db, card.id);
 
   const sessionId = opts.sessionId ?? randomUUID();
   const run = createRun(opts.db, {

@@ -11,6 +11,16 @@ interface Props {
   onArchive: () => void;
 }
 
+type CardVisualStatus = "idle" | "pending" | "running" | "answered" | "errored";
+
+function cardStatus(card: BoardCardModel): CardVisualStatus {
+  if (card.latestRunStatus === "running" || card.latestRunStatus === "queued") return "running";
+  if (card.latestRunStatus === "error") return "errored";
+  if (card.latestRunStatus === "done") return "answered";
+  if (card.autoRun) return "pending";
+  return "idle";
+}
+
 export default function BoardCard({ card, lanes, canEdit, onEdit, onMove, onArchive }: Props) {
   const otherLanes = lanes.filter((l) => l.id !== card.swimlaneId);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -23,13 +33,14 @@ export default function BoardCard({ card, lanes, canEdit, onEdit, onMove, onArch
     transition,
     opacity: isDragging ? 0.4 : 1,
   };
+  const status = cardStatus(card);
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      className={`board-card ${isDragging ? "board-card--dragging" : ""}`}
+      className={`board-card board-card--${status} ${isDragging ? "board-card--dragging" : ""}`}
     >
       <button className="board-card__title" onClick={onEdit} disabled={!canEdit} title="Edit card">
         {card.title}
@@ -48,6 +59,22 @@ export default function BoardCard({ card, lanes, canEdit, onEdit, onMove, onArch
         )}
         {!card.assigneeAgent && !card.assigneeUserId && (
           <span className="board-card__assignee board-card__assignee--none">unassigned</span>
+        )}
+        {card.autoRun && (
+          <span className="board-card__badge board-card__badge--auto" title="Auto-run pending">
+            ⚡ auto
+          </span>
+        )}
+        {status === "running" && (
+          <span className="board-card__badge board-card__badge--running">running…</span>
+        )}
+        {status === "answered" && (
+          <span className="board-card__badge board-card__badge--answered" title="Agent has answered">
+            ✓ answered
+          </span>
+        )}
+        {status === "errored" && (
+          <span className="board-card__badge board-card__badge--error">error</span>
         )}
       </div>
       {canEdit && (

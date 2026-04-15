@@ -10,6 +10,7 @@ export interface CardDialogValue {
   assigneeKind: "none" | "user" | "agent";
   assigneeUserId: string | null;
   assigneeAgent: string | null;
+  autoRun: boolean;
 }
 
 interface Props {
@@ -49,6 +50,11 @@ export default function CardDialog({
   const [assigneeKind, setAssigneeKind] = useState<"none" | "user" | "agent">(initialKind);
   const [assigneeUserId, setAssigneeUserId] = useState<string | null>(initial?.assigneeUserId ?? null);
   const [assigneeAgent, setAssigneeAgent] = useState<string | null>(initial?.assigneeAgent ?? null);
+  // Auto-run defaults ON when an agent is assigned — matches the server-side
+  // default in createCard/updateCard. Users can opt out explicitly.
+  const [autoRun, setAutoRun] = useState<boolean>(
+    initial?.autoRun ?? initialKind === "agent",
+  );
   const [users, setUsers] = useState<AuthUser[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +93,7 @@ export default function CardDialog({
         assigneeKind,
         assigneeUserId: assigneeKind === "user" ? assigneeUserId : null,
         assigneeAgent: assigneeKind === "agent" ? assigneeAgent : null,
+        autoRun: assigneeKind === "agent" ? autoRun : false,
       });
       onClose();
     } catch (e) {
@@ -172,6 +179,20 @@ export default function CardDialog({
                   </option>
                 ))}
               </select>
+            </label>
+          )}
+
+          {assigneeKind === "agent" && (
+            <label className="project-form__field project-form__field--inline">
+              <input
+                type="checkbox"
+                checked={autoRun}
+                onChange={(e) => setAutoRun(e.target.checked)}
+              />
+              <span>
+                Auto-run — let the scheduler start this card on the next tick of the
+                board.auto_run_scan task (the flag clears automatically once queued).
+              </span>
             </label>
           )}
 

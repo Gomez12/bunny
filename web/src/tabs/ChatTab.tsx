@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Composer from "../components/Composer";
 import MessageBubble from "../components/MessageBubble";
+import MarkdownContent from "../components/MarkdownContent";
 import ReasoningBlock from "../components/ReasoningBlock";
 import ToolCallCard from "../components/ToolCallCard";
 import SessionSidebar from "../components/SessionSidebar";
@@ -74,7 +75,7 @@ export default function ChatTab({ sessionId, project, onPickSession, onNewSessio
                     output={tc.output}
                   />
                 ))}
-                {t.content && <div className="bubble__content">{t.content}</div>}
+                {t.content && <MarkdownContent text={t.content} />}
                 <StatsFooter stats={t.stats} />
               </MessageBubble>
             </div>
@@ -94,7 +95,7 @@ export default function ChatTab({ sessionId, project, onPickSession, onNewSessio
                     error={tc.error}
                   />
                 ))}
-                {t.content && <div className="bubble__content">{t.content}</div>}
+                {t.content && <MarkdownContent text={t.content} />}
                 {!t.content && !t.reasoning && t.toolCalls.length === 0 && !t.done && (
                   <div className="bubble__pending"><span className="spinner" /> waiting for model…</div>
                 )}

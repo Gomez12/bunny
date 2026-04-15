@@ -12,6 +12,7 @@ import { randomUUID } from "node:crypto";
 
 import { getMessagesBySession } from "../memory/messages.ts";
 import { getSessionOwners, listSessions } from "../memory/sessions.ts";
+import { listEventFacets, listEvents, type ListEventsFilter } from "../memory/events.ts";
 import { runAgent } from "../agent/loop.ts";
 import { createSseRenderer, controllerSink, finishSse } from "../agent/render_sse.ts";
 import { registry } from "../tools/index.ts";
@@ -39,6 +40,10 @@ import {
 } from "../memory/project_assets.ts";
 import { handleAgentRoute } from "./agent_routes.ts";
 import { handleBoardRoute } from "./board_routes.ts";
+import { handleWorkspaceRoute } from "./workspace_routes.ts";
+import { handleScheduledTaskRoute } from "./scheduled_task_routes.ts";
+import type { SchedulerHandle } from "../scheduler/ticker.ts";
+import type { HandlerRegistry } from "../scheduler/handlers.ts";
 import { parseMention } from "../agent/mention.ts";
 import { getAgent, isAgentLinkedToProject } from "../memory/agents.ts";
 
@@ -46,6 +51,8 @@ export interface RouteCtx {
   db: Database;
   queue: BunnyQueue;
   cfg: BunnyConfig;
+  scheduler: SchedulerHandle;
+  handlerRegistry: HandlerRegistry;
 }
 
 export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<Response> {
@@ -78,6 +85,30 @@ export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<
     user,
   );
   if (boardResponse) return boardResponse;
+
+  // ── Workspace (per-project files) ─────────────────────────────────────────
+  const workspaceResponse = await handleWorkspaceRoute(req, url, { db: ctx.db }, user);
+  if (workspaceResponse) return workspaceResponse;
+
+  // ── Scheduler (system + user tasks) ───────────────────────────────────────
+  const taskResponse = await handleScheduledTaskRoute(
+    req,
+    url,
+    { db: ctx.db, scheduler: ctx.scheduler, registry: ctx.handlerRegistry },
+    user,
+  );
+  if (taskResponse) return taskResponse;
+
+  // ── Events (admin Logs tab) ───────────────────────────────────────────────
+  if (pathname === "/api/events" && req.method === "GET") {
+    if (user.role !== "admin") return json({ error: "forbidden" }, 403);
+    const filter = parseEventsFilter(url);
+    return json(listEvents(ctx.db, filter));
+  }
+  if (pathname === "/api/events/facets" && req.method === "GET") {
+    if (user.role !== "admin") return json({ error: "forbidden" }, 403);
+    return json(listEventFacets(ctx.db));
+  }
 
   // ── Projects ──────────────────────────────────────────────────────────────
   if (pathname === "/api/projects" && req.method === "GET") {
@@ -399,6 +430,32 @@ async function handlePatchProject(
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
   }
+}
+
+function parseEventsFilter(url: URL): ListEventsFilter {
+  const p = url.searchParams;
+  const numParam = (k: string): number | undefined => {
+    const v = p.get(k);
+    if (v === null || v === "") return undefined;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : undefined;
+  };
+  const strParam = (k: string): string | undefined => {
+    const v = p.get(k)?.trim();
+    return v ? v : undefined;
+  };
+  return {
+    topic: strParam("topic"),
+    kind: strParam("kind"),
+    sessionId: strParam("session_id"),
+    userId: strParam("user_id"),
+    errorsOnly: p.get("errors_only") === "1" || p.get("errors_only") === "true",
+    fromTs: numParam("from"),
+    toTs: numParam("to"),
+    q: strParam("q"),
+    limit: numParam("limit"),
+    offset: numParam("offset"),
+  };
 }
 
 function handleDeleteProject(ctx: RouteCtx, user: User, name: string): Response {

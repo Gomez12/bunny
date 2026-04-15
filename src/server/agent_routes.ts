@@ -35,6 +35,7 @@ import { getProject, validateProjectName } from "../memory/projects.ts";
 import { registry } from "../tools/index.ts";
 import { CALL_AGENT_TOOL_NAME } from "../tools/call_agent.ts";
 import { BOARD_TOOL_NAMES } from "../tools/board.ts";
+import { WORKSPACE_TOOL_NAMES } from "../tools/workspace.ts";
 
 // Tool catalogue exposed to agents: real registry tools (minus the implicit
 // `call_agent`) plus the closure-bound board tool names. The registry is
@@ -45,6 +46,7 @@ function availableToolNames(): readonly string[] {
   return (cachedToolNames ??= [
     ...registry.names().filter((n) => n !== CALL_AGENT_TOOL_NAME),
     ...BOARD_TOOL_NAMES,
+    ...WORKSPACE_TOOL_NAMES,
   ]);
 }
 function knownToolSet(): Set<string> {

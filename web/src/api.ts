@@ -565,6 +565,7 @@ export interface Swimlane {
   name: string;
   position: number;
   wipLimit: number | null;
+  autoRun: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -578,10 +579,12 @@ export interface BoardCard {
   description: string;
   assigneeUserId: string | null;
   assigneeAgent: string | null;
+  autoRun: boolean;
   createdBy: string;
   createdAt: number;
   updatedAt: number;
   archivedAt: number | null;
+  latestRunStatus?: "queued" | "running" | "done" | "error" | null;
 }
 
 export interface CardRun {
@@ -610,7 +613,7 @@ export async function fetchBoard(project: string): Promise<BoardSnapshot> {
 
 export async function createSwimlane(
   project: string,
-  input: { name: string; position?: number; wipLimit?: number | null },
+  input: { name: string; position?: number; wipLimit?: number | null; autoRun?: boolean },
 ): Promise<Swimlane> {
   const { swimlane } = await jsonFetch<{ swimlane: Swimlane }>(
     `/api/projects/${encodeURIComponent(project)}/swimlanes`,
@@ -621,7 +624,7 @@ export async function createSwimlane(
 
 export async function patchSwimlane(
   id: number,
-  patch: { name?: string; position?: number; wipLimit?: number | null },
+  patch: { name?: string; position?: number; wipLimit?: number | null; autoRun?: boolean },
 ): Promise<Swimlane> {
   const { swimlane } = await jsonFetch<{ swimlane: Swimlane }>(`/api/swimlanes/${id}`, {
     method: "PATCH",
@@ -640,6 +643,7 @@ export interface CardInput {
   description?: string;
   assigneeUserId?: string | null;
   assigneeAgent?: string | null;
+  autoRun?: boolean;
 }
 
 export async function createCard(project: string, input: CardInput): Promise<BoardCard> {
@@ -745,4 +749,214 @@ export function streamCardRun(
     }
   })();
   return { done, abort: () => controller.abort() };
+}
+
+// ── Scheduled tasks ─────────────────────────────────────────────────────────
+
+export type TaskKind = "system" | "user";
+export type TaskStatus = "ok" | "error";
+
+export interface ScheduledTask {
+  id: string;
+  kind: TaskKind;
+  handler: string;
+  name: string;
+  description: string | null;
+  cronExpr: string;
+  payload: unknown;
+  enabled: boolean;
+  ownerUserId: string | null;
+  lastRunAt: number | null;
+  lastStatus: TaskStatus | null;
+  lastError: string | null;
+  nextRunAt: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ScheduledTaskInput {
+  kind: TaskKind;
+  handler: string;
+  name: string;
+  description?: string | null;
+  cronExpr: string;
+  payload?: unknown;
+  enabled?: boolean;
+}
+
+export async function listScheduledTasks(): Promise<ScheduledTask[]> {
+  const { tasks } = await jsonFetch<{ tasks: ScheduledTask[] }>("/api/tasks");
+  return tasks;
+}
+
+export async function listTaskHandlers(): Promise<string[]> {
+  const { handlers } = await jsonFetch<{ handlers: string[] }>("/api/tasks/handlers");
+  return handlers;
+}
+
+export async function createScheduledTask(input: ScheduledTaskInput): Promise<ScheduledTask> {
+  const { task } = await jsonFetch<{ task: ScheduledTask }>("/api/tasks", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return task;
+}
+
+export async function patchScheduledTask(
+  id: string,
+  patch: {
+    name?: string;
+    description?: string | null;
+    cronExpr?: string;
+    payload?: unknown;
+    enabled?: boolean;
+  },
+): Promise<ScheduledTask> {
+  const { task } = await jsonFetch<{ task: ScheduledTask }>(
+    `/api/tasks/${encodeURIComponent(id)}`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+  );
+  return task;
+}
+
+export async function deleteScheduledTask(id: string): Promise<void> {
+  await jsonFetch<{ ok: true }>(`/api/tasks/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export async function runScheduledTaskNow(id: string): Promise<ScheduledTask | null> {
+  const { task } = await jsonFetch<{ task: ScheduledTask | null }>(
+    `/api/tasks/${encodeURIComponent(id)}/run-now`,
+    { method: "POST" },
+  );
+  return task;
+}
+
+// ── Events (admin Logs tab) ───────────────────────────────────────────────
+
+export interface LogEvent {
+  id: number;
+  ts: number;
+  topic: string;
+  kind: string;
+  sessionId: string | null;
+  userId: string | null;
+  durationMs: number | null;
+  error: string | null;
+  payloadJson: string | null;
+}
+
+export interface EventsFilter {
+  topic?: string;
+  kind?: string;
+  sessionId?: string;
+  userId?: string;
+  errorsOnly?: boolean;
+  fromTs?: number;
+  toTs?: number;
+  q?: string;
+  limit?: number;
+  offset?: number;
+}
+
+function buildEventsQuery(f: EventsFilter): string {
+  const p = new URLSearchParams();
+  if (f.topic) p.set("topic", f.topic);
+  if (f.kind) p.set("kind", f.kind);
+  if (f.sessionId) p.set("session_id", f.sessionId);
+  if (f.userId) p.set("user_id", f.userId);
+  if (f.errorsOnly) p.set("errors_only", "1");
+  if (typeof f.fromTs === "number") p.set("from", String(f.fromTs));
+  if (typeof f.toTs === "number") p.set("to", String(f.toTs));
+  if (f.q) p.set("q", f.q);
+  if (typeof f.limit === "number") p.set("limit", String(f.limit));
+  if (typeof f.offset === "number") p.set("offset", String(f.offset));
+  const qs = p.toString();
+  return qs ? `?${qs}` : "";
+}
+
+export async function listEvents(
+  f: EventsFilter = {},
+): Promise<{ items: LogEvent[]; total: number }> {
+  return jsonFetch<{ items: LogEvent[]; total: number }>(`/api/events${buildEventsQuery(f)}`);
+}
+
+export async function listEventFacets(): Promise<{ topics: string[]; kinds: string[] }> {
+  return jsonFetch<{ topics: string[]; kinds: string[] }>(`/api/events/facets`);
+}
+
+// ── Workspace (per-project files) ───────────────────────────────────────────
+
+export interface WorkspaceEntry {
+  name: string;
+  path: string;
+  kind: "file" | "dir";
+  size: number;
+  mtime: number;
+}
+
+export async function listWorkspace(
+  project: string,
+  path = "",
+): Promise<{ project: string; path: string; entries: WorkspaceEntry[] }> {
+  const qs = new URLSearchParams({ path });
+  return jsonFetch(`/api/projects/${encodeURIComponent(project)}/workspace/list?${qs}`);
+}
+
+export async function uploadWorkspaceFiles(
+  project: string,
+  targetDir: string,
+  files: File[],
+): Promise<{ entries: WorkspaceEntry[] }> {
+  const form = new FormData();
+  if (targetDir) form.append("path", targetDir);
+  for (const f of files) form.append("file", f, f.name);
+  const res = await fetch(`/api/projects/${encodeURIComponent(project)}/workspace/file`, {
+    method: "POST",
+    credentials: "include",
+    body: form,
+  });
+  if (!res.ok) {
+    let msg = `upload failed: ${res.status}`;
+    try {
+      const err = (await res.json()) as { error?: string };
+      if (err?.error) msg = err.error;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(msg);
+  }
+  return (await res.json()) as { entries: WorkspaceEntry[] };
+}
+
+export async function deleteWorkspaceEntry(project: string, path: string): Promise<void> {
+  const qs = new URLSearchParams({ path });
+  await jsonFetch(`/api/projects/${encodeURIComponent(project)}/workspace?${qs}`, {
+    method: "DELETE",
+  });
+}
+
+export async function mkdirWorkspace(
+  project: string,
+  path: string,
+): Promise<{ entry: WorkspaceEntry }> {
+  return jsonFetch(`/api/projects/${encodeURIComponent(project)}/workspace/mkdir`, {
+    method: "POST",
+    body: JSON.stringify({ path }),
+  });
+}
+
+export async function moveWorkspaceEntry(
+  project: string,
+  from: string,
+  to: string,
+): Promise<{ entry: WorkspaceEntry }> {
+  return jsonFetch(`/api/projects/${encodeURIComponent(project)}/workspace/move`, {
+    method: "POST",
+    body: JSON.stringify({ from, to }),
+  });
+}
+
+export function workspaceDownloadUrl(project: string, path: string): string {
+  const qs = new URLSearchParams({ path, encoding: "raw" });
+  return `/api/projects/${encodeURIComponent(project)}/workspace/file?${qs}`;
 }
