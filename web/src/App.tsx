@@ -4,11 +4,12 @@ import ChatTab from "./tabs/ChatTab";
 import MessagesTab from "./tabs/MessagesTab";
 import ProjectsTab from "./tabs/ProjectsTab";
 import AgentsTab from "./tabs/AgentsTab";
+import BoardTab from "./tabs/BoardTab";
 import LoginPage from "./pages/LoginPage";
 import ChangePasswordPage from "./pages/ChangePasswordPage";
 import SettingsPage from "./pages/SettingsPage";
 
-type Tab = "chat" | "messages" | "projects" | "agents" | "settings";
+type Tab = "chat" | "messages" | "board" | "projects" | "agents" | "settings";
 
 const SESSION_STORAGE_KEY = "bunny.activeSessionId";
 const PROJECT_STORAGE_KEY = "bunny.activeProject";
@@ -117,6 +118,12 @@ export default function App() {
             Messages
           </button>
           <button
+            className={`tab ${tab === "board" ? "tab--active" : ""}`}
+            onClick={() => setTab("board")}
+          >
+            Board
+          </button>
+          <button
             className={`tab ${tab === "projects" ? "tab--active" : ""}`}
             onClick={() => setTab("projects")}
           >
@@ -156,6 +163,7 @@ export default function App() {
           />
         )}
         {tab === "messages" && <MessagesTab currentUser={user} project={activeProject} />}
+        {tab === "board" && <BoardTab project={activeProject} currentUser={user} />}
         {tab === "projects" && (
           <ProjectsTab currentUser={user} activeProject={activeProject} onPickProject={onPickProject} />
         )}

@@ -556,3 +556,131 @@ export async function fetchToolNames(): Promise<string[]> {
   const { tools } = await jsonFetch<{ tools: string[] }>("/api/tools");
   return tools;
 }
+
+// ── Board ───────────────────────────────────────────────────────────────────
+
+export interface Swimlane {
+  id: number;
+  project: string;
+  name: string;
+  position: number;
+  wipLimit: number | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface BoardCard {
+  id: number;
+  project: string;
+  swimlaneId: number;
+  position: number;
+  title: string;
+  description: string;
+  assigneeUserId: string | null;
+  assigneeAgent: string | null;
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+  archivedAt: number | null;
+}
+
+export interface CardRun {
+  id: number;
+  cardId: number;
+  sessionId: string;
+  agent: string;
+  triggeredBy: string;
+  triggerKind: "manual" | "scheduled";
+  status: "queued" | "running" | "done" | "error";
+  startedAt: number;
+  finishedAt: number | null;
+  finalAnswer: string | null;
+  error: string | null;
+}
+
+export interface BoardSnapshot {
+  project: string;
+  swimlanes: Swimlane[];
+  cards: BoardCard[];
+}
+
+export async function fetchBoard(project: string): Promise<BoardSnapshot> {
+  return jsonFetch<BoardSnapshot>(`/api/projects/${encodeURIComponent(project)}/board`);
+}
+
+export async function createSwimlane(
+  project: string,
+  input: { name: string; position?: number; wipLimit?: number | null },
+): Promise<Swimlane> {
+  const { swimlane } = await jsonFetch<{ swimlane: Swimlane }>(
+    `/api/projects/${encodeURIComponent(project)}/swimlanes`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+  return swimlane;
+}
+
+export async function patchSwimlane(
+  id: number,
+  patch: { name?: string; position?: number; wipLimit?: number | null },
+): Promise<Swimlane> {
+  const { swimlane } = await jsonFetch<{ swimlane: Swimlane }>(`/api/swimlanes/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  return swimlane;
+}
+
+export async function deleteSwimlane(id: number): Promise<void> {
+  await jsonFetch<{ ok: true }>(`/api/swimlanes/${id}`, { method: "DELETE" });
+}
+
+export interface CardInput {
+  swimlaneId: number;
+  title: string;
+  description?: string;
+  assigneeUserId?: string | null;
+  assigneeAgent?: string | null;
+}
+
+export async function createCard(project: string, input: CardInput): Promise<BoardCard> {
+  const { card } = await jsonFetch<{ card: BoardCard }>(
+    `/api/projects/${encodeURIComponent(project)}/cards`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+  return card;
+}
+
+export async function fetchCard(id: number): Promise<{ card: BoardCard; runs: CardRun[] }> {
+  return jsonFetch<{ card: BoardCard; runs: CardRun[] }>(`/api/cards/${id}`);
+}
+
+export async function patchCard(
+  id: number,
+  patch: Partial<CardInput> & { position?: number },
+): Promise<BoardCard> {
+  const { card } = await jsonFetch<{ card: BoardCard }>(`/api/cards/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  return card;
+}
+
+export async function moveCard(
+  id: number,
+  input: { swimlaneId?: number; beforeCardId?: number; afterCardId?: number; position?: number },
+): Promise<BoardCard> {
+  const { card } = await jsonFetch<{ card: BoardCard }>(`/api/cards/${id}/move`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return card;
+}
+
+export async function archiveCard(id: number): Promise<void> {
+  await jsonFetch<{ ok: true }>(`/api/cards/${id}`, { method: "DELETE" });
+}
+
+export async function fetchCardRuns(id: number): Promise<CardRun[]> {
+  const { runs } = await jsonFetch<{ runs: CardRun[] }>(`/api/cards/${id}/runs`);
+  return runs;
+}
