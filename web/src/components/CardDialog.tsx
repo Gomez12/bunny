@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Agent, AuthUser, BoardCard, Swimlane } from "../api";
-import { listUsers } from "../api";
+import { listUsers, runCard } from "../api";
+import CardRunLog from "./CardRunLog";
 
 export interface CardDialogValue {
   swimlaneId: number;
@@ -20,6 +21,8 @@ interface Props {
   currentUser: AuthUser;
   onClose: () => void;
   onSubmit: (v: CardDialogValue) => Promise<void>;
+  /** Switch to Chat tab focused on a session id (for "Open in Chat"). */
+  onOpenSession?: (sessionId: string) => void;
 }
 
 export default function CardDialog({
@@ -31,6 +34,7 @@ export default function CardDialog({
   currentUser,
   onClose,
   onSubmit,
+  onOpenSession,
 }: Props) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
@@ -48,6 +52,9 @@ export default function CardDialog({
   const [users, setUsers] = useState<AuthUser[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [liveRunId, setLiveRunId] = useState<number | undefined>(undefined);
+  const [runRefreshKey, setRunRefreshKey] = useState(0);
+  const [runError, setRunError] = useState<string | null>(null);
 
   useEffect(() => {
     if (assigneeKind !== "user") return;
@@ -183,6 +190,42 @@ export default function CardDialog({
             {mode === "create" ? "Create" : "Save"}
           </button>
         </div>
+
+        {mode === "edit" && initial && (
+          <div className="dialog__runs">
+            <div className="dialog__runs-actions">
+              <button
+                type="button"
+                disabled={
+                  busy || (assigneeKind !== "agent" && !initial.assigneeAgent) ||
+                  (assigneeKind === "agent" && !assigneeAgent)
+                }
+                onClick={async () => {
+                  setRunError(null);
+                  try {
+                    const agent =
+                      assigneeKind === "agent" ? assigneeAgent ?? undefined : undefined;
+                    const { run } = await runCard(initial.id, agent ? { agent } : {});
+                    setLiveRunId(run.id);
+                    setRunRefreshKey((k) => k + 1);
+                  } catch (e) {
+                    setRunError(e instanceof Error ? e.message : String(e));
+                  }
+                }}
+                title="Run this card with the assigned agent"
+              >
+                ▶ Run
+              </button>
+              {runError && <span className="dialog__run-err">{runError}</span>}
+            </div>
+            <CardRunLog
+              cardId={initial.id}
+              onOpenSession={(sid) => onOpenSession?.(sid)}
+              refreshKey={runRefreshKey}
+              liveRunId={liveRunId}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

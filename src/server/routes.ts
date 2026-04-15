@@ -71,7 +71,12 @@ export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<
   // ── Board (kanban) ────────────────────────────────────────────────────────
   // Mounted before the generic project routes so /api/projects/:p/board hits
   // here instead of returning a 404 from the project handler.
-  const boardResponse = await handleBoardRoute(req, url, { db: ctx.db }, user);
+  const boardResponse = await handleBoardRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg },
+    user,
+  );
   if (boardResponse) return boardResponse;
 
   // ── Projects ──────────────────────────────────────────────────────────────

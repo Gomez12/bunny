@@ -66,6 +66,25 @@ export interface SseDoneEvent {
   type: "done";
 }
 
+/** Emitted by the board card-run orchestrator the moment the agent kicks off. */
+export interface SseCardRunStartedEvent {
+  type: "card_run_started";
+  cardId: number;
+  runId: number;
+  sessionId: string;
+}
+
+/** Emitted when the run finishes (success or error). Mirrors what was written
+ * to `board_card_runs` so a late SSE subscriber can rebuild the final state. */
+export interface SseCardRunFinishedEvent {
+  type: "card_run_finished";
+  cardId: number;
+  runId: number;
+  status: "done" | "error";
+  finalAnswer?: string;
+  error?: string;
+}
+
 export type SseEvent =
   | SseContentEvent
   | SseReasoningEvent
@@ -75,4 +94,6 @@ export type SseEvent =
   | SseStatsEvent
   | SseErrorEvent
   | SseTurnEndEvent
-  | SseDoneEvent;
+  | SseDoneEvent
+  | SseCardRunStartedEvent
+  | SseCardRunFinishedEvent;

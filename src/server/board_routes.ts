@@ -14,9 +14,15 @@
 
 import type { Database } from "bun:sqlite";
 import type { User } from "../auth/users.ts";
+import type { BunnyConfig } from "../config.ts";
+import type { BunnyQueue } from "../queue/bunqueue.ts";
 import { errorMessage } from "../util/error.ts";
 import { json } from "./http.ts";
 import { canEditProject, canSeeProject } from "./routes.ts";
+import { runCard, subscribeToRun, getRunFanout } from "../board/run_card.ts";
+import { getRun } from "../memory/board_runs.ts";
+import { registry as toolsRegistry } from "../tools/index.ts";
+import { controllerSink, finishSse } from "../agent/render_sse.ts";
 import { getProject, validateProjectName } from "../memory/projects.ts";
 import {
   createSwimlane,
@@ -42,6 +48,8 @@ import { isAgentLinkedToProject } from "../memory/agents.ts";
 
 export interface BoardRouteCtx {
   db: Database;
+  queue: BunnyQueue;
+  cfg: BunnyConfig;
 }
 
 export async function handleBoardRoute(
@@ -95,6 +103,19 @@ export async function handleBoardRoute(
   if (runsMatch) {
     const id = Number(runsMatch[1]);
     if (req.method === "GET") return handleListRuns(ctx, user, id);
+  }
+
+  const runMatch = pathname.match(/^\/api\/cards\/(\d+)\/run$/);
+  if (runMatch) {
+    const id = Number(runMatch[1]);
+    if (req.method === "POST") return handleRunCard(req, ctx, user, id);
+  }
+
+  const streamMatch = pathname.match(/^\/api\/cards\/(\d+)\/runs\/(\d+)\/stream$/);
+  if (streamMatch) {
+    const cardId = Number(streamMatch[1]);
+    const runId = Number(streamMatch[2]);
+    if (req.method === "GET") return handleStreamRun(ctx, user, cardId, runId);
   }
 
   return null;
@@ -409,6 +430,87 @@ function handleArchiveCard(ctx: BoardRouteCtx, user: User, id: number): Response
   if (!canEditCard(user, card, p)) return json({ error: "forbidden" }, 403);
   archiveCard(ctx.db, id);
   return json({ ok: true });
+}
+
+// ── Run flow ──────────────────────────────────────────────────────────────
+
+interface RunBody {
+  agent?: string;
+  sessionId?: string;
+}
+
+async function handleRunCard(
+  req: Request,
+  ctx: BoardRouteCtx,
+  user: User,
+  cardId: number,
+): Promise<Response> {
+  const card = getCard(ctx.db, cardId);
+  if (!card) return json({ error: "not found" }, 404);
+  const p = getProject(ctx.db, card.project);
+  if (!p) return json({ error: "project not found" }, 404);
+  if (!canEditCard(user, card, p)) return json({ error: "forbidden" }, 403);
+
+  const body = (await readJson<RunBody>(req)) ?? {};
+  const agent = body.agent?.trim() || card.assigneeAgent;
+  if (!agent) return json({ error: "card has no agent assigned" }, 400);
+
+  try {
+    const { run, sessionId } = await runCard({
+      db: ctx.db,
+      queue: ctx.queue,
+      cfg: ctx.cfg,
+      tools: toolsRegistry,
+      cardId,
+      agent,
+      triggeredBy: user.id,
+      triggerKind: "manual",
+      sessionId: body.sessionId,
+    });
+    return json({ run: toRunDto(run), sessionId }, 202);
+  } catch (e) {
+    return json({ error: errorMessage(e) }, 400);
+  }
+}
+
+function handleStreamRun(
+  ctx: BoardRouteCtx,
+  user: User,
+  cardId: number,
+  runId: number,
+): Response {
+  const card = getCard(ctx.db, cardId);
+  if (!card) return json({ error: "not found" }, 404);
+  const p = getProject(ctx.db, card.project);
+  if (!p || !canSeeProject(p, user)) return json({ error: "forbidden" }, 403);
+  const run = getRun(ctx.db, runId);
+  if (!run || run.cardId !== cardId) return json({ error: "not found" }, 404);
+
+  const fan = getRunFanout(runId);
+  // Run already finished and the in-memory fanout has been dropped — caller
+  // should fall back to GET /api/sessions/:id/messages.
+  if (!fan) return json({ error: "run already completed" }, 409);
+
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const sink = controllerSink(controller);
+      const unsubscribe = subscribeToRun(runId, sink);
+      // If subscribeToRun closed the sink (run already finished while we were
+      // setting up), cap with a `done` event and close.
+      if (fan.closed) finishSse(sink);
+      // Hook into stream cancellation via the controller's signal would be
+      // ideal; a cleanup interval is overkill — closing the underlying sink
+      // happens automatically when the run finishes (subscribers cleared).
+      void unsubscribe;
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }
 
 async function readJson<T>(req: Request): Promise<T | null> {

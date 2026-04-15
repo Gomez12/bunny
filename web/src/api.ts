@@ -684,3 +684,65 @@ export async function fetchCardRuns(id: number): Promise<CardRun[]> {
   const { runs } = await jsonFetch<{ runs: CardRun[] }>(`/api/cards/${id}/runs`);
   return runs;
 }
+
+/** Kick off a new run. Returns 202 with `{ run, sessionId }`. */
+export async function runCard(
+  cardId: number,
+  input: { agent?: string; sessionId?: string } = {},
+): Promise<{ run: CardRun; sessionId: string }> {
+  return jsonFetch<{ run: CardRun; sessionId: string }>(`/api/cards/${cardId}/run`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+/**
+ * Subscribe to a live card-run SSE stream. Returns the same shape as
+ * {@link streamChat}. The server returns 409 if the run already finished —
+ * caller should fall back to {@link fetchMessages} on the run's session id.
+ */
+export function streamCardRun(
+  cardId: number,
+  runId: number,
+  onEvent: (ev: ServerEvent) => void,
+): { done: Promise<void>; abort: () => void } {
+  const controller = new AbortController();
+  const done = (async () => {
+    const url = `/api/cards/${cardId}/runs/${runId}/stream`;
+    const res = await fetch(url, { credentials: "include", signal: controller.signal });
+    if (!res.ok || !res.body) {
+      let msg = `GET ${url} → ${res.status}`;
+      try {
+        const err = (await res.json()) as { error?: string };
+        if (err?.error) msg = err.error;
+      } catch {
+        // ignore
+      }
+      throw new Error(msg);
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const { value, done: streamDone } = await reader.read();
+      if (streamDone) break;
+      buf += decoder.decode(value, { stream: true });
+      let idx: number;
+      while ((idx = buf.indexOf("\n\n")) !== -1) {
+        const frame = buf.slice(0, idx);
+        buf = buf.slice(idx + 2);
+        for (const line of frame.split("\n")) {
+          if (!line.startsWith("data:")) continue;
+          const payload = line.slice(5).trim();
+          if (!payload) continue;
+          try {
+            onEvent(JSON.parse(payload) as ServerEvent);
+          } catch {
+            // skip malformed
+          }
+        }
+      }
+    }
+  })();
+  return { done, abort: () => controller.abort() };
+}

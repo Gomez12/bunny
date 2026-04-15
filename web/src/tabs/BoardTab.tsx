@@ -31,6 +31,8 @@ import CardDialog, { type CardDialogValue } from "../components/CardDialog";
 interface Props {
   project: string;
   currentUser: AuthUser;
+  /** Switch to the Chat tab on the given session id. */
+  onOpenInChat: (sessionId: string) => void;
 }
 
 type CardDialogState =
@@ -38,7 +40,7 @@ type CardDialogState =
   | { kind: "create"; swimlaneId: number }
   | { kind: "edit"; card: BoardCardModel };
 
-export default function BoardTab({ project, currentUser }: Props) {
+export default function BoardTab({ project, currentUser, onOpenInChat }: Props) {
   const [board, setBoard] = useState<BoardSnapshot | null>(null);
   const [projectMeta, setProjectMeta] = useState<Project | null>(null);
   const [projectAgents, setProjectAgents] = useState<Agent[]>([]);
@@ -278,6 +280,7 @@ export default function BoardTab({ project, currentUser }: Props) {
           currentUser={currentUser}
           onClose={() => setDialog({ kind: "closed" })}
           onSubmit={handleSubmitCard}
+          onOpenSession={onOpenInChat}
         />
       )}
     </div>

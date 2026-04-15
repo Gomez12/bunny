@@ -163,7 +163,16 @@ export default function App() {
           />
         )}
         {tab === "messages" && <MessagesTab currentUser={user} project={activeProject} />}
-        {tab === "board" && <BoardTab project={activeProject} currentUser={user} />}
+        {tab === "board" && (
+          <BoardTab
+            project={activeProject}
+            currentUser={user}
+            onOpenInChat={(sid) => {
+              onPickSession(sid);
+              setTab("chat");
+            }}
+          />
+        )}
         {tab === "projects" && (
           <ProjectsTab currentUser={user} activeProject={activeProject} onPickProject={onPickProject} />
         )}
