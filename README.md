@@ -68,6 +68,8 @@ bun run build:platform darwin-arm64
 
 De Vite-bundle wordt bij `build` als `import … with { type: "file" }` in het binary geëmbed via een gegenereerde manifest (`src/server/web_bundle.ts`); de stub wordt na de compile weer teruggezet zodat git schoon blijft.
 
+Pre-built binaries voor darwin/linux/windows (x64 + arm64) zijn beschikbaar op de [GitHub Releases](https://github.com/Gomez12/bunny/releases) pagina — automatisch gebouwd door de `Release` workflow bij elke `v*` tag.
+
 Zie [`docs/adr/0006-web-ui.md`](./docs/adr/0006-web-ui.md) voor de architectuurkeuzes.
 
 ## Authentication
