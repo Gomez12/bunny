@@ -36,9 +36,15 @@ Een **agent** is een benoemde persoonlijkheid met eigen system prompt en een bep
 
 Agents kunnen ook met elkaar praten: zet `is_subagent` aan op een agent en voeg 'm toe aan `allowed_subagents` van een orchestrator, dan krijgt die orchestrator de `call_agent(name, prompt)` tool. De context-scope (`full` of `own`) bepaalt of een agent de hele session kan zien of alleen zijn eigen eerdere antwoorden — handig voor eenmalige specialisten. Zie [ADR 0009](./docs/adr/0009-agents.md).
 
+### Boards
+
+Elk project heeft een eigen **kanban-board**. Open de **Board**-tab in de web-UI: standaard zie je de swimlanes Todo / Doing / Done, sleep cards ertussen of hernoem/verwijder lanes als admin of project-owner. Een card kan toegewezen worden aan een **user** of een **agent** — niet allebei tegelijk.
+
+Cards met een agent-assignee kun je via de **Run**-knop in de card-dialog laten uitvoeren: bunny stuurt `title + description` als prompt naar de agent, streamt de output live in de card, en bewaart het uiteindelijke antwoord op de run-row. "Open in Chat" deep-linkt naar de bijbehorende sessie zodat je de hele trace (incl. tool-calls en reasoning) kunt nakijken. Re-runs blijven als geschiedenis op de card staan. Zie [ADR 0010](./docs/adr/0010-project-boards.md).
+
 ## Web UI
 
-Bunny heeft ook een tab-based web-UI: **Chat** (live streaming) en **Messages** (alle eerdere sessies uit SQLite, doorzoekbaar via BM25).
+Bunny heeft ook een tab-based web-UI: **Chat** (live streaming), **Messages** (alle eerdere sessies uit SQLite, doorzoekbaar via BM25), **Board** (kanban per project), **Projects**, **Agents** en **Settings**.
 
 ```sh
 # terminal 1 — backend (Bun HTTP + SSE)
