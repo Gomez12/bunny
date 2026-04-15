@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: typecheck + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ">=1.3.0"
+
+      - name: Install backend deps
+        run: bun install --frozen-lockfile
+
+      - name: Install web deps
+        run: bun install --frozen-lockfile
+        working-directory: web
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Test
+        run: bun test
+
+  web-build:
+    name: web build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ">=1.3.0"
+
+      - name: Install web deps
+        run: bun install --frozen-lockfile
+        working-directory: web
+
+      - name: Build web bundle
+        run: bun run web:build
