@@ -6,17 +6,32 @@ import ReasoningBlock from "../components/ReasoningBlock";
 import ToolCallCard from "../components/ToolCallCard";
 import SessionSidebar from "../components/SessionSidebar";
 import StatsFooter from "../components/StatsFooter";
-import { fetchMessages, groupTurns, reorderReasoning, type HistoryTurn } from "../api";
+import {
+  fetchMessages,
+  groupTurns,
+  reorderReasoning,
+  type AuthUser,
+  type HistoryTurn,
+} from "../api";
 import { useSSEChat } from "../hooks/useSSEChat";
 
 interface Props {
   sessionId: string;
   project: string;
+  currentUser: AuthUser;
   onPickSession: (id: string) => void;
   onNewSession: () => void;
 }
 
-export default function ChatTab({ sessionId, project, onPickSession, onNewSession }: Props) {
+export default function ChatTab({
+  sessionId,
+  project,
+  currentUser,
+  onPickSession,
+  onNewSession,
+}: Props) {
+  const expandThink = currentUser.expandThinkBubbles;
+  const expandTool = currentUser.expandToolBubbles;
   const [history, setHistory] = useState<HistoryTurn[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -65,7 +80,7 @@ export default function ChatTab({ sessionId, project, onPickSession, onNewSessio
             <div key={t.id} className="turn">
               <MessageBubble role="user">{t.prompt}</MessageBubble>
               <MessageBubble role="assistant" author={t.author}>
-                {t.reasoning && <ReasoningBlock text={t.reasoning} />}
+                {t.reasoning && <ReasoningBlock text={t.reasoning} defaultOpen={expandThink} />}
                 {t.toolCalls.map((tc) => (
                   <ToolCallCard
                     key={tc.id}
@@ -73,6 +88,7 @@ export default function ChatTab({ sessionId, project, onPickSession, onNewSessio
                     args={tc.args}
                     ok={tc.ok}
                     output={tc.output}
+                    defaultOpen={expandTool}
                   />
                 ))}
                 {t.content && <MarkdownContent text={t.content} />}
@@ -84,7 +100,7 @@ export default function ChatTab({ sessionId, project, onPickSession, onNewSessio
             <div key={t.id} className="turn">
               <MessageBubble role="user">{t.prompt}</MessageBubble>
               <MessageBubble role="assistant" author={t.author}>
-                {t.reasoning && <ReasoningBlock text={t.reasoning} />}
+                {t.reasoning && <ReasoningBlock text={t.reasoning} defaultOpen={expandThink} />}
                 {t.toolCalls.map((tc) => (
                   <ToolCallCard
                     key={tc.callIndex}
@@ -93,6 +109,7 @@ export default function ChatTab({ sessionId, project, onPickSession, onNewSessio
                     ok={tc.ok}
                     output={tc.output}
                     error={tc.error}
+                    defaultOpen={expandTool}
                   />
                 ))}
                 {t.content && <MarkdownContent text={t.content} />}

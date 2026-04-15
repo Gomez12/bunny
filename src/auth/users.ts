@@ -14,6 +14,8 @@ export interface User {
   displayName: string | null;
   email: string | null;
   mustChangePassword: boolean;
+  expandThinkBubbles: boolean;
+  expandToolBubbles: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -26,6 +28,8 @@ interface UserRow {
   display_name: string | null;
   email: string | null;
   must_change_pw: number;
+  expand_think_bubbles: number;
+  expand_tool_bubbles: number;
   created_at: number;
   updated_at: number;
 }
@@ -38,6 +42,8 @@ function rowToUser(r: UserRow): User {
     displayName: r.display_name,
     email: r.email,
     mustChangePassword: r.must_change_pw === 1,
+    expandThinkBubbles: r.expand_think_bubbles === 1,
+    expandToolBubbles: r.expand_tool_bubbles === 1,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -77,6 +83,8 @@ export async function createUser(db: Database, opts: CreateUserOpts): Promise<Us
     displayName: opts.displayName ?? null,
     email: opts.email ?? null,
     mustChangePassword: opts.mustChangePassword ?? false,
+    expandThinkBubbles: false,
+    expandToolBubbles: false,
     createdAt: now,
     updatedAt: now,
   };
@@ -139,6 +147,8 @@ export interface UpdateUserOpts {
   displayName?: string | null;
   email?: string | null;
   mustChangePassword?: boolean;
+  expandThinkBubbles?: boolean;
+  expandToolBubbles?: boolean;
 }
 
 export function updateUser(db: Database, id: string, opts: UpdateUserOpts): User | null {
@@ -150,11 +160,25 @@ export function updateUser(db: Database, id: string, opts: UpdateUserOpts): User
     email: opts.email === undefined ? current.email : opts.email,
     mustChangePassword:
       opts.mustChangePassword === undefined ? current.mustChangePassword : opts.mustChangePassword,
+    expandThinkBubbles:
+      opts.expandThinkBubbles === undefined ? current.expandThinkBubbles : opts.expandThinkBubbles,
+    expandToolBubbles:
+      opts.expandToolBubbles === undefined ? current.expandToolBubbles : opts.expandToolBubbles,
   };
   const now = Date.now();
   db.prepare(
-    `UPDATE users SET role = ?, display_name = ?, email = ?, must_change_pw = ?, updated_at = ? WHERE id = ?`,
-  ).run(next.role, next.displayName, next.email, next.mustChangePassword ? 1 : 0, now, id);
+    `UPDATE users SET role = ?, display_name = ?, email = ?, must_change_pw = ?,
+       expand_think_bubbles = ?, expand_tool_bubbles = ?, updated_at = ? WHERE id = ?`,
+  ).run(
+    next.role,
+    next.displayName,
+    next.email,
+    next.mustChangePassword ? 1 : 0,
+    next.expandThinkBubbles ? 1 : 0,
+    next.expandToolBubbles ? 1 : 0,
+    now,
+    id,
+  );
   return { ...current, ...next, updatedAt: now };
 }
 

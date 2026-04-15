@@ -117,6 +117,8 @@ CREATE TABLE IF NOT EXISTS users (
   display_name   TEXT,
   email          TEXT,
   must_change_pw INTEGER NOT NULL DEFAULT 0,
+  expand_think_bubbles INTEGER NOT NULL DEFAULT 0,
+  expand_tool_bubbles  INTEGER NOT NULL DEFAULT 0,
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
 );

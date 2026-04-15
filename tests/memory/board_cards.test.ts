@@ -209,6 +209,8 @@ function baseUser(overrides: Partial<User> & { id: string }): User {
     displayName: overrides.displayName ?? null,
     email: overrides.email ?? null,
     mustChangePassword: overrides.mustChangePassword ?? false,
+    expandThinkBubbles: overrides.expandThinkBubbles ?? false,
+    expandToolBubbles: overrides.expandToolBubbles ?? false,
     createdAt: overrides.createdAt ?? Date.now(),
     updatedAt: overrides.updatedAt ?? Date.now(),
   };

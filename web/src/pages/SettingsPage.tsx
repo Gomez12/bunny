@@ -45,6 +45,8 @@ export default function SettingsPage({
 function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthUser) => void }) {
   const [displayName, setDisplayName] = useState(user.displayName ?? "");
   const [email, setEmail] = useState(user.email ?? "");
+  const [expandThink, setExpandThink] = useState(user.expandThinkBubbles);
+  const [expandTool, setExpandTool] = useState(user.expandToolBubbles);
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -53,6 +55,8 @@ function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthU
   useEffect(() => {
     setDisplayName(user.displayName ?? "");
     setEmail(user.email ?? "");
+    setExpandThink(user.expandThinkBubbles);
+    setExpandTool(user.expandToolBubbles);
   }, [user]);
 
   const save = async (e: React.FormEvent) => {
@@ -63,6 +67,8 @@ function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthU
       const u = await updateOwnProfile({
         displayName: displayName || null,
         email: email || null,
+        expandThinkBubbles: expandThink,
+        expandToolBubbles: expandTool,
       });
       onUpdated(u);
       setMsg("Profile saved.");
@@ -106,6 +112,23 @@ function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthU
         <label>
           <span>Email</span>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        </label>
+        <h3>Chat display</h3>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={expandThink}
+            onChange={(e) => setExpandThink(e.target.checked)}
+          />
+          <span>Expand think bubbles by default</span>
+        </label>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={expandTool}
+            onChange={(e) => setExpandTool(e.target.checked)}
+          />
+          <span>Expand tool bubbles by default</span>
         </label>
         <button type="submit">Save profile</button>
       </form>

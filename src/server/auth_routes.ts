@@ -36,6 +36,8 @@ function publicUser(u: User) {
     displayName: u.displayName,
     email: u.email,
     mustChangePassword: u.mustChangePassword,
+    expandThinkBubbles: u.expandThinkBubbles,
+    expandToolBubbles: u.expandToolBubbles,
     createdAt: u.createdAt,
     updatedAt: u.updatedAt,
   };
@@ -195,11 +197,18 @@ async function changeOwnPassword(req: Request, ctx: AuthRouteCtx, user: User): P
 }
 
 async function patchOwnProfile(req: Request, ctx: AuthRouteCtx, user: User): Promise<Response> {
-  const body = await readJson<{ displayName?: string | null; email?: string | null }>(req);
+  const body = await readJson<{
+    displayName?: string | null;
+    email?: string | null;
+    expandThinkBubbles?: boolean;
+    expandToolBubbles?: boolean;
+  }>(req);
   if (!body) return json({ error: "invalid body" }, 400);
   const updated = updateUser(ctx.db, user.id, {
     displayName: body.displayName,
     email: body.email,
+    expandThinkBubbles: body.expandThinkBubbles,
+    expandToolBubbles: body.expandToolBubbles,
   });
   return updated ? json({ user: publicUser(updated) }) : json({ error: "not found" }, 404);
 }

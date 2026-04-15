@@ -273,6 +273,8 @@ export interface AuthUser {
   displayName: string | null;
   email: string | null;
   mustChangePassword: boolean;
+  expandThinkBubbles: boolean;
+  expandToolBubbles: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -342,6 +344,8 @@ export async function changeOwnPassword(currentPassword: string, newPassword: st
 export async function updateOwnProfile(patch: {
   displayName?: string | null;
   email?: string | null;
+  expandThinkBubbles?: boolean;
+  expandToolBubbles?: boolean;
 }): Promise<AuthUser> {
   const { user } = await jsonFetch<{ user: AuthUser }>("/api/users/me", {
     method: "PATCH",

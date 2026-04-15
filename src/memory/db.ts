@@ -97,6 +97,8 @@ function migrateColumns(db: Database): void {
   addColumn("ALTER TABLE events ADD COLUMN user_id TEXT");
   addColumn("ALTER TABLE board_swimlanes ADD COLUMN auto_run INTEGER NOT NULL DEFAULT 0");
   addColumn("ALTER TABLE board_cards ADD COLUMN auto_run INTEGER NOT NULL DEFAULT 0");
+  addColumn("ALTER TABLE users ADD COLUMN expand_think_bubbles INTEGER NOT NULL DEFAULT 0");
+  addColumn("ALTER TABLE users ADD COLUMN expand_tool_bubbles INTEGER NOT NULL DEFAULT 0");
   db.run("CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_id)");
   db.run("CREATE INDEX IF NOT EXISTS idx_messages_session_user ON messages(session_id, user_id)");
   db.run("CREATE INDEX IF NOT EXISTS idx_messages_project ON messages(project, ts)");

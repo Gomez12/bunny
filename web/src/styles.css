@@ -349,6 +349,7 @@ button {
 .bubble__content--markdown {
   min-width: 0;
   max-width: 100%;
+  white-space: normal;
 }
 .bubble__content--markdown > *:first-child { margin-top: 0; }
 .bubble__content--markdown > *:last-child { margin-bottom: 0; }
@@ -484,6 +485,19 @@ button {
   background: rgba(124, 92, 255, 0.08);
   font-size: 12px;
   font-family: var(--font-mono);
+  width: 100%;
+  border: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.toolcall__head:disabled {
+  cursor: default;
+}
+.toolcall__caret {
+  width: 10px;
+  color: var(--text-faint);
+  font-size: 10px;
 }
 .toolcall__name {
   color: var(--accent);

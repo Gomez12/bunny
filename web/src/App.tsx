@@ -181,6 +181,7 @@ export default function App() {
           <ChatTab
             sessionId={sessionId}
             project={activeProject}
+            currentUser={user}
             onPickSession={onPickSession}
             onNewSession={onNewSession}
           />

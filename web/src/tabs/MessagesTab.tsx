@@ -68,7 +68,9 @@ export default function MessagesTab({ currentUser, project }: Props) {
             )}
             <MessageBubble role="user">{t.prompt}</MessageBubble>
             <MessageBubble role="assistant">
-              {t.reasoning && <ReasoningBlock text={t.reasoning} />}
+              {t.reasoning && (
+                <ReasoningBlock text={t.reasoning} defaultOpen={currentUser.expandThinkBubbles} />
+              )}
               {t.toolCalls.map((tc) => (
                 <ToolCallCard
                   key={tc.id}
@@ -76,6 +78,7 @@ export default function MessagesTab({ currentUser, project }: Props) {
                   args={tc.args}
                   ok={tc.ok}
                   output={tc.output}
+                  defaultOpen={currentUser.expandToolBubbles}
                 />
               ))}
               {t.content && <div className="bubble__content">{t.content}</div>}
