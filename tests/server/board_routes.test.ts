@@ -150,6 +150,188 @@ describe("GET /api/cards/:id", () => {
   });
 });
 
+describe("POST /api/projects/:p/swimlanes", () => {
+  test("admin creates lane", async () => {
+    createProject(db, { name: "alpha" });
+    const { res, body } = await req("POST", "/api/projects/alpha/swimlanes", {
+      cookie: adminCookie,
+      body: { name: "Review" },
+    });
+    expect(res.status).toBe(201);
+    expect((body as { swimlane: { name: string } }).swimlane.name).toBe("Review");
+  });
+
+  test("non-owner gets 403", async () => {
+    await createUser(db, { username: "bob", password: "pw-bob" });
+    const bobCookie = await login("bob", "pw-bob");
+    createProject(db, { name: "alpha" }); // admin owns implicitly via createdBy=null → only admin passes
+    const { res } = await req("POST", "/api/projects/alpha/swimlanes", {
+      cookie: bobCookie,
+      body: { name: "X" },
+    });
+    expect(res.status).toBe(403);
+  });
+
+  test("missing name → 400", async () => {
+    createProject(db, { name: "alpha" });
+    const { res } = await req("POST", "/api/projects/alpha/swimlanes", {
+      cookie: adminCookie,
+      body: {},
+    });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("PATCH /api/swimlanes/:id", () => {
+  test("admin renames lane", async () => {
+    createProject(db, { name: "alpha" });
+    const lane = listSwimlanes(db, "alpha")[0]!;
+    const { res, body } = await req("PATCH", `/api/swimlanes/${lane.id}`, {
+      cookie: adminCookie,
+      body: { name: "Backlog" },
+    });
+    expect(res.status).toBe(200);
+    expect((body as { swimlane: { name: string } }).swimlane.name).toBe("Backlog");
+  });
+});
+
+describe("DELETE /api/swimlanes/:id", () => {
+  test("refuses lane with active cards", async () => {
+    createProject(db, { name: "alpha" });
+    const lane = listSwimlanes(db, "alpha")[0]!;
+    createCard(db, { project: "alpha", swimlaneId: lane.id, title: "x", createdBy: "u1" });
+    const { res } = await req("DELETE", `/api/swimlanes/${lane.id}`, { cookie: adminCookie });
+    expect(res.status).toBe(400);
+  });
+
+  test("deletes empty lane", async () => {
+    createProject(db, { name: "alpha" });
+    const lane = listSwimlanes(db, "alpha")[2]!; // Done is empty
+    const { res } = await req("DELETE", `/api/swimlanes/${lane.id}`, { cookie: adminCookie });
+    expect(res.status).toBe(200);
+  });
+});
+
+describe("POST /api/projects/:p/cards", () => {
+  test("creates card with creator stamp", async () => {
+    createProject(db, { name: "alpha" });
+    const lane = listSwimlanes(db, "alpha")[0]!;
+    const { res, body } = await req("POST", "/api/projects/alpha/cards", {
+      cookie: adminCookie,
+      body: { swimlaneId: lane.id, title: "task" },
+    });
+    expect(res.status).toBe(201);
+    const dto = body as { card: { title: string; createdBy: string } };
+    expect(dto.card.title).toBe("task");
+    expect(dto.card.createdBy).toBeTruthy();
+  });
+
+  test("rejects swimlane from another project", async () => {
+    createProject(db, { name: "alpha" });
+    createProject(db, { name: "beta" });
+    const otherLane = listSwimlanes(db, "beta")[0]!;
+    const { res } = await req("POST", "/api/projects/alpha/cards", {
+      cookie: adminCookie,
+      body: { swimlaneId: otherLane.id, title: "x" },
+    });
+    expect(res.status).toBe(400);
+  });
+
+  test("rejects unlinked agent", async () => {
+    createProject(db, { name: "alpha" });
+    const lane = listSwimlanes(db, "alpha")[0]!;
+    const { res } = await req("POST", "/api/projects/alpha/cards", {
+      cookie: adminCookie,
+      body: { swimlaneId: lane.id, title: "x", assigneeAgent: "ghost" },
+    });
+    expect(res.status).toBe(400);
+  });
+
+  test("missing title → 400", async () => {
+    createProject(db, { name: "alpha" });
+    const lane = listSwimlanes(db, "alpha")[0]!;
+    const { res } = await req("POST", "/api/projects/alpha/cards", {
+      cookie: adminCookie,
+      body: { swimlaneId: lane.id },
+    });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("PATCH /api/cards/:id", () => {
+  test("creator can patch own card", async () => {
+    await createUser(db, { username: "bob", password: "pw-bob" });
+    const bobCookie = await login("bob", "pw-bob");
+    createProject(db, { name: "alpha" });
+    const lane = listSwimlanes(db, "alpha")[0]!;
+    const created = await req("POST", "/api/projects/alpha/cards", {
+      cookie: bobCookie,
+      body: { swimlaneId: lane.id, title: "first" },
+    });
+    const cardId = (created.body as { card: { id: number } }).card.id;
+    const patched = await req("PATCH", `/api/cards/${cardId}`, {
+      cookie: bobCookie,
+      body: { title: "renamed" },
+    });
+    expect(patched.res.status).toBe(200);
+  });
+
+  test("random user cannot patch", async () => {
+    await createUser(db, { username: "alice", password: "pw-alice" });
+    await createUser(db, { username: "carol", password: "pw-carol" });
+    const aliceCookie = await login("alice", "pw-alice");
+    const carolCookie = await login("carol", "pw-carol");
+    createProject(db, { name: "alpha" });
+    const lane = listSwimlanes(db, "alpha")[0]!;
+    const created = await req("POST", "/api/projects/alpha/cards", {
+      cookie: aliceCookie,
+      body: { swimlaneId: lane.id, title: "x" },
+    });
+    const cardId = (created.body as { card: { id: number } }).card.id;
+    const patched = await req("PATCH", `/api/cards/${cardId}`, {
+      cookie: carolCookie,
+      body: { title: "nope" },
+    });
+    expect(patched.res.status).toBe(403);
+  });
+});
+
+describe("POST /api/cards/:id/move", () => {
+  test("admin moves card across lanes", async () => {
+    createProject(db, { name: "alpha" });
+    const [todo, doing] = listSwimlanes(db, "alpha");
+    const card = createCard(db, {
+      project: "alpha",
+      swimlaneId: todo!.id,
+      title: "x",
+      createdBy: "u1",
+    });
+    const { res, body } = await req("POST", `/api/cards/${card.id}/move`, {
+      cookie: adminCookie,
+      body: { swimlaneId: doing!.id },
+    });
+    expect(res.status).toBe(200);
+    expect((body as { card: { swimlaneId: number } }).card.swimlaneId).toBe(doing!.id);
+  });
+});
+
+describe("DELETE /api/cards/:id (archive)", () => {
+  test("archives card; subsequent board GET excludes it", async () => {
+    createProject(db, { name: "alpha" });
+    const lane = listSwimlanes(db, "alpha")[0]!;
+    const card = createCard(db, {
+      project: "alpha",
+      swimlaneId: lane.id,
+      title: "x",
+      createdBy: "u1",
+    });
+    const { res } = await req("DELETE", `/api/cards/${card.id}`, { cookie: adminCookie });
+    expect(res.status).toBe(200);
+    const board = await req("GET", "/api/projects/alpha/board", { cookie: adminCookie });
+    expect((board.body as { cards: unknown[] }).cards).toHaveLength(0);
+  });
+});
+
 describe("GET /api/cards/:id/runs", () => {
   test("returns runs in newest-first order", async () => {
     createProject(db, { name: "alpha" });

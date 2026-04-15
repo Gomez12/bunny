@@ -273,7 +273,7 @@ export function canSeeProject(p: Project, user: User): boolean {
   return p.createdBy === user.id;
 }
 
-function canEditProject(p: Project, user: User): boolean {
+export function canEditProject(p: Project, user: User): boolean {
   if (user.role === "admin") return true;
   return p.createdBy === user.id;
 }

@@ -16,15 +16,29 @@ import type { Database } from "bun:sqlite";
 import type { User } from "../auth/users.ts";
 import { errorMessage } from "../util/error.ts";
 import { json } from "./http.ts";
-import { canSeeProject } from "./routes.ts";
+import { canEditProject, canSeeProject } from "./routes.ts";
 import { getProject, validateProjectName } from "../memory/projects.ts";
 import {
+  createSwimlane,
+  deleteSwimlane,
+  getSwimlane,
   listSwimlanes,
   seedDefaultSwimlanes,
+  updateSwimlane,
   type Swimlane,
 } from "../memory/board_swimlanes.ts";
-import { getCard, listCards, type Card } from "../memory/board_cards.ts";
+import {
+  archiveCard,
+  canEditCard,
+  createCard,
+  getCard,
+  listCards,
+  moveCard,
+  updateCard,
+  type Card,
+} from "../memory/board_cards.ts";
 import { listRunsForCard, type CardRun } from "../memory/board_runs.ts";
+import { isAgentLinkedToProject } from "../memory/agents.ts";
 
 export interface BoardRouteCtx {
   db: Database;
@@ -44,10 +58,37 @@ export async function handleBoardRoute(
     return handleGetBoard(ctx, user, decodeURIComponent(boardMatch[1]!));
   }
 
+  const swimlanesMatch = pathname.match(/^\/api\/projects\/([^/]+)\/swimlanes$/);
+  if (swimlanesMatch) {
+    const project = decodeURIComponent(swimlanesMatch[1]!);
+    if (req.method === "POST") return handleCreateSwimlane(req, ctx, user, project);
+  }
+
+  const swimlaneMatch = pathname.match(/^\/api\/swimlanes\/(\d+)$/);
+  if (swimlaneMatch) {
+    const id = Number(swimlaneMatch[1]);
+    if (req.method === "PATCH") return handlePatchSwimlane(req, ctx, user, id);
+    if (req.method === "DELETE") return handleDeleteSwimlane(ctx, user, id);
+  }
+
+  const cardsMatch = pathname.match(/^\/api\/projects\/([^/]+)\/cards$/);
+  if (cardsMatch) {
+    const project = decodeURIComponent(cardsMatch[1]!);
+    if (req.method === "POST") return handleCreateCard(req, ctx, user, project);
+  }
+
   const cardMatch = pathname.match(/^\/api\/cards\/(\d+)$/);
   if (cardMatch) {
     const id = Number(cardMatch[1]);
     if (req.method === "GET") return handleGetCard(ctx, user, id);
+    if (req.method === "PATCH") return handlePatchCard(req, ctx, user, id);
+    if (req.method === "DELETE") return handleArchiveCard(ctx, user, id);
+  }
+
+  const moveMatch = pathname.match(/^\/api\/cards\/(\d+)\/move$/);
+  if (moveMatch) {
+    const id = Number(moveMatch[1]);
+    if (req.method === "POST") return handleMoveCard(req, ctx, user, id);
   }
 
   const runsMatch = pathname.match(/^\/api\/cards\/(\d+)\/runs$/);
@@ -147,4 +188,233 @@ function handleListRuns(ctx: BoardRouteCtx, user: User, cardId: number): Respons
   if (!p || !canSeeProject(p, user)) return json({ error: "forbidden" }, 403);
   const runs = listRunsForCard(ctx.db, cardId).map(toRunDto);
   return json({ runs });
+}
+
+// ── Write handlers ────────────────────────────────────────────────────────
+
+interface SwimlaneBody {
+  name?: string;
+  position?: number;
+  wipLimit?: number | null;
+}
+
+async function handleCreateSwimlane(
+  req: Request,
+  ctx: BoardRouteCtx,
+  user: User,
+  rawProject: string,
+): Promise<Response> {
+  let project: string;
+  try {
+    project = validateProjectName(rawProject);
+  } catch (e) {
+    return json({ error: errorMessage(e) }, 400);
+  }
+  const p = getProject(ctx.db, project);
+  if (!p) return json({ error: "project not found" }, 404);
+  if (!canEditProject(p, user)) return json({ error: "forbidden" }, 403);
+  const body = (await readJson<SwimlaneBody>(req)) ?? {};
+  const name = (body.name ?? "").trim();
+  if (!name) return json({ error: "missing name" }, 400);
+  try {
+    const lane = createSwimlane(ctx.db, {
+      project,
+      name,
+      position: body.position,
+      wipLimit: body.wipLimit ?? null,
+    });
+    return json({ swimlane: toSwimlaneDto(lane) }, 201);
+  } catch (e) {
+    return json({ error: errorMessage(e) }, 400);
+  }
+}
+
+async function handlePatchSwimlane(
+  req: Request,
+  ctx: BoardRouteCtx,
+  user: User,
+  id: number,
+): Promise<Response> {
+  const lane = getSwimlane(ctx.db, id);
+  if (!lane) return json({ error: "not found" }, 404);
+  const p = getProject(ctx.db, lane.project);
+  if (!p) return json({ error: "project not found" }, 404);
+  if (!canEditProject(p, user)) return json({ error: "forbidden" }, 403);
+  const body = (await readJson<SwimlaneBody>(req)) ?? {};
+  try {
+    const updated = updateSwimlane(ctx.db, id, {
+      name: body.name,
+      position: body.position,
+      wipLimit: body.wipLimit,
+    });
+    return json({ swimlane: toSwimlaneDto(updated) });
+  } catch (e) {
+    return json({ error: errorMessage(e) }, 400);
+  }
+}
+
+function handleDeleteSwimlane(ctx: BoardRouteCtx, user: User, id: number): Response {
+  const lane = getSwimlane(ctx.db, id);
+  if (!lane) return json({ error: "not found" }, 404);
+  const p = getProject(ctx.db, lane.project);
+  if (!p) return json({ error: "project not found" }, 404);
+  if (!canEditProject(p, user)) return json({ error: "forbidden" }, 403);
+  try {
+    deleteSwimlane(ctx.db, id);
+    return json({ ok: true });
+  } catch (e) {
+    return json({ error: errorMessage(e) }, 400);
+  }
+}
+
+interface CardBody {
+  swimlaneId?: number;
+  title?: string;
+  description?: string;
+  assigneeUserId?: string | null;
+  assigneeAgent?: string | null;
+  position?: number;
+}
+
+async function handleCreateCard(
+  req: Request,
+  ctx: BoardRouteCtx,
+  user: User,
+  rawProject: string,
+): Promise<Response> {
+  let project: string;
+  try {
+    project = validateProjectName(rawProject);
+  } catch (e) {
+    return json({ error: errorMessage(e) }, 400);
+  }
+  const p = getProject(ctx.db, project);
+  if (!p) return json({ error: "project not found" }, 404);
+  if (!canSeeProject(p, user)) return json({ error: "forbidden" }, 403);
+
+  const body = (await readJson<CardBody>(req)) ?? {};
+  if (!body.swimlaneId) return json({ error: "missing swimlaneId" }, 400);
+  if (!body.title || !body.title.trim()) return json({ error: "missing title" }, 400);
+
+  const lane = getSwimlane(ctx.db, body.swimlaneId);
+  if (!lane || lane.project !== project) {
+    return json({ error: "swimlane does not belong to project" }, 400);
+  }
+
+  const assigneeAgent = body.assigneeAgent?.trim() || null;
+  if (assigneeAgent && !isAgentLinkedToProject(ctx.db, project, assigneeAgent)) {
+    return json({ error: `agent '${assigneeAgent}' is not available in project` }, 400);
+  }
+
+  try {
+    const card = createCard(ctx.db, {
+      project,
+      swimlaneId: body.swimlaneId,
+      title: body.title,
+      description: body.description ?? "",
+      assigneeUserId: body.assigneeUserId ?? null,
+      assigneeAgent,
+      createdBy: user.id,
+      position: body.position,
+    });
+    return json({ card: toCardDto(card) }, 201);
+  } catch (e) {
+    return json({ error: errorMessage(e) }, 400);
+  }
+}
+
+async function handlePatchCard(
+  req: Request,
+  ctx: BoardRouteCtx,
+  user: User,
+  id: number,
+): Promise<Response> {
+  const card = getCard(ctx.db, id);
+  if (!card) return json({ error: "not found" }, 404);
+  const p = getProject(ctx.db, card.project);
+  if (!p) return json({ error: "project not found" }, 404);
+  if (!canEditCard(user, card, p)) return json({ error: "forbidden" }, 403);
+
+  const body = (await readJson<CardBody>(req)) ?? {};
+
+  if (body.swimlaneId !== undefined) {
+    const lane = getSwimlane(ctx.db, body.swimlaneId);
+    if (!lane || lane.project !== card.project) {
+      return json({ error: "swimlane does not belong to project" }, 400);
+    }
+  }
+  if (body.assigneeAgent && !isAgentLinkedToProject(ctx.db, card.project, body.assigneeAgent)) {
+    return json({ error: `agent '${body.assigneeAgent}' is not available in project` }, 400);
+  }
+
+  try {
+    const updated = updateCard(ctx.db, id, {
+      title: body.title,
+      description: body.description,
+      assigneeUserId: body.assigneeUserId,
+      assigneeAgent: body.assigneeAgent,
+      swimlaneId: body.swimlaneId,
+      position: body.position,
+    });
+    return json({ card: toCardDto(updated) });
+  } catch (e) {
+    return json({ error: errorMessage(e) }, 400);
+  }
+}
+
+interface MoveBody {
+  swimlaneId?: number;
+  beforeCardId?: number;
+  afterCardId?: number;
+  position?: number;
+}
+
+async function handleMoveCard(
+  req: Request,
+  ctx: BoardRouteCtx,
+  user: User,
+  id: number,
+): Promise<Response> {
+  const card = getCard(ctx.db, id);
+  if (!card) return json({ error: "not found" }, 404);
+  const p = getProject(ctx.db, card.project);
+  if (!p) return json({ error: "project not found" }, 404);
+  if (!canEditCard(user, card, p)) return json({ error: "forbidden" }, 403);
+
+  const body = (await readJson<MoveBody>(req)) ?? {};
+  const swimlaneId = body.swimlaneId ?? card.swimlaneId;
+  const lane = getSwimlane(ctx.db, swimlaneId);
+  if (!lane || lane.project !== card.project) {
+    return json({ error: "swimlane does not belong to project" }, 400);
+  }
+
+  try {
+    const moved = moveCard(ctx.db, id, {
+      swimlaneId,
+      beforeCardId: body.beforeCardId,
+      afterCardId: body.afterCardId,
+      position: body.position,
+    });
+    return json({ card: toCardDto(moved) });
+  } catch (e) {
+    return json({ error: errorMessage(e) }, 400);
+  }
+}
+
+function handleArchiveCard(ctx: BoardRouteCtx, user: User, id: number): Response {
+  const card = getCard(ctx.db, id);
+  if (!card) return json({ error: "not found" }, 404);
+  const p = getProject(ctx.db, card.project);
+  if (!p) return json({ error: "project not found" }, 404);
+  if (!canEditCard(user, card, p)) return json({ error: "forbidden" }, 403);
+  archiveCard(ctx.db, id);
+  return json({ ok: true });
+}
+
+async function readJson<T>(req: Request): Promise<T | null> {
+  try {
+    return (await req.json()) as T;
+  } catch {
+    return null;
+  }
 }
