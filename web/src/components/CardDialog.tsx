@@ -97,107 +97,127 @@ export default function CardDialog({
   };
 
   return (
-    <div className="dialog__backdrop" onClick={onClose}>
-      <div className="dialog dialog--card" onClick={(e) => e.stopPropagation()}>
-        <h2>{mode === "create" ? "New card" : `Edit card`}</h2>
-        {error && <div className="dialog__error">{error}</div>}
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
+        <form
+          className="project-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submit();
+          }}
+        >
+          <h2>{mode === "create" ? "New card" : `Edit card`}</h2>
 
-        <label className="dialog__field">
-          <span>Title</span>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
-        </label>
+          <label className="project-form__field">
+            <span>Title</span>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Short summary"
+              autoFocus
+              required
+            />
+          </label>
 
-        <label className="dialog__field">
-          <span>Description</span>
-          <textarea
-            rows={5}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="What needs to happen?"
-          />
-        </label>
+          <label className="project-form__field">
+            <span>Description</span>
+            <textarea
+              rows={5}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What needs to happen?"
+            />
+          </label>
 
-        <label className="dialog__field">
-          <span>Swimlane</span>
-          <select value={swimlaneId} onChange={(e) => setSwimlaneId(Number(e.target.value))}>
-            {swimlanes.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>
+          <label className="project-form__field">
+            <span>Swimlane</span>
+            <select
+              value={swimlaneId}
+              onChange={(e) => setSwimlaneId(Number(e.target.value))}
+            >
+              {swimlanes.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
 
-        <div className="dialog__field">
-          <span>Assignee</span>
-          <div className="card-assignee-tabs">
-            {(["none", "user", "agent"] as const).map((k) => (
-              <button
-                key={k}
-                type="button"
-                className={`card-assignee-tab ${assigneeKind === k ? "card-assignee-tab--active" : ""}`}
-                onClick={() => setAssigneeKind(k)}
-              >
-                {k === "none" ? "None" : k === "user" ? "User" : "Agent"}
-              </button>
-            ))}
+          <div className="project-form__field">
+            <span>Assignee</span>
+            <div className="card-assignee-tabs">
+              {(["none", "user", "agent"] as const).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  className={`card-assignee-tab ${assigneeKind === k ? "card-assignee-tab--active" : ""}`}
+                  onClick={() => setAssigneeKind(k)}
+                >
+                  {k === "none" ? "None" : k === "user" ? "User" : "Agent"}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {assigneeKind === "user" && (
-          <label className="dialog__field">
-            <span>User</span>
-            <select
-              value={assigneeUserId ?? ""}
-              onChange={(e) => setAssigneeUserId(e.target.value || null)}
-            >
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.displayName || u.username}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
+          {assigneeKind === "user" && (
+            <label className="project-form__field">
+              <span>User</span>
+              <select
+                value={assigneeUserId ?? ""}
+                onChange={(e) => setAssigneeUserId(e.target.value || null)}
+              >
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.displayName || u.username}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
-        {assigneeKind === "agent" && (
-          <label className="dialog__field">
-            <span>Agent</span>
-            <select
-              value={assigneeAgent ?? ""}
-              onChange={(e) => setAssigneeAgent(e.target.value || null)}
-            >
-              <option value="">— pick an agent —</option>
-              {agents.map((a) => (
-                <option key={a.name} value={a.name}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-            {agents.length === 0 && (
-              <small className="dialog__hint">
-                No agents are linked to this project. Link one in the Agents tab first.
-              </small>
-            )}
-          </label>
-        )}
+          {assigneeKind === "agent" && (
+            <label className="project-form__field">
+              <span>Agent</span>
+              <select
+                value={assigneeAgent ?? ""}
+                onChange={(e) => setAssigneeAgent(e.target.value || null)}
+              >
+                <option value="">— pick an agent —</option>
+                {agents.map((a) => (
+                  <option key={a.name} value={a.name}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+              {agents.length === 0 && (
+                <span className="project-form__hint">
+                  No agents are linked to this project. Link one in the Agents tab first.
+                </span>
+              )}
+            </label>
+          )}
 
-        <div className="dialog__actions">
-          <button type="button" onClick={onClose} disabled={busy}>
-            Cancel
-          </button>
-          <button type="button" className="primary" onClick={submit} disabled={busy}>
-            {mode === "create" ? "Create" : "Save"}
-          </button>
-        </div>
+          {error && <div className="project-form__error">{error}</div>}
+
+          <div className="project-form__actions">
+            <button type="button" className="btn" onClick={onClose} disabled={busy}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn--send" disabled={busy}>
+              {busy ? "Saving…" : mode === "create" ? "Create" : "Save"}
+            </button>
+          </div>
+        </form>
 
         {mode === "edit" && initial && (
-          <div className="dialog__runs">
-            <div className="dialog__runs-actions">
+          <div className="card-runs">
+            <div className="card-runs__actions">
               <button
                 type="button"
+                className="btn btn--send"
                 disabled={
-                  busy || (assigneeKind !== "agent" && !initial.assigneeAgent) ||
+                  busy ||
+                  (assigneeKind !== "agent" && !initial.assigneeAgent) ||
                   (assigneeKind === "agent" && !assigneeAgent)
                 }
                 onClick={async () => {
@@ -216,7 +236,7 @@ export default function CardDialog({
               >
                 ▶ Run
               </button>
-              {runError && <span className="dialog__run-err">{runError}</span>}
+              {runError && <span className="card-runs__err">{runError}</span>}
             </div>
             <CardRunLog
               cardId={initial.id}

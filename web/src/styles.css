@@ -1107,7 +1107,6 @@ button {
 .board-card__archive:hover { color: var(--err); border-color: var(--err); }
 
 /* CardDialog tabs */
-.dialog--card { width: 520px; max-width: 92vw; }
 .card-assignee-tabs { display: flex; gap: 4px; }
 .card-assignee-tab {
   background: var(--bg);
@@ -1133,18 +1132,18 @@ button {
 .board-card { cursor: grab; }
 
 /* ── Card run log ──────────────────────────────────────────── */
-.dialog__runs {
+.card-runs {
   margin-top: 16px;
   border-top: 1px solid var(--border);
   padding-top: 12px;
 }
-.dialog__runs-actions {
+.card-runs__actions {
   display: flex;
   gap: 8px;
   align-items: center;
   margin-bottom: 8px;
 }
-.dialog__run-err { color: var(--err); font-size: 12px; }
+.card-runs__err { color: var(--err); font-size: 12px; }
 
 .run-log {
   display: flex;
