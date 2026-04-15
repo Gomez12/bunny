@@ -109,6 +109,8 @@ Memory entry points: `src/memory/board_swimlanes.ts`, `src/memory/board_cards.ts
 
 Permissions: board-view = `canSeeProject`; swimlane CRUD = admin or `projects.created_by`; card-create = any project viewer; card patch/move/archive/run = `canEditCard` (admin / project-owner / creator / user-assignee).
 
+**Agent tools.** `src/tools/board.ts:makeBoardTools` returns six closure-bound tools (`board_list`, `board_get_card`, `board_create_card`, `board_update_card`, `board_move_card`, `board_archive_card`) — same closure pattern as `call_agent`, project + db + userId baked in so an agent in project "alpha" cannot reach project "beta". Spliced into the per-run registry by `buildRunRegistry` in `src/agent/loop.ts`. An agent inheriting all tools (no `tools = [...]` whitelist) gets every board tool by default; a whitelist filters them like any other tool name. Listed in `BOARD_TOOL_NAMES` and surfaced via `/api/tools` so the agent-picker UI shows them.
+
 Web UI: tab "Board" between Messages and Projects. Drag-and-drop via `@dnd-kit/core` + `@dnd-kit/sortable` (PointerSensor with `distance: 5` so in-card buttons keep working). `BoardTab` does optimistic state updates and rolls back on a 4xx. The card edit dialog hosts the **Run** button + a `CardRunLog` that streams the live run via `streamCardRun` and renders historical runs with an "Open in Chat" deep-link to each run's session. See [ADR 0010](./docs/adr/0010-project-boards.md).
 
 ### Auth

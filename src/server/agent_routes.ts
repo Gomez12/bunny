@@ -34,6 +34,7 @@ import { parseMemoryOverride } from "../memory/project_assets.ts";
 import { getProject, validateProjectName } from "../memory/projects.ts";
 import { registry } from "../tools/index.ts";
 import { CALL_AGENT_TOOL_NAME } from "../tools/call_agent.ts";
+import { BOARD_TOOL_NAMES } from "../tools/board.ts";
 
 export interface AgentRouteCtx {
   db: Database;
@@ -50,10 +51,15 @@ export async function handleAgentRoute(
   const { pathname } = url;
 
   if (pathname === "/api/tools" && req.method === "GET") {
-    // Advertise tool names available to agents. The built-in `call_agent`
-    // tool is excluded — it's injected implicitly when an agent has allowed
-    // subagents and should not appear in the selectable whitelist.
-    const names = registry.names().filter((n) => n !== CALL_AGENT_TOOL_NAME);
+    // Advertise tool names available to agents. `call_agent` is hidden — it
+    // is injected implicitly when an agent has allowed subagents. Board
+    // tools live on per-run closures (project-bound), but they ARE selectable
+    // because including them in the whitelist toggles whether an agent has
+    // board access at all.
+    const names = [
+      ...registry.names().filter((n) => n !== CALL_AGENT_TOOL_NAME),
+      ...BOARD_TOOL_NAMES,
+    ];
     return json({ tools: names });
   }
 
@@ -357,9 +363,13 @@ function handleUnlinkAgent(
 
 function sanitiseToolList(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
-  // `registry.names()` already excludes call_agent (see `/api/tools`), so
-  // a `known.has(s)` check also rejects it.
-  const known = new Set(registry.names().filter((n) => n !== CALL_AGENT_TOOL_NAME));
+  // Mirror `/api/tools`: real registry tools (minus call_agent) plus the
+  // closure-bound board tool names. call_agent stays implicit via
+  // allowed_subagents.
+  const known = new Set<string>([
+    ...registry.names().filter((n) => n !== CALL_AGENT_TOOL_NAME),
+    ...BOARD_TOOL_NAMES,
+  ]);
   return raw
     .filter((x): x is string => typeof x === "string")
     .map((s) => s.trim())
