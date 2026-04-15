@@ -1,3 +1,5 @@
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { BoardCard as BoardCardModel, Swimlane } from "../api";
 
 interface Props {
@@ -11,8 +13,24 @@ interface Props {
 
 export default function BoardCard({ card, lanes, canEdit, onEdit, onMove, onArchive }: Props) {
   const otherLanes = lanes.filter((l) => l.id !== card.swimlaneId);
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: `card-${card.id}`,
+    data: { type: "card", cardId: card.id, swimlaneId: card.swimlaneId },
+    disabled: !canEdit,
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
   return (
-    <div className="board-card">
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`board-card ${isDragging ? "board-card--dragging" : ""}`}
+    >
       <button className="board-card__title" onClick={onEdit} disabled={!canEdit} title="Edit card">
         {card.title}
       </button>

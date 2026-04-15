@@ -1122,3 +1122,12 @@ button {
   border-color: var(--accent);
   color: white;
 }
+
+.board-column--over {
+  border-color: var(--accent);
+  background: rgba(124, 92, 255, 0.04);
+}
+.board-card--dragging {
+  cursor: grabbing;
+}
+.board-card { cursor: grab; }

@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  DndContext,
+  PointerSensor,
+  closestCorners,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
   archiveCard,
   createCard,
   createSwimlane,
@@ -132,6 +140,81 @@ export default function BoardTab({ project, currentUser }: Props) {
     }
   };
 
+  // ── Drag-and-drop ─────────────────────────────────────────
+  // Activate after 5px of pointer movement so plain clicks on buttons inside
+  // a card still register as clicks rather than drags.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    if (!board) return;
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = String(active.id);
+    if (!activeId.startsWith("card-")) return;
+    const cardId = Number(activeId.slice("card-".length));
+    const card = board.cards.find((c) => c.id === cardId);
+    if (!card) return;
+
+    const overId = String(over.id);
+    let targetLaneId: number;
+    let beforeCardId: number | undefined;
+    let afterCardId: number | undefined;
+
+    if (overId.startsWith("lane-")) {
+      // Dropped on empty lane → append at end.
+      targetLaneId = Number(overId.slice("lane-".length));
+      const laneCards = board.cards
+        .filter((c) => c.swimlaneId === targetLaneId && c.id !== cardId)
+        .sort((a, b) => a.position - b.position);
+      const last = laneCards.at(-1);
+      if (last) afterCardId = last.id;
+    } else if (overId.startsWith("card-")) {
+      // Dropped on another card → place before it.
+      const overCardId = Number(overId.slice("card-".length));
+      const overCard = board.cards.find((c) => c.id === overCardId);
+      if (!overCard) return;
+      targetLaneId = overCard.swimlaneId;
+      const laneCards = board.cards
+        .filter((c) => c.swimlaneId === targetLaneId && c.id !== cardId)
+        .sort((a, b) => a.position - b.position);
+      const overIdx = laneCards.findIndex((c) => c.id === overCardId);
+      if (overIdx === -1) return;
+      const prev = laneCards[overIdx - 1];
+      if (prev) beforeCardId = prev.id;
+      afterCardId = overCardId;
+    } else {
+      return;
+    }
+
+    if (
+      targetLaneId === card.swimlaneId &&
+      beforeCardId === undefined &&
+      afterCardId === undefined
+    ) {
+      return;
+    }
+
+    // Optimistic update.
+    const snapshot = board;
+    const optimistic: BoardSnapshot = {
+      ...board,
+      cards: board.cards.map((c) =>
+        c.id === cardId ? { ...c, swimlaneId: targetLaneId } : c,
+      ),
+    };
+    setBoard(optimistic);
+
+    try {
+      await moveCard(cardId, { swimlaneId: targetLaneId, beforeCardId, afterCardId });
+      // Re-fetch to get authoritative positions.
+      await refresh();
+    } catch (e) {
+      setBoard(snapshot);
+      alert(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const handleArchiveCard = async (cardId: number) => {
     if (!confirm("Archive this card?")) return;
     try {
@@ -164,6 +247,7 @@ export default function BoardTab({ project, currentUser }: Props) {
 
       {error && <div className="board__error">{error}</div>}
 
+      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
       <div className="board__columns">
         {board.swimlanes.map((lane) => (
           <BoardColumn
@@ -182,6 +266,7 @@ export default function BoardTab({ project, currentUser }: Props) {
           />
         ))}
       </div>
+      </DndContext>
 
       {dialog.kind !== "closed" && (
         <CardDialog
