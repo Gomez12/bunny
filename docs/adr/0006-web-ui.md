@@ -1,29 +1,29 @@
 # ADR 0006 — Web UI (Chat + Messages)
 
 **Status:** Accepted
-**Datum:** 2026-04-14
+**Date:** 2026-04-14
 
 ## Context
 
-Bunny begon als CLI. Voor demoes en dagelijks gebruik wil de gebruiker een browser-UI met twee tabs:
+Bunny started as a CLI. For demos and daily use the user wants a browser UI with two tabs:
 
-- **Chat** — live streaming conversatie, zelfde agent loop als de CLI.
-- **Messages** — alle eerdere sessies uit de `messages`-tabel, gegroepeerd en doorzoekbaar.
+- **Chat** — live streaming conversation, same agent loop as the CLI.
+- **Messages** — all previous sessions from the `messages` table, grouped and searchable.
 
-Eisen: geen tweede runtime, geen nieuwe database, de bestaande streaming pipeline en memory ongewijzigd.
+Requirements: no second runtime, no new database, the existing streaming pipeline and memory unchanged.
 
-## Beslissing
+## Decision
 
-Eén extra Bun process (`bunny serve`) exposeert een REST + SSE API. De frontend is een React + Vite app in `web/`. In dev proxyt Vite `/api` naar `:3000`; in productie serveert `Bun.serve` de statische bundle uit `web/dist/`.
+One extra Bun process (`bunny serve`) exposes a REST + SSE API. The frontend is a React + Vite app in `web/`. In dev, Vite proxies `/api` to `:3000`; in production `Bun.serve` serves the static bundle from `web/dist/`.
 
-## Onderbouwing
+## Rationale
 
-- **Geen framework** in de backend: `Bun.serve` + plain switch op `pathname` houdt de laag minimaal. Routes delegeren naar bestaande modules (`runAgent`, `getMessagesBySession`, `searchBM25`).
-- **React + Vite** in de frontend: de streaming UI heeft veel incrementele state (deltas, tool calls). Vanilla JS zou werken maar kost meer regels; Vite geeft HMR voor snelle iteratie op de UI.
-- **Renderer-interface**: `src/agent/render.ts` expose een expliciete `Renderer`-interface. De CLI gebruikt `createRenderer` (ANSI), de webserver gebruikt `createSseRenderer` (JSON over SSE). De agent loop is transport-agnostisch.
-- **SSE in plaats van WebSocket**: chat is één-richtings streaming. SSE past op `ReadableStream` met `Bun.serve`, werkt achter elke proxy, en de browser leest het via `fetch` + body-reader (geen `EventSource` — we willen POST-bodies sturen).
-- **Session-identiteit in localStorage**: eenvoudig, geen auth nodig voor MVP. Session picker laat de gebruiker wisselen tussen sessies.
-- **BM25 voor session-search**: hergebruikt de bestaande `messages_fts` trigram index; geen extra infrastructuur.
+- **No framework** in the backend: `Bun.serve` + plain switch on `pathname` keeps the layer minimal. Routes delegate to existing modules (`runAgent`, `getMessagesBySession`, `searchBM25`).
+- **React + Vite** in the frontend: the streaming UI has a lot of incremental state (deltas, tool calls). Vanilla JS would work but costs more lines; Vite gives HMR for fast iteration on the UI.
+- **Renderer interface**: `src/agent/render.ts` exposes an explicit `Renderer` interface. The CLI uses `createRenderer` (ANSI), the webserver uses `createSseRenderer` (JSON over SSE). The agent loop is transport-agnostic.
+- **SSE instead of WebSocket**: chat is one-directional streaming. SSE maps to `ReadableStream` with `Bun.serve`, works behind any proxy, and the browser reads it via `fetch` + body-reader (no `EventSource` — we want to send POST bodies).
+- **Session identity in localStorage**: simple, no auth needed for MVP. A session picker lets the user switch between sessions.
+- **BM25 for session search**: reuses the existing `messages_fts` trigram index; no extra infrastructure.
 
 ## Data-flow
 
@@ -38,17 +38,17 @@ Browser ──POST /api/chat {sessionId, prompt}──► Bun.serve
                                               [done] event, stream closes
 ```
 
-Messages-tab: `GET /api/sessions?q=...` → `listSessions()` (FTS5-filter als `q` gezet), `GET /api/sessions/:id/messages` → `getMessagesBySession()`.
+Messages tab: `GET /api/sessions?q=...` → `listSessions()` (FTS5 filter when `q` is set), `GET /api/sessions/:id/messages` → `getMessagesBySession()`.
 
-## Consequenties
+## Consequences
 
-- Nieuwe directory `web/` met eigen `package.json` (alleen `react`, `react-dom`, `vite`, typings). Geen root-level React/Vite deps.
-- `bunny serve` houdt de `bunqueue` worker open zoals de CLI dat doet — alle LLM/tool/memory events worden gelogd zoals altijd.
-- SSE vereist `idleTimeout: 0` op `Bun.serve` zodat lange LLM-turns niet worden afgekapt.
-- De frontend heeft geen eigen state-store; React state + `localStorage` voor `activeSessionId` is voldoende.
+- New `web/` directory with its own `package.json` (only `react`, `react-dom`, `vite`, typings). No root-level React/Vite deps.
+- `bunny serve` keeps the `bunqueue` worker open as the CLI does — all LLM/tool/memory events are logged as always.
+- SSE requires `idleTimeout: 0` on `Bun.serve` so long LLM turns are not cut off.
+- The frontend has no state store of its own; React state + `localStorage` for `activeSessionId` is enough.
 
-## Niet-doelen (voor nu)
+## Non-goals (for now)
 
 - Auth / multi-user support.
-- WebSocket upgrade voor bidirectionele interrupts (agent-abort gebeurt client-side via `AbortController`).
-- Events-tab (raw queue audit trail) — kan later als derde tab zonder schema-wijziging.
+- WebSocket upgrade for bidirectional interrupts (agent abort happens client-side via `AbortController`).
+- Events tab (raw queue audit trail) — can come later as a third tab without schema changes.

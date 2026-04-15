@@ -1,34 +1,34 @@
-# ADR 0002 — OpenAI-compat adapter (streaming-first, geen SDK)
+# ADR 0002 — OpenAI-compat adapter (streaming-first, no SDK)
 
 **Status:** Accepted
-**Datum:** 2026-04-14
+**Date:** 2026-04-14
 
 ## Context
 
-De agent moet met meerdere LLM-providers kunnen werken: OpenAI, OpenRouter, DeepSeek, Ollama, vLLM, LiteLLM. Opties:
+The agent must work with multiple LLM providers: OpenAI, OpenRouter, DeepSeek, Ollama, vLLM, LiteLLM. Options:
 1. Per-provider SDK (Anthropic SDK, OpenAI SDK, …)
-2. LangChain / LlamaIndex as abstractielaag
-3. Dunne eigen fetch-client die de OpenAI-compat spec implementeert
+2. LangChain / LlamaIndex as an abstraction layer
+3. Thin in-house fetch client that implements the OpenAI-compat spec
 
-## Beslissing
+## Decision
 
-Dunne eigen `fetch`-based adapter, streaming-first, geen externe LLM-SDK als productie-afhankelijkheid.
+Thin in-house `fetch`-based adapter, streaming-first, no external LLM SDK as a production dependency.
 
-## Onderbouwing
+## Rationale
 
-- **Geen vendor lock-in**: providers worden geconfigureerd via base URL + API key. Wisselen van OpenAI naar Ollama is één env var.
-- **Streaming first**: `adapter.chat()` retourneert altijd een `AsyncIterable<StreamDelta>` — reasoning, content en tool_calls als aparte kanalen. Non-streaming is een wrapper die draint.
-- **Reasoning normalisatie**: `StreamDelta.channel = "reasoning"` abstracteert over `reasoning_content` (OpenAI o1/o3, DeepSeek), `thinking` (Anthropic-compat). Eén rendering-pad voor alle providers.
-- **Provider-profielen** (`src/llm/profiles.ts`): lookup op base-URL-hint of expliciete config. Geeft extractielogica per provider voor reasoning-veld en roundtrip-vereisten.
-- **Geen externe deps**: `fetch` is ingebouwd in Bun (en alle moderne runtimes). De SSE-parser (`stream.ts`) is ~80 regels; de delta-accumulator (`delta.ts`) is ~60 regels.
+- **No vendor lock-in**: providers are configured via base URL + API key. Switching from OpenAI to Ollama is one env var.
+- **Streaming first**: `adapter.chat()` always returns an `AsyncIterable<StreamDelta>` — reasoning, content and tool_calls as separate channels. Non-streaming is a wrapper that drains.
+- **Reasoning normalisation**: `StreamDelta.channel = "reasoning"` abstracts over `reasoning_content` (OpenAI o1/o3, DeepSeek), `thinking` (Anthropic-compat). One rendering path for all providers.
+- **Provider profiles** (`src/llm/profiles.ts`): lookup by base-URL hint or explicit config. Supplies extraction logic per provider for the reasoning field and roundtrip requirements.
+- **No external deps**: `fetch` is built into Bun (and all modern runtimes). The SSE parser (`stream.ts`) is ~80 lines; the delta accumulator (`delta.ts`) is ~60 lines.
 
-## Consequenties
+## Consequences
 
-- Bij breaking changes in de OpenAI API (field renames, streaming protocol) moeten we de adapter updaten — maar dat is beperkt tot één bestand.
-- Multi-turn reasoning roundtrip voor Anthropic-compat (thinking-block met signature) vereist dat de `ChatMessage.provider_sig` meegegeven wordt in het volgende request; de agent loop is daarvoor verantwoordelijk.
+- On breaking changes in the OpenAI API (field renames, streaming protocol) we have to update the adapter — but that is contained in one file.
+- Multi-turn reasoning roundtrip for Anthropic-compat (thinking block with signature) requires that `ChatMessage.provider_sig` is passed along on the next request; the agent loop is responsible for that.
 
-## Alternatieven verworpen
+## Alternatives rejected
 
-- **OpenAI SDK**: brengt Node-compat afhankelijkheden mee; biedt geen abstractie over reasoning-kanalen.
-- **Vercel AI SDK**: zware transitive deps; wil opinionated streaming format opleggen.
-- **LangChain**: enorme dependency-boom voor wat neerkomt op één POST-request.
+- **OpenAI SDK**: brings Node-compat dependencies; offers no abstraction over reasoning channels.
+- **Vercel AI SDK**: heavy transitive deps; wants to impose an opinionated streaming format.
+- **LangChain**: enormous dependency tree for what amounts to one POST request.

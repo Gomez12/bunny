@@ -1,33 +1,33 @@
-# ADR 0001 — Bun als runtime
+# ADR 0001 — Bun as runtime
 
 **Status:** Accepted
-**Datum:** 2026-04-14
+**Date:** 2026-04-14
 
 ## Context
 
-Bunny heeft een JavaScript-runtime nodig met native TypeScript-executie, ingebouwde SQLite, goede `fetch`/SSE support, en een snelle test-runner. Alternatieven: Node.js (met tsx/tsc), Deno, Bun.
+Bunny needs a JavaScript runtime with native TypeScript execution, built-in SQLite, solid `fetch`/SSE support, and a fast test runner. Alternatives: Node.js (with tsx/tsc), Deno, Bun.
 
-## Beslissing
+## Decision
 
-Bun (≥ 1.3.0) is de enige ondersteunde runtime.
+Bun (≥ 1.3.0) is the only supported runtime.
 
-## Onderbouwing
+## Rationale
 
-- **Native TS**: geen build-stap voor dev of productie; `bun run src/index.ts` werkt direct.
-- **`bun:sqlite`**: ingebouwd, FTS5 beschikbaar, `loadExtension()` voor `sqlite-vec`. Geen native bindings compileren.
-- **`bun:test`**: snelle test-runner met Jest-compatibele API; geen extra dep.
-- **`Bun.serve`**: triviaal om een mock-LLM-server voor tests te spinnen die SSE-chunks streamt.
-- **`Bun.TOML`**: ingebouwde TOML-parser voor `bunny.config.toml` — past bij user-voorkeur voor TOML boven YAML.
-- **Binaire distributie**: `bun build --compile` voor later (één binary voor Mac/Linux/Windows) sluit aan op portability-doel.
-- **Ecosysteem**: `bunqueue` is Bun-native; Node-compat zou onnodige friction geven.
+- **Native TS**: no build step for dev or production; `bun run src/index.ts` works directly.
+- **`bun:sqlite`**: built in, FTS5 available, `loadExtension()` for `sqlite-vec`. No native bindings to compile.
+- **`bun:test`**: fast test runner with a Jest-compatible API; no extra dep.
+- **`Bun.serve`**: trivial to spin up a mock LLM server for tests that streams SSE chunks.
+- **`Bun.TOML`**: built-in TOML parser for `bunny.config.toml` — matches the user preference for TOML over YAML.
+- **Binary distribution**: `bun build --compile` later (one binary for Mac/Linux/Windows) fits the portability goal.
+- **Ecosystem**: `bunqueue` is Bun-native; Node-compat would add unnecessary friction.
 
-## Consequenties
+## Consequences
 
-- Contributors moeten Bun installeren. Documenteer in README.
-- Node-only libraries die `fs.promises` APIs assumen werken doorgaans, maar C-native Node-addons niet — vermijd die.
-- CI draait op Bun's official GitHub Action.
+- Contributors must install Bun. Document in README.
+- Node-only libraries that assume `fs.promises` APIs generally work, but C-native Node addons do not — avoid them.
+- CI runs on Bun's official GitHub Action.
 
-## Alternatieven verworpen
+## Alternatives rejected
 
-- **Node.js + tsx**: extra build/tooling-laag, tragere test-runner, geen ingebouwde SQLite.
-- **Deno**: uitstekende runtime maar zwakker ecosysteem; `bunqueue` is Bun-specifiek.
+- **Node.js + tsx**: extra build/tooling layer, slower test runner, no built-in SQLite.
+- **Deno**: excellent runtime but weaker ecosystem; `bunqueue` is Bun-specific.

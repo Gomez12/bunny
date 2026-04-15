@@ -4,7 +4,7 @@ A Bun-native AI agent. Minimal architecture, queue-backed logging, hybrid memory
 
 ## Status
 
-Fase 1 (MVP) — in ontwikkeling. Zie [`docs/README.md`](./docs/README.md) voor architectuur en [`docs/adr/`](./docs/adr/) voor design-beslissingen.
+Phase 1 (MVP) — in development. See [`docs/README.md`](./docs/README.md) for architecture and [`docs/adr/`](./docs/adr/) for design decisions.
 
 ## Quick start
 
@@ -14,92 +14,92 @@ cp .env.example .env     # fill LLM_API_KEY
 bun run src/index.ts "list the files in src/"
 ```
 
-State komt in `./.bunny/` (override met `BUNNY_HOME`). Database is SQLite, alles is portable.
+State goes into `./.bunny/` (override with `BUNNY_HOME`). Database is SQLite, everything is portable.
 
 ### Projects
 
-Alle messages horen bij een **project** — een logische werkruimte met eigen system prompt (in `projects/<name>/systemprompt.toml`) en gescheiden recall. Het default project heet `general`. Maak een nieuw project aan vanuit de web-UI ("Projects"-tab → `+ New project`), of direct op de CLI:
+Every message belongs to a **project** — a logical workspace with its own system prompt (in `projects/<name>/systemprompt.toml`) and isolated recall. The default project is called `general`. Create a new project from the web UI ("Projects" tab → `+ New project`), or directly on the CLI:
 
 ```sh
-bun run src/index.ts --project alpha "schrijf een intro voor dit project"
+bun run src/index.ts --project alpha "write an intro for this project"
 ```
 
-De CLI maakt DB-row en directory automatisch aan als ze nog niet bestaan. Switchen tussen projecten start een nieuwe sessie — één sessie hoort bij precies één project. Zie [ADR 0008](./docs/adr/0008-projects.md).
+The CLI auto-creates the DB row and directory if they don't exist yet. Switching projects starts a new session — one session belongs to exactly one project. See [ADR 0008](./docs/adr/0008-projects.md).
 
 ### Agents
 
-Een **agent** is een benoemde persoonlijkheid met eigen system prompt en een beperkte tool-set. Maak er één aan in de web-UI ("Agents"-tab → `+ New agent`), koppel 'm aan een project, en roep 'm aan in de Chat door je bericht te beginnen met `@naam`:
+An **agent** is a named personality with its own system prompt and a restricted tool-set. Create one in the web UI ("Agents" tab → `+ New agent`), link it to a project, and invoke it in Chat by prefixing your message with `@name`:
 
 ```
-@bob zoek uit of er duplicate functies zijn in src/tools
+@bob find out whether there are duplicate functions in src/tools
 ```
 
-Agents kunnen ook met elkaar praten: zet `is_subagent` aan op een agent en voeg 'm toe aan `allowed_subagents` van een orchestrator, dan krijgt die orchestrator de `call_agent(name, prompt)` tool. De context-scope (`full` of `own`) bepaalt of een agent de hele session kan zien of alleen zijn eigen eerdere antwoorden — handig voor eenmalige specialisten. Zie [ADR 0009](./docs/adr/0009-agents.md).
+Agents can also talk to each other: enable `is_subagent` on an agent and add it to an orchestrator's `allowed_subagents`, then the orchestrator receives the `call_agent(name, prompt)` tool. The context scope (`full` or `own`) determines whether an agent can see the whole session or only its own previous answers — handy for one-shot specialists. See [ADR 0009](./docs/adr/0009-agents.md).
 
 ### Boards
 
-Elk project heeft een eigen **kanban-board**. Open de **Board**-tab in de web-UI: standaard zie je de swimlanes Todo / Doing / Done, sleep cards ertussen of hernoem/verwijder lanes als admin of project-owner. Een card kan toegewezen worden aan een **user** of een **agent** — niet allebei tegelijk.
+Every project has its own **kanban board**. Open the **Board** tab in the web UI: by default you see the Todo / Doing / Done swimlanes, drag cards between them or rename/delete lanes as admin or project-owner. A card can be assigned to a **user** or an **agent** — not both at once.
 
-Cards met een agent-assignee kun je via de **Run**-knop in de card-dialog laten uitvoeren: bunny stuurt `title + description` als prompt naar de agent, streamt de output live in de card, en bewaart het uiteindelijke antwoord op de run-row. "Open in Chat" deep-linkt naar de bijbehorende sessie zodat je de hele trace (incl. tool-calls en reasoning) kunt nakijken. Re-runs blijven als geschiedenis op de card staan. Zie [ADR 0010](./docs/adr/0010-project-boards.md).
+Cards with an agent-assignee can be executed via the **Run** button in the card dialog: bunny sends `title + description` as the prompt to the agent, streams the output live into the card, and persists the final answer on the run row. "Open in Chat" deep-links to the matching session so you can review the full trace (including tool-calls and reasoning). Re-runs remain as history on the card. See [ADR 0010](./docs/adr/0010-project-boards.md).
 
 ## Web UI
 
-Bunny heeft ook een tab-based web-UI: **Chat** (live streaming), **Messages** (alle eerdere sessies uit SQLite, doorzoekbaar via BM25), **Board** (kanban per project, met optionele auto-run per swimlane en per card), **Files** (workspace-bestanden per project, upload/download/drag-and-drop), **Tasks** (systeem- en gebruikertaken met cron-schedule), **Projects**, **Agents** en **Settings**.
+Bunny also has a tab-based web UI: **Chat** (live streaming), **Messages** (all previous sessions from SQLite, searchable via BM25), **Board** (kanban per project, with optional auto-run per swimlane and per card), **Files** (per-project workspace files, upload/download/drag-and-drop), **Tasks** (system and user tasks with cron schedules), **Projects**, **Agents** and **Settings**.
 
 ```sh
 # terminal 1 — backend (Bun HTTP + SSE)
-bun run serve                       # of: bun run src/index.ts serve
+bun run serve                       # or: bun run src/index.ts serve
 
-# terminal 2 — frontend (Vite dev server, proxy naar :3000)
+# terminal 2 — frontend (Vite dev server, proxies to :3000)
 cd web && bun install && bun run dev
 # open http://localhost:5173
 ```
 
-Voor productie: `bun run web:build` bouwt `web/dist/`, daarna serveert `bun run serve` zowel de API als de statische bundle op één poort.
+For production: `bun run web:build` builds `web/dist/`, after which `bun run serve` serves both the API and the static bundle on a single port.
 
-Voor een portable binary met **alles erin** (CLI + server + embedded web-UI):
+For a portable binary with **everything inside** (CLI + server + embedded web UI):
 
 ```sh
-bun run build                        # bouwt web/dist en compileert voor alle platforms
-# of één platform:
+bun run build                        # builds web/dist and compiles for all platforms
+# or a single platform:
 bun run build:platform darwin-arm64
-./dist/bunny-darwin-arm64 serve      # UI op http://localhost:3000
+./dist/bunny-darwin-arm64 serve      # UI at http://localhost:3000
 ```
 
-De Vite-bundle wordt bij `build` als `import … with { type: "file" }` in het binary geëmbed via een gegenereerde manifest (`src/server/web_bundle.ts`); de stub wordt na de compile weer teruggezet zodat git schoon blijft.
+At `build` time the Vite bundle is embedded into the binary as `import … with { type: "file" }` entries via a generated manifest (`src/server/web_bundle.ts`); the stub is restored after the compile so git stays clean.
 
-Pre-built binaries voor darwin/linux/windows (x64 + arm64) zijn beschikbaar op de [GitHub Releases](https://github.com/Gomez12/bunny/releases) pagina — automatisch gebouwd door de `Release` workflow bij elke `v*` tag.
+Pre-built binaries for darwin/linux/windows (x64 + arm64) are available on the [GitHub Releases](https://github.com/Gomez12/bunny/releases) page — built automatically by the `Release` workflow on every `v*` tag.
 
-Zie [`docs/adr/0006-web-ui.md`](./docs/adr/0006-web-ui.md) voor de architectuurkeuzes.
+See [`docs/adr/0006-web-ui.md`](./docs/adr/0006-web-ui.md) for the architectural choices.
 
 ## Authentication
 
-Bij de eerste `bunny serve` boot maakt de server een admin aan op basis van je config (default: `admin` / `change-me`). Je moet bij de eerste login in de web-UI een nieuw wachtwoord kiezen.
+On the first `bunny serve` boot the server creates an admin based on your config (default: `admin` / `change-me`). You must pick a new password on the first login in the web UI.
 
-Configureer in `bunny.config.toml`:
+Configure in `bunny.config.toml`:
 
 ```toml
 [auth]
 default_admin_username = "admin"
 default_admin_password = "change-me"   # override via BUNNY_DEFAULT_ADMIN_PASSWORD
-session_ttl_hours = 168                # 7 dagen
+session_ttl_hours = 168                # 7 days
 ```
 
-Users beheer je in de web-UI onder **Settings → Users** (admin-only). Gewone users zien alleen hun eigen sessies; admins zien alles.
+Manage users in the web UI under **Settings → Users** (admin-only). Regular users only see their own sessions; admins see everything.
 
-### CLI met een API key
+### CLI with an API key
 
-Elke user kan in **Settings → API keys** een key met naam + optionele expiry aanmaken. Het plaintext secret is één keer zichtbaar — bewaar het direct.
+Any user can create a key with a name + optional expiry under **Settings → API keys**. The plaintext secret is shown once — save it right away.
 
 ```sh
-BUNNY_API_KEY=bny_xxxx_yyyy bun run src/index.ts "hoi"
-# of
-bun run src/index.ts --api-key bny_xxxx_yyyy "hoi"
+BUNNY_API_KEY=bny_xxxx_yyyy bun run src/index.ts "hi"
+# or
+bun run src/index.ts --api-key bny_xxxx_yyyy "hi"
 ```
 
-Zonder key draait de CLI onder de geseedde `system` user (backward-compat).
+Without a key the CLI runs under the seeded `system` user (backward-compat).
 
-Zie [`docs/adr/0007-auth-and-users.md`](./docs/adr/0007-auth-and-users.md) voor de architectuurkeuzes.
+See [`docs/adr/0007-auth-and-users.md`](./docs/adr/0007-auth-and-users.md) for the architectural choices.
 
 ## Development
 

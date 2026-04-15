@@ -142,7 +142,7 @@ Authentication lives in `src/auth/` (`users.ts`, `sessions.ts`, `apikeys.ts`, `p
 ## Conventions
 
 - **TOML over YAML** for config; `.env` only for secrets.
-- **Dutch** is fine in commit messages and prose; code identifiers stay English.
+- Use English for user-facing docs, commit messages, and code identifiers.
 - When changing `src/memory/schema.sql`, add new columns rather than altering existing ones — the schema is append-only because state is long-lived in `$BUNNY_HOME`.
 - Provider-specific streaming quirks belong in `src/llm/profiles.ts`, not in `adapter.ts` or `stream.ts`.
 - Tests live under `tests/` mirroring `src/` layout. DB tests use `mkdtempSync` + `openDb(path)` for isolation.

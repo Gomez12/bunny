@@ -1,33 +1,33 @@
-# ADR 0007 — Authenticatie, users, rollen en API keys
+# ADR 0007 — Authentication, users, roles and API keys
 
 **Status:** Accepted
-**Datum:** 2026-04-14
+**Date:** 2026-04-14
 
 ## Context
 
-Tot nu toe draaide Bunny stateless-per-user: iedereen met netwerktoegang kon de web UI en CLI aanroepen, en alle messages/sessions zaten in één globale pot. Voor multi-user gebruik (team, dagelijks gebruik op één server) is authenticatie nodig, inclusief:
+Until now Bunny ran stateless-per-user: anyone with network access could call the web UI and CLI, and all messages/sessions sat in one global pot. For multi-user use (team, daily use on one server) authentication is needed, including:
 
-- Login in de web UI en persistentie van de login.
-- Rollen (admin vs gewone user) — één admin beheert de rest.
-- Programmatische toegang (CLI, scripts) zonder dat iedere shell een wachtwoord vraagt.
-- Historie (messages) te koppelen aan een user zodat iedereen zijn eigen gesprekken ziet.
+- Login in the web UI and persistence of the login.
+- Roles (admin vs regular user) — one admin manages the rest.
+- Programmatic access (CLI, scripts) without every shell prompting for a password.
+- History (messages) linked to a user so everyone sees their own conversations.
 
-## Beslissing
+## Decision
 
-1. **Users in SQLite.** Nieuwe append-only tabellen `users`, `auth_sessions`, `api_keys`. `messages`/`events` krijgen een `user_id` kolom (nullable, want legacy rows hebben geen eigenaar).
-2. **Wachtwoord-hashing:** `Bun.password` (argon2id). Geen npm-deps.
-3. **Web login:** POST `/api/auth/login` levert een HTTP-only cookie `bunny_session` dat server-side naar een random token in `auth_sessions` verwijst. TTL uit `[auth] session_ttl_hours` (default 7 dagen). Logout = rij verwijderen.
-4. **CLI / bearer auth:** per user aan te maken API keys met optionele expiry en menselijke naam. Format `bny_<8 hex prefix>_<32 hex secret>`. Alleen `sha256(key)` wordt opgeslagen; de plaintext is één keer zichtbaar bij creatie. Op de CLI lees je via `BUNNY_API_KEY` env of `--api-key`. Geen key → de CLI valt terug op de geseedde `system` user (backward-compat).
-5. **Seeded admin:** als `users` leeg is bij boot maakt de server een admin aan op basis van `[auth] default_admin_username` / `default_admin_password` (env: `BUNNY_DEFAULT_ADMIN_PASSWORD`). Die user krijgt `must_change_pw=1`; eerste login forceert een wachtwoordwissel voordat de chat vrijkomt.
-6. **Scoping:** niet-admin users zien alleen eigen sessies (filter op `user_id` in `listSessions`/`getMessagesBySession`). Admins zien alles. Legacy sessies zonder `user_id` blijven voor iedereen zichtbaar (read-only fallback).
+1. **Users in SQLite.** New append-only tables `users`, `auth_sessions`, `api_keys`. `messages`/`events` get a `user_id` column (nullable, since legacy rows have no owner).
+2. **Password hashing:** `Bun.password` (argon2id). No npm deps.
+3. **Web login:** POST `/api/auth/login` returns an HTTP-only cookie `bunny_session` that server-side maps to a random token in `auth_sessions`. TTL from `[auth] session_ttl_hours` (default 7 days). Logout = delete the row.
+4. **CLI / bearer auth:** per-user API keys with optional expiry and a human name. Format `bny_<8 hex prefix>_<32 hex secret>`. Only `sha256(key)` is stored; the plaintext is shown once at creation. On the CLI you read it via `BUNNY_API_KEY` env or `--api-key`. No key → the CLI falls back to the seeded `system` user (backward-compat).
+5. **Seeded admin:** if `users` is empty at boot the server creates an admin based on `[auth] default_admin_username` / `default_admin_password` (env: `BUNNY_DEFAULT_ADMIN_PASSWORD`). That user gets `must_change_pw=1`; the first login forces a password change before chat unlocks.
+6. **Scoping:** non-admin users only see their own sessions (filter on `user_id` in `listSessions`/`getMessagesBySession`). Admins see everything. Legacy sessions without `user_id` stay visible to everyone (read-only fallback).
 
-## Onderbouwing
+## Rationale
 
-- **Cookie + DB-token, géén JWT.** Server-side sessies zijn direct revokeable (logout, admin reset) en vergen geen signing-secret in de config. Dezelfde SQLite-DB blijft de single source of truth.
-- **Keys gehashd, prefix zichtbaar.** De prefix (`bny_ab12…`) is genoeg om een key in een lijst te herkennen zonder het plaintext-secret opnieuw te hoeven tonen. Een gelekte key kan met één klik in de web UI worden ingetrokken.
-- **`system` user als fallback.** Voorkomt dat bestaande CLI-scripts breken na deze upgrade. De user heeft een random unusable password, dus er is geen weg via login naar binnen.
-- **Append-only schema.** Conform bestaande conventie: we voegen kolommen toe (`user_id`) en tabellen, niets wordt hernoemd/verwijderd — zodat een bestaande `$BUNNY_HOME` zonder migratie-pijn werkt.
-- **Middleware in één plek.** `src/server/auth_middleware.ts` probeert eerst bearer, dan cookie; alle `/api/*` routes behalve `/api/auth/login` draaien door `requireAuth`.
+- **Cookie + DB token, no JWT.** Server-side sessions are directly revokable (logout, admin reset) and require no signing secret in config. The same SQLite DB remains the single source of truth.
+- **Keys hashed, prefix visible.** The prefix (`bny_ab12…`) is enough to recognise a key in a list without showing the plaintext secret again. A leaked key can be revoked with one click in the web UI.
+- **`system` user as fallback.** Prevents existing CLI scripts from breaking after this upgrade. The user has a random unusable password, so there is no way in via login.
+- **Append-only schema.** Per existing convention: we add columns (`user_id`) and tables, nothing is renamed/removed — so an existing `$BUNNY_HOME` works without migration pain.
+- **Middleware in one place.** `src/server/auth_middleware.ts` first tries bearer, then cookie; all `/api/*` routes except `/api/auth/login` run through `requireAuth`.
 
 ## Data-flow
 
@@ -50,15 +50,15 @@ bun run src/index.ts "…"                    → system user
 BUNNY_API_KEY=bny_… bun run src/index.ts "…" → validateApiKey → real user
 ```
 
-## Consequenties
+## Consequences
 
-- `bunny.config.toml` krijgt een `[auth]`-sectie; `.env` alleen voor secrets (`BUNNY_DEFAULT_ADMIN_PASSWORD`, `BUNNY_API_KEY`).
-- CORS echoot de caller-origin en zet `Allow-Credentials: true` (wildcard origin mag niet meer met credentials).
-- Frontend vraagt bij mount `GET /api/auth/me`. 401 → login-pagina. `mustChangePassword` → wachtwoord-wijzigen-pagina. Pas daarna is de gewone UI zichtbaar. Nieuwe Settings-tab bevat *Profile*, *API keys* en *Users* (alleen admin).
-- De eigenaar-filter op sessies is een softe check: admins zien alles; legacy sessies blijven leesbaar om geen history te verliezen.
+- `bunny.config.toml` gains an `[auth]` section; `.env` only for secrets (`BUNNY_DEFAULT_ADMIN_PASSWORD`, `BUNNY_API_KEY`).
+- CORS echoes the caller origin and sets `Allow-Credentials: true` (wildcard origin is no longer allowed with credentials).
+- Frontend on mount requests `GET /api/auth/me`. 401 → login page. `mustChangePassword` → password-change page. Only after that is the regular UI visible. A new Settings tab contains *Profile*, *API keys* and *Users* (admin only).
+- The owner filter on sessions is a soft check: admins see everything; legacy sessions remain readable so no history is lost.
 
-## Niet-doelen
+## Non-goals
 
-- SSO, OAuth, OIDC, MFA — later, via een apart provider-stukje naast de lokale wachtwoord-flow.
-- Permissies per tool (bijv. "deze user mag `shell` niet") — uit scope; rollen zijn grof (admin/user) tot er concreet een gebruiksgeval is.
-- Audit-log UI voor admins. Events zitten al in de queue (`events` tabel) maar er is nog geen lijst-view voor admins.
+- SSO, OAuth, OIDC, MFA — later, via a separate provider piece alongside the local password flow.
+- Per-tool permissions (e.g. "this user cannot use `shell`") — out of scope; roles are coarse (admin/user) until there is a concrete use case.
+- Audit log UI for admins. Events already live in the queue (`events` table) but there is no list view for admins yet.

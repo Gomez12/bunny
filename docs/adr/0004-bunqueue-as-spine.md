@@ -1,38 +1,38 @@
-# ADR 0004 — bunqueue als audit-spine
+# ADR 0004 — bunqueue as audit spine
 
 **Status:** Accepted
-**Datum:** 2026-04-14
+**Date:** 2026-04-14
 
 ## Context
 
-Elk zinvol event in de agent (LLM-request, tool-call, memory-index) moet worden opgeslagen voor:
-1. **Observability**: wat heeft de agent gedaan?
-2. **Reproducibility**: een sessie reconstrueren.
-3. **Debugging**: waarom heeft de agent dit besloten?
-4. **Toekomstige web-UI**: events/messages tonen in een timeline.
+Every meaningful event in the agent (LLM request, tool call, memory index) must be persisted for:
+1. **Observability**: what did the agent do?
+2. **Reproducibility**: reconstruct a session.
+3. **Debugging**: why did the agent decide this?
+4. **Future web UI**: show events/messages on a timeline.
 
-Opties: directe synchrone SQLite-writes, een event-bus (EventEmitter), of een persistente job-queue.
+Options: direct synchronous SQLite writes, an event bus (EventEmitter), or a persistent job queue.
 
-## Beslissing
+## Decision
 
-**bunqueue** als embedded job-queue. Elke LLM-call, tool-call en memory-index-actie wordt als job gepusht op de queue. De processor schrijft het event naar de `events` tabel. De agent-loop wacht niet op de queue — logging is fire-and-forget.
+**bunqueue** as an embedded job queue. Every LLM call, tool call and memory-index action is pushed as a job onto the queue. The processor writes the event into the `events` table. The agent loop does not wait on the queue — logging is fire-and-forget.
 
-## Onderbouwing
+## Rationale
 
-- **bunqueue is Bun-native**: geen Redis, geen externe server, embedded mode (`embedded: true`).
-- **Audit-semantiek**: de queue geeft durabiliteit (jobs overleven crashes als de agent tijdens verwerking stopt) en at-least-once delivery.
-- **Separation of concerns**: de agent-loop doet de echte werk (LLM-call, tool-call), en laat het loggen over aan de queue. De loop wordt niet geblokkeerd door I/O van de logger.
-- **Uitbreidbaar**: dezelfde queue kan later gebruikt worden voor echte async job-dispatch (bijv. een LLM-call in een aparte worker) door de processor te vervangen.
-- **Topics als job-namen**: `llm.request`, `llm.response`, `tool.call`, `tool.result`, `memory.index` — querybaar in de `events` tabel via `topic` en `kind` kolommen.
+- **bunqueue is Bun-native**: no Redis, no external server, embedded mode (`embedded: true`).
+- **Audit semantics**: the queue provides durability (jobs survive crashes if the agent halts mid-processing) and at-least-once delivery.
+- **Separation of concerns**: the agent loop does the real work (LLM call, tool call), and leaves logging to the queue. The loop is not blocked by logger I/O.
+- **Extensible**: the same queue can later be used for real async job dispatch (e.g. an LLM call in a separate worker) by replacing the processor.
+- **Topics as job names**: `llm.request`, `llm.response`, `tool.call`, `tool.result`, `memory.index` — queryable in the `events` table via `topic` and `kind` columns.
 
-## Consequenties
+## Consequences
 
-- Logging is async: vlak na `q.log(...)` is het event nog niet in de DB. In tests is `await q.close()` nodig om te wachten tot de queue gedraineerd is.
-- Bunqueue beheert zijn eigen in-memory state (LRU maps voor job-tracking). Bij abnormaal afsluiten van de process kunnen in-flight logs verloren gaan. Acceptabel voor een logging-use-case.
-- Elke `createBunnyQueue(db)` aanroep maakt een nieuwe Bunqueue-instantie met een uniek naam (counter). Dit voorkomt state-conflicten in tests.
+- Logging is async: right after `q.log(...)` the event is not yet in the DB. In tests `await q.close()` is needed to wait until the queue is drained.
+- Bunqueue manages its own in-memory state (LRU maps for job tracking). On abnormal process exit in-flight logs may be lost. Acceptable for a logging use case.
+- Each `createBunnyQueue(db)` call creates a new Bunqueue instance with a unique name (counter). This prevents state conflicts in tests.
 
-## Alternatieven verworpen
+## Alternatives rejected
 
-- **Directe synchrone SQLite-writes**: eenvoudig maar blokkeert de event-loop (geen WAL-voordeel in hot path).
-- **Node EventEmitter**: geen persistentie; events verdwijnen als process crasht.
-- **BullMQ**: vereist Redis; breekt de "zero external services" eis.
+- **Direct synchronous SQLite writes**: simple but blocks the event loop (no WAL advantage in the hot path).
+- **Node EventEmitter**: no persistence; events disappear if the process crashes.
+- **BullMQ**: requires Redis; breaks the "zero external services" requirement.

@@ -1,45 +1,45 @@
-# ADR 0003 — SQLite + FTS5 (BM25) + sqlite-vec voor hybride memory
+# ADR 0003 — SQLite + FTS5 (BM25) + sqlite-vec for hybrid memory
 
 **Status:** Accepted
-**Datum:** 2026-04-14
+**Date:** 2026-04-14
 
 ## Context
 
-De agent heeft persistente memory nodig die twee soorten recall ondersteunt:
-1. **Lexicale recall** (exact / near-exact matches, naam-lookups): BM25 full-text search.
-2. **Semantische recall** (conceptuele gelijkenis, parafrase): vector k-NN.
+The agent needs persistent memory that supports two kinds of recall:
+1. **Lexical recall** (exact / near-exact matches, name lookups): BM25 full-text search.
+2. **Semantic recall** (conceptual similarity, paraphrase): vector k-NN.
 
-Combinatie via Reciprocal Rank Fusion (RRF) geeft betere recall dan elk afzonderlijk (bewezen in TREC-evaluaties).
+Combining them via Reciprocal Rank Fusion (RRF) yields better recall than either alone (shown in TREC evaluations).
 
-## Beslissing
+## Decision
 
-- **SQLite** als enige database (fase 1). Portable: één bestand, per cwd.
-- **FTS5 met trigram-tokenizer** voor BM25-achtige lexicale search.
-- **sqlite-vec** (libvec extension) voor vector k-NN via `vec0` virtual table.
-- **RRF** (`recall.ts`) als merge-strategie met k=60 (standaard constant).
-- Upgrade-pad naar Postgres + pgvector: `db.ts` exporteert een `DBDriver`-interface; de SQLite-implementatie is vervangbaar.
+- **SQLite** as the only database (phase 1). Portable: one file, per cwd.
+- **FTS5 with trigram tokenizer** for BM25-like lexical search.
+- **sqlite-vec** (libvec extension) for vector k-NN via the `vec0` virtual table.
+- **RRF** (`recall.ts`) as the merge strategy with k=60 (standard constant).
+- Upgrade path to Postgres + pgvector: `db.ts` exports a `DBDriver` interface; the SQLite implementation is swappable.
 
-## Onderbouwing
+## Rationale
 
-- **Portability**: SQLite files zijn meeverhuisbaar met het project. Geen server-process. `bun:sqlite` is ingebouwd.
-- **Trigram tokenizer**: werkt taalonafhankelijk (geen stemming vereist), goed voor code en technische termen.
-- **sqlite-vec**: single-file extension (`.dylib`/`.so`), geen extra server. Geïnstalleerd via npm; Bun laadt het via `loadExtension()`.
-- **Graceful degradation**: als sqlite-vec niet geladen kan worden (Bun < bepaalde versie, CI), valt recall terug op alleen BM25 — geen crash.
-- **`messages.channel`**: content en reasoning worden als aparte rijen opgeslagen. FTS5 en embeddings indexeren alleen `channel='content'` (tenzij `[memory].index_reasoning = true`). Dit voorkomt dat interne redeneerprocessen de recall vervuilen.
+- **Portability**: SQLite files are relocatable with the project. No server process. `bun:sqlite` is built in.
+- **Trigram tokenizer**: language-agnostic (no stemming required), good for code and technical terms.
+- **sqlite-vec**: single-file extension (`.dylib`/`.so`), no extra server. Installed via npm; Bun loads it via `loadExtension()`.
+- **Graceful degradation**: if sqlite-vec cannot be loaded (Bun < some version, CI), recall falls back to BM25 only — no crash.
+- **`messages.channel`**: content and reasoning are stored as separate rows. FTS5 and embeddings only index `channel='content'` (unless `[memory].index_reasoning = true`). This keeps internal reasoning processes out of recall.
 
-## Schema-beslissingen
+## Schema decisions
 
-- Embeddings-dimensie is baked in bij aanmaken van de `vec0` tabel (default 1536 voor `text-embedding-3-small`).
-- `messages_fts` is een `content=` tabel (verwijst naar `messages`) om opslagruimte te halve; triggers houden sync.
-- `events` is een append-only log — geen UPDATE/DELETE op events.
+- Embeddings dimension is baked in at creation of the `vec0` table (default 1536 for `text-embedding-3-small`).
+- `messages_fts` is a `content=` table (pointing at `messages`) to halve storage; triggers keep it in sync.
+- `events` is an append-only log — no UPDATE/DELETE on events.
 
-## Consequenties
+## Consequences
 
-- Bun 1.3.5 heeft `loadExtension` niet standaard actief — sqlite-vec kan niet geladen worden in de huidige standaard Bun-build. De fallback (BM25-only) werkt. Voor productie-gebruik: Bun compileren met `SQLITE_ENABLE_LOAD_EXTENSION` of wachten op Bun-release die dit standaard activeert.
-- Dimensie-mismatch tussen embedding-model en `vec0` schema geeft een error bij insert. Config `[embed].dim` moet matchen.
+- Bun 1.3.5 doesn't have `loadExtension` active by default — sqlite-vec cannot be loaded in the current default Bun build. The fallback (BM25-only) works. For production use: compile Bun with `SQLITE_ENABLE_LOAD_EXTENSION` or wait for a Bun release that enables it by default.
+- Dimension mismatch between the embedding model and the `vec0` schema yields an error on insert. Config `[embed].dim` must match.
 
-## Alternatieven verworpen
+## Alternatives rejected
 
-- **Postgres + pgvector**: uitstekend voor productie maar vereist een server-process; breekt de portability-eis.
-- **Chroma / Qdrant**: externe vector-database; te zwaar voor embedded gebruik.
-- **LanceDB**: Rust-native, geen native Bun-support.
+- **Postgres + pgvector**: excellent for production but requires a server process; breaks the portability requirement.
+- **Chroma / Qdrant**: external vector database; too heavy for embedded use.
+- **LanceDB**: Rust-native, no native Bun support.
