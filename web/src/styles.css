@@ -228,9 +228,13 @@ button {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  width: 100%;
+}
+.chat__scroll > * {
   max-width: 860px;
   width: 100%;
-  margin: 0 auto;
+  margin-left: auto;
+  margin-right: auto;
 }
 .chat__empty {
   color: var(--text-dim);
@@ -304,6 +308,8 @@ button {
   background: var(--assistant-bg);
   align-self: flex-start;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 .bubble--tool {
   background: var(--tool-bg);
@@ -332,11 +338,41 @@ button {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-width: 0;
+  max-width: 100%;
 }
 .bubble__content {
   white-space: pre-wrap;
   word-wrap: break-word;
 }
+/* ── Rendered markdown (md mode) — tight spacing ───────────── */
+.bubble__content--markdown {
+  min-width: 0;
+  max-width: 100%;
+}
+.bubble__content--markdown > *:first-child { margin-top: 0; }
+.bubble__content--markdown > *:last-child { margin-bottom: 0; }
+.bubble__content--markdown p,
+.bubble__content--markdown ul,
+.bubble__content--markdown ol,
+.bubble__content--markdown pre,
+.bubble__content--markdown blockquote {
+  margin: 6px 0;
+}
+.bubble__content--markdown li { margin: 2px 0; }
+.bubble__content--markdown li > p { margin: 2px 0; }
+.bubble__content--markdown h1,
+.bubble__content--markdown h2,
+.bubble__content--markdown h3,
+.bubble__content--markdown h4 {
+  margin: 14px 0 6px;
+  line-height: 1.25;
+}
+.bubble__content--markdown h1:first-child,
+.bubble__content--markdown h2:first-child,
+.bubble__content--markdown h3:first-child { margin-top: 0; }
+.bubble__content--markdown ul,
+.bubble__content--markdown ol { padding-left: 22px; }
 .bubble__ts {
   font-size: 11px;
   color: var(--text-faint);
@@ -993,6 +1029,18 @@ button {
   font-weight: 600;
 }
 .board-column__title { display: flex; align-items: center; gap: 8px; }
+.board-column__handle {
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
+  cursor: grab;
+  padding: 0 4px;
+  font-size: 14px;
+  line-height: 1;
+  touch-action: none;
+}
+.board-column__handle:hover { color: var(--text); }
+.board-column__handle:active { cursor: grabbing; }
 .board-column__count {
   background: var(--bg);
   border: 1px solid var(--border);
@@ -1204,3 +1252,90 @@ button {
   overflow-y: auto;
 }
 .run-log__answer--error { color: var(--err); }
+
+/* ── Pill toggle (shared by md/raw and mermaid diagram/code) ── */
+.bubble__md-toggle,
+.mermaid-block__toggle {
+  position: absolute;
+  z-index: 1;
+  background: var(--bg);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.bubble__md-toggle:hover,
+.mermaid-block__toggle:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* ── Markdown content with md/raw toggle ─────────────────────── */
+.bubble__content-wrap {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+}
+.bubble__md-toggle {
+  top: 0;
+  right: 0;
+  opacity: 0.55;
+}
+.bubble__md-toggle:hover { opacity: 1; }
+
+/* ── Mermaid block ───────────────────────────────────────────── */
+.mermaid-block {
+  position: relative;
+  margin: 10px 0;
+  padding: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  /* Safari: break the default flex-item min-content floor so the
+     intrinsic-width SVG child doesn't push this node past its parent. */
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  box-sizing: border-box;
+}
+.mermaid-block__toggle {
+  top: 8px;
+  right: 8px;
+}
+.mermaid-block__toggle:hover { background: var(--bg-elevated); }
+.mermaid-block__svg {
+  display: block;
+  min-width: min-content;
+  text-align: center;
+}
+.mermaid-block__svg svg {
+  max-width: none;
+  height: auto;
+  display: inline-block;
+}
+.mermaid-block pre {
+  margin: 0;
+  padding: 8px 10px;
+  padding-top: 32px;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+  white-space: pre;
+  overflow-x: auto;
+}
+.mermaid-block__error {
+  padding-top: 32px;
+}
+.mermaid-block__error-msg {
+  color: var(--err);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
