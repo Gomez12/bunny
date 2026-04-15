@@ -16,6 +16,26 @@ bun run src/index.ts "list the files in src/"
 
 State komt in `./.bunny/` (override met `BUNNY_HOME`). Database is SQLite, alles is portable.
 
+### Projects
+
+Alle messages horen bij een **project** — een logische werkruimte met eigen system prompt (in `projects/<name>/systemprompt.toml`) en gescheiden recall. Het default project heet `general`. Maak een nieuw project aan vanuit de web-UI ("Projects"-tab → `+ New project`), of direct op de CLI:
+
+```sh
+bun run src/index.ts --project alpha "schrijf een intro voor dit project"
+```
+
+De CLI maakt DB-row en directory automatisch aan als ze nog niet bestaan. Switchen tussen projecten start een nieuwe sessie — één sessie hoort bij precies één project. Zie [ADR 0008](./docs/adr/0008-projects.md).
+
+### Agents
+
+Een **agent** is een benoemde persoonlijkheid met eigen system prompt en een beperkte tool-set. Maak er één aan in de web-UI ("Agents"-tab → `+ New agent`), koppel 'm aan een project, en roep 'm aan in de Chat door je bericht te beginnen met `@naam`:
+
+```
+@bob zoek uit of er duplicate functies zijn in src/tools
+```
+
+Agents kunnen ook met elkaar praten: zet `is_subagent` aan op een agent en voeg 'm toe aan `allowed_subagents` van een orchestrator, dan krijgt die orchestrator de `call_agent(name, prompt)` tool. De context-scope (`full` of `own`) bepaalt of een agent de hele session kan zien of alleen zijn eigen eerdere antwoorden — handig voor eenmalige specialisten. Zie [ADR 0009](./docs/adr/0009-agents.md).
+
 ## Web UI
 
 Bunny heeft ook een tab-based web-UI: **Chat** (live streaming) en **Messages** (alle eerdere sessies uit SQLite, doorzoekbaar via BM25).

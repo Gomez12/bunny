@@ -19,10 +19,23 @@ export interface VectorResult {
  * not loaded) or when there are no stored embeddings.
  *
  * @param queryEmbedding - Float32 embedding vector as a plain number array.
+ * @param project - if provided, restrict results to this project (post-filter
+ *                  after the vec0 kNN — so we over-fetch then narrow).
  */
-export function searchVector(db: Database, queryEmbedding: number[], k = 8): VectorResult[] {
+export function searchVector(
+  db: Database,
+  queryEmbedding: number[],
+  k = 8,
+  project?: string,
+  /** Restrict to user turns + assistant rows written by this author (or null for default). */
+  ownAuthor?: string | null,
+): VectorResult[] {
   // Serialize the query embedding to the binary format sqlite-vec expects.
   const queryBlob = float32ArrayToBlob(queryEmbedding);
+
+  const needsPostFilter = project !== undefined || ownAuthor !== undefined;
+  // vec0 does not support joins in the MATCH clause; over-fetch and post-filter.
+  const fetchK = needsPostFilter ? k * 4 : k;
 
   try {
     const rows = db
@@ -33,8 +46,30 @@ export function searchVector(db: Database, queryEmbedding: number[], k = 8): Vec
            AND k = ?
          ORDER BY distance`,
       )
-      .all(queryBlob, k) as Array<{ message_id: number; distance: number }>;
-    return rows.map((r) => ({ messageId: r.message_id, distance: r.distance }));
+      .all(queryBlob, fetchK) as Array<{ message_id: number; distance: number }>;
+    if (!needsPostFilter || rows.length === 0) {
+      return rows.slice(0, k).map((r) => ({ messageId: r.message_id, distance: r.distance }));
+    }
+    const ids = rows.map((r) => r.message_id);
+    const placeholders = ids.map(() => "?").join(",");
+    const filterClauses: string[] = [`id IN (${placeholders})`];
+    const filterParams: (string | number | null)[] = [...ids];
+    if (project !== undefined) {
+      filterClauses.push(`COALESCE(project, 'general') = ?`);
+      filterParams.push(project);
+    }
+    if (ownAuthor !== undefined) {
+      filterClauses.push(`(role = 'user' OR author IS ?)`);
+      filterParams.push(ownAuthor ?? null);
+    }
+    const allowed = db
+      .prepare(`SELECT id FROM messages WHERE ${filterClauses.join(" AND ")}`)
+      .all(...filterParams) as Array<{ id: number }>;
+    const allowedSet = new Set(allowed.map((r) => r.id));
+    return rows
+      .filter((r) => allowedSet.has(r.message_id))
+      .slice(0, k)
+      .map((r) => ({ messageId: r.message_id, distance: r.distance }));
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     // Silently return empty on "no such module" (sqlite-vec absent) or empty table.

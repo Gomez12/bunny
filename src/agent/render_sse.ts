@@ -49,23 +49,35 @@ function send(sink: SseSink, payload: SseEvent): void {
   sink.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
 }
 
-export function createSseRenderer(sink: SseSink): Renderer {
+export interface SseRendererOpts {
+  /** Tag every emitted event with this agent name so the UI can show it. */
+  author?: string;
+}
+
+export function createSseRenderer(sink: SseSink, opts: SseRendererOpts = {}): Renderer {
+  const author = opts.author;
+  const tag = <T extends object>(payload: T): T & { author?: string } =>
+    author ? { ...payload, author } : payload;
+
   function onDelta(delta: StreamDelta): void {
     switch (delta.channel) {
       case "content":
-        send(sink, { type: "content", text: delta.text });
+        send(sink, tag({ type: "content", text: delta.text }));
         break;
       case "reasoning":
-        send(sink, { type: "reasoning", text: delta.text });
+        send(sink, tag({ type: "reasoning", text: delta.text }));
         break;
       case "tool_call":
-        send(sink, {
-          type: "tool_call",
-          name: delta.name,
-          id: delta.id,
-          argsDelta: delta.argsDelta,
-          callIndex: delta.callIndex,
-        });
+        send(
+          sink,
+          tag({
+            type: "tool_call",
+            name: delta.name,
+            id: delta.id,
+            argsDelta: delta.argsDelta,
+            callIndex: delta.callIndex,
+          }),
+        );
         break;
       case "usage":
         send(sink, {
@@ -79,13 +91,16 @@ export function createSseRenderer(sink: SseSink): Renderer {
   }
 
   function onToolResult(name: string, result: ToolResult): void {
-    send(sink, {
-      type: "tool_result",
-      name,
-      ok: result.ok,
-      output: result.output,
-      error: result.error,
-    });
+    send(
+      sink,
+      tag({
+        type: "tool_result",
+        name,
+        ok: result.ok,
+        output: result.output,
+        error: result.error,
+      }),
+    );
   }
 
   function onStats(stats: { durationMs: number; promptTokens?: number; completionTokens?: number }): void {
@@ -102,7 +117,7 @@ export function createSseRenderer(sink: SseSink): Renderer {
   }
 
   function onTurnEnd(): void {
-    send(sink, { type: "turn_end" });
+    send(sink, tag({ type: "turn_end" }));
   }
 
   return { onDelta, onToolResult, onStats, onError, onTurnEnd };

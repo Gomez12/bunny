@@ -35,9 +35,49 @@ CREATE TABLE IF NOT EXISTS messages (
   duration_ms  INTEGER,                    -- LLM call duration on assistant content/reasoning rows
   prompt_tokens     INTEGER,               -- tokens sent (per LLM call)
   completion_tokens INTEGER,                -- tokens generated (per LLM call)
-  user_id      TEXT                         -- owning user (null for anonymous/historical)
+  user_id      TEXT,                        -- owning user (null for anonymous/historical)
+  project      TEXT,                        -- owning project name (null = 'general')
+  author       TEXT                         -- responding agent name (null = default assistant)
 );
 CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, ts);
+-- idx_messages_project is created in db.ts:migrateColumns so it also works on
+-- upgraded databases where the `project` column is added by ALTER TABLE.
+
+-- ── Projects ─────────────────────────────────────────────────────────────────
+-- Logical workspaces: each project has its own directory under $BUNNY_HOME/projects/<name>/
+-- and its own systemprompt.toml that augments (or replaces) the base system prompt.
+CREATE TABLE IF NOT EXISTS projects (
+  name        TEXT    PRIMARY KEY,
+  description TEXT,
+  visibility  TEXT    NOT NULL DEFAULT 'public',  -- 'public' | 'private'
+  created_by  TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at  INTEGER NOT NULL,
+  updated_at  INTEGER NOT NULL
+);
+
+-- ── Agents ──────────────────────────────────────────────────────────────────
+-- Named personalities with their own system prompt + tool whitelist. Global by
+-- default; per-project availability is controlled via `project_agents`.
+-- On-disk config lives at $BUNNY_HOME/agents/<name>/config.toml.
+CREATE TABLE IF NOT EXISTS agents (
+  name                TEXT    PRIMARY KEY,
+  description         TEXT    NOT NULL DEFAULT '',
+  visibility          TEXT    NOT NULL DEFAULT 'private',  -- 'public' | 'private'
+  is_subagent         INTEGER NOT NULL DEFAULT 0,           -- 1 = callable as subagent
+  knows_other_agents  INTEGER NOT NULL DEFAULT 0,           -- 1 = list peers in prompt
+  context_scope       TEXT    NOT NULL DEFAULT 'full',      -- 'full' | 'own'
+  created_by          TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at          INTEGER NOT NULL,
+  updated_at          INTEGER NOT NULL
+);
+
+-- Opt-in join: which agents are available in which project.
+CREATE TABLE IF NOT EXISTS project_agents (
+  project  TEXT NOT NULL,
+  agent    TEXT NOT NULL,
+  PRIMARY KEY (project, agent)
+);
+CREATE INDEX IF NOT EXISTS idx_project_agents_agent ON project_agents(agent);
 
 -- FTS5 virtual table — mirrors content from messages where channel='content'
 -- Kept in sync by the triggers below.

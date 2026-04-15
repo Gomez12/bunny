@@ -10,11 +10,14 @@
 export interface SseContentEvent {
   type: "content";
   text: string;
+  /** Responding agent name. Absent for the default assistant. */
+  author?: string;
 }
 
 export interface SseReasoningEvent {
   type: "reasoning";
   text: string;
+  author?: string;
 }
 
 export interface SseToolCallEvent {
@@ -23,6 +26,7 @@ export interface SseToolCallEvent {
   id?: string;
   argsDelta: string;
   callIndex: number;
+  author?: string;
 }
 
 export interface SseToolResultEvent {
@@ -31,6 +35,7 @@ export interface SseToolResultEvent {
   ok: boolean;
   output: string;
   error?: string;
+  author?: string;
 }
 
 export interface SseUsageEvent {
@@ -54,6 +59,7 @@ export interface SseErrorEvent {
 
 export interface SseTurnEndEvent {
   type: "turn_end";
+  author?: string;
 }
 
 export interface SseDoneEvent {

@@ -15,13 +15,15 @@ import StatsFooter from "../components/StatsFooter";
 
 interface Props {
   currentUser: AuthUser;
+  /** Restrict the session list to a single project. */
+  project?: string;
 }
 
 interface TurnWithOwner extends HistoryTurn {
   owner: { username: string | null; displayName: string | null } | null;
 }
 
-export default function MessagesTab({ currentUser }: Props) {
+export default function MessagesTab({ currentUser, project }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [turns, setTurns] = useState<TurnWithOwner[]>([]);
   const [loading, setLoading] = useState(false);
@@ -47,6 +49,7 @@ export default function MessagesTab({ currentUser }: Props) {
         onNew={() => setActiveId(null)}
         scope={isAdmin ? "all" : "mine"}
         showOwner={isAdmin}
+        project={project}
       />
       <section className="messages__transcript">
         {loading && <div className="messages__loading">Loading…</div>}

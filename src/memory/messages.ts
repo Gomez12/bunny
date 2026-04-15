@@ -30,6 +30,8 @@ export interface StoredMessage {
   displayName: string | null;
   /** Owning project ('general' for legacy/null rows). */
   project: string;
+  /** Responding agent name, or null for the default assistant / user rows. */
+  author: string | null;
 }
 
 export interface InsertMessageOpts {
@@ -47,12 +49,14 @@ export interface InsertMessageOpts {
   userId?: string | null;
   /** Owning project name. Defaults to 'general' when omitted. */
   project?: string | null;
+  /** Responding agent name. Null for the default assistant or user turns. */
+  author?: string | null;
 }
 
 export function insertMessage(db: Database, opts: InsertMessageOpts): number {
   const stmt = db.prepare(`
-    INSERT INTO messages (session_id, ts, role, channel, content, tool_call_id, tool_name, provider_sig, ok, duration_ms, prompt_tokens, completion_tokens, user_id, project)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO messages (session_id, ts, role, channel, content, tool_call_id, tool_name, provider_sig, ok, duration_ms, prompt_tokens, completion_tokens, user_id, project, author)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     RETURNING id
   `);
   const row = stmt.get(
@@ -70,6 +74,7 @@ export function insertMessage(db: Database, opts: InsertMessageOpts): number {
     opts.completionTokens ?? null,
     opts.userId ?? null,
     opts.project ?? "general",
+    opts.author ?? null,
   ) as { id: number } | undefined;
   return row?.id ?? 0;
 }
@@ -89,21 +94,36 @@ export function getRecentTurns(
   db: Database,
   sessionId: string,
   limit: number,
+  /**
+   * When set, restrict assistant rows to those authored by `ownAuthor`
+   * (or by the default assistant when `ownAuthor` is null). User turns are
+   * always included so the agent can still see what was asked.
+   */
+  ownAuthor?: string | null | undefined,
 ): Array<ChatMessage & { messageId: number }> {
   if (limit <= 0) return [];
+  const clauses = [
+    "session_id = ?",
+    "channel = 'content'",
+    "role IN ('user', 'assistant')",
+    "content IS NOT NULL",
+    "content != ''",
+  ];
+  const params: (string | number | null)[] = [sessionId];
+  if (ownAuthor !== undefined) {
+    // User turns always pass; assistant turns must match the scope.
+    clauses.push("(role = 'user' OR (role = 'assistant' AND author IS ?))");
+    params.push(ownAuthor);
+  }
+  params.push(limit);
   const rows = db
     .prepare(
       `SELECT id, role, content FROM messages
-       WHERE session_id = ?
-         AND channel = 'content'
-         AND role IN ('user', 'assistant')
-         AND content IS NOT NULL
-         AND content != ''
+       WHERE ${clauses.join(" AND ")}
        ORDER BY ts DESC, id DESC
        LIMIT ?`,
     )
-    .all(sessionId, limit) as Array<{ id: number; role: string; content: string }>;
-  // Re-reverse into chronological order.
+    .all(...params) as Array<{ id: number; role: string; content: string }>;
   return rows.reverse().map((r) => ({
     role: r.role as "user" | "assistant",
     content: r.content,
@@ -117,6 +137,7 @@ export function getMessagesBySession(db: Database, sessionId: string): StoredMes
       `SELECT m.id, m.session_id, m.ts, m.role, m.channel, m.content, m.tool_call_id,
               m.tool_name, m.provider_sig, m.ok, m.duration_ms, m.prompt_tokens,
               m.completion_tokens, m.user_id, COALESCE(m.project, 'general') AS project,
+              m.author AS author,
               u.username AS username, u.display_name AS display_name
        FROM messages m
        LEFT JOIN users u ON u.id = m.user_id
@@ -138,6 +159,7 @@ export function getMessagesBySession(db: Database, sessionId: string): StoredMes
     completion_tokens: number | null;
     user_id: string | null;
     project: string;
+    author: string | null;
     username: string | null;
     display_name: string | null;
   }>;
@@ -157,6 +179,7 @@ export function getMessagesBySession(db: Database, sessionId: string): StoredMes
     completionTokens: r.completion_tokens,
     userId: r.user_id,
     project: r.project,
+    author: r.author,
     username: r.username,
     displayName: r.display_name,
   }));

@@ -2,23 +2,35 @@ import { useEffect, useState } from "react";
 import { createSession, fetchMe, logout, type AuthUser } from "./api";
 import ChatTab from "./tabs/ChatTab";
 import MessagesTab from "./tabs/MessagesTab";
+import ProjectsTab from "./tabs/ProjectsTab";
+import AgentsTab from "./tabs/AgentsTab";
 import LoginPage from "./pages/LoginPage";
 import ChangePasswordPage from "./pages/ChangePasswordPage";
 import SettingsPage from "./pages/SettingsPage";
 
-type Tab = "chat" | "messages" | "settings";
+type Tab = "chat" | "messages" | "projects" | "agents" | "settings";
 
 const SESSION_STORAGE_KEY = "bunny.activeSessionId";
+const PROJECT_STORAGE_KEY = "bunny.activeProject";
+const DEFAULT_PROJECT = "general";
 
 function adoptSession(id: string): string {
   localStorage.setItem(SESSION_STORAGE_KEY, id);
   return id;
 }
 
+function adoptProject(name: string): string {
+  localStorage.setItem(PROJECT_STORAGE_KEY, name);
+  return name;
+}
+
 export default function App() {
   const [tab, setTab] = useState<Tab>("chat");
   const [sessionId, setSessionId] = useState<string | null>(() =>
     localStorage.getItem(SESSION_STORAGE_KEY),
+  );
+  const [activeProject, setActiveProject] = useState<string>(
+    () => localStorage.getItem(PROJECT_STORAGE_KEY) || DEFAULT_PROJECT,
   );
   const [user, setUser] = useState<AuthUser | null | undefined>(undefined); // undefined = loading
 
@@ -61,10 +73,23 @@ export default function App() {
     setSessionId(adoptSession(id));
   };
 
+  const onPickProject = async (name: string) => {
+    setActiveProject(adoptProject(name));
+    // Switching project always starts a fresh session (one project per session).
+    try {
+      setSessionId(adoptSession(await createSession()));
+    } catch {
+      // ignored — error surfaces on next API call
+    }
+    setTab("chat");
+  };
+
   const onLogout = async () => {
     await logout();
     localStorage.removeItem(SESSION_STORAGE_KEY);
+    localStorage.removeItem(PROJECT_STORAGE_KEY);
     setSessionId(null);
+    setActiveProject(DEFAULT_PROJECT);
     setUser(null);
   };
 
@@ -74,6 +99,9 @@ export default function App() {
         <div className="brand">
           <span className="brand-dot" />
           <span>bunny</span>
+          <span className="project-pill" title="Active project">
+            {activeProject}
+          </span>
         </div>
         <nav className="tabs">
           <button
@@ -87,6 +115,18 @@ export default function App() {
             onClick={() => setTab("messages")}
           >
             Messages
+          </button>
+          <button
+            className={`tab ${tab === "projects" ? "tab--active" : ""}`}
+            onClick={() => setTab("projects")}
+          >
+            Projects
+          </button>
+          <button
+            className={`tab ${tab === "agents" ? "tab--active" : ""}`}
+            onClick={() => setTab("agents")}
+          >
+            Agents
           </button>
           <button
             className={`tab ${tab === "settings" ? "tab--active" : ""}`}
@@ -110,11 +150,16 @@ export default function App() {
         {tab === "chat" && sessionId && (
           <ChatTab
             sessionId={sessionId}
+            project={activeProject}
             onPickSession={onPickSession}
             onNewSession={onNewSession}
           />
         )}
-        {tab === "messages" && <MessagesTab currentUser={user} />}
+        {tab === "messages" && <MessagesTab currentUser={user} project={activeProject} />}
+        {tab === "projects" && (
+          <ProjectsTab currentUser={user} activeProject={activeProject} onPickProject={onPickProject} />
+        )}
+        {tab === "agents" && <AgentsTab currentUser={user} activeProject={activeProject} />}
         {tab === "settings" && <SettingsPage user={user} onUserUpdated={setUser} />}
       </main>
     </div>

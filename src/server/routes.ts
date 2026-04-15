@@ -37,6 +37,9 @@ import {
   parseMemoryOverride,
   writeProjectSystemPrompt,
 } from "../memory/project_assets.ts";
+import { handleAgentRoute } from "./agent_routes.ts";
+import { parseMention } from "../agent/mention.ts";
+import { getAgent, isAgentLinkedToProject } from "../memory/agents.ts";
 
 export interface RouteCtx {
   db: Database;
@@ -54,6 +57,15 @@ export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<
   // All remaining /api/* routes require an authenticated user.
   const user = await authenticate(ctx.db, req);
   if (!user) return json({ error: "unauthorized" }, 401);
+
+  // ── Agents & tool catalogue ───────────────────────────────────────────────
+  const agentResponse = await handleAgentRoute(
+    req,
+    url,
+    { db: ctx.db, defaultProject: ctx.cfg.agent.defaultProject },
+    user,
+  );
+  if (agentResponse) return agentResponse;
 
   // ── Projects ──────────────────────────────────────────────────────────────
   if (pathname === "/api/projects" && req.method === "GET") {
@@ -119,16 +131,37 @@ function canAccessSession(ctx: RouteCtx, user: User, sessionId: string): boolean
 }
 
 async function handleChat(req: Request, ctx: RouteCtx, user: User): Promise<Response> {
-  let body: { sessionId?: string; prompt?: string; project?: string };
+  let body: { sessionId?: string; prompt?: string; project?: string; agent?: string };
   try {
-    body = (await req.json()) as { sessionId?: string; prompt?: string; project?: string };
+    body = (await req.json()) as {
+      sessionId?: string;
+      prompt?: string;
+      project?: string;
+      agent?: string;
+    };
   } catch {
     return json({ error: "invalid json" }, 400);
   }
 
-  const prompt = body.prompt?.trim();
+  const rawPrompt = body.prompt?.trim();
   const sessionId = body.sessionId?.trim() || randomUUID();
-  if (!prompt) return json({ error: "missing prompt" }, 400);
+  if (!rawPrompt) return json({ error: "missing prompt" }, 400);
+
+  // Resolve the addressed agent: explicit body.agent wins, otherwise parse a
+  // leading `@name` from the prompt. Either path strips the mention so the
+  // agent doesn't see its own handle in its instructions.
+  let prompt = rawPrompt;
+  let agentName: string | undefined = body.agent?.trim() || undefined;
+  if (!agentName) {
+    const parsed = parseMention(rawPrompt);
+    if (parsed.agent) {
+      if (!parsed.cleaned.trim()) {
+        return json({ error: "missing prompt after @mention" }, 400);
+      }
+      agentName = parsed.agent;
+      prompt = parsed.cleaned;
+    }
+  }
 
   if (!canAccessSession(ctx, user, sessionId)) {
     return json({ error: "forbidden" }, 403);
@@ -157,10 +190,22 @@ async function handleChat(req: Request, ctx: RouteCtx, user: User): Promise<Resp
     return json({ error: errorMessage(e) }, 400);
   }
 
+  // Validate agent (if any) — must exist and be linked to this project.
+  if (agentName) {
+    const a = getAgent(ctx.db, agentName);
+    if (!a) return json({ error: `agent '${agentName}' does not exist` }, 404);
+    if (!isAgentLinkedToProject(ctx.db, project, agentName)) {
+      return json(
+        { error: `agent '${agentName}' is not available in project '${project}'` },
+        403,
+      );
+    }
+  }
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const sink = controllerSink(controller);
-      const renderer = createSseRenderer(sink);
+      const renderer = createSseRenderer(sink, { author: agentName });
 
       try {
         await runAgent({
@@ -168,6 +213,7 @@ async function handleChat(req: Request, ctx: RouteCtx, user: User): Promise<Resp
           sessionId,
           userId: user.id,
           project,
+          agent: agentName,
           llmCfg: ctx.cfg.llm,
           embedCfg: ctx.cfg.embed,
           memoryCfg: ctx.cfg.memory,
@@ -192,6 +238,7 @@ async function handleChat(req: Request, ctx: RouteCtx, user: User): Promise<Resp
       Connection: "keep-alive",
       "X-Session-Id": sessionId,
       "X-Project": project,
+      ...(agentName ? { "X-Agent": agentName } : {}),
     },
   });
 }

@@ -19,6 +19,8 @@ export interface SessionSummary {
   userId: string | null;
   username: string | null;
   displayName: string | null;
+  /** Project this session belongs to (defaults to 'general' for legacy rows). */
+  project: string;
 }
 
 /**
@@ -27,14 +29,14 @@ export interface SessionSummary {
  */
 export function listSessions(
   db: Database,
-  opts: { limit?: number; search?: string; userId?: string } = {},
+  opts: { limit?: number; search?: string; userId?: string; project?: string } = {},
 ): SessionSummary[] {
   const limit = opts.limit ?? 200;
   const search = opts.search?.trim();
 
   let sessionFilter: string[] | null = null;
   if (search) {
-    const hits = searchBM25(db, search, 200);
+    const hits = searchBM25(db, search, 200, undefined, opts.project);
     sessionFilter = [...new Set(hits.map((h) => h.sessionId))];
     if (sessionFilter.length === 0) return [];
   }
@@ -48,6 +50,10 @@ export function listSessions(
   if (opts.userId) {
     clauses.push(`m.session_id IN (SELECT DISTINCT session_id FROM messages WHERE user_id = ?)`);
     params.push(opts.userId);
+  }
+  if (opts.project) {
+    clauses.push(`COALESCE(m.project, 'general') = ?`);
+    params.push(opts.project);
   }
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
 
@@ -76,7 +82,8 @@ export function listSessions(
          fu.title  AS title,
          fu.owner_id AS owner_id,
          u.username AS owner_username,
-         u.display_name AS owner_display_name
+         u.display_name AS owner_display_name,
+         COALESCE(MAX(m.project), 'general') AS project
        FROM messages m
        LEFT JOIN first_user fu ON fu.session_id = m.session_id
        LEFT JOIN users u ON u.id = fu.owner_id
@@ -94,6 +101,7 @@ export function listSessions(
     owner_id: string | null;
     owner_username: string | null;
     owner_display_name: string | null;
+    project: string;
   }>;
 
   return rows.map((r) => ({
@@ -105,6 +113,7 @@ export function listSessions(
     userId: r.owner_id,
     username: r.owner_username,
     displayName: r.owner_display_name,
+    project: r.project,
   }));
 }
 

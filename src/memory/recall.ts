@@ -39,16 +39,18 @@ export async function hybridRecall(
   sessionId?: string,
   project?: string,
   excludeIds?: ReadonlySet<number>,
+  /** When set, scope recall to this author (or null for the default assistant). */
+  ownAuthor?: string | null,
 ): Promise<RecallResult[]> {
   // Fetch more candidates per ranker so RRF has enough to merge.
   const fetchK = k * 4;
 
   // Run BM25 and vector searches in parallel.
   const [bm25Results, embedding] = await Promise.all([
-    Promise.resolve(searchBM25(db, query, fetchK, sessionId, project)),
+    Promise.resolve(searchBM25(db, query, fetchK, sessionId, project, ownAuthor)),
     embed(embedCfg, query),
   ]);
-  const vectorResults = searchVector(db, embedding, fetchK, project);
+  const vectorResults = searchVector(db, embedding, fetchK, project, ownAuthor);
 
   // Build per-message RRF scores.
   const scores = new Map<number, number>();

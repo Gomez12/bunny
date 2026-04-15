@@ -51,6 +51,8 @@ export interface StoredMessage {
   username: string | null;
   displayName: string | null;
   project: string;
+  /** Responding agent name, null for the default assistant / user rows. */
+  author: string | null;
 }
 
 export interface TurnStats {
@@ -99,6 +101,8 @@ export interface HistoryTurn {
   }>;
   /** Aggregated over every LLM call inside this user turn. */
   stats: TurnStats | null;
+  /** Agent name that answered, or null for the default assistant. */
+  author: string | null;
 }
 
 /** Group rows into turns: every user message opens a new turn and all following
@@ -118,6 +122,7 @@ export function groupTurns(messages: StoredMessage[]): HistoryTurn[] {
         content: "",
         toolCalls: [],
         stats: null,
+        author: null,
       };
       turns.push(current);
       continue;
@@ -126,8 +131,10 @@ export function groupTurns(messages: StoredMessage[]): HistoryTurn[] {
 
     if (m.role === "assistant" && m.channel === "reasoning") {
       current.reasoning += (current.reasoning ? "\n\n" : "") + (m.content ?? "");
+      if (m.author) current.author = m.author;
     } else if (m.role === "assistant" && m.channel === "content") {
       current.content += (current.content ? "\n\n" : "") + (m.content ?? "");
+      if (m.author) current.author = m.author;
       if (m.durationMs != null) {
         current.stats = {
           durationMs: (current.stats?.durationMs ?? 0) + m.durationMs,
@@ -199,7 +206,7 @@ export async function createSession(): Promise<string> {
  * Returns a promise that resolves when the stream ends and an abort function.
  */
 export function streamChat(
-  body: { sessionId: string; prompt: string; project?: string },
+  body: { sessionId: string; prompt: string; project?: string; agent?: string },
   onEvent: (ev: ServerEvent) => void,
 ): { done: Promise<void>; abort: () => void } {
   const controller = new AbortController();
@@ -214,7 +221,14 @@ export function streamChat(
     });
 
     if (!res.ok || !res.body) {
-      throw new Error(`POST /api/chat → ${res.status}`);
+      let msg = `POST /api/chat → ${res.status}`;
+      try {
+        const err = (await res.json()) as { error?: string };
+        if (err?.error) msg = err.error;
+      } catch {
+        // ignore — body wasn't JSON
+      }
+      throw new Error(msg);
     }
 
     const reader = res.body.getReader();
@@ -447,4 +461,98 @@ export async function updateProject(
 
 export async function deleteProject(name: string): Promise<void> {
   await jsonFetch<{ ok: true }>(`/api/projects/${encodeURIComponent(name)}`, { method: "DELETE" });
+}
+
+// ── Agents ──────────────────────────────────────────────────────────────────
+
+export type AgentVisibility = "public" | "private";
+export type AgentContextScope = "full" | "own";
+
+export interface Agent {
+  name: string;
+  description: string;
+  visibility: AgentVisibility;
+  isSubagent: boolean;
+  knowsOtherAgents: boolean;
+  contextScope: AgentContextScope;
+  createdBy: string | null;
+  createdAt: number;
+  updatedAt: number;
+  systemPrompt: string;
+  appendMode: boolean;
+  /** null = inherit every registered tool. */
+  tools: string[] | null;
+  allowedSubagents: string[];
+  /** null = inherit project / global default. */
+  lastN: number | null;
+  /** null = inherit project / global default. */
+  recallK: number | null;
+  /** Projects this agent is linked to (opt-in availability). */
+  projects: string[];
+}
+
+export interface AgentInput {
+  name: string;
+  description?: string;
+  visibility?: AgentVisibility;
+  isSubagent?: boolean;
+  knowsOtherAgents?: boolean;
+  contextScope?: AgentContextScope;
+  systemPrompt?: string;
+  appendMode?: boolean;
+  tools?: string[] | null;
+  allowedSubagents?: string[];
+  lastN?: number | null;
+  recallK?: number | null;
+}
+
+export async function fetchAgents(): Promise<Agent[]> {
+  const { agents } = await jsonFetch<{ agents: Agent[] }>("/api/agents");
+  return agents;
+}
+
+export async function createAgent(input: AgentInput): Promise<Agent> {
+  const { agent } = await jsonFetch<{ agent: Agent }>("/api/agents", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return agent;
+}
+
+export async function updateAgent(name: string, patch: Omit<AgentInput, "name">): Promise<Agent> {
+  const { agent } = await jsonFetch<{ agent: Agent }>(
+    `/api/agents/${encodeURIComponent(name)}`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+  );
+  return agent;
+}
+
+export async function deleteAgent(name: string): Promise<void> {
+  await jsonFetch<{ ok: true }>(`/api/agents/${encodeURIComponent(name)}`, { method: "DELETE" });
+}
+
+export async function fetchProjectAgents(project: string): Promise<Agent[]> {
+  const { agents } = await jsonFetch<{ agents: Agent[] }>(
+    `/api/projects/${encodeURIComponent(project)}/agents`,
+  );
+  return agents;
+}
+
+export async function linkAgentToProject(project: string, agent: string): Promise<void> {
+  await jsonFetch<{ ok: true }>(`/api/projects/${encodeURIComponent(project)}/agents`, {
+    method: "POST",
+    body: JSON.stringify({ agent }),
+  });
+}
+
+export async function unlinkAgentFromProject(project: string, agent: string): Promise<void> {
+  await jsonFetch<{ ok: true }>(
+    `/api/projects/${encodeURIComponent(project)}/agents/${encodeURIComponent(agent)}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function fetchToolNames(): Promise<string[]> {
+  const { tools } = await jsonFetch<{ tools: string[] }>("/api/tools");
+  return tools;
 }

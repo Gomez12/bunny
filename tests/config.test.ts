@@ -17,6 +17,37 @@ describe("loadConfig", () => {
     expect(cfg.memory.indexReasoning).toBe(false);
     expect(cfg.render.reasoning).toBe("collapsed");
     expect(cfg.queue.topics).toEqual(["llm", "tool", "memory"]);
+    expect(cfg.agent.defaultProject).toBe("general");
+    expect(cfg.agent.systemPrompt).toContain("You are Bunny");
+  });
+
+  test("[agent] TOML overrides default project and system prompt", () => {
+    const cwd = newCwd();
+    writeFileSync(
+      join(cwd, "bunny.config.toml"),
+      [
+        "[agent]",
+        'default_project = "workshop"',
+        'system_prompt = "Be concise."',
+      ].join("\n"),
+    );
+    const cfg = loadConfig({ env: {}, cwd });
+    expect(cfg.agent.defaultProject).toBe("workshop");
+    expect(cfg.agent.systemPrompt).toBe("Be concise.");
+  });
+
+  test("BUNNY_DEFAULT_PROJECT / BUNNY_SYSTEM_PROMPT env override TOML", () => {
+    const cwd = newCwd();
+    writeFileSync(
+      join(cwd, "bunny.config.toml"),
+      ['[agent]', 'default_project = "workshop"', 'system_prompt = "tomlprompt"'].join("\n"),
+    );
+    const cfg = loadConfig({
+      env: { BUNNY_DEFAULT_PROJECT: "fromenv", BUNNY_SYSTEM_PROMPT: "envprompt" },
+      cwd,
+    });
+    expect(cfg.agent.defaultProject).toBe("fromenv");
+    expect(cfg.agent.systemPrompt).toBe("envprompt");
   });
 
   test("env overrides defaults", () => {

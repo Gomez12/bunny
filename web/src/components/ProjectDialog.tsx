@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import type { Project, ProjectVisibility } from "../api";
+import type { Agent, Project, ProjectVisibility } from "../api";
 // Cross-root import: vite is configured with fs.allow: [".."] so the frontend
 // can pin itself to the backend's validation rule instead of drifting.
 import { PROJECT_NAME_RE } from "../../../src/memory/project_name";
+import { validateOverride } from "../lib/forms";
 
 export interface ProjectDialogValue {
   name: string;
@@ -14,16 +15,26 @@ export interface ProjectDialogValue {
   lastN: number | null;
   /** null = inherit the global [memory] default. */
   recallK: number | null;
+  /** Agent names that should be linked to this project after submit. */
+  linkedAgents: string[];
 }
 
 interface Props {
   mode: "create" | "edit";
   initial?: Project;
+  /** All agents visible to the user; their `.projects` field seeds the checkboxes. */
+  allAgents?: Agent[];
   onClose: () => void;
   onSubmit: (value: ProjectDialogValue) => Promise<void>;
 }
 
-export default function ProjectDialog({ mode, initial, onClose, onSubmit }: Props) {
+export default function ProjectDialog({
+  mode,
+  initial,
+  allAgents = [],
+  onClose,
+  onSubmit,
+}: Props) {
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [systemPrompt, setSystemPrompt] = useState(initial?.systemPrompt ?? "");
@@ -31,6 +42,10 @@ export default function ProjectDialog({ mode, initial, onClose, onSubmit }: Prop
   const [visibility, setVisibility] = useState<ProjectVisibility>(initial?.visibility ?? "public");
   const [lastN, setLastN] = useState<string>(initial?.lastN == null ? "" : String(initial.lastN));
   const [recallK, setRecallK] = useState<string>(initial?.recallK == null ? "" : String(initial.recallK));
+  const [linkedAgents, setLinkedAgents] = useState<string[]>(() => {
+    if (!initial) return [];
+    return allAgents.filter((a) => a.projects.includes(initial.name)).map((a) => a.name);
+  });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -64,6 +79,7 @@ export default function ProjectDialog({ mode, initial, onClose, onSubmit }: Prop
         visibility,
         lastN: parsedLastN,
         recallK: parsedRecallK,
+        linkedAgents,
       });
       onClose();
     } catch (err) {
@@ -172,6 +188,39 @@ export default function ProjectDialog({ mode, initial, onClose, onSubmit }: Prop
             </label>
           </div>
 
+          <label className="project-form__field">
+            <span>Available agents</span>
+            {allAgents.length === 0 ? (
+              <span className="project-form__hint">
+                No agents yet. Create one in the Agents tab — it is auto-linked to the default
+                project.
+              </span>
+            ) : (
+              <div className="project-form__chips">
+                {allAgents.map((a) => {
+                  const checked = linkedAgents.includes(a.name);
+                  return (
+                    <label key={a.name} className="project-form__chip" title={a.description || ""}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() =>
+                          setLinkedAgents((prev) =>
+                            checked ? prev.filter((n) => n !== a.name) : [...prev, a.name],
+                          )
+                        }
+                      />
+                      <span>@{a.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+            <span className="project-form__hint">
+              Checked agents can be mentioned with <code>@name</code> in this project's chats.
+            </span>
+          </label>
+
           {error && <div className="project-form__error">{error}</div>}
 
           <div className="project-form__actions">
@@ -188,14 +237,3 @@ export default function ProjectDialog({ mode, initial, onClose, onSubmit }: Prop
   );
 }
 
-/**
- * Blank input → `null` (inherit global). Non-negative integer → number.
- * Anything else → `undefined` to signal a validation error to the caller.
- */
-function validateOverride(raw: string): number | null | undefined {
-  const t = raw.trim();
-  if (t === "") return null;
-  const n = Number(t);
-  if (!Number.isInteger(n) || n < 0) return undefined;
-  return n;
-}

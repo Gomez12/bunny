@@ -45,7 +45,7 @@ Reasoning wordt op `messages.channel='reasoning'` bewaard (zichtbaar in UI, niet
 
 ## Web UI
 
-Naast de CLI draait Bunny een web-UI (`bunny serve`) met drie tabs: **Chat** (live streaming), **Messages** (alle eerdere sessies, BM25-zoekbaar) en **Settings** (eigen profiel, API keys, en user-beheer voor admins). Zie [ADR 0006](./adr/0006-web-ui.md) voor de UI-opzet en [ADR 0007](./adr/0007-auth-and-users.md) voor de auth-laag. De agent loop is ongewijzigd — de webserver plugt op dezelfde `Renderer`-interface als de CLI (via `createSseRenderer`) en geeft de geauthenticeerde `userId` mee aan `runAgent`.
+Naast de CLI draait Bunny een web-UI (`bunny serve`) met vijf tabs: **Chat** (live streaming, gescoped op het actieve project; agents aanroepbaar met `@naam`), **Messages** (alle sessies van het actieve project, BM25-zoekbaar), **Projects** (card-grid + create/edit dialog), **Agents** (persoonlijkheden met eigen prompt/tools, per project opt-in, subagent-orchestratie via `call_agent`) en **Settings** (eigen profiel, API keys, en user-beheer voor admins). Zie [ADR 0006](./adr/0006-web-ui.md) voor de UI-opzet, [ADR 0007](./adr/0007-auth-and-users.md) voor de auth-laag, [ADR 0008](./adr/0008-projects.md) voor het projects-concept en [ADR 0009](./adr/0009-agents.md) voor agents. De agent loop is ongewijzigd — de webserver plugt op dezelfde `Renderer`-interface als de CLI (via `createSseRenderer`) en geeft de geauthenticeerde `userId` + optionele `agent` mee aan `runAgent`.
 
 ## Zie ook
 
@@ -56,3 +56,4 @@ Naast de CLI draait Bunny een web-UI (`bunny serve`) met drie tabs: **Chat** (li
 - ADR 0005 — Streaming en reasoning-normalisatie _(TBD)_
 - [ADR 0006 — Web UI (Chat + Messages)](./adr/0006-web-ui.md)
 - [ADR 0007 — Authenticatie, users, rollen en API keys](./adr/0007-auth-and-users.md)
+- [ADR 0008 — Projects](./adr/0008-projects.md)

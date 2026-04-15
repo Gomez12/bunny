@@ -17,6 +17,8 @@ export interface Turn {
   startedAt: number;
   error?: string;
   done: boolean;
+  /** Responding agent name. Null = default assistant. Set from SSE events. */
+  author: string | null;
 }
 
 export interface ToolCallState {
@@ -36,7 +38,12 @@ function approxTokens(text: string): number {
   return Math.max(1, Math.round(text.length / CHARS_PER_TOKEN));
 }
 
-export function useSSEChat(sessionId: string, onTurnComplete?: () => void) {
+export function useSSEChat(sessionId: string, project: string, onTurnComplete?: () => void) {
+  type MaybeAuthored = { author?: string };
+  const readAuthor = (ev: unknown): string | null => {
+    const a = (ev as MaybeAuthored | null)?.author;
+    return typeof a === "string" && a ? a : null;
+  };
   const [turns, setTurns] = useState<Turn[]>([]);
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<(() => void) | null>(null);
@@ -66,6 +73,7 @@ export function useSSEChat(sessionId: string, onTurnComplete?: () => void) {
           serverStats: null,
           startedAt,
           done: false,
+          author: null,
         },
       ]);
       setStreaming(true);
@@ -73,10 +81,18 @@ export function useSSEChat(sessionId: string, onTurnComplete?: () => void) {
       const handler = (ev: ServerEvent) => {
         switch (ev.type) {
           case "content":
-            updateLast((t) => ({ ...t, content: t.content + ev.text }));
+            updateLast((t) => ({
+              ...t,
+              content: t.content + ev.text,
+              author: t.author ?? readAuthor(ev),
+            }));
             break;
           case "reasoning":
-            updateLast((t) => ({ ...t, reasoning: t.reasoning + ev.text }));
+            updateLast((t) => ({
+              ...t,
+              reasoning: t.reasoning + ev.text,
+              author: t.author ?? readAuthor(ev),
+            }));
             break;
           case "tool_call": {
             updateLast((t) => {
@@ -140,15 +156,25 @@ export function useSSEChat(sessionId: string, onTurnComplete?: () => void) {
         }
       };
 
-      const { done, abort } = streamChat({ sessionId, prompt }, handler);
+      // Pre-tag the turn if the user prefixed @name — gives the UI an instant
+      // badge without waiting for the first content delta.
+      const m = prompt.match(/^\s*@([a-z0-9][a-z0-9_-]{0,62})(?:\s+|$)/i);
+      if (m) {
+        const candidate = m[1]!.toLowerCase();
+        updateLast((t) => ({ ...t, author: t.author ?? candidate }));
+      }
+
+      const { done, abort } = streamChat({ sessionId, prompt, project }, handler);
       abortRef.current = abort;
       done.catch((e: unknown) => {
-        updateLast((t) => ({ ...t, error: String(e), done: true }));
+        // HTTP-level failure (404/403/etc.): no agent actually answered, so
+        // strip the optimistic @-mention badge off the bubble.
+        updateLast((t) => ({ ...t, error: String(e), done: true, author: null }));
         setStreaming(false);
         abortRef.current = null;
       });
     },
-    [sessionId, updateLast, onTurnComplete],
+    [sessionId, project, updateLast, onTurnComplete],
   );
 
   const abort = useCallback(() => {

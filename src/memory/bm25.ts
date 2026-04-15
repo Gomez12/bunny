@@ -22,28 +22,44 @@ export interface BM25Result {
  * @param query - FTS5 query string (plain text or FTS5 query syntax)
  * @param k - max results to return
  * @param sessionId - if provided, restrict to a single session
+ * @param project - if provided, restrict to messages belonging to this project
+ *                  (treats NULL project rows as 'general')
  */
-export function searchBM25(db: Database, query: string, k = 8, sessionId?: string): BM25Result[] {
+export function searchBM25(
+  db: Database,
+  query: string,
+  k = 8,
+  sessionId?: string,
+  project?: string,
+  /** When set, only return rows written by this author or user turns. */
+  ownAuthor?: string | null,
+): BM25Result[] {
   if (!query.trim()) return [];
 
   // Escape special FTS5 characters to support plain-text queries.
   const escaped = escapeFts5(query);
 
-  const sql = sessionId
-    ? `SELECT m.id, m.session_id, m.content, messages_fts.rank
+  const clauses = ["messages_fts MATCH ?"];
+  const params: (string | number | null)[] = [escaped];
+  if (sessionId) {
+    clauses.push("m.session_id = ?");
+    params.push(sessionId);
+  }
+  if (project) {
+    clauses.push("COALESCE(m.project, 'general') = ?");
+    params.push(project);
+  }
+  if (ownAuthor !== undefined) {
+    clauses.push("(m.role = 'user' OR m.author IS ?)");
+    params.push(ownAuthor ?? null);
+  }
+  const sql = `SELECT m.id, m.session_id, m.content, messages_fts.rank
        FROM messages_fts
        JOIN messages m ON messages_fts.rowid = m.id
-       WHERE messages_fts MATCH ? AND m.session_id = ?
-       ORDER BY messages_fts.rank
-       LIMIT ?`
-    : `SELECT m.id, m.session_id, m.content, messages_fts.rank
-       FROM messages_fts
-       JOIN messages m ON messages_fts.rowid = m.id
-       WHERE messages_fts MATCH ?
+       WHERE ${clauses.join(" AND ")}
        ORDER BY messages_fts.rank
        LIMIT ?`;
-
-  const params = sessionId ? [escaped, sessionId, k] : [escaped, k];
+  params.push(k);
   const rows = db.prepare(sql).all(...params) as Array<{
     id: number;
     session_id: string;

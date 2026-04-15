@@ -25,25 +25,13 @@ export interface Project {
 export const DEFAULT_PROJECT = "general";
 
 import { PROJECT_NAME_RE } from "./project_name.ts";
-
-const RESERVED_NAMES = new Set([".", "..", "node_modules", ""]);
+import { validateSlugName } from "./slug.ts";
 
 export { PROJECT_NAME_RE };
 
-/**
- * Validate and normalise a project name.
- * Throws on invalid input. Names are lowercased before the regex check.
- */
+/** Validate and normalise a project name. Throws on invalid input. */
 export function validateProjectName(raw: unknown): string {
-  if (typeof raw !== "string") throw new Error("project name must be a string");
-  const name = raw.trim().toLowerCase();
-  if (RESERVED_NAMES.has(name)) throw new Error(`project name '${name}' is reserved`);
-  if (!PROJECT_NAME_RE.test(name)) {
-    throw new Error(
-      "project name must match ^[a-z0-9][a-z0-9_-]{0,62}$ (lowercase, digits, _ or -)",
-    );
-  }
-  return name;
+  return validateSlugName(raw, PROJECT_NAME_RE, "project");
 }
 
 interface ProjectRow {

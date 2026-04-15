@@ -69,5 +69,7 @@ export const paths = {
   sessions: () => resolveBunnyPath("sessions"),
   projects: () => resolveBunnyPath("projects"),
   projectDir: (name: string) => resolveBunnyPath("projects", name),
+  agents: () => resolveBunnyPath("agents"),
+  agentDir: (name: string) => resolveBunnyPath("agents", name),
   configFile: (cwd: string = process.cwd()) => join(cwd, "bunny.config.toml"),
 } as const;

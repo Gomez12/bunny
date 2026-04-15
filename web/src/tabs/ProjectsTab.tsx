@@ -2,8 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import {
   createProject,
   deleteProject,
+  fetchAgents,
   fetchProjects,
+  linkAgentToProject,
+  unlinkAgentFromProject,
   updateProject,
+  type Agent,
   type AuthUser,
   type Project,
 } from "../api";
@@ -22,12 +26,15 @@ type DialogState =
 
 export default function ProjectsTab({ currentUser, activeProject, onPickProject }: Props) {
   const [projects, setProjects] = useState<Project[] | null>(null);
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogState>({ kind: "closed" });
 
   const refresh = useCallback(async () => {
     try {
-      setProjects(await fetchProjects());
+      const [p, a] = await Promise.all([fetchProjects(), fetchAgents().catch(() => [])]);
+      setProjects(p);
+      setAgents(a);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -51,6 +58,7 @@ export default function ProjectsTab({ currentUser, activeProject, onPickProject 
       lastN: v.lastN,
       recallK: v.recallK,
     });
+    await syncAgentLinks(v.name, [], v.linkedAgents);
     await refresh();
   };
 
@@ -63,7 +71,20 @@ export default function ProjectsTab({ currentUser, activeProject, onPickProject 
       lastN: v.lastN,
       recallK: v.recallK,
     });
+    const before = agents.filter((a) => a.projects.includes(v.name)).map((a) => a.name);
+    await syncAgentLinks(v.name, before, v.linkedAgents);
     await refresh();
+  };
+
+  const syncAgentLinks = async (project: string, before: string[], after: string[]) => {
+    const beforeSet = new Set(before);
+    const afterSet = new Set(after);
+    const toLink = after.filter((n) => !beforeSet.has(n));
+    const toUnlink = before.filter((n) => !afterSet.has(n));
+    await Promise.all([
+      ...toLink.map((n) => linkAgentToProject(project, n).catch(() => undefined)),
+      ...toUnlink.map((n) => unlinkAgentFromProject(project, n).catch(() => undefined)),
+    ]);
   };
 
   const handleDelete = async (name: string) => {
@@ -151,6 +172,7 @@ export default function ProjectsTab({ currentUser, activeProject, onPickProject 
       {dialog.kind === "create" && (
         <ProjectDialog
           mode="create"
+          allAgents={agents}
           onClose={() => setDialog({ kind: "closed" })}
           onSubmit={handleCreate}
         />
@@ -159,6 +181,7 @@ export default function ProjectsTab({ currentUser, activeProject, onPickProject 
         <ProjectDialog
           mode="edit"
           initial={dialog.project}
+          allAgents={agents}
           onClose={() => setDialog({ kind: "closed" })}
           onSubmit={handleEdit}
         />

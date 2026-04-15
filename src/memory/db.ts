@@ -92,9 +92,20 @@ function migrateColumns(db: Database): void {
   addColumn("ALTER TABLE messages ADD COLUMN prompt_tokens INTEGER");
   addColumn("ALTER TABLE messages ADD COLUMN completion_tokens INTEGER");
   addColumn("ALTER TABLE messages ADD COLUMN user_id TEXT");
+  addColumn("ALTER TABLE messages ADD COLUMN project TEXT");
+  addColumn("ALTER TABLE messages ADD COLUMN author TEXT");
   addColumn("ALTER TABLE events ADD COLUMN user_id TEXT");
   db.run("CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_id)");
   db.run("CREATE INDEX IF NOT EXISTS idx_messages_session_user ON messages(session_id, user_id)");
+  db.run("CREATE INDEX IF NOT EXISTS idx_messages_project ON messages(project, ts)");
+  db.run("CREATE INDEX IF NOT EXISTS idx_messages_author ON messages(author)");
+  // Auto-seed the 'general' project so every install has a default workspace.
+  const now = Date.now();
+  db.run(
+    `INSERT OR IGNORE INTO projects(name, description, visibility, created_by, created_at, updated_at)
+     VALUES ('general', 'Default project', 'public', NULL, ?, ?)`,
+    [now, now],
+  );
 }
 
 function applySchema(db: Database, embedDim: number): void {
@@ -111,8 +122,11 @@ function applySchema(db: Database, embedDim: number): void {
     try {
       db.run(stmt);
     } catch (e) {
-      // Skip expected errors like "table already exists" when IF NOT EXISTS is absent.
-      if (!errorMessage(e).includes("already exists")) throw e;
+      const msg = errorMessage(e);
+      // Skip expected errors when running the declarative schema against an
+      // already-migrated DB: tables/indexes already exist, or a statement
+      // references a column that only gets added later by migrateColumns.
+      if (!msg.includes("already exists") && !msg.includes("no such column")) throw e;
     }
   }
 

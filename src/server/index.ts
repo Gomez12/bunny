@@ -21,6 +21,8 @@ import { safePath } from "../util/path.ts";
 import { handleApi, type RouteCtx } from "./routes.ts";
 import { webBundle } from "./web_bundle.ts";
 import { ensureSeedUsers } from "../auth/seed.ts";
+import { ensureProject, validateProjectName } from "../memory/projects.ts";
+import { ensureProjectDir } from "../memory/project_assets.ts";
 
 const DEFAULT_PORT = 3000;
 
@@ -60,6 +62,14 @@ export async function startServer(opts: ServeOptions = {}): Promise<{ stop: () =
 
   const db = await getDb({ embedDim: cfg.embed.dim });
   await ensureSeedUsers(db, cfg.auth);
+  // Seed the configured default project (on top of the always-present 'general').
+  try {
+    const defaultProject = validateProjectName(cfg.agent.defaultProject);
+    ensureProject(db, defaultProject);
+    ensureProjectDir(defaultProject);
+  } catch (e) {
+    console.warn("[bunny] invalid [agent].default_project:", errorMessage(e));
+  }
   const queue = createBunnyQueue(db);
   const ctx: RouteCtx = { db, queue, cfg };
 

@@ -65,6 +65,17 @@ export interface Renderer {
   onTurnEnd(): void;
 }
 
+/** Renderer that discards every event. Used e.g. to silence subagent runs. */
+export function silentRenderer(): Renderer {
+  return {
+    onDelta() {},
+    onToolResult() {},
+    onStats() {},
+    onError() {},
+    onTurnEnd() {},
+  };
+}
+
 export interface RendererOptions {
   reasoningMode: ReasoningRenderMode;
   /**

@@ -11,6 +11,8 @@ interface Props {
   scope?: "mine" | "all";
   /** Show owner badge next to each session (useful under Messages for admins). */
   showOwner?: boolean;
+  /** Restrict the listed sessions to a single project. */
+  project?: string;
 }
 
 function sameSessions(a: SessionSummary[], b: SessionSummary[]): boolean {
@@ -28,6 +30,7 @@ export default function SessionSidebar({
   refreshKey,
   scope,
   showOwner,
+  project,
 }: Props) {
   const [search, setSearch] = useState("");
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -35,14 +38,14 @@ export default function SessionSidebar({
   useEffect(() => {
     const t = setTimeout(async () => {
       try {
-        const list = await fetchSessions(search.trim() || undefined, { scope });
+        const list = await fetchSessions(search.trim() || undefined, { scope, project });
         setSessions((prev) => (sameSessions(prev, list) ? prev : list));
       } catch (e) {
         console.error(e);
       }
     }, 200);
     return () => clearTimeout(t);
-  }, [search, refreshKey, scope]);
+  }, [search, refreshKey, scope, project]);
 
   return (
     <aside className="sidebar">

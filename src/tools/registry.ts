@@ -37,9 +37,25 @@ export class ToolRegistry {
     });
   }
 
-  /** All tool schemas, ready to be sent in a chat request. */
-  list(): ToolSchema[] {
-    return [...this.tools.values()].map((t) => t.schema);
+  /**
+   * Tool schemas, ready to be sent in a chat request. When `filter` is an
+   * array, only schemas whose names appear in it are returned (preserving the
+   * caller-supplied order). When `filter` is `undefined`, every registered
+   * tool is returned.
+   */
+  list(filter?: readonly string[]): ToolSchema[] {
+    if (!filter) return [...this.tools.values()].map((t) => t.schema);
+    const out: ToolSchema[] = [];
+    for (const name of filter) {
+      const t = this.tools.get(name);
+      if (t) out.push(t.schema);
+    }
+    return out;
+  }
+
+  /** All registered names, useful for UI pickers. */
+  names(): string[] {
+    return [...this.tools.keys()];
   }
 
   /** Execute a named tool. Returns an error ToolResult if the name is unknown. */
@@ -66,6 +82,28 @@ export class ToolRegistry {
 
   has(name: string): boolean {
     return this.tools.has(name);
+  }
+
+  /**
+   * Return a new registry containing the named subset of tools from this
+   * registry, plus any extra tools supplied inline (useful to inject a
+   * closure-bound `call_agent` for a specific run without mutating the
+   * shared singleton). A `filter` of `undefined` copies all tools.
+   */
+  subset(
+    filter: readonly string[] | undefined,
+    extras: Array<{ name: string; description: string; parameters: JsonSchemaObject; handler: ToolHandler }> = [],
+  ): ToolRegistry {
+    const next = new ToolRegistry();
+    const source = filter ? filter.filter((n) => this.tools.has(n)) : [...this.tools.keys()];
+    for (const name of source) {
+      const tool = this.tools.get(name)!;
+      next.tools.set(name, tool);
+    }
+    for (const e of extras) {
+      next.register(e.name, e.description, e.parameters, e.handler);
+    }
+    return next;
   }
 }
 

@@ -10,16 +10,17 @@ import { useSSEChat } from "../hooks/useSSEChat";
 
 interface Props {
   sessionId: string;
+  project: string;
   onPickSession: (id: string) => void;
   onNewSession: () => void;
 }
 
-export default function ChatTab({ sessionId, onPickSession, onNewSession }: Props) {
+export default function ChatTab({ sessionId, project, onPickSession, onNewSession }: Props) {
   const [history, setHistory] = useState<HistoryTurn[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const { turns, streaming, send, abort, reset } = useSSEChat(sessionId, () =>
+  const { turns, streaming, send, abort, reset } = useSSEChat(sessionId, project, () =>
     setRefreshKey((k) => k + 1),
   );
 
@@ -49,6 +50,7 @@ export default function ChatTab({ sessionId, onPickSession, onNewSession }: Prop
         onPick={onPickSession}
         onNew={onNewSession}
         refreshKey={refreshKey}
+        project={project}
       />
       <div className="chat__main">
         <div className="chat__scroll" ref={scrollRef}>
@@ -61,7 +63,7 @@ export default function ChatTab({ sessionId, onPickSession, onNewSession }: Prop
           {history.map((t) => (
             <div key={t.id} className="turn">
               <MessageBubble role="user">{t.prompt}</MessageBubble>
-              <MessageBubble role="assistant">
+              <MessageBubble role="assistant" author={t.author}>
                 {t.reasoning && <ReasoningBlock text={t.reasoning} />}
                 {t.toolCalls.map((tc) => (
                   <ToolCallCard
@@ -80,7 +82,7 @@ export default function ChatTab({ sessionId, onPickSession, onNewSession }: Prop
           {turns.map((t) => (
             <div key={t.id} className="turn">
               <MessageBubble role="user">{t.prompt}</MessageBubble>
-              <MessageBubble role="assistant">
+              <MessageBubble role="assistant" author={t.author}>
                 {t.reasoning && <ReasoningBlock text={t.reasoning} />}
                 {t.toolCalls.map((tc) => (
                   <ToolCallCard
