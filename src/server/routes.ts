@@ -38,6 +38,7 @@ import {
   writeProjectSystemPrompt,
 } from "../memory/project_assets.ts";
 import { handleAgentRoute } from "./agent_routes.ts";
+import { handleBoardRoute } from "./board_routes.ts";
 import { parseMention } from "../agent/mention.ts";
 import { getAgent, isAgentLinkedToProject } from "../memory/agents.ts";
 
@@ -66,6 +67,12 @@ export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<
     user,
   );
   if (agentResponse) return agentResponse;
+
+  // ── Board (kanban) ────────────────────────────────────────────────────────
+  // Mounted before the generic project routes so /api/projects/:p/board hits
+  // here instead of returning a 404 from the project handler.
+  const boardResponse = await handleBoardRoute(req, url, { db: ctx.db }, user);
+  if (boardResponse) return boardResponse;
 
   // ── Projects ──────────────────────────────────────────────────────────────
   if (pathname === "/api/projects" && req.method === "GET") {
@@ -260,7 +267,7 @@ interface ProjectDto {
   recallK: number | null;
 }
 
-function canSeeProject(p: Project, user: User): boolean {
+export function canSeeProject(p: Project, user: User): boolean {
   if (p.visibility === "public") return true;
   if (user.role === "admin") return true;
   return p.createdBy === user.id;
