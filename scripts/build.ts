@@ -195,11 +195,17 @@ try {
     if (exitCode === 0) {
       // Re-sign darwin binaries: bun --compile embeds an invalid signature that
       // macOS SIGKILL's on launch. Remove the bad signature first, then re-sign.
-      if (target.bunTarget.includes("darwin")) {
-        Bun.spawnSync(["codesign", "--remove-signature", outfile]);
-        const sign = Bun.spawnSync(["codesign", "--sign", "-", outfile]);
-        if (sign.exitCode !== 0) {
-          console.warn(`  ⚠ codesign failed: ${new TextDecoder().decode(sign.stderr)}`);
+      // Only possible on macOS — on other hosts (CI Linux) we skip and users
+      // can re-sign locally with `codesign --sign - bunny-darwin-*`.
+      if (target.bunTarget.includes("darwin") && process.platform === "darwin") {
+        try {
+          Bun.spawnSync(["codesign", "--remove-signature", outfile]);
+          const sign = Bun.spawnSync(["codesign", "--sign", "-", outfile]);
+          if (sign.exitCode !== 0) {
+            console.warn(`  ⚠ codesign failed: ${new TextDecoder().decode(sign.stderr)}`);
+          }
+        } catch (err) {
+          console.warn(`  ⚠ codesign skipped: ${err}`);
         }
       }
 
