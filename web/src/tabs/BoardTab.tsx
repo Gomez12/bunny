@@ -57,6 +57,7 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
     | { kind: "create" }
     | { kind: "edit"; lane: Swimlane }
   >({ kind: "closed" });
+  const [activeGroupTab, setActiveGroupTab] = useState<string | null>(null);
   const [dragging, setDragging] = useState<
     | { kind: "card"; card: BoardCardModel }
     | { kind: "lane"; lane: Swimlane }
@@ -343,74 +344,88 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
 
       {error && <div className="board__error">{error}</div>}
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        onDragCancel={handleDragCancel}
-      >
-      <SortableContext
-        items={board.swimlanes.map((l) => `lane-${l.id}`)}
-        strategy={horizontalListSortingStrategy}
-      >
-      <div className="board__columns">
-        {(() => {
-          const sorted = [...board.swimlanes].sort((a, b) => a.position - b.position);
-          const elements: React.ReactNode[] = [];
-          let currentGroup: string | null | undefined = undefined;
-          for (const lane of sorted) {
-            if (lane.group !== currentGroup) {
-              if (currentGroup) elements.push(<div key={`group-end-${currentGroup}`} className="board__group-end" />);
-              currentGroup = lane.group;
-              if (currentGroup) elements.push(
-                <div key={`group-start-${currentGroup}`} className="board__group-label">{currentGroup}</div>,
-              );
-            }
-            elements.push(
-              <BoardColumn
-                key={lane.id}
-                lane={lane}
-                cards={board.cards.filter((c) => c.swimlaneId === lane.id)}
-                allLanes={board.swimlanes}
-                canManageLane={canManageLane}
-                canEditCard={canEditCard}
-                onAddCard={() => setDialog({ kind: "create", swimlaneId: lane.id })}
-                onEditLane={() => handleEditLane(lane)}
-                onToggleAutoRun={() => handleToggleLaneAutoRun(lane)}
-                onDeleteLane={() => handleDeleteLane(lane)}
-                onEditCard={(c) => setDialog({ kind: "edit", card: c })}
-                onMoveCard={handleMoveCard}
-                onArchiveCard={handleArchiveCard}
-              />,
-            );
-          }
-          if (currentGroup) elements.push(<div key="group-end-final" className="board__group-end" />);
-          return elements;
-        })()}
-      </div>
-      </SortableContext>
-      <DragOverlay
-        dropAnimation={{
-          duration: 180,
-          easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)",
-          sideEffects: defaultDropAnimationSideEffects({
-            styles: { active: { opacity: "0.4" } },
-          }),
-        }}
-      >
-        {dragging?.kind === "card" && (
-          <div className="board-card-overlay">
-            <BoardCardPreview card={dragging.card} />
-          </div>
-        )}
-        {dragging?.kind === "lane" && (
-          <div className="board-column-overlay">
-            <div className="board-column-overlay__title">{dragging.lane.name}</div>
-          </div>
-        )}
-      </DragOverlay>
-      </DndContext>
+      {(() => {
+        const groups = [...new Set(board.swimlanes.map((l) => l.group).filter(Boolean))] as string[];
+        const hasGroups = groups.length > 0;
+        const visibleLanes = board.swimlanes
+          .filter((l) => (activeGroupTab === null ? !l.group : l.group === activeGroupTab))
+          .sort((a, b) => a.position - b.position);
+        return (
+          <>
+            {hasGroups && (
+              <div className="board__group-tabs">
+                <button
+                  className={`board__group-tab ${activeGroupTab === null ? "board__group-tab--active" : ""}`}
+                  onClick={() => setActiveGroupTab(null)}
+                >
+                  Board
+                </button>
+                {groups.map((g) => (
+                  <button
+                    key={g}
+                    className={`board__group-tab ${activeGroupTab === g ? "board__group-tab--active" : ""}`}
+                    onClick={() => setActiveGroupTab(g)}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+            )}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCorners}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDragCancel={handleDragCancel}
+            >
+            <SortableContext
+              items={visibleLanes.map((l) => `lane-${l.id}`)}
+              strategy={horizontalListSortingStrategy}
+            >
+            <div className="board__columns">
+              {visibleLanes.map((lane) => (
+                <BoardColumn
+                  key={lane.id}
+                  lane={lane}
+                  cards={board.cards.filter((c) => c.swimlaneId === lane.id)}
+                  allLanes={board.swimlanes}
+                  canManageLane={canManageLane}
+                  canEditCard={canEditCard}
+                  onAddCard={() => setDialog({ kind: "create", swimlaneId: lane.id })}
+                  onEditLane={() => handleEditLane(lane)}
+                  onToggleAutoRun={() => handleToggleLaneAutoRun(lane)}
+                  onDeleteLane={() => handleDeleteLane(lane)}
+                  onEditCard={(c) => setDialog({ kind: "edit", card: c })}
+                  onMoveCard={handleMoveCard}
+                  onArchiveCard={handleArchiveCard}
+                />
+              ))}
+            </div>
+            </SortableContext>
+            <DragOverlay
+              dropAnimation={{
+                duration: 180,
+                easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)",
+                sideEffects: defaultDropAnimationSideEffects({
+                  styles: { active: { opacity: "0.4" } },
+                }),
+              }}
+            >
+              {dragging?.kind === "card" && (
+                <div className="board-card-overlay">
+                  <BoardCardPreview card={dragging.card} />
+                </div>
+              )}
+              {dragging?.kind === "lane" && (
+                <div className="board-column-overlay">
+                  <div className="board-column-overlay__title">{dragging.lane.name}</div>
+                </div>
+              )}
+            </DragOverlay>
+            </DndContext>
+          </>
+        );
+      })()}
 
       {dialog.kind !== "closed" && (
         <CardDialog
