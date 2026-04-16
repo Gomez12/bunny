@@ -1146,3 +1146,41 @@ export function workspaceDownloadUrl(project: string, path: string): string {
   const qs = new URLSearchParams({ path, encoding: "raw" });
   return `/api/projects/${encodeURIComponent(project)}/workspace/file?${qs}`;
 }
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+
+export type DashboardRange = "24h" | "7d" | "30d" | "90d" | "all";
+
+export interface DashboardData {
+  kpi: {
+    totalMessages: number;
+    totalSessions: number;
+    totalPromptTokens: number;
+    totalCompletionTokens: number;
+    avgResponseMs: number | null;
+  };
+  activityOverTime: Array<{ ts: number; count: number }>;
+  tokensOverTime: Array<{ ts: number; prompt: number; completion: number }>;
+  responseTimeOverTime: Array<{ ts: number; avgMs: number }>;
+  toolUsage: Array<{ name: string; count: number }>;
+  agentActivity: Array<{ agent: string; count: number }>;
+  projectActivity: Array<{ project: string; count: number }>;
+  boardOverview: Array<{ lane: string; count: number }>;
+  cardRunStatus: Array<{ status: string; count: number }>;
+  errorRate: { total: number; errors: number };
+  recentActivity: Array<{
+    id: number;
+    ts: number;
+    topic: string;
+    kind: string;
+    sessionId: string | null;
+    userId: string | null;
+    durationMs: number | null;
+    error: string | null;
+  }>;
+  scheduler: { total: number; enabled: number; errored: number; nextDue: number | null };
+}
+
+export async function fetchDashboard(range: DashboardRange = "7d"): Promise<DashboardData> {
+  return jsonFetch<DashboardData>(`/api/dashboard?range=${range}`);
+}

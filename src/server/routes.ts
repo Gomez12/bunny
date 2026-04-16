@@ -40,6 +40,7 @@ import {
   parseMemoryOverride,
   writeProjectSystemPrompt,
 } from "../memory/project_assets.ts";
+import { handleDashboardRoute } from "./dashboard_routes.ts";
 import { handleAgentRoute } from "./agent_routes.ts";
 import { handleSkillRoute } from "./skill_routes.ts";
 import { handleBoardRoute } from "./board_routes.ts";
@@ -68,6 +69,10 @@ export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<
   // All remaining /api/* routes require an authenticated user.
   const user = await authenticate(ctx.db, req);
   if (!user) return json({ error: "unauthorized" }, 401);
+
+  // ── Dashboard (stats) ─────────────────────────────────────────────────────
+  const dashResponse = handleDashboardRoute(req, url, { db: ctx.db }, user);
+  if (dashResponse) return dashResponse;
 
   // ── Agents & tool catalogue ───────────────────────────────────────────────
   const agentResponse = await handleAgentRoute(

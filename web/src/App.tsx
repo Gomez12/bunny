@@ -5,6 +5,7 @@ import ChangePasswordPage from "./pages/ChangePasswordPage";
 
 // Tabs + pages are route-level — lazy-load so the initial bundle stays small
 // (mermaid, highlight.js, react-markdown, @dnd-kit end up in their own chunks).
+const DashboardTab = lazy(() => import("./tabs/DashboardTab"));
 const ChatTab = lazy(() => import("./tabs/ChatTab"));
 const MessagesTab = lazy(() => import("./tabs/MessagesTab"));
 const ProjectsTab = lazy(() => import("./tabs/ProjectsTab"));
@@ -16,7 +17,7 @@ const TasksTab = lazy(() => import("./tabs/TasksTab"));
 const SkillsTab = lazy(() => import("./tabs/SkillsTab"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 
-type Tab = "chat" | "messages" | "board" | "files" | "tasks" | "projects" | "agents" | "skills" | "logs" | "settings";
+type Tab = "dashboard" | "chat" | "messages" | "board" | "files" | "tasks" | "projects" | "agents" | "skills" | "logs" | "settings";
 
 const SESSION_STORAGE_KEY = "bunny.activeSessionId";
 const PROJECT_STORAGE_KEY = "bunny.activeProject";
@@ -24,7 +25,7 @@ const TAB_STORAGE_KEY = "bunny.activeTab";
 const DEFAULT_PROJECT = "general";
 
 const VALID_TABS: ReadonlySet<string> = new Set<Tab>([
-  "chat", "messages", "board", "files", "tasks", "projects", "agents", "skills", "logs", "settings",
+  "dashboard", "chat", "messages", "board", "files", "tasks", "projects", "agents", "skills", "logs", "settings",
 ]);
 
 function adoptSession(id: string): string {
@@ -125,6 +126,12 @@ export default function App() {
         </div>
         <nav className="tabs">
           <button
+            className={`tab ${tab === "dashboard" ? "tab--active" : ""}`}
+            onClick={() => setTab("dashboard")}
+          >
+            Dashboard
+          </button>
+          <button
             className={`tab ${tab === "chat" ? "tab--active" : ""}`}
             onClick={() => setTab("chat")}
           >
@@ -200,6 +207,7 @@ export default function App() {
 
       <main className="main">
         <Suspense fallback={<div className="app-loading">Loading…</div>}>
+          {tab === "dashboard" && <DashboardTab currentUser={user} />}
           {tab === "chat" && sessionId && (
             <ChatTab
               sessionId={sessionId}

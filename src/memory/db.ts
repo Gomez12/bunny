@@ -119,6 +119,9 @@ function migrateColumns(db: Database): void {
   db.run(
     "CREATE INDEX IF NOT EXISTS idx_messages_session_role_channel_ts ON messages(session_id, role, channel, ts)",
   );
+  db.run("CREATE INDEX IF NOT EXISTS idx_messages_ts ON messages(ts)");
+  db.run("CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts)");
+
   // Auto-seed the 'general' project so every install has a default workspace.
   const now = Date.now();
   db.run(
