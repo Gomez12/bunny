@@ -72,7 +72,7 @@ export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<
   const agentResponse = await handleAgentRoute(
     req,
     url,
-    { db: ctx.db, defaultProject: ctx.cfg.agent.defaultProject },
+    { db: ctx.db, queue: ctx.queue, defaultProject: ctx.cfg.agent.defaultProject },
     user,
   );
   if (agentResponse) return agentResponse;
@@ -89,14 +89,14 @@ export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<
   if (boardResponse) return boardResponse;
 
   // ── Workspace (per-project files) ─────────────────────────────────────────
-  const workspaceResponse = await handleWorkspaceRoute(req, url, { db: ctx.db }, user);
+  const workspaceResponse = await handleWorkspaceRoute(req, url, { db: ctx.db, queue: ctx.queue }, user);
   if (workspaceResponse) return workspaceResponse;
 
   // ── Scheduler (system + user tasks) ───────────────────────────────────────
   const taskResponse = await handleScheduledTaskRoute(
     req,
     url,
-    { db: ctx.db, scheduler: ctx.scheduler, registry: ctx.handlerRegistry },
+    { db: ctx.db, queue: ctx.queue, scheduler: ctx.scheduler, registry: ctx.handlerRegistry },
     user,
   );
   if (taskResponse) return taskResponse;
@@ -167,6 +167,7 @@ export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<
       return json({ error: "hiddenFromChat (boolean) is required" }, 400);
     }
     setSessionHiddenFromChat(ctx.db, user.id, sessionId, body.hiddenFromChat);
+    void ctx.queue.log({ topic: "session", kind: "update", userId: user.id, data: { sessionId, hiddenFromChat: body.hiddenFromChat } });
     return json({ ok: true, sessionId, hiddenFromChat: body.hiddenFromChat });
   }
 
@@ -440,6 +441,7 @@ async function handleCreateProject(req: Request, ctx: RouteCtx, user: User): Pro
       { prompt: body.systemPrompt ?? "", append: body.appendMode !== false },
       { lastN: parseMemoryOverride(body.lastN), recallK: parseMemoryOverride(body.recallK) },
     );
+    void ctx.queue.log({ topic: "project", kind: "create", userId: user.id, data: { name, visibility: body.visibility ?? "public" } });
     return json({ project: toProjectDto(created) }, 201);
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -489,6 +491,7 @@ async function handlePatchProject(
         : undefined;
       writeProjectSystemPrompt(name, sp, memory);
     }
+    void ctx.queue.log({ topic: "project", kind: "update", userId: user.id, data: { name } });
     return json({ project: toProjectDto(updated) });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -527,6 +530,7 @@ function handleDeleteProject(ctx: RouteCtx, user: User, name: string): Response 
   if (!canEditProject(p, user)) return json({ error: "forbidden" }, 403);
   try {
     deleteProject(ctx.db, name);
+    void ctx.queue.log({ topic: "project", kind: "delete", userId: user.id, data: { name } });
     return json({ ok: true });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);

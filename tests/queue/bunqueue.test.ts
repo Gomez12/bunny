@@ -69,4 +69,18 @@ describe("createBunnyQueue", () => {
     const events = queryEvents(db, { topic: "llm" });
     expect(events[0]?.error).toBe("timeout");
   });
+
+  test("userId field is persisted to user_id column", async () => {
+    const db = await setup();
+    const q = createBunnyQueue(db);
+
+    await q.log({ topic: "auth", kind: "login", userId: "u42", data: { username: "alice" } });
+
+    await q.close();
+
+    const events = queryEvents(db, { topic: "auth" });
+    expect(events.length).toBeGreaterThanOrEqual(1);
+    expect(events[0]?.userId).toBe("u42");
+    expect(events[0]?.kind).toBe("login");
+  });
 });

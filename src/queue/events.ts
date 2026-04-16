@@ -12,6 +12,7 @@ export interface EventRecord {
   topic: string;
   kind: string;
   sessionId?: string;
+  userId?: string;
   payloadJson?: string;
   durationMs?: number;
   error?: string;
@@ -19,13 +20,14 @@ export interface EventRecord {
 
 export function insertEvent(db: Database, rec: EventRecord): void {
   db.prepare(
-    `INSERT INTO events (ts, topic, kind, session_id, payload_json, duration_ms, error)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO events (ts, topic, kind, session_id, user_id, payload_json, duration_ms, error)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     Date.now(),
     rec.topic,
     rec.kind,
     rec.sessionId ?? null,
+    rec.userId ?? null,
     rec.payloadJson ?? null,
     rec.durationMs ?? null,
     rec.error ?? null,
@@ -53,11 +55,12 @@ export function queryEvents(
   const limit = opts.limit ?? 100;
 
   const rows = db
-    .prepare(`SELECT topic, kind, session_id, payload_json, duration_ms, error FROM events ${where} ORDER BY ts DESC LIMIT ?`)
+    .prepare(`SELECT topic, kind, session_id, user_id, payload_json, duration_ms, error FROM events ${where} ORDER BY ts DESC LIMIT ?`)
     .all(...params, limit) as Array<{
     topic: string;
     kind: string;
     session_id: string | null;
+    user_id: string | null;
     payload_json: string | null;
     duration_ms: number | null;
     error: string | null;
@@ -67,6 +70,7 @@ export function queryEvents(
     topic: r.topic,
     kind: r.kind,
     sessionId: r.session_id ?? undefined,
+    userId: r.user_id ?? undefined,
     payloadJson: r.payload_json ?? undefined,
     durationMs: r.duration_ms ?? undefined,
     error: r.error ?? undefined,

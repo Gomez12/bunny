@@ -5,6 +5,7 @@
  */
 
 import type { Database } from "bun:sqlite";
+import type { BunnyQueue } from "../queue/bunqueue.ts";
 import type { User } from "../auth/users.ts";
 import { errorMessage } from "../util/error.ts";
 import { json } from "./http.ts";
@@ -55,6 +56,7 @@ function knownToolSet(): Set<string> {
 
 export interface AgentRouteCtx {
   db: Database;
+  queue: BunnyQueue;
   /** Project every new agent is auto-linked to so it shows up in the default chat. */
   defaultProject: string;
 }
@@ -224,6 +226,7 @@ async function handleCreateAgent(req: Request, ctx: AgentRouteCtx, user: User): 
     if (getProject(ctx.db, ctx.defaultProject)) {
       linkAgentToProject(ctx.db, ctx.defaultProject, name);
     }
+    void ctx.queue.log({ topic: "agent", kind: "create", userId: user.id, data: { name, visibility: body.visibility ?? "private" } });
     return json({ agent: toAgentDto(created, listProjectsForAgent(ctx.db, name)) }, 201);
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -281,6 +284,7 @@ async function handlePatchAgent(
         allowedSubagents: touchesSubs ? sanitiseNameList(body.allowedSubagents) : undefined,
       });
     }
+    void ctx.queue.log({ topic: "agent", kind: "update", userId: user.id, data: { name } });
     return json({ agent: toAgentDto(updated, listProjectsForAgent(ctx.db, name)) });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -293,6 +297,7 @@ function handleDeleteAgent(ctx: AgentRouteCtx, user: User, name: string): Respon
   if (!canEditAgent(a, user)) return json({ error: "forbidden" }, 403);
   try {
     deleteAgent(ctx.db, name);
+    void ctx.queue.log({ topic: "agent", kind: "delete", userId: user.id, data: { name } });
     return json({ ok: true });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -343,6 +348,7 @@ async function handleLinkAgent(
     const agent = validateAgentName(body.agent ?? "");
     if (!getAgent(ctx.db, agent)) return json({ error: "agent not found" }, 404);
     linkAgentToProject(ctx.db, project, agent);
+    void ctx.queue.log({ topic: "agent", kind: "link", userId: user.id, data: { project, agent } });
     return json({ ok: true });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -369,6 +375,7 @@ function handleUnlinkAgent(
     return json({ error: "forbidden" }, 403);
   }
   unlinkAgentFromProject(ctx.db, project, agent);
+  void ctx.queue.log({ topic: "agent", kind: "unlink", userId: user.id, data: { project, agent } });
   return json({ ok: true });
 }
 

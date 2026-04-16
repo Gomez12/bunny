@@ -41,7 +41,7 @@ bun run build                  # compile standalone binary via scripts/build.ts
 The agent loop is a thin outer/inner loop (Mihail Eric, _The Emperor Has No Clothes_). Three design principles drive the whole codebase:
 
 1. **Minimal agent loop** — `src/agent/loop.ts:runAgent` is the only orchestrator: build system prompt (with hybrid recall injected) → stream LLM → if tool_calls, execute in parallel → repeat until assistant answers without tools. Capped at `MAX_TOOL_ITERATIONS = 20`.
-2. **Queue is the spine** — every LLM request/response, tool call/result, and memory write is a fire-and-forget job on a `bunqueue` worker (`src/queue/`) which logs to `events` in SQLite. Nothing is invisible; nothing blocks the agent.
+2. **Queue is the spine** — every meaningful action is a fire-and-forget job on a `bunqueue` worker (`src/queue/`) which logs to `events` in SQLite. This covers LLM requests/responses, tool calls/results, memory writes, **and** all HTTP mutations (project/board/agent/task/workspace CRUD, auth events). `LogPayload` carries an optional `userId` so every event is attributable. Every route context (`AuthRouteCtx`, `WorkspaceRouteCtx`, `AgentRouteCtx`, `ScheduledTaskRouteCtx`, `BoardRouteCtx`) includes `queue: BunnyQueue`. Nothing is invisible; nothing blocks the caller.
 3. **Portable state** — single SQLite file under `$BUNNY_HOME`. Schema in `src/memory/schema.sql` (NEVER drop/rename columns — add new ones). The `embeddings` vec0 table is created dynamically because the dimension must be baked into the CREATE statement.
 
 ### Streaming pipeline
@@ -151,6 +151,7 @@ Authentication lives in `src/auth/` (`users.ts`, `sessions.ts`, `apikeys.ts`, `p
   - TOML/JSON `description` fields and seeded sample data
   Chat replies to the user may follow the user's language (e.g. Dutch) — but everything that lands in `git log`, the file tree, or GitHub does not. If you catch yourself typing Dutch in any of the above, stop and rewrite in English before committing.
 - When changing `src/memory/schema.sql`, add new columns rather than altering existing ones — the schema is append-only because state is long-lived in `$BUNNY_HOME`.
+- **Every HTTP mutation must log through the queue.** Add `void ctx.queue.log({ topic, kind, userId, data })` after each successful write. Use consistent naming: `topic` = domain noun (`project`, `board`, `auth`, `agent`, `task`, `workspace`, `apikey`, `user`, `session`), `kind` = verb or dotted verb (`create`, `update`, `delete`, `card.move`, `login.failed`, etc.). Always include `userId` when an authenticated user is available. Never log secrets (passwords, API key values). The queue is fire-and-forget (`void`) — logging must never block the response.
 - Provider-specific streaming quirks belong in `src/llm/profiles.ts`, not in `adapter.ts` or `stream.ts`.
 - Tests live under `tests/` mirroring `src/` layout. DB tests use `mkdtempSync` + `openDb(path)` for isolation.
 - Design decisions are captured in `docs/adr/` (numbered). Add a new ADR when making a non-trivial architectural choice.

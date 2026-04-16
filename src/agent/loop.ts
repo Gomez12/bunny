@@ -166,7 +166,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
     author: null,
   });
   void indexMessage(db, embedCfg, userMsgId, prompt);
-  void queue.log({ topic: "memory", kind: "index", sessionId, data: { role: "user", agent: agentName } });
+  void queue.log({ topic: "memory", kind: "index", sessionId, userId, data: { role: "user", agent: agentName } });
 
   const userMessage: ChatMessage = { role: "user", content: prompt };
   if (attachments && attachments.length > 0) userMessage.attachments = attachments;
@@ -205,7 +205,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
   let iterations = 0;
 
   while (iterations++ < MAX_TOOL_ITERATIONS) {
-    void queue.log({ topic: "llm", kind: "request", sessionId, data: { model: llmCfg.model, agent: agentName } });
+    void queue.log({ topic: "llm", kind: "request", sessionId, userId, data: { model: llmCfg.model, agent: agentName } });
     const t0 = Date.now();
 
     const toolSchemas = runTools.list();
@@ -225,6 +225,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
       topic: "llm",
       kind: "response",
       sessionId,
+      userId,
       data: { toolCalls: llmRes.message.tool_calls?.length ?? 0, agent: agentName },
       durationMs,
     });
@@ -284,13 +285,14 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
 
     const toolResults = await Promise.all(
       llmRes.message.tool_calls.map(async (tc) => {
-        void queue.log({ topic: "tool", kind: "call", sessionId, data: { name: tc.function.name, agent: agentName } });
+        void queue.log({ topic: "tool", kind: "call", sessionId, userId, data: { name: tc.function.name, agent: agentName } });
         const t1 = Date.now();
         const result = await runTools.call(tc.function.name, tc.function.arguments);
         void queue.log({
           topic: "tool",
           kind: "result",
           sessionId,
+          userId,
           data: { name: tc.function.name, ok: result.ok, agent: agentName },
           durationMs: Date.now() - t1,
           error: result.ok ? undefined : result.error,

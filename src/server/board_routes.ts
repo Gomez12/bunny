@@ -275,6 +275,7 @@ async function handleCreateSwimlane(
       wipLimit: body.wipLimit ?? null,
       autoRun: body.autoRun === true,
     });
+    void ctx.queue.log({ topic: "board", kind: "swimlane.create", userId: user.id, data: { project, name, id: lane.id } });
     return json({ swimlane: toSwimlaneDto(lane) }, 201);
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -300,6 +301,7 @@ async function handlePatchSwimlane(
       wipLimit: body.wipLimit,
       autoRun: body.autoRun,
     });
+    void ctx.queue.log({ topic: "board", kind: "swimlane.update", userId: user.id, data: { id, project: lane.project } });
     return json({ swimlane: toSwimlaneDto(updated) });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -314,6 +316,7 @@ function handleDeleteSwimlane(ctx: BoardRouteCtx, user: User, id: number): Respo
   if (!canEditProject(p, user)) return json({ error: "forbidden" }, 403);
   try {
     deleteSwimlane(ctx.db, id);
+    void ctx.queue.log({ topic: "board", kind: "swimlane.delete", userId: user.id, data: { id, project: lane.project } });
     return json({ ok: true });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -372,6 +375,7 @@ async function handleCreateCard(
       createdBy: user.id,
       position: body.position,
     });
+    void ctx.queue.log({ topic: "board", kind: "card.create", userId: user.id, data: { project, id: card.id, title: body.title } });
     return json({ card: toCardDto(card) }, 201);
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -412,6 +416,7 @@ async function handlePatchCard(
       swimlaneId: body.swimlaneId,
       position: body.position,
     });
+    void ctx.queue.log({ topic: "board", kind: "card.update", userId: user.id, data: { id, project: card.project } });
     return json({ card: toCardDto(updated) });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -451,6 +456,7 @@ async function handleMoveCard(
       afterCardId: body.afterCardId,
       position: body.position,
     });
+    void ctx.queue.log({ topic: "board", kind: "card.move", userId: user.id, data: { id, swimlaneId, project: card.project } });
     return json({ card: toCardDto(moved) });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -464,6 +470,7 @@ function handleArchiveCard(ctx: BoardRouteCtx, user: User, id: number): Response
   if (!p) return json({ error: "project not found" }, 404);
   if (!canEditCard(user, card, p)) return json({ error: "forbidden" }, 403);
   archiveCard(ctx.db, id);
+  void ctx.queue.log({ topic: "board", kind: "card.archive", userId: user.id, data: { id, project: card.project } });
   return json({ ok: true });
 }
 

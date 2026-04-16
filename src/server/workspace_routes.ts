@@ -13,6 +13,7 @@
  */
 
 import type { Database } from "bun:sqlite";
+import type { BunnyQueue } from "../queue/bunqueue.ts";
 import type { User } from "../auth/users.ts";
 import { errorMessage } from "../util/error.ts";
 import { json } from "./http.ts";
@@ -34,6 +35,7 @@ const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 
 export interface WorkspaceRouteCtx {
   db: Database;
+  queue: BunnyQueue;
 }
 
 export async function handleWorkspaceRoute(
@@ -75,24 +77,27 @@ export async function handleWorkspaceRoute(
       return handleGetFile(project, url);
     }
     if (action === "file" && req.method === "POST") {
-      return handleUpload(req, project);
+      return handleUpload(req, project, ctx, user);
     }
     if (action === "mkdir" && req.method === "POST") {
       const body = (await readJson<{ path?: string }>(req)) ?? {};
       if (!body.path) return json({ error: "missing path" }, 400);
       const entry = mkdirWorkspace(project, body.path);
+      void ctx.queue.log({ topic: "workspace", kind: "mkdir", userId: user.id, data: { project, path: body.path } });
       return json({ entry }, 201);
     }
     if (action === "move" && req.method === "POST") {
       const body = (await readJson<{ from?: string; to?: string }>(req)) ?? {};
       if (!body.from || !body.to) return json({ error: "missing from/to" }, 400);
       const entry = moveWorkspaceEntry(project, body.from, body.to);
+      void ctx.queue.log({ topic: "workspace", kind: "move", userId: user.id, data: { project, from: body.from, to: body.to } });
       return json({ entry });
     }
     if (!action && req.method === "DELETE") {
       const path = url.searchParams.get("path");
       if (!path) return json({ error: "missing path" }, 400);
       deleteWorkspaceEntry(project, path);
+      void ctx.queue.log({ topic: "workspace", kind: "delete", userId: user.id, data: { project, path } });
       return json({ ok: true });
     }
   } catch (e) {
@@ -129,7 +134,7 @@ function handleGetFile(project: string, url: URL): Response {
   }
 }
 
-async function handleUpload(req: Request, project: string): Promise<Response> {
+async function handleUpload(req: Request, project: string, ctx: WorkspaceRouteCtx, user: User): Promise<Response> {
   const contentType = req.headers.get("content-type") ?? "";
 
   // JSON body: { path, content, encoding? }
@@ -141,6 +146,7 @@ async function handleUpload(req: Request, project: string): Promise<Response> {
     const enc = body.encoding === "base64" ? "base64" : "utf8";
     try {
       const result = writeWorkspaceFile(project, body.path, body.content, enc);
+      void ctx.queue.log({ topic: "workspace", kind: "file.write", userId: user.id, data: { project, path: body.path } });
       return json({ entry: statWorkspace(project, result.path) }, 201);
     } catch (e) {
       return json({ error: errorMessage(e) }, 400);
@@ -183,6 +189,9 @@ async function handleUpload(req: Request, project: string): Promise<Response> {
       }
     } catch (e) {
       return json({ error: errorMessage(e) }, 400);
+    }
+    for (const s of stored) {
+      void ctx.queue.log({ topic: "workspace", kind: "file.write", userId: user.id, data: { project, path: (s as { path?: string }).path } });
     }
     return json({ entries: stored }, 201);
   }

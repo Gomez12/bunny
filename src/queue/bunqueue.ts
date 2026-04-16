@@ -24,6 +24,7 @@ export interface LogPayload {
   topic: string;
   kind: string;
   sessionId?: string;
+  userId?: string;
   data?: unknown;
   result?: unknown;
   durationMs?: number;
@@ -55,6 +56,7 @@ export function createBunnyQueue(db: Database): BunnyQueue {
         topic: p.topic,
         kind: p.kind,
         sessionId: p.sessionId,
+        userId: p.userId,
         payloadJson: p.data !== undefined ? JSON.stringify(p.data) : undefined,
         durationMs: p.durationMs,
         error: p.error,

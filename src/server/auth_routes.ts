@@ -5,6 +5,7 @@
 
 import type { Database } from "bun:sqlite";
 import type { BunnyConfig } from "../config.ts";
+import type { BunnyQueue } from "../queue/bunqueue.ts";
 import type { User, UserRole } from "../auth/users.ts";
 
 import {
@@ -46,6 +47,7 @@ function publicUser(u: User) {
 export interface AuthRouteCtx {
   db: Database;
   cfg: BunnyConfig;
+  queue: BunnyQueue;
 }
 
 /**
@@ -77,6 +79,7 @@ export async function handleAuthRoute(
   if (pathname === "/api/auth/logout" && req.method === "POST") {
     const token = getSessionToken(req);
     if (token) revokeSession(ctx.db, token);
+    void ctx.queue.log({ topic: "auth", kind: "logout", userId: user.id });
     return json({ ok: true }, { headers: { "Set-Cookie": clearSessionCookieHeader() } });
   }
 
@@ -117,7 +120,9 @@ export async function handleAuthRoute(
   }
   const keyMatch = pathname.match(/^\/api\/apikeys\/([^/]+)$/);
   if (keyMatch && req.method === "DELETE") {
-    const ok = revokeApiKey(ctx.db, decodeURIComponent(keyMatch[1]!), user.id);
+    const keyId = decodeURIComponent(keyMatch[1]!);
+    const ok = revokeApiKey(ctx.db, keyId, user.id);
+    if (ok) void ctx.queue.log({ topic: "apikey", kind: "revoke", userId: user.id, data: { keyId } });
     return ok ? json({ ok: true }) : json({ error: "not found" }, 404);
   }
 
@@ -133,7 +138,7 @@ export async function handleAuthRoute(
 
   if (pathname === "/api/users" && req.method === "POST") {
     if (user.role !== "admin") return json({ error: "forbidden" }, 403);
-    return createUserRoute(req, ctx);
+    return createUserRoute(req, ctx, user);
   }
 
   const userMatch = pathname.match(/^\/api\/users\/([^/]+)$/);
@@ -144,10 +149,11 @@ export async function handleAuthRoute(
       const u = getUserById(ctx.db, id);
       return u ? json({ user: publicUser(u) }) : json({ error: "not found" }, 404);
     }
-    if (req.method === "PATCH") return patchUserRoute(req, ctx, id);
+    if (req.method === "PATCH") return patchUserRoute(req, ctx, user, id);
     if (req.method === "DELETE") {
       if (id === user.id) return json({ error: "cannot delete self" }, 400);
       deleteUser(ctx.db, id);
+      void ctx.queue.log({ topic: "user", kind: "delete", userId: user.id, data: { targetId: id } });
       return json({ ok: true });
     }
   }
@@ -155,7 +161,7 @@ export async function handleAuthRoute(
   const pwMatch = pathname.match(/^\/api\/users\/([^/]+)\/password$/);
   if (pwMatch && req.method === "POST") {
     if (user.role !== "admin") return json({ error: "forbidden" }, 403);
-    return adminResetPasswordRoute(req, ctx, decodeURIComponent(pwMatch[1]!));
+    return adminResetPasswordRoute(req, ctx, user, decodeURIComponent(pwMatch[1]!));
   }
 
   return null;
@@ -176,18 +182,28 @@ async function loginRoute(req: Request, ctx: AuthRouteCtx): Promise<Response> {
   if (!body?.username || !body?.password) return json({ error: "missing credentials" }, 400);
 
   const u = getUserByUsername(ctx.db, body.username);
-  if (!u) return json({ error: "invalid credentials" }, 401);
+  if (!u) {
+    void ctx.queue.log({ topic: "auth", kind: "login.failed", data: { username: body.username } });
+    return json({ error: "invalid credentials" }, 401);
+  }
 
   const hash = getUserPasswordHash(ctx.db, u.id);
-  if (!hash) return json({ error: "invalid credentials" }, 401);
+  if (!hash) {
+    void ctx.queue.log({ topic: "auth", kind: "login.failed", data: { username: body.username } });
+    return json({ error: "invalid credentials" }, 401);
+  }
 
   const ok = await verifyPassword(body.password, hash);
-  if (!ok) return json({ error: "invalid credentials" }, 401);
+  if (!ok) {
+    void ctx.queue.log({ topic: "auth", kind: "login.failed", data: { username: body.username } });
+    return json({ error: "invalid credentials" }, 401);
+  }
 
   const ttlHours = ctx.cfg.auth.sessionTtlHours;
   const sess = issueSession(ctx.db, u.id, ttlHours);
   const cookie = setSessionCookieHeader(sess.token, ttlHours * 3600);
 
+  void ctx.queue.log({ topic: "auth", kind: "login", userId: u.id, data: { username: body.username } });
   return json({ user: publicUser(u) }, { headers: { "Set-Cookie": cookie } });
 }
 
@@ -205,6 +221,7 @@ async function changeOwnPassword(req: Request, ctx: AuthRouteCtx, user: User): P
     if (!ok) return json({ error: "invalid credentials" }, 401);
   }
   await setPassword(ctx.db, user.id, body.newPassword, false);
+  void ctx.queue.log({ topic: "auth", kind: "password.change", userId: user.id });
   return json({ ok: true });
 }
 
@@ -222,6 +239,7 @@ async function patchOwnProfile(req: Request, ctx: AuthRouteCtx, user: User): Pro
     expandThinkBubbles: body.expandThinkBubbles,
     expandToolBubbles: body.expandToolBubbles,
   });
+  if (updated) void ctx.queue.log({ topic: "user", kind: "profile.update", userId: user.id });
   return updated ? json({ user: publicUser(updated) }) : json({ error: "not found" }, 404);
 }
 
@@ -233,10 +251,11 @@ async function createApiKeyRoute(req: Request, ctx: AuthRouteCtx, user: User): P
     expiresAt = Date.now() + body.ttlDays * 86_400_000;
   }
   const result = await createApiKey(ctx.db, user.id, body.name.trim(), expiresAt);
+  void ctx.queue.log({ topic: "apikey", kind: "create", userId: user.id, data: { name: body.name.trim() } });
   return json({ key: result.secret, meta: result.meta }, 201);
 }
 
-async function createUserRoute(req: Request, ctx: AuthRouteCtx): Promise<Response> {
+async function createUserRoute(req: Request, ctx: AuthRouteCtx, admin: User): Promise<Response> {
   const body = await readJson<{
     username?: string;
     password?: string;
@@ -254,10 +273,11 @@ async function createUserRoute(req: Request, ctx: AuthRouteCtx): Promise<Respons
     email: body.email ?? null,
     mustChangePassword: true,
   });
+  void ctx.queue.log({ topic: "user", kind: "create", userId: admin.id, data: { username: body.username, role: body.role ?? "user" } });
   return json({ user: publicUser(u) }, 201);
 }
 
-async function patchUserRoute(req: Request, ctx: AuthRouteCtx, id: string): Promise<Response> {
+async function patchUserRoute(req: Request, ctx: AuthRouteCtx, user: User, id: string): Promise<Response> {
   const body = await readJson<{
     role?: UserRole;
     displayName?: string | null;
@@ -265,13 +285,15 @@ async function patchUserRoute(req: Request, ctx: AuthRouteCtx, id: string): Prom
   }>(req);
   if (!body) return json({ error: "invalid body" }, 400);
   const updated = updateUser(ctx.db, id, body);
+  if (updated) void ctx.queue.log({ topic: "user", kind: "update", userId: user.id, data: { targetId: id } });
   return updated ? json({ user: publicUser(updated) }) : json({ error: "not found" }, 404);
 }
 
-async function adminResetPasswordRoute(req: Request, ctx: AuthRouteCtx, id: string): Promise<Response> {
+async function adminResetPasswordRoute(req: Request, ctx: AuthRouteCtx, admin: User, id: string): Promise<Response> {
   const body = await readJson<{ password?: string }>(req);
   if (!body?.password || body.password.length < 6) return json({ error: "password too short" }, 400);
   await setPassword(ctx.db, id, body.password, true);
   revokeUserSessions(ctx.db, id);
+  void ctx.queue.log({ topic: "user", kind: "password.reset", userId: admin.id, data: { targetId: id } });
   return json({ ok: true });
 }

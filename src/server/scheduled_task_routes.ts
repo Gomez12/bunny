@@ -15,6 +15,7 @@
  */
 
 import type { Database } from "bun:sqlite";
+import type { BunnyQueue } from "../queue/bunqueue.ts";
 import type { User } from "../auth/users.ts";
 import type { SchedulerHandle } from "../scheduler/ticker.ts";
 import type { HandlerRegistry } from "../scheduler/handlers.ts";
@@ -33,6 +34,7 @@ import { computeNextRun, parseCron } from "../scheduler/cron.ts";
 
 export interface ScheduledTaskRouteCtx {
   db: Database;
+  queue: BunnyQueue;
   scheduler: SchedulerHandle;
   registry: HandlerRegistry;
 }
@@ -158,6 +160,7 @@ async function handleCreate(
       ownerUserId,
       nextRunAt: computeNextRun(cronExpr, now),
     });
+    void ctx.queue.log({ topic: "task", kind: "create", userId: user.id, data: { id: task.id, name, handler, taskKind: kind } });
     return json({ task: task }, 201);
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -201,6 +204,7 @@ async function handlePatch(
       enabled: body.enabled,
       nextRunAt,
     });
+    void ctx.queue.log({ topic: "task", kind: "update", userId: user.id, data: { id } });
     return json({ task: updated });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -213,6 +217,7 @@ function handleDelete(ctx: ScheduledTaskRouteCtx, user: User, id: string): Respo
   if (!canEdit(user, task)) return json({ error: "forbidden" }, 403);
   try {
     deleteTask(ctx.db, id);
+    void ctx.queue.log({ topic: "task", kind: "delete", userId: user.id, data: { id } });
     return json({ ok: true });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -229,6 +234,7 @@ async function handleRunNow(
   if (!canEdit(user, task)) return json({ error: "forbidden" }, 403);
   try {
     await ctx.scheduler.runTask(id);
+    void ctx.queue.log({ topic: "task", kind: "run-now", userId: user.id, data: { id } });
     const refreshed = getTask(ctx.db, id);
     return json({ task: refreshed });
   } catch (e) {
