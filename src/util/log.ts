@@ -21,6 +21,11 @@ function emit(level: LogLevel, msg: string, data?: unknown): void {
   process.stderr.write(line + "\n");
 }
 
+export function truncate(s: string, max = 500): string {
+  if (s.length <= max) return s;
+  return s.slice(0, max) + "…";
+}
+
 export const log = {
   debug: (msg: string, data?: unknown) => emit("debug", msg, data),
   info: (msg: string, data?: unknown) => emit("info", msg, data),

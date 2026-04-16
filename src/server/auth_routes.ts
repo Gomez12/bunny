@@ -183,19 +183,19 @@ async function loginRoute(req: Request, ctx: AuthRouteCtx): Promise<Response> {
 
   const u = getUserByUsername(ctx.db, body.username);
   if (!u) {
-    void ctx.queue.log({ topic: "auth", kind: "login.failed", data: { username: body.username } });
+    void ctx.queue.log({ topic: "auth", kind: "login.failed", data: { username: body.username, reason: "user_not_found" } });
     return json({ error: "invalid credentials" }, 401);
   }
 
   const hash = getUserPasswordHash(ctx.db, u.id);
   if (!hash) {
-    void ctx.queue.log({ topic: "auth", kind: "login.failed", data: { username: body.username } });
+    void ctx.queue.log({ topic: "auth", kind: "login.failed", data: { username: body.username, reason: "no_password_hash" } });
     return json({ error: "invalid credentials" }, 401);
   }
 
   const ok = await verifyPassword(body.password, hash);
   if (!ok) {
-    void ctx.queue.log({ topic: "auth", kind: "login.failed", data: { username: body.username } });
+    void ctx.queue.log({ topic: "auth", kind: "login.failed", data: { username: body.username, reason: "bad_password" } });
     return json({ error: "invalid credentials" }, 401);
   }
 
@@ -239,7 +239,10 @@ async function patchOwnProfile(req: Request, ctx: AuthRouteCtx, user: User): Pro
     expandThinkBubbles: body.expandThinkBubbles,
     expandToolBubbles: body.expandToolBubbles,
   });
-  if (updated) void ctx.queue.log({ topic: "user", kind: "profile.update", userId: user.id });
+  if (updated) {
+    const changed = Object.keys(body).filter((k) => (body as Record<string, unknown>)[k] !== undefined);
+    void ctx.queue.log({ topic: "user", kind: "profile.update", userId: user.id, data: { changed } });
+  }
   return updated ? json({ user: publicUser(updated) }) : json({ error: "not found" }, 404);
 }
 
@@ -251,7 +254,7 @@ async function createApiKeyRoute(req: Request, ctx: AuthRouteCtx, user: User): P
     expiresAt = Date.now() + body.ttlDays * 86_400_000;
   }
   const result = await createApiKey(ctx.db, user.id, body.name.trim(), expiresAt);
-  void ctx.queue.log({ topic: "apikey", kind: "create", userId: user.id, data: { name: body.name.trim() } });
+  void ctx.queue.log({ topic: "apikey", kind: "create", userId: user.id, data: { name: body.name.trim(), keyId: result.meta.id, expiresAt } });
   return json({ key: result.secret, meta: result.meta }, 201);
 }
 
@@ -285,7 +288,10 @@ async function patchUserRoute(req: Request, ctx: AuthRouteCtx, user: User, id: s
   }>(req);
   if (!body) return json({ error: "invalid body" }, 400);
   const updated = updateUser(ctx.db, id, body);
-  if (updated) void ctx.queue.log({ topic: "user", kind: "update", userId: user.id, data: { targetId: id } });
+  if (updated) {
+    const changed = Object.keys(body).filter((k) => (body as Record<string, unknown>)[k] !== undefined);
+    void ctx.queue.log({ topic: "user", kind: "update", userId: user.id, data: { targetId: id, changed } });
+  }
   return updated ? json({ user: publicUser(updated) }) : json({ error: "not found" }, 404);
 }
 

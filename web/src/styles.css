@@ -1106,6 +1106,11 @@ button {
   align-items: center;
   justify-content: center;
   z-index: 100;
+  padding: 24px;
+}
+.modal-backdrop > .modal {
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
 }
 /* Wider modal variant for the project editor — the prompt textarea and the
    double-column rows need the room. */
@@ -1221,27 +1226,30 @@ button {
   padding-bottom: 16px;
   align-items: flex-start;
 }
-.board__group-label {
-  writing-mode: vertical-lr;
-  text-orientation: mixed;
-  transform: rotate(180deg);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  padding: 8px 2px;
-  border-left: 2px solid var(--border);
-  margin-left: 4px;
-  align-self: stretch;
+.board__group-tabs {
   display: flex;
-  align-items: center;
+  gap: 2px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
 }
-.board__group-end {
-  width: 0;
-  align-self: stretch;
-  border-right: 2px solid var(--border);
-  margin-right: 4px;
+.board__group-tab {
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+.board__group-tab:hover { color: var(--text); }
+.board__group-tab--active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
 }
 
 .board-column {

@@ -441,7 +441,7 @@ async function handleCreateProject(req: Request, ctx: RouteCtx, user: User): Pro
       { prompt: body.systemPrompt ?? "", append: body.appendMode !== false },
       { lastN: parseMemoryOverride(body.lastN), recallK: parseMemoryOverride(body.recallK) },
     );
-    void ctx.queue.log({ topic: "project", kind: "create", userId: user.id, data: { name, visibility: body.visibility ?? "public" } });
+    void ctx.queue.log({ topic: "project", kind: "create", userId: user.id, data: { name, visibility: body.visibility ?? "public", description: body.description ?? null, hasSystemPrompt: !!(body.systemPrompt) } });
     return json({ project: toProjectDto(created) }, 201);
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -491,7 +491,8 @@ async function handlePatchProject(
         : undefined;
       writeProjectSystemPrompt(name, sp, memory);
     }
-    void ctx.queue.log({ topic: "project", kind: "update", userId: user.id, data: { name } });
+    const changed = Object.keys(body).filter((k) => (body as Record<string, unknown>)[k] !== undefined);
+    void ctx.queue.log({ topic: "project", kind: "update", userId: user.id, data: { name, changed } });
     return json({ project: toProjectDto(updated) });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);

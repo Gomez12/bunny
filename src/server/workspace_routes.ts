@@ -146,7 +146,7 @@ async function handleUpload(req: Request, project: string, ctx: WorkspaceRouteCt
     const enc = body.encoding === "base64" ? "base64" : "utf8";
     try {
       const result = writeWorkspaceFile(project, body.path, body.content, enc);
-      void ctx.queue.log({ topic: "workspace", kind: "file.write", userId: user.id, data: { project, path: body.path } });
+      void ctx.queue.log({ topic: "workspace", kind: "file.write", userId: user.id, data: { project, path: body.path, encoding: enc, size: body.content.length } });
       return json({ entry: statWorkspace(project, result.path) }, 201);
     } catch (e) {
       return json({ error: errorMessage(e) }, 400);
@@ -191,7 +191,7 @@ async function handleUpload(req: Request, project: string, ctx: WorkspaceRouteCt
       return json({ error: errorMessage(e) }, 400);
     }
     for (const s of stored) {
-      void ctx.queue.log({ topic: "workspace", kind: "file.write", userId: user.id, data: { project, path: (s as { path?: string }).path } });
+      void ctx.queue.log({ topic: "workspace", kind: "file.write", userId: user.id, data: { project, path: (s as { path?: string }).path, source: "multipart" } });
     }
     return json({ entries: stored }, 201);
   }

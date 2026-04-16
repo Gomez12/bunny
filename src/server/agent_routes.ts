@@ -226,7 +226,12 @@ async function handleCreateAgent(req: Request, ctx: AgentRouteCtx, user: User): 
     if (getProject(ctx.db, ctx.defaultProject)) {
       linkAgentToProject(ctx.db, ctx.defaultProject, name);
     }
-    void ctx.queue.log({ topic: "agent", kind: "create", userId: user.id, data: { name, visibility: body.visibility ?? "private" } });
+    void ctx.queue.log({
+      topic: "agent",
+      kind: "create",
+      userId: user.id,
+      data: { name, visibility: body.visibility ?? "private", description: body.description ?? "", isSubagent: body.isSubagent === true, contextScope: body.contextScope ?? "full" },
+    });
     return json({ agent: toAgentDto(created, listProjectsForAgent(ctx.db, name)) }, 201);
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -284,7 +289,8 @@ async function handlePatchAgent(
         allowedSubagents: touchesSubs ? sanitiseNameList(body.allowedSubagents) : undefined,
       });
     }
-    void ctx.queue.log({ topic: "agent", kind: "update", userId: user.id, data: { name } });
+    const changed = Object.keys(body).filter((k) => (body as Record<string, unknown>)[k] !== undefined);
+    void ctx.queue.log({ topic: "agent", kind: "update", userId: user.id, data: { name, changed } });
     return json({ agent: toAgentDto(updated, listProjectsForAgent(ctx.db, name)) });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);

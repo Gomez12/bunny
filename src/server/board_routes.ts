@@ -302,7 +302,12 @@ async function handleCreateSwimlane(
       color: body.color ?? null,
       group: body.group ?? null,
     });
-    void ctx.queue.log({ topic: "board", kind: "swimlane.create", userId: user.id, data: { project, name, id: lane.id } });
+    void ctx.queue.log({
+      topic: "board",
+      kind: "swimlane.create",
+      userId: user.id,
+      data: { project, name, id: lane.id, wipLimit: body.wipLimit ?? null, autoRun: body.autoRun === true, color: body.color ?? null, group: body.group ?? null },
+    });
     return json({ swimlane: toSwimlaneDto(lane) }, 201);
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -346,7 +351,8 @@ async function handlePatchSwimlane(
       color: body.color,
       group: body.group,
     });
-    void ctx.queue.log({ topic: "board", kind: "swimlane.update", userId: user.id, data: { id, project: lane.project } });
+    const changed = Object.keys(body).filter((k) => (body as Record<string, unknown>)[k] !== undefined);
+    void ctx.queue.log({ topic: "board", kind: "swimlane.update", userId: user.id, data: { id, project: lane.project, changed } });
     return json({ swimlane: toSwimlaneDto(updated) });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -426,7 +432,12 @@ async function handleCreateCard(
       createdBy: user.id,
       position: body.position,
     });
-    void ctx.queue.log({ topic: "board", kind: "card.create", userId: user.id, data: { project, id: card.id, title: body.title } });
+    void ctx.queue.log({
+      topic: "board",
+      kind: "card.create",
+      userId: user.id,
+      data: { project, id: card.id, title: body.title, swimlaneId: body.swimlaneId, assigneeUserId, assigneeAgent, autoRun: card.autoRun },
+    });
     return json({ card: toCardDto(card) }, 201);
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -469,7 +480,8 @@ async function handlePatchCard(
       swimlaneId: body.swimlaneId,
       position: body.position,
     });
-    void ctx.queue.log({ topic: "board", kind: "card.update", userId: user.id, data: { id, project: card.project } });
+    const changed = Object.keys(body).filter((k) => (body as Record<string, unknown>)[k] !== undefined);
+    void ctx.queue.log({ topic: "board", kind: "card.update", userId: user.id, data: { id, project: card.project, changed } });
     return json({ card: toCardDto(updated) });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -517,7 +529,7 @@ async function handleMoveCard(
         });
       }
     }
-    void ctx.queue.log({ topic: "board", kind: "card.move", userId: user.id, data: { id, swimlaneId, project: card.project } });
+    void ctx.queue.log({ topic: "board", kind: "card.move", userId: user.id, data: { id, project: card.project, fromSwimlaneId: card.swimlaneId, toSwimlaneId: swimlaneId } });
     return json({ card: toCardDto(moved) });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);

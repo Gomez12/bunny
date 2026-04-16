@@ -34,6 +34,7 @@ import { upsertEmbedding } from "../memory/vector.ts";
 import { embed } from "../memory/embed.ts";
 import { hybridRecall } from "../memory/recall.ts";
 import { DEFAULT_PROJECT, getSessionProject } from "../memory/projects.ts";
+import { truncate } from "../util/log.ts";
 import { loadProjectAssets } from "../memory/project_assets.ts";
 import {
   getAgent,
@@ -205,10 +206,21 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
   let iterations = 0;
 
   while (iterations++ < MAX_TOOL_ITERATIONS) {
-    void queue.log({ topic: "llm", kind: "request", sessionId, userId, data: { model: llmCfg.model, agent: agentName } });
-    const t0 = Date.now();
-
     const toolSchemas = runTools.list();
+    void queue.log({
+      topic: "llm",
+      kind: "request",
+      sessionId,
+      userId,
+      data: {
+        model: llmCfg.model,
+        agent: agentName,
+        messageCount: messages.length,
+        toolCount: toolSchemas.length,
+        systemPromptLength: (systemMsg.content ?? "").length,
+      },
+    });
+    const t0 = Date.now();
     const { deltas, response } = await chat(llmCfg, {
       messages,
       tools: toolSchemas.length > 0 ? toolSchemas : undefined,
@@ -221,16 +233,21 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
     const llmRes = await response;
     const durationMs = Date.now() - t0;
 
+    const assistantContent = llmRes.message.content ?? "";
     void queue.log({
       topic: "llm",
       kind: "response",
       sessionId,
       userId,
-      data: { toolCalls: llmRes.message.tool_calls?.length ?? 0, agent: agentName },
+      data: {
+        agent: agentName,
+        promptTokens: llmRes.usage?.promptTokens,
+        completionTokens: llmRes.usage?.completionTokens,
+        toolCalls: llmRes.message.tool_calls?.map((tc) => tc.function.name) ?? [],
+        contentPreview: assistantContent ? truncate(assistantContent, 2048) : undefined,
+      },
       durationMs,
     });
-
-    const assistantContent = llmRes.message.content ?? "";
     const stats = {
       durationMs,
       promptTokens: llmRes.usage?.promptTokens,
@@ -285,7 +302,13 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
 
     const toolResults = await Promise.all(
       llmRes.message.tool_calls.map(async (tc) => {
-        void queue.log({ topic: "tool", kind: "call", sessionId, userId, data: { name: tc.function.name, agent: agentName } });
+        void queue.log({
+          topic: "tool",
+          kind: "call",
+          sessionId,
+          userId,
+          data: { name: tc.function.name, agent: agentName, args: truncate(tc.function.arguments, 2048) },
+        });
         const t1 = Date.now();
         const result = await runTools.call(tc.function.name, tc.function.arguments);
         void queue.log({
@@ -293,7 +316,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
           kind: "result",
           sessionId,
           userId,
-          data: { name: tc.function.name, ok: result.ok, agent: agentName },
+          data: { name: tc.function.name, ok: result.ok, agent: agentName, output: truncate(result.output, 2048) },
           durationMs: Date.now() - t1,
           error: result.ok ? undefined : result.error,
         });

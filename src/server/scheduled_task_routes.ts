@@ -160,7 +160,7 @@ async function handleCreate(
       ownerUserId,
       nextRunAt: computeNextRun(cronExpr, now),
     });
-    void ctx.queue.log({ topic: "task", kind: "create", userId: user.id, data: { id: task.id, name, handler, taskKind: kind } });
+    void ctx.queue.log({ topic: "task", kind: "create", userId: user.id, data: { id: task.id, name, handler, taskKind: kind, cronExpr, enabled: body.enabled !== false } });
     return json({ task: task }, 201);
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -204,7 +204,8 @@ async function handlePatch(
       enabled: body.enabled,
       nextRunAt,
     });
-    void ctx.queue.log({ topic: "task", kind: "update", userId: user.id, data: { id } });
+    const changed = Object.keys(body).filter((k) => (body as Record<string, unknown>)[k] !== undefined);
+    void ctx.queue.log({ topic: "task", kind: "update", userId: user.id, data: { id, changed } });
     return json({ task: updated });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
