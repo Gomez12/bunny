@@ -50,13 +50,24 @@ export default function AgentsTab({ currentUser, activeProject }: Props) {
   const canEdit = (a: Agent) =>
     currentUser.role === "admin" || a.createdBy === currentUser.id;
 
+  const syncLinks = async (agentName: string, before: string[], after: string[]) => {
+    const toLink = after.filter((p) => !before.includes(p));
+    const toUnlink = before.filter((p) => !after.includes(p));
+    await Promise.all([
+      ...toLink.map((p) => linkAgentToProject(p, agentName)),
+      ...toUnlink.map((p) => unlinkAgentFromProject(p, agentName)),
+    ]);
+  };
+
   const handleCreate = async (v: AgentDialogValue) => {
     await createAgent(v);
+    await syncLinks(v.name, [], v.linkedProjects);
     await refresh();
   };
 
   const handleEdit = (target: Agent) => async (v: AgentDialogValue) => {
     await updateAgent(target.name, v);
+    await syncLinks(target.name, target.projects, v.linkedProjects);
     await refresh();
   };
 
@@ -179,6 +190,7 @@ export default function AgentsTab({ currentUser, activeProject }: Props) {
         <AgentDialog
           mode="create"
           allTools={tools}
+          allProjects={projects}
           subagentCandidates={agents ?? []}
           onClose={() => setDialog({ kind: "closed" })}
           onSubmit={handleCreate}
@@ -189,6 +201,7 @@ export default function AgentsTab({ currentUser, activeProject }: Props) {
           mode="edit"
           initial={dialog.agent}
           allTools={tools}
+          allProjects={projects}
           subagentCandidates={agents ?? []}
           onClose={() => setDialog({ kind: "closed" })}
           onSubmit={handleEdit(dialog.agent)}

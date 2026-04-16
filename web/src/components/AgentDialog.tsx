@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Agent, AgentContextScope, AgentVisibility } from "../api";
+import type { Agent, AgentContextScope, AgentVisibility, Project } from "../api";
 import { AGENT_NAME_RE } from "../../../src/memory/agent_name";
 import { validateOverride } from "../lib/forms";
 
@@ -16,12 +16,14 @@ export interface AgentDialogValue {
   allowedSubagents: string[];
   lastN: number | null;
   recallK: number | null;
+  linkedProjects: string[];
 }
 
 interface Props {
   mode: "create" | "edit";
   initial?: Agent;
   allTools: string[];
+  allProjects: Project[];
   subagentCandidates: Agent[];
   onClose: () => void;
   onSubmit: (value: AgentDialogValue) => Promise<void>;
@@ -31,6 +33,7 @@ export default function AgentDialog({
   mode,
   initial,
   allTools,
+  allProjects,
   subagentCandidates,
   onClose,
   onSubmit,
@@ -51,6 +54,7 @@ export default function AgentDialog({
   const [allowedSubagents, setAllowedSubagents] = useState<string[]>(
     initial?.allowedSubagents ?? [],
   );
+  const [linkedProjects, setLinkedProjects] = useState<string[]>(initial?.projects ?? []);
   const [lastN, setLastN] = useState(initial?.lastN == null ? "" : String(initial.lastN));
   const [recallK, setRecallK] = useState(initial?.recallK == null ? "" : String(initial.recallK));
   const [error, setError] = useState<string | null>(null);
@@ -100,6 +104,7 @@ export default function AgentDialog({
         allowedSubagents,
         lastN: parsedLastN,
         recallK: parsedRecallK,
+        linkedProjects,
       });
       onClose();
     } catch (err) {
@@ -263,6 +268,29 @@ export default function AgentDialog({
             )}
             <span className="project-form__hint">
               When non-empty, this agent gains the <code>call_agent</code> tool.
+            </span>
+          </label>
+
+          <label className="project-form__field">
+            <span>Projects</span>
+            {allProjects.length === 0 ? (
+              <span className="project-form__hint">No projects available.</span>
+            ) : (
+              <div className="project-form__chips">
+                {allProjects.map((p) => (
+                  <label key={p.name} className="project-form__chip">
+                    <input
+                      type="checkbox"
+                      checked={linkedProjects.includes(p.name)}
+                      onChange={() => toggle(linkedProjects, setLinkedProjects, p.name)}
+                    />
+                    <span>{p.name}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            <span className="project-form__hint">
+              Which projects this agent is available in.
             </span>
           </label>
 
