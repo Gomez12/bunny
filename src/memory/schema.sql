@@ -249,6 +249,27 @@ CREATE INDEX IF NOT EXISTS idx_sched_due   ON scheduled_tasks(enabled, next_run_
 CREATE INDEX IF NOT EXISTS idx_sched_owner ON scheduled_tasks(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_sched_kind  ON scheduled_tasks(kind);
 
+-- ── Skills ──────────────────────────────────────────────────────────────────
+-- Agent Skills (agentskills.io standard). On-disk content lives at
+-- $BUNNY_HOME/skills/<name>/SKILL.md. The DB row stores metadata + provenance.
+CREATE TABLE IF NOT EXISTS skills (
+  name        TEXT    PRIMARY KEY,
+  description TEXT    NOT NULL DEFAULT '',
+  visibility  TEXT    NOT NULL DEFAULT 'private',
+  source_url  TEXT,
+  source_ref  TEXT,
+  created_by  TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at  INTEGER NOT NULL,
+  updated_at  INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS project_skills (
+  project  TEXT NOT NULL,
+  skill    TEXT NOT NULL,
+  PRIMARY KEY (project, skill)
+);
+CREATE INDEX IF NOT EXISTS idx_project_skills_skill ON project_skills(skill);
+
 -- ── Embeddings ───────────────────────────────────────────────────────────────
 -- Created dynamically by db.ts using the configured dimension (default 1536)
 -- because the dimension must be baked into the vec0 CREATE statement.

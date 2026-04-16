@@ -61,3 +61,4 @@ Next to the CLI, Bunny runs a web UI (`bunny serve`) with six tabs: **Chat** (li
 - [ADR 0010 — Project boards](./adr/0010-project-boards.md)
 - [ADR 0011 — Scheduled tasks](./adr/0011-scheduled-tasks.md)
 - [ADR 0012 — Project workspaces](./adr/0012-project-workspaces.md)
+- [ADR 0013 — Agent skills](./adr/0013-agent-skills.md)

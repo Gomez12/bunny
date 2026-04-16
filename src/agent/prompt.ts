@@ -27,6 +27,11 @@ export interface PeerAgentDescriptor {
   description: string;
 }
 
+export interface SkillCatalogEntry {
+  name: string;
+  description: string;
+}
+
 export interface BuildSystemMessageOpts {
   recall?: RecallResult[];
   /** Per-project on-disk assets (systemprompt.toml etc.). */
@@ -42,6 +47,8 @@ export interface BuildSystemMessageOpts {
   agentDescription?: string;
   /** Peer agents that the agent may mention. Only used when the agent opts in. */
   otherAgents?: PeerAgentDescriptor[];
+  /** Skill catalog entries for progressive disclosure (tier 1: name + description). */
+  skillCatalog?: SkillCatalogEntry[];
 }
 
 /**
@@ -91,6 +98,14 @@ export function buildSystemMessage(
       content +=
         `\n\n## Other agents\nYou can delegate by prefixing a question with @name in your text, or — if you have access to the call_agent tool — by invoking it. Available agents:\n${lines}`;
     }
+  }
+
+  if (opts.skillCatalog && opts.skillCatalog.length > 0) {
+    const lines = opts.skillCatalog
+      .map((s) => `- **${s.name}**: ${s.description}`)
+      .join("\n");
+    content +=
+      `\n\n## Available skills\nUse the \`activate_skill\` tool to load a skill's full instructions before following its workflow.\n${lines}`;
   }
 
   if (recall.length > 0) {

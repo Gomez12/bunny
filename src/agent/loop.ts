@@ -45,6 +45,9 @@ import { loadAgentAssets } from "../memory/agent_assets.ts";
 import { makeCallAgentTool, CALL_AGENT_TOOL_NAME } from "../tools/call_agent.ts";
 import { makeBoardTools, BOARD_TOOL_NAMES, type BoardToolContext } from "../tools/board.ts";
 import { makeWorkspaceTools, WORKSPACE_TOOL_NAMES } from "../tools/workspace.ts";
+import { makeActivateSkillTool, ACTIVATE_SKILL_TOOL_NAME } from "../tools/activate_skill.ts";
+import { listSkillsForProject } from "../memory/skills.ts";
+import { buildSkillCatalog, loadSkillAssets, listSkillResources } from "../memory/skill_assets.ts";
 
 const MAX_TOOL_ITERATIONS = 20;
 
@@ -54,6 +57,7 @@ const MAX_TOOL_ITERATIONS = 20;
 // base registry; these are added via `extras` below).
 const DYNAMIC_TOOL_NAMES = new Set<string>([
   CALL_AGENT_TOOL_NAME,
+  ACTIVATE_SKILL_TOOL_NAME,
   ...BOARD_TOOL_NAMES,
   ...WORKSPACE_TOOL_NAMES,
 ]);
@@ -144,6 +148,9 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
       .map((a) => ({ name: a.name, description: a.description }));
   }
 
+  const projectSkills = listSkillsForProject(db, project);
+  const skillCatalog = projectSkills.length > 0 ? buildSkillCatalog(projectSkills) : undefined;
+
   const systemMsg = buildSystemMessage({
     recall,
     projectAssets,
@@ -152,6 +159,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
     agentName: agentName ?? undefined,
     agentDescription: agentRow?.description,
     otherAgents,
+    skillCatalog,
   });
 
   const userMsgId = insertMessage(db, {
@@ -182,6 +190,8 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
     userMessage,
   ];
 
+  const skillNames = projectSkills.map((s) => s.name);
+
   // Per-run registry: agent's whitelist plus closure-bound extras
   // (`call_agent` when subagents are allowed, board tools always).
   const runTools = buildRunRegistry({
@@ -189,6 +199,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
     agentAssets,
     callDepth,
     boardCtx: { db, project, userId: userId ?? "system" },
+    skillNames,
     invokeSubagent: async (subName, subPrompt) => {
       // Subagents run with a silent renderer so only their final answer
       // reaches the UI via the `call_agent` tool_result — no parent-labelled
@@ -351,6 +362,7 @@ interface BuildRunRegistryOpts {
   agentAssets: { tools: string[] | undefined; allowedSubagents: string[] } | undefined;
   callDepth: number;
   boardCtx: BoardToolContext;
+  skillNames: string[];
   invokeSubagent: (name: string, prompt: string) => Promise<string>;
 }
 
@@ -377,6 +389,19 @@ function buildRunRegistry(opts: BuildRunRegistryOpts): ToolRegistry {
         allowed: allowedSubagents,
         depth: opts.callDepth,
         invoke: opts.invokeSubagent,
+      }),
+    );
+  }
+
+  if (opts.skillNames.length > 0 && (!whitelist || whitelist.includes(ACTIVATE_SKILL_TOOL_NAME))) {
+    extras.push(
+      makeActivateSkillTool({
+        available: opts.skillNames,
+        loadInstructions: (name) => {
+          const assets = loadSkillAssets(name);
+          const resources = listSkillResources(name);
+          return { instructions: assets.instructions, resources };
+        },
       }),
     );
   }

@@ -41,6 +41,7 @@ import {
   writeProjectSystemPrompt,
 } from "../memory/project_assets.ts";
 import { handleAgentRoute } from "./agent_routes.ts";
+import { handleSkillRoute } from "./skill_routes.ts";
 import { handleBoardRoute } from "./board_routes.ts";
 import { handleWorkspaceRoute } from "./workspace_routes.ts";
 import { handleScheduledTaskRoute } from "./scheduled_task_routes.ts";
@@ -76,6 +77,15 @@ export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<
     user,
   );
   if (agentResponse) return agentResponse;
+
+  // ── Skills ────────────────────────────────────────────────────────────────
+  const skillResponse = await handleSkillRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue, defaultProject: ctx.cfg.agent.defaultProject },
+    user,
+  );
+  if (skillResponse) return skillResponse;
 
   // ── Board (kanban) ────────────────────────────────────────────────────────
   // Mounted before the generic project routes so /api/projects/:p/board hits

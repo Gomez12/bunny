@@ -599,6 +599,90 @@ export async function fetchToolNames(): Promise<string[]> {
   return tools;
 }
 
+// ── Skills ─────────────────────────────────────────────────────────────────
+
+export type SkillVisibility = "public" | "private";
+
+export interface Skill {
+  name: string;
+  description: string;
+  visibility: SkillVisibility;
+  sourceUrl: string | null;
+  sourceRef: string | null;
+  createdBy: string | null;
+  createdAt: number;
+  updatedAt: number;
+  skillMd: string;
+  allowedTools: string[];
+  projects: string[];
+}
+
+export interface SkillInput {
+  name: string;
+  description?: string;
+  visibility?: SkillVisibility;
+  skillMd?: string;
+}
+
+export async function fetchSkills(): Promise<Skill[]> {
+  const { skills } = await jsonFetch<{ skills: Skill[] }>("/api/skills");
+  return skills;
+}
+
+export async function createSkill(input: SkillInput): Promise<Skill> {
+  const { skill } = await jsonFetch<{ skill: Skill }>("/api/skills", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return skill;
+}
+
+export async function installSkill(url: string, name?: string): Promise<Skill> {
+  const { skill } = await jsonFetch<{ skill: Skill }>("/api/skills/install", {
+    method: "POST",
+    body: JSON.stringify({ url, name }),
+  });
+  return skill;
+}
+
+export async function updateSkill(
+  name: string,
+  patch: Omit<SkillInput, "name">,
+): Promise<Skill> {
+  const { skill } = await jsonFetch<{ skill: Skill }>(
+    `/api/skills/${encodeURIComponent(name)}`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+  );
+  return skill;
+}
+
+export async function deleteSkill(name: string): Promise<void> {
+  await jsonFetch<{ ok: true }>(`/api/skills/${encodeURIComponent(name)}`, {
+    method: "DELETE",
+  });
+}
+
+export async function fetchProjectSkills(project: string): Promise<Skill[]> {
+  const { skills } = await jsonFetch<{ skills: Skill[] }>(
+    `/api/projects/${encodeURIComponent(project)}/skills`,
+  );
+  return skills;
+}
+
+export async function linkSkillToProject(project: string, skill: string): Promise<void> {
+  await jsonFetch<{ ok: true }>(
+    `/api/projects/${encodeURIComponent(project)}/skills`,
+    { method: "POST", body: JSON.stringify({ skill }) },
+  );
+}
+
+export async function unlinkSkillFromProject(project: string, skill: string): Promise<void> {
+  await jsonFetch<{ ok: true }>(
+    `/api/projects/${encodeURIComponent(project)}/skills/${encodeURIComponent(skill)}`,
+    { method: "DELETE" },
+  );
+}
+
 // ── Board ───────────────────────────────────────────────────────────────────
 
 export interface Swimlane {

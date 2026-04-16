@@ -13,13 +13,19 @@ const BoardTab = lazy(() => import("./tabs/BoardTab"));
 const FilesTab = lazy(() => import("./tabs/FilesTab"));
 const LogsTab = lazy(() => import("./tabs/LogsTab"));
 const TasksTab = lazy(() => import("./tabs/TasksTab"));
+const SkillsTab = lazy(() => import("./tabs/SkillsTab"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 
-type Tab = "chat" | "messages" | "board" | "files" | "tasks" | "projects" | "agents" | "logs" | "settings";
+type Tab = "chat" | "messages" | "board" | "files" | "tasks" | "projects" | "agents" | "skills" | "logs" | "settings";
 
 const SESSION_STORAGE_KEY = "bunny.activeSessionId";
 const PROJECT_STORAGE_KEY = "bunny.activeProject";
+const TAB_STORAGE_KEY = "bunny.activeTab";
 const DEFAULT_PROJECT = "general";
+
+const VALID_TABS: ReadonlySet<string> = new Set<Tab>([
+  "chat", "messages", "board", "files", "tasks", "projects", "agents", "skills", "logs", "settings",
+]);
 
 function adoptSession(id: string): string {
   localStorage.setItem(SESSION_STORAGE_KEY, id);
@@ -32,7 +38,14 @@ function adoptProject(name: string): string {
 }
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>("chat");
+  const [tab, setTabRaw] = useState<Tab>(() => {
+    const stored = localStorage.getItem(TAB_STORAGE_KEY);
+    return stored && VALID_TABS.has(stored) ? (stored as Tab) : "chat";
+  });
+  const setTab = (t: Tab) => {
+    localStorage.setItem(TAB_STORAGE_KEY, t);
+    setTabRaw(t);
+  };
   const [sessionId, setSessionId] = useState<string | null>(() =>
     localStorage.getItem(SESSION_STORAGE_KEY),
   );
@@ -153,6 +166,12 @@ export default function App() {
           >
             Agents
           </button>
+          <button
+            className={`tab ${tab === "skills" ? "tab--active" : ""}`}
+            onClick={() => setTab("skills")}
+          >
+            Skills
+          </button>
           {user.role === "admin" && (
             <button
               className={`tab ${tab === "logs" ? "tab--active" : ""}`}
@@ -205,6 +224,7 @@ export default function App() {
             <ProjectsTab currentUser={user} activeProject={activeProject} onPickProject={onPickProject} />
           )}
           {tab === "agents" && <AgentsTab currentUser={user} activeProject={activeProject} />}
+          {tab === "skills" && <SkillsTab currentUser={user} activeProject={activeProject} />}
           {tab === "files" && <FilesTab project={activeProject} currentUser={user} />}
           {tab === "tasks" && <TasksTab currentUser={user} />}
           {tab === "logs" && user.role === "admin" && <LogsTab />}

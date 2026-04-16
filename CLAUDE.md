@@ -99,6 +99,18 @@ Named personalities with their own system prompt, tool whitelist and memory knob
 - SSE events (`content`, `reasoning`, `tool_call`, `tool_result`, `turn_end`) carry an optional `author`. `createSseRenderer(sink, { author })` tags every outgoing event; the frontend `MessageBubble` renders `@name` in place of `assistant`. `HistoryTurn.author` propagates the same field from replayed DB rows so reload looks identical.
 - HTTP: `GET/POST /api/agents`, `GET/PATCH/DELETE /api/agents/:name`, `GET/POST /api/projects/:name/agents`, `DELETE /api/projects/:name/agents/:agent`, `GET /api/tools` (for the picker). Web UI: fifth tab "Agents" with a card grid + dialog; per-card checkboxes to link/unlink to each project. See [ADR 0009](./docs/adr/0009-agents.md).
 
+### Skills
+
+Reusable instruction packages following the [agentskills.io](https://agentskills.io) open standard. A skill is a directory containing a `SKILL.md` file (YAML frontmatter + markdown instructions) plus optional `scripts/`, `references/`, and `assets/` subdirectories. Skills are passive instruction sets (no memory knobs or context scope like agents).
+
+- **On disk:** `$BUNNY_HOME/skills/<name>/SKILL.md`. Parsed with the `yaml` npm package (TOML is used elsewhere, but SKILL.md uses YAML frontmatter per the standard). Mtime-keyed cache avoids re-parsing on every turn.
+- **Database:** `skills` table (name PK, description, visibility, source_url, source_ref, created_by, timestamps) + `project_skills` join table — same opt-in linking pattern as `project_agents`.
+- **Progressive disclosure:** (1) Catalog (~50-100 tokens/skill: name + description) injected into the system prompt. (2) Full SKILL.md body loaded via the `activate_skill` tool when the LLM decides a skill is relevant. (3) Bundled scripts/references loaded on demand via existing `read_file` tool.
+- **`activate_skill` tool** (`src/tools/activate_skill.ts`): closure-bound per-run tool, same pattern as `call_agent`. Added to `DYNAMIC_TOOL_NAMES` in `loop.ts`. Returns instructions wrapped in `<skill_content>` tags + a `<skill_resources>` listing of bundled files.
+- **Installation:** `src/memory/skill_install.ts` fetches skills from GitHub URLs (parses tree/blob URLs, uses the Contents API) and from skills.sh identifiers (resolved to GitHub). `POST /api/skills/install` exposes this over HTTP.
+- Entry points: `src/memory/skills.ts` (CRUD + link helpers), `src/memory/skill_assets.ts` (SKILL.md parsing + caching), `src/memory/skill_install.ts` (GitHub/skills.sh fetcher).
+- HTTP: `GET/POST /api/skills`, `POST /api/skills/install`, `GET/PATCH/DELETE /api/skills/:name`, `GET/POST /api/projects/:p/skills`, `DELETE /api/projects/:p/skills/:skill`. Web UI: "Skills" tab with card grid, create dialog, install-from-URL dialog, project link/unlink checkboxes. See [ADR 0013](./docs/adr/0013-agent-skills.md).
+
 ### Boards
 
 Per-project Trello-style kanban with configurable swimlanes and cards. One board per project — `project` is the scope key on every row, no separate `boards` table (mirrors `project_agents`). Three append-only tables (`board_swimlanes`, `board_cards`, `board_card_runs`) live in `src/memory/schema.sql`. Sparse positions (steps of 100) make drag-and-drop reorders cheap. `createProject` seeds Todo/Doing/Done; `GET /api/projects/:p/board` backfills them on-demand for legacy projects.
