@@ -88,6 +88,8 @@ export interface RunAgentOptions {
   db: Database;
   queue: BunnyQueue;
   renderer: Renderer;
+  /** When set, replaces the entire system prompt (skips project/agent/recall prompt building). */
+  systemPromptOverride?: string;
 }
 
 /** Run one user turn through the agent loop. Returns the final assistant response. */
@@ -151,16 +153,18 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
   const projectSkills = listSkillsForProject(db, project);
   const skillCatalog = projectSkills.length > 0 ? buildSkillCatalog(projectSkills) : undefined;
 
-  const systemMsg = buildSystemMessage({
-    recall,
-    projectAssets,
-    baseSystem: agentCfg?.systemPrompt,
-    agentAssets,
-    agentName: agentName ?? undefined,
-    agentDescription: agentRow?.description,
-    otherAgents,
-    skillCatalog,
-  });
+  const systemMsg = opts.systemPromptOverride
+    ? { role: "system" as const, content: opts.systemPromptOverride }
+    : buildSystemMessage({
+        recall,
+        projectAssets,
+        baseSystem: agentCfg?.systemPrompt,
+        agentAssets,
+        agentName: agentName ?? undefined,
+        agentDescription: agentRow?.description,
+        otherAgents,
+        skillCatalog,
+      });
 
   const userMsgId = insertMessage(db, {
     sessionId,

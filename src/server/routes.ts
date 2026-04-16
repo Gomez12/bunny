@@ -44,6 +44,7 @@ import { handleDashboardRoute } from "./dashboard_routes.ts";
 import { handleAgentRoute } from "./agent_routes.ts";
 import { handleSkillRoute } from "./skill_routes.ts";
 import { handleBoardRoute } from "./board_routes.ts";
+import { handleWhiteboardRoute } from "./whiteboard_routes.ts";
 import { handleWorkspaceRoute } from "./workspace_routes.ts";
 import { handleScheduledTaskRoute } from "./scheduled_task_routes.ts";
 import type { SchedulerHandle } from "../scheduler/ticker.ts";
@@ -103,6 +104,10 @@ export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<
   );
   if (boardResponse) return boardResponse;
 
+  // ── Whiteboards (per-project Excalidraw) ──────────────────────────────────
+  const whiteboardResponse = await handleWhiteboardRoute(req, url, { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg }, user);
+  if (whiteboardResponse) return whiteboardResponse;
+
   // ── Workspace (per-project files) ─────────────────────────────────────────
   const workspaceResponse = await handleWorkspaceRoute(req, url, { db: ctx.db, queue: ctx.queue }, user);
   if (workspaceResponse) return workspaceResponse;
@@ -115,6 +120,11 @@ export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<
     user,
   );
   if (taskResponse) return taskResponse;
+
+  // ── UI config (public subset of bunny.config.toml) ────────────────────────
+  if (pathname === "/api/config/ui" && req.method === "GET") {
+    return json({ autosaveIntervalMs: ctx.cfg.ui.autosaveIntervalMs });
+  }
 
   // ── Events (admin Logs tab) ───────────────────────────────────────────────
   if (pathname === "/api/events" && req.method === "GET") {

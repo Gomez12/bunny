@@ -74,7 +74,7 @@ Both `last_n` and `recall_k` can be overridden per-project via the `last_n` / `r
 - Serves `web/dist/` statically if it exists; otherwise shows a dev placeholder pointing at the Vite dev server.
 - Sets `idleTimeout: 0` — SSE streams can outlive the default timeout.
 
-The frontend (`web/`) is React + Vite with its own `package.json`. Tabs: Dashboard (KPIs, time-series charts, tool/agent/project breakdowns, error rates, scheduler health, and recent activity feed — powered by Recharts and a single `GET /api/dashboard?range=` endpoint backed by `src/memory/stats.ts`; admin sees global stats, non-admin sees own data only), Chat (live SSE streaming via `fetch` body-reader, not `EventSource`, because we POST JSON), Messages (sessions listed via `listSessions()`, BM25-filtered when `q` is set, scoped to the active project), Projects (card grid with click-to-switch + create/edit dialog) and Settings (profile, API keys, admin-only user management). Session id is persisted in `localStorage` under `bunny.activeSessionId`, active project under `bunny.activeProject`. Switching project always starts a new session. The app boots by calling `GET /api/auth/me` — 401 drops the user on the login page, a `mustChangePassword` flag gates the forced-change page. All fetches use `credentials: "include"` so the `bunny_session` cookie rides along.
+The frontend (`web/`) is React + Vite with its own `package.json`. Tabs: Dashboard (KPIs, time-series charts, tool/agent/project breakdowns, error rates, scheduler health, and recent activity feed — powered by Recharts and a single `GET /api/dashboard?range=` endpoint backed by `src/memory/stats.ts`; admin sees global stats, non-admin sees own data only), Chat (live SSE streaming via `fetch` body-reader, not `EventSource`, because we POST JSON), Messages (sessions listed via `listSessions()`, BM25-filtered when `q` is set, scoped to the active project), Projects (card grid with click-to-switch + create/edit dialog), Whiteboard (per-project Excalidraw whiteboards with LLM edit/question modes) and Settings (profile, API keys, admin-only user management). Session id is persisted in `localStorage` under `bunny.activeSessionId`, active project under `bunny.activeProject`. Switching project always starts a new session. The app boots by calling `GET /api/auth/me` — 401 drops the user on the login page, a `mustChangePassword` flag gates the forced-change page. All fetches use `credentials: "include"` so the `bunny_session` cookie rides along.
 
 SSE event shapes live in `src/agent/sse_events.ts` and are imported by both `src/agent/render_sse.ts` (backend) and `web/src/api.ts` (frontend) — single source of truth, compile-time drift guard. Vite's `server.fs.allow: [".."]` permits the cross-root import.
 
@@ -136,6 +136,16 @@ Per-project file area under `<projectDir>/workspace/`, seeded with `input/` and 
 **HTTP** (`src/server/workspace_routes.ts`, mounted between board and scheduled-task routes): `GET /api/projects/:p/workspace/list?path=…`, `GET …/workspace/file?path=…&encoding=utf8|base64|raw`, `POST …/workspace/file` (JSON or multipart, 100 MB cap), `POST …/workspace/mkdir`, `POST …/workspace/move`, `DELETE /api/projects/:p/workspace?path=…`. Reads = `canSeeProject`, mutations = `canEditProject`.
 
 Web UI: **Files** tab between Board and Tasks. Breadcrumb nav, drag-and-drop upload zone, inline rename/mkdir/delete, lock icon on `input`/`output` roots. Downloads are plain `<a href>` to the `encoding=raw` endpoint. See [ADR 0012](./docs/adr/0012-project-workspaces.md).
+
+### Whiteboards
+
+Per-project Excalidraw whiteboards for visual collaboration. Each project can have multiple named whiteboards stored in the `whiteboards` table (elements JSON + thumbnail). Entry point: `src/memory/whiteboards.ts` (CRUD + `canEditWhiteboard`). Routes: `src/server/whiteboard_routes.ts` (mounted between board and workspace routes in `routes.ts`).
+
+Two LLM interaction modes:
+- **Edit mode** (`POST /api/whiteboards/:id/edit`): uses `runAgent` with `systemPromptOverride` to modify whiteboard elements via natural language. The session is hidden from Chat/Messages via `session_visibility`. Frontend extracts JSON from the response and updates the canvas.
+- **Question mode** (`POST /api/whiteboards/:id/ask`): saves the whiteboard, creates a chat session with the PNG as an attachment, returns `{ sessionId }` for navigation to the Chat tab.
+
+Web UI: **Whiteboard** tab between Board and Files. Left sidebar lists saved whiteboards with thumbnails, center has the Excalidraw canvas with fullscreen toggle, bottom has a composer with edit/question mode toggle. Auto-saves on changes (debounced 2s). Thumbnails generated client-side via `exportToBlob`. Frontend dependency: `@excalidraw/excalidraw`. See [ADR 0015](./docs/adr/0015-whiteboards.md).
 
 ### Scheduler
 

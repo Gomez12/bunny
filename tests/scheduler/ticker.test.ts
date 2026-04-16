@@ -22,6 +22,7 @@ const cfg = {
   queue: { topics: [] },
   auth: { defaultAdminUsername: "a", defaultAdminPassword: "b", sessionTtlHours: 1 },
   agent: { systemPrompt: "", defaultProject: "general" },
+  ui: { autosaveIntervalMs: 5000 },
   sessionId: undefined,
 } as unknown as BunnyConfig;
 

@@ -270,6 +270,24 @@ CREATE TABLE IF NOT EXISTS project_skills (
 );
 CREATE INDEX IF NOT EXISTS idx_project_skills_skill ON project_skills(skill);
 
+-- ── Whiteboards ─────────────────────────────────────────────────────────────
+-- Per-project Excalidraw whiteboards. Each project can have multiple named
+-- whiteboards that store the full Excalidraw elements JSON + a small PNG
+-- thumbnail for the sidebar preview.
+CREATE TABLE IF NOT EXISTS whiteboards (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  project         TEXT    NOT NULL,
+  name            TEXT    NOT NULL,
+  elements_json   TEXT    NOT NULL DEFAULT '[]',
+  app_state_json  TEXT,
+  thumbnail       TEXT,                          -- PNG data URL (small, ~200×150)
+  created_by      TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at      INTEGER NOT NULL,
+  updated_at      INTEGER NOT NULL,
+  UNIQUE(project, name)
+);
+CREATE INDEX IF NOT EXISTS idx_whiteboards_project ON whiteboards(project, updated_at);
+
 -- ── Embeddings ───────────────────────────────────────────────────────────────
 -- Created dynamically by db.ts using the configured dimension (default 1536)
 -- because the dimension must be baked into the vec0 CREATE statement.

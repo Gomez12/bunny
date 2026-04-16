@@ -1184,3 +1184,87 @@ export interface DashboardData {
 export async function fetchDashboard(range: DashboardRange = "7d"): Promise<DashboardData> {
   return jsonFetch<DashboardData>(`/api/dashboard?range=${range}`);
 }
+
+// ── UI Config ───────────────────────────────────────────────────────────
+
+export interface UiConfig {
+  autosaveIntervalMs: number;
+}
+
+export async function fetchUiConfig(): Promise<UiConfig> {
+  return jsonFetch<UiConfig>("/api/config/ui");
+}
+
+// ── Whiteboards ─────────────────────────────────────────────────────────
+
+export interface WhiteboardSummary {
+  id: number;
+  name: string;
+  thumbnail: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface WhiteboardFull extends WhiteboardSummary {
+  project: string;
+  elementsJson: string;
+  appStateJson: string | null;
+  createdBy: string | null;
+}
+
+export async function fetchWhiteboards(project: string): Promise<WhiteboardSummary[]> {
+  const data = await jsonFetch<{ whiteboards: WhiteboardSummary[] }>(
+    `/api/projects/${encodeURIComponent(project)}/whiteboards`,
+  );
+  return data.whiteboards;
+}
+
+export async function fetchWhiteboard(id: number): Promise<WhiteboardFull> {
+  const data = await jsonFetch<{ whiteboard: WhiteboardFull }>(`/api/whiteboards/${id}`);
+  return data.whiteboard;
+}
+
+export async function createWhiteboard(project: string, name: string): Promise<WhiteboardFull> {
+  const data = await jsonFetch<{ whiteboard: WhiteboardFull }>(
+    `/api/projects/${encodeURIComponent(project)}/whiteboards`,
+    { method: "POST", body: JSON.stringify({ name }) },
+  );
+  return data.whiteboard;
+}
+
+export async function patchWhiteboard(
+  id: number,
+  patch: { name?: string; elementsJson?: string; appStateJson?: string | null; thumbnail?: string | null },
+): Promise<WhiteboardFull> {
+  const data = await jsonFetch<{ whiteboard: WhiteboardFull }>(`/api/whiteboards/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  return data.whiteboard;
+}
+
+export async function deleteWhiteboard(id: number): Promise<void> {
+  await jsonFetch<{ ok: boolean }>(`/api/whiteboards/${id}`, { method: "DELETE" });
+}
+
+export async function editWhiteboard(
+  id: number,
+  body: { prompt: string; elementsJson: string; screenshotDataUrl?: string },
+): Promise<Response> {
+  return fetch(`/api/whiteboards/${id}/edit`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function askWhiteboard(
+  id: number,
+  body: { prompt: string; elementsJson?: string; screenshotDataUrl?: string; thumbnail?: string },
+): Promise<{ sessionId: string; project: string }> {
+  return jsonFetch<{ sessionId: string; project: string }>(`/api/whiteboards/${id}/ask`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}

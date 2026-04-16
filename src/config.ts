@@ -70,6 +70,11 @@ export interface AgentConfig {
   defaultProject: string;
 }
 
+export interface UiConfig {
+  /** Autosave debounce interval in milliseconds (used by whiteboard and other editors). */
+  autosaveIntervalMs: number;
+}
+
 export interface BunnyConfig {
   llm: LlmConfig;
   embed: EmbedConfig;
@@ -78,6 +83,7 @@ export interface BunnyConfig {
   queue: QueueConfig;
   auth: AuthConfig;
   agent: AgentConfig;
+  ui: UiConfig;
   sessionId: string | undefined;
 }
 
@@ -92,6 +98,7 @@ interface TomlShape {
   queue?: Partial<{ topics: string[] }>;
   auth?: Partial<{ default_admin_username: string; default_admin_password: string; session_ttl_hours: number }>;
   agent?: Partial<{ system_prompt: string; default_project: string }>;
+  ui?: Partial<{ autosave_interval_ms: number }>;
 }
 
 const DEFAULTS = {
@@ -123,6 +130,9 @@ You have access to tools for reading, listing, and editing files in the working 
 Use tools when you need to inspect or modify files. Think step-by-step before acting.
 When you are done, reply with your final answer without making any more tool calls.`,
     defaultProject: "general",
+  },
+  ui: {
+    autosaveIntervalMs: 5_000,
   },
 } as const;
 
@@ -218,6 +228,10 @@ export function loadConfig(opts: { env?: NodeJS.ProcessEnv; cwd?: string } = {})
       DEFAULTS.agent.defaultProject,
   };
 
+  const ui: UiConfig = {
+    autosaveIntervalMs: Number(toml.ui?.autosave_interval_ms ?? DEFAULTS.ui.autosaveIntervalMs),
+  };
+
   return {
     llm,
     embed,
@@ -226,6 +240,7 @@ export function loadConfig(opts: { env?: NodeJS.ProcessEnv; cwd?: string } = {})
     queue,
     auth,
     agent,
+    ui,
     sessionId: env["BUNNY_SESSION"],
   };
 }

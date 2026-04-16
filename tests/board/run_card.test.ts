@@ -70,6 +70,7 @@ function makeCfg(): BunnyConfig {
     queue: { topics: [] },
     auth: { defaultAdminUsername: "admin", defaultAdminPassword: "x", sessionTtlHours: 1 },
     agent: { systemPrompt: "You are a tester.", defaultProject: "alpha" },
+    ui: { autosaveIntervalMs: 5000 },
     sessionId: undefined,
   };
 }
