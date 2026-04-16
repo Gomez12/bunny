@@ -11,6 +11,7 @@ import type { BunnyQueue } from "../queue/bunqueue.ts";
 import { randomUUID } from "node:crypto";
 
 import { getMessagesBySession } from "../memory/messages.ts";
+import type { ChatAttachment } from "../llm/types.ts";
 import { getSessionOwners, listSessions } from "../memory/sessions.ts";
 import { setSessionHiddenFromChat } from "../memory/session_visibility.ts";
 import { listEventFacets, listEvents, type ListEventsFilter } from "../memory/events.ts";
@@ -185,6 +186,13 @@ export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<
     return json({ sessionId, messages });
   }
 
+  // POST /api/upload-image — convert an uploaded image to a base64 data URL.
+  // Used by the frontend when client-side File reading APIs are unavailable
+  // (Safari 26+ blocks FileReader / arrayBuffer on File objects).
+  if (pathname === "/api/upload-image" && req.method === "POST") {
+    return handleUploadImage(req);
+  }
+
   // POST /api/chat — SSE streaming chat
   if (pathname === "/api/chat" && req.method === "POST") {
     return handleChat(req, ctx, user);
@@ -201,14 +209,16 @@ function canAccessSession(ctx: RouteCtx, user: User, sessionId: string): boolean
 }
 
 async function handleChat(req: Request, ctx: RouteCtx, user: User): Promise<Response> {
-  let body: { sessionId?: string; prompt?: string; project?: string; agent?: string };
+  interface ChatBody {
+    sessionId?: string;
+    prompt?: string;
+    project?: string;
+    agent?: string;
+    attachments?: Array<{ kind?: string; mime?: string; dataUrl?: string }>;
+  }
+  let body: ChatBody;
   try {
-    body = (await req.json()) as {
-      sessionId?: string;
-      prompt?: string;
-      project?: string;
-      agent?: string;
-    };
+    body = (await req.json()) as ChatBody;
   } catch {
     return json({ error: "invalid json" }, 400);
   }
@@ -216,6 +226,31 @@ async function handleChat(req: Request, ctx: RouteCtx, user: User): Promise<Resp
   const rawPrompt = body.prompt?.trim();
   const sessionId = body.sessionId?.trim() || randomUUID();
   if (!rawPrompt) return json({ error: "missing prompt" }, 400);
+
+  // Validate & normalise attachments. Cap: 4 images, 10 MB per image (the
+  // base64 payload; raw bytes are ≈ 0.75× that).
+  const MAX_ATTACHMENTS = 4;
+  const MAX_DATAURL_BYTES = 10 * 1024 * 1024;
+  const ALLOWED_IMG_MIME = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+  const attachments: ChatAttachment[] = [];
+  if (body.attachments) {
+    if (!Array.isArray(body.attachments) || body.attachments.length > MAX_ATTACHMENTS) {
+      return json({ error: `at most ${MAX_ATTACHMENTS} attachments allowed` }, 400);
+    }
+    for (const a of body.attachments) {
+      if (a?.kind !== "image") return json({ error: "unsupported attachment kind" }, 400);
+      if (typeof a.mime !== "string" || !ALLOWED_IMG_MIME.has(a.mime)) {
+        return json({ error: `unsupported image mime '${a.mime}'` }, 400);
+      }
+      if (typeof a.dataUrl !== "string" || !a.dataUrl.startsWith(`data:${a.mime};base64,`)) {
+        return json({ error: "attachment dataUrl must be a base64 data URL" }, 400);
+      }
+      if (a.dataUrl.length > MAX_DATAURL_BYTES) {
+        return json({ error: "attachment exceeds size limit" }, 413);
+      }
+      attachments.push({ kind: "image", mime: a.mime, dataUrl: a.dataUrl });
+    }
+  }
 
   // Resolve the addressed agent: explicit body.agent wins, otherwise parse a
   // leading `@name` from the prompt. Either path strips the mention so the
@@ -280,6 +315,7 @@ async function handleChat(req: Request, ctx: RouteCtx, user: User): Promise<Resp
       try {
         await runAgent({
           prompt,
+          attachments: attachments.length > 0 ? attachments : undefined,
           sessionId,
           userId: user.id,
           project,
@@ -495,4 +531,33 @@ function handleDeleteProject(ctx: RouteCtx, user: User, name: string): Response 
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
   }
+}
+
+// ── Image upload (browser‐side FileReader workaround) ──────────────────────
+
+const UPLOAD_ALLOWED_MIME = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+const UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
+
+async function handleUploadImage(req: Request): Promise<Response> {
+  let form: globalThis.FormData;
+  try {
+    form = await req.formData() as unknown as globalThis.FormData;
+  } catch {
+    return json({ error: "expected multipart/form-data" }, 400);
+  }
+  const file = form.get("file");
+  if (!file || !(file instanceof File)) {
+    return json({ error: "missing 'file' field" }, 400);
+  }
+  if (!UPLOAD_ALLOWED_MIME.has(file.type)) {
+    return json({ error: `unsupported mime '${file.type}'` }, 400);
+  }
+  if (file.size > UPLOAD_MAX_BYTES) {
+    return json({ error: "file too large" }, 413);
+  }
+  const buf = await file.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  const base64 = Buffer.from(bytes).toString("base64");
+  const dataUrl = `data:${file.type};base64,${base64}`;
+  return json({ mime: file.type, dataUrl });
 }

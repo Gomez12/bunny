@@ -37,7 +37,8 @@ CREATE TABLE IF NOT EXISTS messages (
   completion_tokens INTEGER,                -- tokens generated (per LLM call)
   user_id      TEXT,                        -- owning user (null for anonymous/historical)
   project      TEXT,                        -- owning project name (null = 'general')
-  author       TEXT                         -- responding agent name (null = default assistant)
+  author       TEXT,                        -- responding agent name (null = default assistant)
+  attachments  TEXT                         -- JSON array of {kind,mime,dataUrl} (null = no attachments)
 );
 CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, ts);
 -- idx_messages_project is created in db.ts:migrateColumns so it also works on

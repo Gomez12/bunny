@@ -1,8 +1,10 @@
 /** Shared types and fetch helpers for the Bunny API. */
 
 import type { SseEvent } from "../../src/agent/sse_events";
+import type { ChatAttachment } from "../../src/llm/types";
 
 export type ServerEvent = SseEvent;
+export type { ChatAttachment };
 
 export interface SessionSummary {
   sessionId: string;
@@ -55,6 +57,8 @@ export interface StoredMessage {
   project: string;
   /** Responding agent name, null for the default assistant / user rows. */
   author: string | null;
+  /** User-turn attachments (images). Null when absent. */
+  attachments: ChatAttachment[] | null;
 }
 
 export interface TurnStats {
@@ -105,6 +109,8 @@ export interface HistoryTurn {
   stats: TurnStats | null;
   /** Agent name that answered, or null for the default assistant. */
   author: string | null;
+  /** Attachments sent by the user on this turn. */
+  attachments: ChatAttachment[];
 }
 
 /** Group rows into turns: every user message opens a new turn and all following
@@ -125,6 +131,7 @@ export function groupTurns(messages: StoredMessage[]): HistoryTurn[] {
         toolCalls: [],
         stats: null,
         author: null,
+        attachments: m.attachments ?? [],
       };
       turns.push(current);
       continue;
@@ -219,7 +226,13 @@ export async function createSession(): Promise<string> {
  * Returns a promise that resolves when the stream ends and an abort function.
  */
 export function streamChat(
-  body: { sessionId: string; prompt: string; project?: string; agent?: string },
+  body: {
+    sessionId: string;
+    prompt: string;
+    project?: string;
+    agent?: string;
+    attachments?: ChatAttachment[];
+  },
   onEvent: (ev: ServerEvent) => void,
 ): { done: Promise<void>; abort: () => void } {
   const controller = new AbortController();
@@ -983,6 +996,37 @@ export async function moveWorkspaceEntry(
     method: "POST",
     body: JSON.stringify({ from, to }),
   });
+}
+
+/**
+ * Upload an image file to the server which returns it as a base64 data URL.
+ * This bypasses all client-side File reading APIs (FileReader, arrayBuffer,
+ * fetch-on-blob) which Safari 26+ blocks on drag-and-drop and file-picker
+ * File objects. The browser's native FormData serialisation is always allowed.
+ */
+export async function uploadImageForDataUrl(
+  file: File,
+  mime: string,
+): Promise<ChatAttachment> {
+  const form = new FormData();
+  // Ensure the File carries the right MIME even when the browser left it blank.
+  const blob = file.type === mime ? file : new File([file], file.name, { type: mime });
+  form.append("file", blob, file.name);
+  const res = await fetch("/api/upload-image", {
+    method: "POST",
+    credentials: "include",
+    body: form,
+  });
+  if (!res.ok) {
+    let msg = `upload failed: ${res.status}`;
+    try {
+      const err = (await res.json()) as { error?: string };
+      if (err?.error) msg = err.error;
+    } catch { /* ignore */ }
+    throw new Error(msg);
+  }
+  const data = (await res.json()) as { mime: string; dataUrl: string };
+  return { kind: "image", mime: data.mime, dataUrl: data.dataUrl };
 }
 
 export function workspaceDownloadUrl(project: string, path: string): string {

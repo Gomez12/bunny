@@ -20,7 +20,7 @@
  */
 
 import type { LlmConfig, EmbedConfig, MemoryConfig, AgentConfig } from "../config.ts";
-import type { ChatMessage } from "../llm/types.ts";
+import type { ChatAttachment, ChatMessage } from "../llm/types.ts";
 import type { ToolRegistry } from "../tools/registry.ts";
 import type { Database } from "bun:sqlite";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
@@ -59,6 +59,8 @@ const DYNAMIC_TOOL_NAMES = new Set<string>([
 
 export interface RunAgentOptions {
   prompt: string;
+  /** Optional images attached to this user turn (OpenAI-style multipart content). */
+  attachments?: ChatAttachment[];
   sessionId: string;
   /** Owning user id — stamped onto every message/event produced this turn. */
   userId?: string;
@@ -85,7 +87,7 @@ export interface RunAgentOptions {
 
 /** Run one user turn through the agent loop. Returns the final assistant response. */
 export async function runAgent(opts: RunAgentOptions): Promise<string> {
-  const { prompt, sessionId, userId, llmCfg, embedCfg, memoryCfg, agentCfg, tools, db, queue, renderer } = opts;
+  const { prompt, attachments, sessionId, userId, llmCfg, embedCfg, memoryCfg, agentCfg, tools, db, queue, renderer } = opts;
   const project = opts.project ?? agentCfg?.defaultProject ?? DEFAULT_PROJECT;
   const callDepth = opts.callDepth ?? 0;
 
@@ -157,6 +159,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
     project,
     role: "user",
     content: prompt,
+    attachments: attachments && attachments.length > 0 ? attachments : null,
     // User turns are always stamped as null — `author` means "who wrote
     // this", not "who it was addressed to". Recall / `getRecentTurns` still
     // include user rows unconditionally when a scope is set.
@@ -165,10 +168,17 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
   void indexMessage(db, embedCfg, userMsgId, prompt);
   void queue.log({ topic: "memory", kind: "index", sessionId, data: { role: "user", agent: agentName } });
 
+  const userMessage: ChatMessage = { role: "user", content: prompt };
+  if (attachments && attachments.length > 0) userMessage.attachments = attachments;
+
   const messages: ChatMessage[] = [
     systemMsg,
-    ...recentTurns.map(({ role, content }) => ({ role, content })),
-    { role: "user", content: prompt },
+    ...recentTurns.map((t) => {
+      const m: ChatMessage = { role: t.role, content: t.content };
+      if (t.attachments && t.attachments.length > 0) m.attachments = t.attachments;
+      return m;
+    }),
+    userMessage,
   ];
 
   // Per-run registry: agent's whitelist plus closure-bound extras

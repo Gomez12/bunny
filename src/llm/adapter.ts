@@ -11,7 +11,7 @@
  */
 
 import type { LlmConfig } from "../config.ts";
-import type { ChatRequest, LlmResponse, StreamDelta } from "./types.ts";
+import type { ChatMessage, ChatRequest, ContentPart, LlmResponse, StreamDelta } from "./types.ts";
 import { getProfile } from "./profiles.ts";
 import { parseStream } from "./stream.ts";
 import { DeltaAccumulator } from "./delta.ts";
@@ -23,10 +23,34 @@ export interface StreamResult {
   response: Promise<LlmResponse>;
 }
 
+/**
+ * Serialize one ChatMessage for the wire. When `attachments` are present on
+ * a user turn, content is upgraded to the OpenAI array form so vision-capable
+ * models receive the images. Everything else is passed through unchanged
+ * (the `attachments` field itself is stripped — providers don't know it).
+ */
+function serializeMessage(m: ChatMessage): ChatMessage | Record<string, unknown> {
+  if (m.role !== "user" || !m.attachments || m.attachments.length === 0) {
+    return m;
+  }
+  const parts: ContentPart[] = [];
+  if (m.content && m.content.length > 0) {
+    parts.push({ type: "text", text: m.content });
+  }
+  for (const a of m.attachments) {
+    if (a.kind === "image") {
+      parts.push({ type: "image_url", image_url: { url: a.dataUrl } });
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { attachments: _attachments, content: _content, ...rest } = m;
+  return { ...rest, content: parts };
+}
+
 function buildRequestBody(req: ChatRequest, model: string): unknown {
   const body: Record<string, unknown> = {
     model: req.model ?? model,
-    messages: req.messages,
+    messages: req.messages.map(serializeMessage),
     stream: true,
     stream_options: { include_usage: true },
   };

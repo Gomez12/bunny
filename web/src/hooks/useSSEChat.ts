@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { streamChat, type ServerEvent, type TurnStats } from "../api";
+import { streamChat, type ChatAttachment, type ServerEvent, type TurnStats } from "../api";
 
 /** One rendered turn in the Chat tab (user prompt + assistant streaming output). */
 export interface Turn {
   id: string;
   prompt: string;
+  attachments: ChatAttachment[];
   content: string;
   reasoning: string;
   toolCalls: ToolCallState[];
@@ -58,7 +59,7 @@ export function useSSEChat(sessionId: string, project: string, onTurnComplete?: 
   }, []);
 
   const send = useCallback(
-    (prompt: string) => {
+    (prompt: string, attachments: ChatAttachment[] = []) => {
       const turnId = crypto.randomUUID();
       const startedAt = performance.now();
       setTurns((prev) => [
@@ -66,6 +67,7 @@ export function useSSEChat(sessionId: string, project: string, onTurnComplete?: 
         {
           id: turnId,
           prompt,
+          attachments,
           content: "",
           reasoning: "",
           toolCalls: [],
@@ -164,7 +166,10 @@ export function useSSEChat(sessionId: string, project: string, onTurnComplete?: 
         updateLast((t) => ({ ...t, author: t.author ?? candidate }));
       }
 
-      const { done, abort } = streamChat({ sessionId, prompt, project }, handler);
+      const { done, abort } = streamChat(
+        { sessionId, prompt, project, attachments: attachments.length > 0 ? attachments : undefined },
+        handler,
+      );
       abortRef.current = abort;
       done.catch((e: unknown) => {
         // HTTP-level failure (404/403/etc.): no agent actually answered, so

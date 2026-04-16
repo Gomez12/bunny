@@ -98,6 +98,7 @@ function migrateColumns(db: Database): void {
   addColumn("ALTER TABLE messages ADD COLUMN user_id TEXT");
   addColumn("ALTER TABLE messages ADD COLUMN project TEXT");
   addColumn("ALTER TABLE messages ADD COLUMN author TEXT");
+  addColumn("ALTER TABLE messages ADD COLUMN attachments TEXT");
   addColumn("ALTER TABLE events ADD COLUMN user_id TEXT");
   addColumn("ALTER TABLE board_swimlanes ADD COLUMN auto_run INTEGER NOT NULL DEFAULT 0");
   addColumn("ALTER TABLE board_cards ADD COLUMN auto_run INTEGER NOT NULL DEFAULT 0");

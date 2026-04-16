@@ -3,7 +3,7 @@
  */
 
 import type { Database } from "bun:sqlite";
-import type { ChatMessage } from "../llm/types.ts";
+import type { ChatAttachment, ChatMessage } from "../llm/types.ts";
 import { prep } from "./prepared.ts";
 import { invalidateSessionOwners } from "./sessions.ts";
 
@@ -34,6 +34,8 @@ export interface StoredMessage {
   project: string;
   /** Responding agent name, or null for the default assistant / user rows. */
   author: string | null;
+  /** User-turn attachments (images). Null when absent. */
+  attachments: ChatAttachment[] | null;
 }
 
 export interface InsertMessageOpts {
@@ -53,11 +55,13 @@ export interface InsertMessageOpts {
   project?: string | null;
   /** Responding agent name. Null for the default assistant or user turns. */
   author?: string | null;
+  /** Attachments (images) for user turns. */
+  attachments?: ChatAttachment[] | null;
 }
 
 const INSERT_MESSAGE_SQL = `
-    INSERT INTO messages (session_id, ts, role, channel, content, tool_call_id, tool_name, provider_sig, ok, duration_ms, prompt_tokens, completion_tokens, user_id, project, author)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO messages (session_id, ts, role, channel, content, tool_call_id, tool_name, provider_sig, ok, duration_ms, prompt_tokens, completion_tokens, user_id, project, author, attachments)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     RETURNING id
   `;
 
@@ -78,6 +82,9 @@ export function insertMessage(db: Database, opts: InsertMessageOpts): number {
     opts.userId ?? null,
     opts.project ?? "general",
     opts.author ?? null,
+    opts.attachments && opts.attachments.length > 0
+      ? JSON.stringify(opts.attachments)
+      : null,
   ) as { id: number } | undefined;
   if (opts.userId) invalidateSessionOwners(db, opts.sessionId);
   return row?.id ?? 0;
@@ -111,24 +118,34 @@ export function getRecentTurns(
   const params: (string | number | null)[] = [sessionId];
   let sql: string;
   if (ownAuthor !== undefined) {
-    sql = `SELECT id, role, content FROM messages
+    sql = `SELECT id, role, content, attachments FROM messages
            WHERE ${baseClauses} AND (role = 'user' OR (role = 'assistant' AND author IS ?))
            ORDER BY ts DESC, id DESC
            LIMIT ?`;
     params.push(ownAuthor);
   } else {
-    sql = `SELECT id, role, content FROM messages
+    sql = `SELECT id, role, content, attachments FROM messages
            WHERE ${baseClauses}
            ORDER BY ts DESC, id DESC
            LIMIT ?`;
   }
   params.push(limit);
-  const rows = prep(db, sql).all(...params) as Array<{ id: number; role: string; content: string }>;
-  return rows.reverse().map((r) => ({
-    role: r.role as "user" | "assistant",
-    content: r.content,
-    messageId: r.id,
-  }));
+  const rows = prep(db, sql).all(...params) as Array<{
+    id: number;
+    role: string;
+    content: string;
+    attachments: string | null;
+  }>;
+  return rows.reverse().map((r) => {
+    const parsed = parseAttachments(r.attachments);
+    const msg: ChatMessage & { messageId: number } = {
+      role: r.role as "user" | "assistant",
+      content: r.content,
+      messageId: r.id,
+    };
+    if (parsed && parsed.length > 0) msg.attachments = parsed;
+    return msg;
+  });
 }
 
 export function getMessagesBySession(db: Database, sessionId: string): StoredMessage[] {
@@ -137,7 +154,7 @@ export function getMessagesBySession(db: Database, sessionId: string): StoredMes
       `SELECT m.id, m.session_id, m.ts, m.role, m.channel, m.content, m.tool_call_id,
               m.tool_name, m.provider_sig, m.ok, m.duration_ms, m.prompt_tokens,
               m.completion_tokens, m.user_id, COALESCE(m.project, 'general') AS project,
-              m.author AS author,
+              m.author AS author, m.attachments AS attachments,
               u.username AS username, u.display_name AS display_name
        FROM messages m
        LEFT JOIN users u ON u.id = m.user_id
@@ -160,6 +177,7 @@ export function getMessagesBySession(db: Database, sessionId: string): StoredMes
     user_id: string | null;
     project: string;
     author: string | null;
+    attachments: string | null;
     username: string | null;
     display_name: string | null;
   }>;
@@ -180,7 +198,19 @@ export function getMessagesBySession(db: Database, sessionId: string): StoredMes
     userId: r.user_id,
     project: r.project,
     author: r.author,
+    attachments: parseAttachments(r.attachments),
     username: r.username,
     displayName: r.display_name,
   }));
+}
+
+function parseAttachments(raw: string | null): ChatAttachment[] | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as ChatAttachment[];
+    if (Array.isArray(parsed)) return parsed;
+  } catch {
+    /* fall through */
+  }
+  return null;
 }

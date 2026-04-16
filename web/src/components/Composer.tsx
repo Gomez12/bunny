@@ -1,17 +1,68 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import {
   fetchProjectAgents,
   fetchUserDirectory,
+  uploadImageForDataUrl,
   type Agent,
+  type ChatAttachment,
   type DirectoryUser,
 } from "../api";
 
 interface Props {
   disabled: boolean;
-  onSubmit: (prompt: string) => void;
+  onSubmit: (prompt: string, attachments: ChatAttachment[]) => void;
   onAbort?: () => void;
   streaming: boolean;
   project: string;
+}
+
+export const ALLOWED_IMAGE_MIME = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+]);
+export const MAX_IMAGES = 4;
+export const MAX_IMAGE_BYTES = 7 * 1024 * 1024; // raw file; base64 ≈ +33%.
+
+/** Safari occasionally drops File objects with an empty `type` — fall back to
+ * the filename extension so we don't reject an otherwise-valid PNG. */
+export function resolveImageMime(file: File): string | null {
+  if (file.type && ALLOWED_IMAGE_MIME.has(file.type)) return file.type;
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  switch (ext) {
+    case "png":
+      return "image/png";
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg";
+    case "gif":
+      return "image/gif";
+    case "webp":
+      return "image/webp";
+    default:
+      return null;
+  }
+}
+
+export interface ComposerHandle {
+  /** Add files (images) to the pending attachment list. Used for drop targets
+   * outside the composer itself, e.g. the surrounding chat scroll area. */
+  addFiles: (files: FileList | File[]) => Promise<void>;
+  /** Append an already-read attachment directly. Used by drop handlers that
+   * must initiate the File read *synchronously* inside the drop event (Safari
+   * invalidates DataTransfer Files once the event handler returns). */
+  pushAttachment: (a: ChatAttachment) => void;
+  /** Report a validation or read error to the composer's error slot. */
+  reportAttachError: (msg: string) => void;
 }
 
 interface Suggestion {
@@ -52,13 +103,21 @@ function detectMention(value: string, caret: number): MentionState | null {
   return null;
 }
 
-export default function Composer({ disabled, streaming, onSubmit, onAbort, project }: Props) {
+
+
+const Composer = forwardRef<ComposerHandle, Props>(function Composer(
+  { disabled, streaming, onSubmit, onAbort, project },
+  ref,
+) {
   const [value, setValue] = useState("");
   const [agents, setAgents] = useState<Agent[]>([]);
   const [users, setUsers] = useState<DirectoryUser[]>([]);
   const [mention, setMention] = useState<MentionState | null>(null);
   const [activeIdx, setActiveIdx] = useState(0);
+  const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
+  const [attachError, setAttachError] = useState<string | null>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   // Load mentionables once per project. Failures degrade silently — the popup
   // just won't surface that category.
@@ -109,12 +168,57 @@ export default function Composer({ disabled, streaming, onSubmit, onAbort, proje
 
   const send = () => {
     const text = value.trim();
-    if (!text) return;
-    onSubmit(text);
+    if (!text && attachments.length === 0) return;
+    onSubmit(text, attachments);
     setValue("");
+    setAttachments([]);
+    setAttachError(null);
     setMention(null);
     taRef.current?.focus();
   };
+
+  const addFiles = async (files: FileList | File[]) => {
+    const list = Array.from(files);
+    if (list.length === 0) return;
+    setAttachError(null);
+    const next: ChatAttachment[] = [];
+    for (const f of list) {
+      const mime = resolveImageMime(f);
+      if (!mime) {
+        setAttachError(`'${f.name}': only PNG/JPEG/GIF/WEBP images are supported`);
+        continue;
+      }
+      if (f.size > MAX_IMAGE_BYTES) {
+        setAttachError(`'${f.name}' exceeds the ${MAX_IMAGE_BYTES / 1024 / 1024} MB limit`);
+        continue;
+      }
+      if (attachments.length + next.length >= MAX_IMAGES) {
+        setAttachError(`at most ${MAX_IMAGES} images per message`);
+        break;
+      }
+      try {
+        const attachment = await uploadImageForDataUrl(f, mime);
+        next.push(attachment);
+      } catch (err) {
+        setAttachError(`failed to read '${f.name}': ${err instanceof Error ? err.message : "unknown"}`);
+      }
+    }
+    if (next.length > 0) setAttachments((prev) => [...prev, ...next]);
+  };
+
+  const removeAttachment = (idx: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      addFiles,
+      pushAttachment: (a) => setAttachments((prev) => [...prev, a]),
+      reportAttachError: (msg) => setAttachError(msg),
+    }),
+    [addFiles],
+  );
 
   const insertSuggestion = (s: Suggestion) => {
     if (!mention) return;
@@ -171,6 +275,35 @@ export default function Composer({ disabled, streaming, onSubmit, onAbort, proje
       }}
     >
       <div className="composer__field">
+        {attachments.length > 0 && (
+          <div className="composer__attachments">
+            {attachments.map((a, i) => (
+              <div key={i} className="composer__thumb">
+                <img src={a.dataUrl} alt={`attachment ${i + 1}`} />
+                <button
+                  type="button"
+                  className="composer__thumb-remove"
+                  aria-label="remove attachment"
+                  onClick={() => removeAttachment(i)}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {attachError && <div className="composer__attach-error">{attachError}</div>}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/png,image/jpeg,image/gif,image/webp"
+          multiple
+          hidden
+          onChange={(e) => {
+            if (e.target.files) void addFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
         <textarea
           ref={taRef}
           className="composer__input"
@@ -194,6 +327,19 @@ export default function Composer({ disabled, streaming, onSubmit, onAbort, proje
           onBlur={() => {
             // Delay so a click on a suggestion can fire first.
             setTimeout(() => setMention(null), 120);
+          }}
+          onPaste={(e) => {
+            const imgs: File[] = [];
+            for (const item of e.clipboardData.items) {
+              if (item.kind === "file" && item.type.startsWith("image/")) {
+                const f = item.getAsFile();
+                if (f) imgs.push(f);
+              }
+            }
+            if (imgs.length > 0) {
+              e.preventDefault();
+              void addFiles(imgs);
+            }
           }}
           onKeyDown={onKey}
           disabled={disabled && !streaming}
@@ -228,15 +374,33 @@ export default function Composer({ disabled, streaming, onSubmit, onAbort, proje
           </ul>
         )}
       </div>
+      {!streaming && (
+        <button
+          type="button"
+          className="btn btn--attach"
+          onClick={() => fileRef.current?.click()}
+          disabled={disabled || attachments.length >= MAX_IMAGES}
+          title="Attach image"
+          aria-label="Attach image"
+        >
+          📎
+        </button>
+      )}
       {streaming ? (
         <button type="button" className="btn btn--stop" onClick={onAbort}>
           <span className="spinner spinner--on-dark" /> Stop
         </button>
       ) : (
-        <button type="submit" className="btn btn--send" disabled={!value.trim() || disabled}>
+        <button
+          type="submit"
+          className="btn btn--send"
+          disabled={(!value.trim() && attachments.length === 0) || disabled}
+        >
           Send
         </button>
       )}
     </form>
   );
-}
+});
+
+export default Composer;

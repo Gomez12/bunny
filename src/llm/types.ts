@@ -18,9 +18,28 @@ export interface ToolCall {
   function: ToolCallFunction;
 }
 
-export interface ContentPart {
+export interface TextPart {
   type: "text";
   text: string;
+}
+
+export interface ImageUrlPart {
+  type: "image_url";
+  image_url: { url: string; detail?: "low" | "high" | "auto" };
+}
+
+export type ContentPart = TextPart | ImageUrlPart;
+
+/**
+ * Attachment attached to a user turn. Stored verbatim in `messages.attachments`
+ * (JSON-encoded) and replayed into every follow-up request so the model can
+ * reference the image on subsequent questions. Images carry base64 data URLs.
+ */
+export interface ChatAttachment {
+  kind: "image";
+  mime: string;
+  /** `data:<mime>;base64,…` */
+  dataUrl: string;
 }
 
 export interface ChatMessage {
@@ -37,6 +56,12 @@ export interface ChatMessage {
    * Must be echoed back in the following request for providers that require it.
    */
   provider_sig?: string;
+  /**
+   * User-turn attachments. The adapter maps these to OpenAI-style array content
+   * (text + image_url parts) at the serialization boundary; every other
+   * consumer of ChatMessage keeps treating `content` as a plain string.
+   */
+  attachments?: ChatAttachment[];
 }
 
 /** JSON-schema subset sufficient for a tool description. */
