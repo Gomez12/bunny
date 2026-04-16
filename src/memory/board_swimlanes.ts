@@ -12,6 +12,8 @@ import type { Database } from "bun:sqlite";
 export const POSITION_STEP = 100;
 export const DEFAULT_SWIMLANES = ["Todo", "Doing", "Done"] as const;
 
+export const LANE_COLORS = ["#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444"] as const;
+
 export interface Swimlane {
   id: number;
   project: string;
@@ -19,6 +21,11 @@ export interface Swimlane {
   position: number;
   wipLimit: number | null;
   autoRun: boolean;
+  defaultAssigneeUserId: string | null;
+  defaultAssigneeAgent: string | null;
+  nextSwimlaneId: number | null;
+  color: string | null;
+  group: string | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -30,6 +37,11 @@ interface SwimlaneRow {
   position: number;
   wip_limit: number | null;
   auto_run: number;
+  default_assignee_user_id: string | null;
+  default_assignee_agent: string | null;
+  next_swimlane_id: number | null;
+  color: string | null;
+  lane_group: string | null;
   created_at: number;
   updated_at: number;
 }
@@ -42,12 +54,17 @@ function rowToSwimlane(r: SwimlaneRow): Swimlane {
     position: r.position,
     wipLimit: r.wip_limit,
     autoRun: (r.auto_run ?? 0) !== 0,
+    defaultAssigneeUserId: r.default_assignee_user_id ?? null,
+    defaultAssigneeAgent: r.default_assignee_agent ?? null,
+    nextSwimlaneId: r.next_swimlane_id ?? null,
+    color: r.color ?? null,
+    group: r.lane_group ?? null,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
 }
 
-const SELECT_COLS = `id, project, name, position, wip_limit, auto_run, created_at, updated_at`;
+const SELECT_COLS = `id, project, name, position, wip_limit, auto_run, default_assignee_user_id, default_assignee_agent, next_swimlane_id, color, lane_group, created_at, updated_at`;
 
 export function listSwimlanes(db: Database, project: string): Swimlane[] {
   const rows = db
@@ -72,6 +89,11 @@ export interface CreateSwimlaneOpts {
   position?: number;
   wipLimit?: number | null;
   autoRun?: boolean;
+  defaultAssigneeUserId?: string | null;
+  defaultAssigneeAgent?: string | null;
+  nextSwimlaneId?: number | null;
+  color?: string | null;
+  group?: string | null;
 }
 
 export function createSwimlane(db: Database, opts: CreateSwimlaneOpts): Swimlane {
@@ -79,8 +101,10 @@ export function createSwimlane(db: Database, opts: CreateSwimlaneOpts): Swimlane
   const position = opts.position ?? nextPosition(db, opts.project);
   const info = db
     .prepare(
-      `INSERT INTO board_swimlanes(project, name, position, wip_limit, auto_run, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO board_swimlanes(project, name, position, wip_limit, auto_run,
+                                    default_assignee_user_id, default_assignee_agent, next_swimlane_id,
+                                    color, lane_group, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       opts.project,
@@ -88,6 +112,11 @@ export function createSwimlane(db: Database, opts: CreateSwimlaneOpts): Swimlane
       position,
       opts.wipLimit ?? null,
       opts.autoRun ? 1 : 0,
+      opts.defaultAssigneeUserId ?? null,
+      opts.defaultAssigneeAgent ?? null,
+      opts.nextSwimlaneId ?? null,
+      opts.color ?? null,
+      opts.group ?? null,
       now,
       now,
     );
@@ -99,6 +128,11 @@ export interface UpdateSwimlanePatch {
   position?: number;
   wipLimit?: number | null;
   autoRun?: boolean;
+  defaultAssigneeUserId?: string | null;
+  defaultAssigneeAgent?: string | null;
+  nextSwimlaneId?: number | null;
+  color?: string | null;
+  group?: string | null;
 }
 
 export function updateSwimlane(db: Database, id: number, patch: UpdateSwimlanePatch): Swimlane {
@@ -108,11 +142,18 @@ export function updateSwimlane(db: Database, id: number, patch: UpdateSwimlanePa
   const position = patch.position ?? existing.position;
   const wipLimit = patch.wipLimit === undefined ? existing.wipLimit : patch.wipLimit;
   const autoRun = patch.autoRun === undefined ? existing.autoRun : patch.autoRun;
+  const defUser = patch.defaultAssigneeUserId === undefined ? existing.defaultAssigneeUserId : patch.defaultAssigneeUserId;
+  const defAgent = patch.defaultAssigneeAgent === undefined ? existing.defaultAssigneeAgent : patch.defaultAssigneeAgent;
+  const nextLane = patch.nextSwimlaneId === undefined ? existing.nextSwimlaneId : patch.nextSwimlaneId;
+  const color = patch.color === undefined ? existing.color : patch.color;
+  const group = patch.group === undefined ? existing.group : patch.group;
   db.prepare(
     `UPDATE board_swimlanes
-     SET name = ?, position = ?, wip_limit = ?, auto_run = ?, updated_at = ?
+     SET name = ?, position = ?, wip_limit = ?, auto_run = ?,
+         default_assignee_user_id = ?, default_assignee_agent = ?, next_swimlane_id = ?,
+         color = ?, lane_group = ?, updated_at = ?
      WHERE id = ?`,
-  ).run(name, position, wipLimit, autoRun ? 1 : 0, Date.now(), id);
+  ).run(name, position, wipLimit, autoRun ? 1 : 0, defUser, defAgent, nextLane, color, group, Date.now(), id);
   return getSwimlane(db, id)!;
 }
 

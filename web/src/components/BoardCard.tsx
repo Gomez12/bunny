@@ -31,6 +31,21 @@ function CardBody({ card }: { card: BoardCardModel }) {
     <>
       <div className="board-card__title board-card__title--static">{card.title}</div>
       {card.description && <p className="board-card__desc">{card.description}</p>}
+      {(card.estimateHours != null || card.percentDone != null) && (
+        <div className="board-card__progress">
+          {card.estimateHours != null && (
+            <span className="board-card__estimate">{card.estimateHours}h</span>
+          )}
+          {card.percentDone != null && (
+            <span className="board-card__pct">{card.percentDone}%</span>
+          )}
+          {card.percentDone != null && (
+            <div className="board-card__bar">
+              <div className="board-card__bar-fill" style={{ width: `${card.percentDone}%` }} />
+            </div>
+          )}
+        </div>
+      )}
       <div className="board-card__meta">
         {card.assigneeAgent && (
           <span className="board-card__assignee board-card__assignee--agent">

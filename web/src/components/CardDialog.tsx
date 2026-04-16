@@ -11,6 +11,8 @@ export interface CardDialogValue {
   assigneeUserId: string | null;
   assigneeAgent: string | null;
   autoRun: boolean;
+  estimateHours: number | null;
+  percentDone: number | null;
 }
 
 interface Props {
@@ -55,6 +57,12 @@ export default function CardDialog({
   const [autoRun, setAutoRun] = useState<boolean>(
     initial?.autoRun ?? initialKind === "agent",
   );
+  const [estimateHours, setEstimateHours] = useState<string>(
+    initial?.estimateHours != null ? String(initial.estimateHours) : "",
+  );
+  const [percentDone, setPercentDone] = useState<string>(
+    initial?.percentDone != null ? String(initial.percentDone) : "",
+  );
   const [users, setUsers] = useState<AuthUser[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,6 +102,8 @@ export default function CardDialog({
         assigneeUserId: assigneeKind === "user" ? assigneeUserId : null,
         assigneeAgent: assigneeKind === "agent" ? assigneeAgent : null,
         autoRun: assigneeKind === "agent" ? autoRun : false,
+        estimateHours: estimateHours.trim() ? Number(estimateHours) : null,
+        percentDone: percentDone.trim() ? Math.min(100, Math.max(0, Number(percentDone))) : null,
       });
       onClose();
     } catch (e) {
@@ -135,6 +145,31 @@ export default function CardDialog({
               placeholder="What needs to happen?"
             />
           </label>
+
+          <div className="project-form__row">
+            <label className="project-form__field">
+              <span>Estimate (hours)</span>
+              <input
+                type="number"
+                min={0}
+                step={0.5}
+                value={estimateHours}
+                onChange={(e) => setEstimateHours(e.target.value)}
+                placeholder="—"
+              />
+            </label>
+            <label className="project-form__field">
+              <span>Done (%)</span>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={percentDone}
+                onChange={(e) => setPercentDone(e.target.value)}
+                placeholder="—"
+              />
+            </label>
+          </div>
 
           <label className="project-form__field">
             <span>Swimlane</span>

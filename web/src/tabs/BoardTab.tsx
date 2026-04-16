@@ -32,6 +32,7 @@ import {
 import BoardColumn from "../components/BoardColumn";
 import { BoardCardPreview } from "../components/BoardCard";
 import CardDialog, { type CardDialogValue } from "../components/CardDialog";
+import SwimlaneDialog, { type SwimlaneDialogValue } from "../components/SwimlaneDialog";
 
 interface Props {
   project: string;
@@ -51,6 +52,11 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
   const [projectAgents, setProjectAgents] = useState<Agent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<CardDialogState>({ kind: "closed" });
+  const [laneDialog, setLaneDialog] = useState<
+    | { kind: "closed" }
+    | { kind: "create" }
+    | { kind: "edit"; lane: Swimlane }
+  >({ kind: "closed" });
   const [dragging, setDragging] = useState<
     | { kind: "card"; card: BoardCardModel }
     | { kind: "lane"; lane: Swimlane }
@@ -90,26 +96,35 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
     return false;
   };
 
-  const handleAddLane = async () => {
-    const name = window.prompt("Name for new swimlane?");
-    if (!name?.trim()) return;
-    try {
-      await createSwimlane(project, { name: name.trim() });
-      await refresh();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
-    }
-  };
+  const handleAddLane = () => setLaneDialog({ kind: "create" });
 
-  const handleEditLane = async (lane: Swimlane) => {
-    const name = window.prompt("Rename lane:", lane.name);
-    if (!name?.trim() || name.trim() === lane.name) return;
-    try {
-      await patchSwimlane(lane.id, { name: name.trim() });
-      await refresh();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
+  const handleEditLane = (lane: Swimlane) => setLaneDialog({ kind: "edit", lane });
+
+  const handleSubmitLane = async (v: SwimlaneDialogValue) => {
+    if (laneDialog.kind === "create") {
+      await createSwimlane(project, {
+        name: v.name,
+        autoRun: v.autoRun,
+        wipLimit: v.wipLimit,
+        defaultAssigneeUserId: v.defaultAssigneeUserId,
+        defaultAssigneeAgent: v.defaultAssigneeAgent,
+        nextSwimlaneId: v.nextSwimlaneId,
+        color: v.color,
+        group: v.group,
+      });
+    } else if (laneDialog.kind === "edit") {
+      await patchSwimlane(laneDialog.lane.id, {
+        name: v.name,
+        autoRun: v.autoRun,
+        wipLimit: v.wipLimit,
+        defaultAssigneeUserId: v.defaultAssigneeUserId,
+        defaultAssigneeAgent: v.defaultAssigneeAgent,
+        nextSwimlaneId: v.nextSwimlaneId,
+        color: v.color,
+        group: v.group,
+      });
     }
+    await refresh();
   };
 
   const handleToggleLaneAutoRun = async (lane: Swimlane) => {
@@ -140,6 +155,8 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
         assigneeUserId: v.assigneeUserId,
         assigneeAgent: v.assigneeAgent,
         autoRun: v.autoRun,
+        estimateHours: v.estimateHours,
+        percentDone: v.percentDone,
       });
     } else if (dialog.kind === "edit") {
       await patchCard(dialog.card.id, {
@@ -149,6 +166,8 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
         assigneeUserId: v.assigneeUserId,
         assigneeAgent: v.assigneeAgent,
         autoRun: v.autoRun,
+        estimateHours: v.estimateHours,
+        percentDone: v.percentDone,
       });
     }
     await refresh();
@@ -336,23 +355,39 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
         strategy={horizontalListSortingStrategy}
       >
       <div className="board__columns">
-        {board.swimlanes.map((lane) => (
-          <BoardColumn
-            key={lane.id}
-            lane={lane}
-            cards={board.cards.filter((c) => c.swimlaneId === lane.id)}
-            allLanes={board.swimlanes}
-            canManageLane={canManageLane}
-            canEditCard={canEditCard}
-            onAddCard={() => setDialog({ kind: "create", swimlaneId: lane.id })}
-            onEditLane={() => handleEditLane(lane)}
-            onToggleAutoRun={() => handleToggleLaneAutoRun(lane)}
-            onDeleteLane={() => handleDeleteLane(lane)}
-            onEditCard={(c) => setDialog({ kind: "edit", card: c })}
-            onMoveCard={handleMoveCard}
-            onArchiveCard={handleArchiveCard}
-          />
-        ))}
+        {(() => {
+          const sorted = [...board.swimlanes].sort((a, b) => a.position - b.position);
+          const elements: React.ReactNode[] = [];
+          let currentGroup: string | null | undefined = undefined;
+          for (const lane of sorted) {
+            if (lane.group !== currentGroup) {
+              if (currentGroup) elements.push(<div key={`group-end-${currentGroup}`} className="board__group-end" />);
+              currentGroup = lane.group;
+              if (currentGroup) elements.push(
+                <div key={`group-start-${currentGroup}`} className="board__group-label">{currentGroup}</div>,
+              );
+            }
+            elements.push(
+              <BoardColumn
+                key={lane.id}
+                lane={lane}
+                cards={board.cards.filter((c) => c.swimlaneId === lane.id)}
+                allLanes={board.swimlanes}
+                canManageLane={canManageLane}
+                canEditCard={canEditCard}
+                onAddCard={() => setDialog({ kind: "create", swimlaneId: lane.id })}
+                onEditLane={() => handleEditLane(lane)}
+                onToggleAutoRun={() => handleToggleLaneAutoRun(lane)}
+                onDeleteLane={() => handleDeleteLane(lane)}
+                onEditCard={(c) => setDialog({ kind: "edit", card: c })}
+                onMoveCard={handleMoveCard}
+                onArchiveCard={handleArchiveCard}
+              />,
+            );
+          }
+          if (currentGroup) elements.push(<div key="group-end-final" className="board__group-end" />);
+          return elements;
+        })()}
       </div>
       </SortableContext>
       <DragOverlay
@@ -388,6 +423,18 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
           onClose={() => setDialog({ kind: "closed" })}
           onSubmit={handleSubmitCard}
           onOpenSession={onOpenInChat}
+        />
+      )}
+
+      {laneDialog.kind !== "closed" && (
+        <SwimlaneDialog
+          mode={laneDialog.kind === "create" ? "create" : "edit"}
+          swimlanes={board.swimlanes}
+          agents={projectAgents}
+          currentUser={currentUser}
+          initial={laneDialog.kind === "edit" ? laneDialog.lane : undefined}
+          onClose={() => setLaneDialog({ kind: "closed" })}
+          onSubmit={handleSubmitLane}
         />
       )}
     </div>

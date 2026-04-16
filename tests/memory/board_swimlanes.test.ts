@@ -93,4 +93,83 @@ describe("swimlane CRUD", () => {
     expect(listSwimlanes(db, "alpha").map((l) => l.name)).not.toContain("Empty");
     db.close();
   });
+
+  test("create with default assignee and next swimlane", async () => {
+    const db = await newDb();
+    createProject(db, { name: "alpha" });
+    const lanes = listSwimlanes(db, "alpha");
+    const lane = createSwimlane(db, {
+      project: "alpha",
+      name: "Review",
+      defaultAssigneeAgent: "bot",
+      nextSwimlaneId: lanes[2]!.id,
+    });
+    expect(lane.defaultAssigneeAgent).toBe("bot");
+    expect(lane.defaultAssigneeUserId).toBeNull();
+    expect(lane.nextSwimlaneId).toBe(lanes[2]!.id);
+    db.close();
+  });
+
+  test("update default assignee and next swimlane", async () => {
+    const db = await newDb();
+    createProject(db, { name: "alpha" });
+    const lanes = listSwimlanes(db, "alpha");
+    const lane = lanes[0]!;
+    expect(lane.defaultAssigneeAgent).toBeNull();
+    expect(lane.nextSwimlaneId).toBeNull();
+    const updated = updateSwimlane(db, lane.id, {
+      defaultAssigneeUserId: "user1",
+      nextSwimlaneId: lanes[1]!.id,
+    });
+    expect(updated.defaultAssigneeUserId).toBe("user1");
+    expect(updated.defaultAssigneeAgent).toBeNull();
+    expect(updated.nextSwimlaneId).toBe(lanes[1]!.id);
+    db.close();
+  });
+
+  test("clear default assignee by setting to null", async () => {
+    const db = await newDb();
+    createProject(db, { name: "alpha" });
+    const lanes = listSwimlanes(db, "alpha");
+    updateSwimlane(db, lanes[0]!.id, { defaultAssigneeAgent: "bot" });
+    const updated = updateSwimlane(db, lanes[0]!.id, { defaultAssigneeAgent: null });
+    expect(updated.defaultAssigneeAgent).toBeNull();
+    db.close();
+  });
+
+  test("create and update swimlane color", async () => {
+    const db = await newDb();
+    createProject(db, { name: "alpha" });
+    const lane = createSwimlane(db, { project: "alpha", name: "Colored", color: "#6366f1" });
+    expect(lane.color).toBe("#6366f1");
+    const updated = updateSwimlane(db, lane.id, { color: "#ef4444" });
+    expect(updated.color).toBe("#ef4444");
+    const cleared = updateSwimlane(db, lane.id, { color: null });
+    expect(cleared.color).toBeNull();
+    db.close();
+  });
+
+  test("create and update swimlane group", async () => {
+    const db = await newDb();
+    createProject(db, { name: "alpha" });
+    const lane1 = createSwimlane(db, { project: "alpha", name: "Plan", group: "agent-workflow" });
+    const lane2 = createSwimlane(db, { project: "alpha", name: "Review", group: "agent-workflow" });
+    expect(lane1.group).toBe("agent-workflow");
+    expect(lane2.group).toBe("agent-workflow");
+    const updated = updateSwimlane(db, lane1.id, { group: "other" });
+    expect(updated.group).toBe("other");
+    const cleared = updateSwimlane(db, lane1.id, { group: null });
+    expect(cleared.group).toBeNull();
+    db.close();
+  });
+
+  test("default lanes have no group", async () => {
+    const db = await newDb();
+    createProject(db, { name: "alpha" });
+    const lanes = listSwimlanes(db, "alpha");
+    for (const lane of lanes) {
+      expect(lane.group).toBeNull();
+    }
+    db.close();
+  });
 });

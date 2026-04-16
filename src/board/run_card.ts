@@ -21,7 +21,8 @@ import type { ToolRegistry } from "../tools/registry.ts";
 import { runAgent } from "../agent/loop.ts";
 import { createSseRenderer, finishSse, type SseSink } from "../agent/render_sse.ts";
 import { errorMessage } from "../util/error.ts";
-import { clearAutoRun, getCard } from "../memory/board_cards.ts";
+import { clearAutoRun, getCard, moveCard, updateCard } from "../memory/board_cards.ts";
+import { getSwimlane } from "../memory/board_swimlanes.ts";
 import { isAgentLinkedToProject } from "../memory/agents.ts";
 import {
   createRun,
@@ -80,6 +81,23 @@ function makeFanoutSink(fan: RunFanout): SseSink {
       setTimeout(() => fanouts.delete(fan.runId), 60_000).unref?.();
     },
   };
+}
+
+function autoMoveToNextLane(db: Database, cardId: number): void {
+  const fresh = getCard(db, cardId);
+  if (!fresh) return;
+  const currentLane = getSwimlane(db, fresh.swimlaneId);
+  if (!currentLane?.nextSwimlaneId) return;
+  const nextLane = getSwimlane(db, currentLane.nextSwimlaneId);
+  if (!nextLane || nextLane.project !== fresh.project) return;
+  moveCard(db, fresh.id, { swimlaneId: nextLane.id });
+  if (nextLane.defaultAssigneeUserId || nextLane.defaultAssigneeAgent) {
+    updateCard(db, fresh.id, {
+      assigneeUserId: nextLane.defaultAssigneeUserId,
+      assigneeAgent: nextLane.defaultAssigneeAgent,
+      autoRun: nextLane.autoRun && !!nextLane.defaultAssigneeAgent,
+    });
+  }
 }
 
 const encoder = new TextEncoder();
@@ -170,6 +188,7 @@ export async function runCard(opts: RunCardOpts): Promise<RunCardResult> {
         renderer,
       });
       markRunDone(opts.db, run.id, { finalAnswer });
+      autoMoveToNextLane(opts.db, card.id);
       sendCardEvent(sink, {
         type: "card_run_finished",
         cardId: card.id,

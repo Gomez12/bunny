@@ -173,6 +173,11 @@ CREATE TABLE IF NOT EXISTS board_swimlanes (
   position    INTEGER NOT NULL,
   wip_limit   INTEGER,
   auto_run    INTEGER NOT NULL DEFAULT 0,       -- 1 = scheduler tick will auto-run agent cards here
+  default_assignee_user_id TEXT,
+  default_assignee_agent   TEXT,
+  next_swimlane_id         INTEGER,
+  color       TEXT,
+  lane_group  TEXT,
   created_at  INTEGER NOT NULL,
   updated_at  INTEGER NOT NULL,
   UNIQUE(project, name)
@@ -189,6 +194,8 @@ CREATE TABLE IF NOT EXISTS board_cards (
   assignee_user_id  TEXT,                          -- mutex met assignee_agent
   assignee_agent    TEXT,
   auto_run          INTEGER NOT NULL DEFAULT 0,    -- 1 = eligible for auto-run scan (cleared on enqueue)
+  estimate_hours    REAL,
+  percent_done      INTEGER,
   created_by        TEXT    NOT NULL,
   created_at        INTEGER NOT NULL,
   updated_at        INTEGER NOT NULL,

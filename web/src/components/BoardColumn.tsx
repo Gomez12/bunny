@@ -49,6 +49,7 @@ export default function BoardColumn({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : undefined,
+    ...(lane.color ? { borderTopColor: lane.color, borderTopWidth: 3 } : {}),
   };
   return (
     <div

@@ -608,6 +608,11 @@ export interface Swimlane {
   position: number;
   wipLimit: number | null;
   autoRun: boolean;
+  defaultAssigneeUserId: string | null;
+  defaultAssigneeAgent: string | null;
+  nextSwimlaneId: number | null;
+  color: string | null;
+  group: string | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -622,6 +627,8 @@ export interface BoardCard {
   assigneeUserId: string | null;
   assigneeAgent: string | null;
   autoRun: boolean;
+  estimateHours: number | null;
+  percentDone: number | null;
   createdBy: string;
   createdAt: number;
   updatedAt: number;
@@ -655,7 +662,17 @@ export async function fetchBoard(project: string): Promise<BoardSnapshot> {
 
 export async function createSwimlane(
   project: string,
-  input: { name: string; position?: number; wipLimit?: number | null; autoRun?: boolean },
+  input: {
+    name: string;
+    position?: number;
+    wipLimit?: number | null;
+    autoRun?: boolean;
+    defaultAssigneeUserId?: string | null;
+    defaultAssigneeAgent?: string | null;
+    nextSwimlaneId?: number | null;
+    color?: string | null;
+    group?: string | null;
+  },
 ): Promise<Swimlane> {
   const { swimlane } = await jsonFetch<{ swimlane: Swimlane }>(
     `/api/projects/${encodeURIComponent(project)}/swimlanes`,
@@ -666,7 +683,17 @@ export async function createSwimlane(
 
 export async function patchSwimlane(
   id: number,
-  patch: { name?: string; position?: number; wipLimit?: number | null; autoRun?: boolean },
+  patch: {
+    name?: string;
+    position?: number;
+    wipLimit?: number | null;
+    autoRun?: boolean;
+    defaultAssigneeUserId?: string | null;
+    defaultAssigneeAgent?: string | null;
+    nextSwimlaneId?: number | null;
+    color?: string | null;
+    group?: string | null;
+  },
 ): Promise<Swimlane> {
   const { swimlane } = await jsonFetch<{ swimlane: Swimlane }>(`/api/swimlanes/${id}`, {
     method: "PATCH",
@@ -686,6 +713,8 @@ export interface CardInput {
   assigneeUserId?: string | null;
   assigneeAgent?: string | null;
   autoRun?: boolean;
+  estimateHours?: number | null;
+  percentDone?: number | null;
 }
 
 export async function createCard(project: string, input: CardInput): Promise<BoardCard> {

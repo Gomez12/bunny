@@ -25,6 +25,8 @@ export interface Card {
   assigneeUserId: string | null;
   assigneeAgent: string | null;
   autoRun: boolean;
+  estimateHours: number | null;
+  percentDone: number | null;
   createdBy: string;
   createdAt: number;
   updatedAt: number;
@@ -41,6 +43,8 @@ interface CardRow {
   assignee_user_id: string | null;
   assignee_agent: string | null;
   auto_run: number;
+  estimate_hours: number | null;
+  percent_done: number | null;
   created_by: string;
   created_at: number;
   updated_at: number;
@@ -58,6 +62,8 @@ function rowToCard(r: CardRow): Card {
     assigneeUserId: r.assignee_user_id,
     assigneeAgent: r.assignee_agent,
     autoRun: (r.auto_run ?? 0) !== 0,
+    estimateHours: r.estimate_hours ?? null,
+    percentDone: r.percent_done ?? null,
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -66,8 +72,8 @@ function rowToCard(r: CardRow): Card {
 }
 
 const SELECT_COLS = `id, project, swimlane_id, position, title, description,
-                     assignee_user_id, assignee_agent, auto_run, created_by,
-                     created_at, updated_at, archived_at`;
+                     assignee_user_id, assignee_agent, auto_run, estimate_hours, percent_done,
+                     created_by, created_at, updated_at, archived_at`;
 
 export interface ListCardsOpts {
   includeArchived?: boolean;
@@ -101,6 +107,8 @@ export interface CreateCardOpts {
   assigneeAgent?: string | null;
   /** When omitted, defaults to `true` iff an agent is the assignee. */
   autoRun?: boolean;
+  estimateHours?: number | null;
+  percentDone?: number | null;
   createdBy: string;
   position?: number;
 }
@@ -115,9 +123,10 @@ export function createCard(db: Database, opts: CreateCardOpts): Card {
   const info = db
     .prepare(
       `INSERT INTO board_cards(project, swimlane_id, position, title, description,
-                               assignee_user_id, assignee_agent, auto_run, created_by,
+                               assignee_user_id, assignee_agent, auto_run,
+                               estimate_hours, percent_done, created_by,
                                created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       opts.project,
@@ -128,6 +137,8 @@ export function createCard(db: Database, opts: CreateCardOpts): Card {
       opts.assigneeUserId ?? null,
       opts.assigneeAgent ?? null,
       autoRun ? 1 : 0,
+      opts.estimateHours ?? null,
+      opts.percentDone ?? null,
       opts.createdBy,
       now,
       now,
@@ -141,6 +152,8 @@ export interface UpdateCardPatch {
   assigneeUserId?: string | null;
   assigneeAgent?: string | null;
   autoRun?: boolean;
+  estimateHours?: number | null;
+  percentDone?: number | null;
   swimlaneId?: number;
   position?: number;
 }
@@ -170,10 +183,13 @@ export function updateCard(db: Database, id: number, patch: UpdateCardPatch): Ca
   } else {
     autoRun = existing.autoRun;
   }
+  const estimateHours = patch.estimateHours === undefined ? existing.estimateHours : patch.estimateHours;
+  const percentDone = patch.percentDone === undefined ? existing.percentDone : patch.percentDone;
   db.prepare(
     `UPDATE board_cards
      SET title = ?, description = ?, assignee_user_id = ?, assignee_agent = ?,
-         auto_run = ?, swimlane_id = ?, position = ?, updated_at = ?
+         auto_run = ?, estimate_hours = ?, percent_done = ?,
+         swimlane_id = ?, position = ?, updated_at = ?
      WHERE id = ?`,
   ).run(
     title,
@@ -181,6 +197,8 @@ export function updateCard(db: Database, id: number, patch: UpdateCardPatch): Ca
     assigneeUser,
     assigneeAgent,
     autoRun ? 1 : 0,
+    estimateHours,
+    percentDone,
     swimlaneId,
     position,
     Date.now(),

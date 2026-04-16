@@ -1221,6 +1221,28 @@ button {
   padding-bottom: 16px;
   align-items: flex-start;
 }
+.board__group-label {
+  writing-mode: vertical-lr;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  padding: 8px 2px;
+  border-left: 2px solid var(--border);
+  margin-left: 4px;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+.board__group-end {
+  width: 0;
+  align-self: stretch;
+  border-right: 2px solid var(--border);
+  margin-right: 4px;
+}
 
 .board-column {
   background: var(--bg-elevated);
@@ -1324,6 +1346,29 @@ button {
   color: var(--text-dim);
   white-space: pre-wrap;
   word-wrap: break-word;
+}
+.board-card__progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.board-card__estimate { font-weight: 600; }
+.board-card__pct { font-weight: 600; }
+.board-card__bar {
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  min-width: 40px;
+}
+.board-card__bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.2s;
 }
 .board-card__meta { display: flex; gap: 6px; flex-wrap: wrap; }
 .board-card__assignee {
@@ -1444,6 +1489,42 @@ button {
 .board-column-overlay__title { color: var(--text); }
 
 .board-card { cursor: grab; }
+
+/* ── Lane color picker ────────────────────────────────────── */
+.lane-color-picker {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.lane-color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.lane-color-swatch:hover { transform: scale(1.15); }
+.lane-color-swatch--active { border-color: var(--text); }
+.lane-color-swatch--none {
+  background: var(--bg-elevated);
+  border-color: var(--border);
+  position: relative;
+}
+.lane-color-swatch--none::after {
+  content: "✕";
+  font-size: 11px;
+  color: var(--text-muted);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lane-color-swatch--none.lane-color-swatch--active {
+  border-color: var(--text);
+}
 
 /* ── Card run log ──────────────────────────────────────────── */
 .card-runs {

@@ -125,6 +125,27 @@ describe("updateCard", () => {
     expect(() => updateCard(db, c.id, { assigneeAgent: "researcher" })).toThrow();
     db.close();
   });
+
+  test("estimate hours and percent done round-trip", async () => {
+    const { db, todo } = await setup();
+    const c = createCard(db, {
+      project: "alpha",
+      swimlaneId: todo.id,
+      title: "tracked",
+      estimateHours: 4.5,
+      percentDone: 30,
+      createdBy: "u1",
+    });
+    expect(c.estimateHours).toBe(4.5);
+    expect(c.percentDone).toBe(30);
+    const updated = updateCard(db, c.id, { percentDone: 80 });
+    expect(updated.percentDone).toBe(80);
+    expect(updated.estimateHours).toBe(4.5);
+    const cleared = updateCard(db, c.id, { estimateHours: null, percentDone: null });
+    expect(cleared.estimateHours).toBeNull();
+    expect(cleared.percentDone).toBeNull();
+    db.close();
+  });
 });
 
 describe("moveCard", () => {

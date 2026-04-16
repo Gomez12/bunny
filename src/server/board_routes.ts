@@ -130,6 +130,11 @@ export interface SwimlaneDto {
   position: number;
   wipLimit: number | null;
   autoRun: boolean;
+  defaultAssigneeUserId: string | null;
+  defaultAssigneeAgent: string | null;
+  nextSwimlaneId: number | null;
+  color: string | null;
+  group: string | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -144,6 +149,8 @@ export interface CardDto {
   assigneeUserId: string | null;
   assigneeAgent: string | null;
   autoRun: boolean;
+  estimateHours: number | null;
+  percentDone: number | null;
   createdBy: string;
   createdAt: number;
   updatedAt: number;
@@ -247,6 +254,11 @@ interface SwimlaneBody {
   position?: number;
   wipLimit?: number | null;
   autoRun?: boolean;
+  defaultAssigneeUserId?: string | null;
+  defaultAssigneeAgent?: string | null;
+  nextSwimlaneId?: number | null;
+  color?: string | null;
+  group?: string | null;
 }
 
 async function handleCreateSwimlane(
@@ -267,6 +279,16 @@ async function handleCreateSwimlane(
   const body = (await readJson<SwimlaneBody>(req)) ?? {};
   const name = (body.name ?? "").trim();
   if (!name) return json({ error: "missing name" }, 400);
+  const defAgent = body.defaultAssigneeAgent?.trim() || null;
+  const defUser = body.defaultAssigneeUserId?.trim() || null;
+  if (defAgent && defUser) return json({ error: "default assignee must be either a user or an agent, not both" }, 400);
+  if (defAgent && !isAgentLinkedToProject(ctx.db, project, defAgent)) {
+    return json({ error: `agent '${defAgent}' is not available in project` }, 400);
+  }
+  if (body.nextSwimlaneId != null) {
+    const target = getSwimlane(ctx.db, body.nextSwimlaneId);
+    if (!target || target.project !== project) return json({ error: "next swimlane not found in this project" }, 400);
+  }
   try {
     const lane = createSwimlane(ctx.db, {
       project,
@@ -274,6 +296,11 @@ async function handleCreateSwimlane(
       position: body.position,
       wipLimit: body.wipLimit ?? null,
       autoRun: body.autoRun === true,
+      defaultAssigneeUserId: defUser,
+      defaultAssigneeAgent: defAgent,
+      nextSwimlaneId: body.nextSwimlaneId ?? null,
+      color: body.color ?? null,
+      group: body.group ?? null,
     });
     void ctx.queue.log({ topic: "board", kind: "swimlane.create", userId: user.id, data: { project, name, id: lane.id } });
     return json({ swimlane: toSwimlaneDto(lane) }, 201);
@@ -294,12 +321,30 @@ async function handlePatchSwimlane(
   if (!p) return json({ error: "project not found" }, 404);
   if (!canEditProject(p, user)) return json({ error: "forbidden" }, 403);
   const body = (await readJson<SwimlaneBody>(req)) ?? {};
+  const defAgent = body.defaultAssigneeAgent === undefined ? undefined : (body.defaultAssigneeAgent?.trim() || null);
+  const defUser = body.defaultAssigneeUserId === undefined ? undefined : (body.defaultAssigneeUserId?.trim() || null);
+  const resolvedAgent = defAgent === undefined ? lane.defaultAssigneeAgent : defAgent;
+  const resolvedUser = defUser === undefined ? lane.defaultAssigneeUserId : defUser;
+  if (resolvedAgent && resolvedUser) return json({ error: "default assignee must be either a user or an agent, not both" }, 400);
+  if (resolvedAgent && !isAgentLinkedToProject(ctx.db, lane.project, resolvedAgent)) {
+    return json({ error: `agent '${resolvedAgent}' is not available in project` }, 400);
+  }
+  if (body.nextSwimlaneId !== undefined && body.nextSwimlaneId != null) {
+    const target = getSwimlane(ctx.db, body.nextSwimlaneId);
+    if (!target || target.project !== lane.project) return json({ error: "next swimlane not found in this project" }, 400);
+    if (target.id === id) return json({ error: "next swimlane cannot be the lane itself" }, 400);
+  }
   try {
     const updated = updateSwimlane(ctx.db, id, {
       name: body.name,
       position: body.position,
       wipLimit: body.wipLimit,
       autoRun: body.autoRun,
+      defaultAssigneeUserId: defUser,
+      defaultAssigneeAgent: defAgent,
+      nextSwimlaneId: body.nextSwimlaneId,
+      color: body.color,
+      group: body.group,
     });
     void ctx.queue.log({ topic: "board", kind: "swimlane.update", userId: user.id, data: { id, project: lane.project } });
     return json({ swimlane: toSwimlaneDto(updated) });
@@ -330,6 +375,8 @@ interface CardBody {
   assigneeUserId?: string | null;
   assigneeAgent?: string | null;
   autoRun?: boolean;
+  estimateHours?: number | null;
+  percentDone?: number | null;
   position?: number;
 }
 
@@ -358,7 +405,9 @@ async function handleCreateCard(
     return json({ error: "swimlane does not belong to project" }, 400);
   }
 
-  const assigneeAgent = body.assigneeAgent?.trim() || null;
+  const hasExplicitAssignee = body.assigneeUserId != null || body.assigneeAgent != null;
+  const assigneeUserId = body.assigneeUserId ?? (!hasExplicitAssignee ? lane.defaultAssigneeUserId : null) ?? null;
+  const assigneeAgent = (body.assigneeAgent?.trim() || (!hasExplicitAssignee ? lane.defaultAssigneeAgent : null)) ?? null;
   if (assigneeAgent && !isAgentLinkedToProject(ctx.db, project, assigneeAgent)) {
     return json({ error: `agent '${assigneeAgent}' is not available in project` }, 400);
   }
@@ -369,9 +418,11 @@ async function handleCreateCard(
       swimlaneId: body.swimlaneId,
       title: body.title,
       description: body.description ?? "",
-      assigneeUserId: body.assigneeUserId ?? null,
+      assigneeUserId,
       assigneeAgent,
       autoRun: body.autoRun,
+      estimateHours: body.estimateHours,
+      percentDone: body.percentDone,
       createdBy: user.id,
       position: body.position,
     });
@@ -413,6 +464,8 @@ async function handlePatchCard(
       assigneeUserId: body.assigneeUserId,
       assigneeAgent: body.assigneeAgent,
       autoRun: body.autoRun,
+      estimateHours: body.estimateHours,
+      percentDone: body.percentDone,
       swimlaneId: body.swimlaneId,
       position: body.position,
     });
@@ -450,12 +503,20 @@ async function handleMoveCard(
   }
 
   try {
-    const moved = moveCard(ctx.db, id, {
+    let moved = moveCard(ctx.db, id, {
       swimlaneId,
       beforeCardId: body.beforeCardId,
       afterCardId: body.afterCardId,
       position: body.position,
     });
+    if (swimlaneId !== card.swimlaneId && !card.assigneeUserId && !card.assigneeAgent) {
+      if (lane.defaultAssigneeUserId || lane.defaultAssigneeAgent) {
+        moved = updateCard(ctx.db, id, {
+          assigneeUserId: lane.defaultAssigneeUserId,
+          assigneeAgent: lane.defaultAssigneeAgent,
+        });
+      }
+    }
     void ctx.queue.log({ topic: "board", kind: "card.move", userId: user.id, data: { id, swimlaneId, project: card.project } });
     return json({ card: toCardDto(moved) });
   } catch (e) {
