@@ -24,6 +24,7 @@ html, body, #root {
   margin: 0;
   padding: 0;
   height: 100%;
+  overflow: hidden;
 }
 body {
   background: var(--bg);
@@ -43,15 +44,17 @@ button {
   display: grid;
   grid-template-rows: auto 1fr;
   height: 100vh;
+  overflow: hidden;
 }
 .topbar {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   padding: 10px 16px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-elevated);
   gap: 16px;
+  min-width: 0;
 }
 .brand {
   display: flex;
@@ -59,6 +62,8 @@ button {
   gap: 10px;
   font-weight: 600;
   letter-spacing: 0.02em;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .brand-dot {
   width: 10px;
@@ -70,6 +75,8 @@ button {
 .topbar-right {
   display: flex;
   justify-content: flex-end;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .main {
   overflow: hidden;
@@ -84,6 +91,12 @@ button {
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 3px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  min-width: 0;
+}
+.tabs::-webkit-scrollbar {
+  display: none;
 }
 .tab {
   background: transparent;
@@ -92,6 +105,8 @@ button {
   border-radius: 999px;
   color: var(--text-dim);
   transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .tab:hover {
   color: var(--text);
@@ -2703,4 +2718,573 @@ button {
 .wb-composer__save--dirty:hover:not(:disabled) {
   background: var(--accent);
   color: #fff;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Documents tab
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.doc-tab {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  height: 100%;
+  overflow: hidden;
+}
+.doc-tab__main {
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+.doc-tab__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-dim);
+}
+.doc-tab__empty h2 {
+  font-weight: 500;
+  font-size: 24px;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.doc-tab__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 15px;
+  pointer-events: all;
+}
+.doc-tab__error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(255, 60, 60, 0.12);
+  color: var(--err);
+  font-size: 13px;
+}
+.doc-tab__error-close {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: var(--err);
+  cursor: pointer;
+  font-size: 16px;
+}
+
+/* ── Document editor ────────────────────────────────────────────── */
+.doc-editor {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.doc-editor__textarea {
+  flex: 1;
+  padding: 24px 32px;
+  border: none;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  line-height: 1.7;
+  resize: none;
+  outline: none;
+  overflow-y: auto;
+}
+.doc-editor__textarea::placeholder {
+  color: var(--text-dim);
+}
+
+/* ── Document ribbon (Phase 2) ──────────────────────────────────── */
+.doc-ribbon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.doc-ribbon__group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 8px;
+  margin-right: 8px;
+  border-right: 1px solid var(--border);
+}
+.doc-ribbon__group:last-child {
+  border-right: none;
+  padding-right: 0;
+  margin-right: 0;
+}
+.doc-ribbon__btn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.doc-ribbon__btn:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border);
+}
+.doc-ribbon__btn--active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.doc-ribbon__select {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* ── Document WYSIWYG content area (Phase 2) ────────────────────── */
+.doc-editor__content {
+  flex: 1;
+  overflow-y: auto;
+  background: #e8e8ec;
+}
+.doc-editor__content .tiptap.ProseMirror {
+  max-width: 816px;
+  min-height: 1056px;
+  margin: 40px auto;
+  padding: 72px 72px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  outline: none;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #1a1a1a;
+  box-sizing: border-box;
+}
+.doc-editor__content .tiptap h1 { font-size: 28px; font-weight: 600; margin: 24px 0 12px; }
+.doc-editor__content .tiptap h2 { font-size: 22px; font-weight: 600; margin: 20px 0 10px; }
+.doc-editor__content .tiptap h3 { font-size: 18px; font-weight: 600; margin: 16px 0 8px; }
+.doc-editor__content .tiptap h4 { font-size: 15px; font-weight: 600; margin: 12px 0 6px; }
+.doc-editor__content .tiptap p { margin: 0 0 12px; }
+.doc-editor__content .tiptap ul,
+.doc-editor__content .tiptap ol { padding-left: 24px; margin: 0 0 12px; }
+.doc-editor__content .tiptap li { margin: 0 0 4px; }
+.doc-editor__content .tiptap blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 16px;
+  color: var(--text-dim);
+  margin: 0 0 12px;
+}
+.doc-editor__content .tiptap code {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-size: 13px;
+}
+.doc-editor__content .tiptap pre {
+  background: #1e1e2e;
+  color: #cdd6f4;
+  padding: 16px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 0 0 12px;
+}
+.doc-editor__content .tiptap pre code {
+  background: none;
+  padding: 0;
+  font-size: 13px;
+}
+.doc-editor__content .tiptap table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0 0 12px;
+}
+.doc-editor__content .tiptap th,
+.doc-editor__content .tiptap td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+}
+.doc-editor__content .tiptap th {
+  background: var(--bg-elevated);
+  font-weight: 600;
+}
+.doc-resizable-img {
+  margin: 8px 0;
+}
+.doc-resizable-img__wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  border-radius: 4px;
+  overflow: hidden;
+  transition: outline 0.15s;
+}
+.doc-resizable-img__wrap--selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.doc-resizable-img__wrap--resizing {
+  user-select: none;
+}
+.doc-resizable-img__wrap img {
+  display: block;
+  border-radius: 4px;
+}
+.doc-resizable-img__handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.doc-resizable-img__wrap--selected .doc-resizable-img__handle {
+  opacity: 0.5;
+}
+.doc-resizable-img__handle:hover {
+  opacity: 1 !important;
+}
+.doc-resizable-img__handle--e {
+  right: 0;
+  border-radius: 0 4px 4px 0;
+}
+.doc-resizable-img__handle--w {
+  left: 0;
+  border-radius: 4px 0 0 4px;
+}
+.doc-editor__content .tiptap hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 24px 0;
+}
+.doc-editor__content .tiptap ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+.doc-editor__content .tiptap ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.doc-editor__content .tiptap ul[data-type="taskList"] li input[type="checkbox"] {
+  margin-top: 4px;
+}
+.doc-editor__content .tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #aaa;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+/* ── Document code mode (Phase 3) ───────────────────────────────── */
+.doc-editor__code {
+  flex: 1;
+  overflow-y: auto;
+  background: #e8e8ec;
+}
+.doc-editor__code textarea {
+  max-width: 816px;
+  min-height: 1056px;
+  margin: 40px auto;
+  display: block;
+  padding: 72px 72px;
+  background: #1e1e2e;
+  color: #cdd6f4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  line-height: 1.7;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  resize: none;
+  box-sizing: border-box;
+}
+
+/* ── Document composer ──────────────────────────────────────────── */
+.doc-composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+.doc-composer__mode {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.doc-composer__mode-btn {
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.doc-composer__mode-btn--active {
+  background: var(--accent);
+  color: #fff;
+}
+.doc-composer__mode-btn:hover:not(.doc-composer__mode-btn--active) {
+  background: var(--bg-elevated);
+}
+.doc-composer__form {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  align-items: flex-end;
+}
+.doc-composer__input {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  resize: none;
+  outline: none;
+  min-height: 36px;
+  max-height: 120px;
+  font-family: inherit;
+}
+.doc-composer__input:focus {
+  border-color: var(--accent);
+}
+.doc-composer__send {
+  padding: 8px 16px;
+  white-space: nowrap;
+}
+.doc-composer__save {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 13px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.doc-composer__save:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.doc-composer__save--dirty {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.doc-composer__save--dirty:hover:not(:disabled) {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ── Document sidebar template section ──────────────────────────── */
+.doc-sidebar__section {
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+  padding-top: 4px;
+}
+.doc-sidebar__section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.doc-sidebar__section-header:hover {
+  color: var(--text);
+}
+.doc-sidebar__chevron {
+  font-size: 8px;
+  transition: transform 0.15s;
+  display: inline-block;
+}
+.doc-sidebar__chevron--open {
+  transform: rotate(90deg);
+}
+.doc-sidebar__count {
+  margin-left: auto;
+  background: var(--bg-elevated);
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+/* ── Document mode toggle (Phase 3) ─────────────────────────────── */
+.doc-editor__toggle {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.doc-editor__toggle-btn {
+  padding: 4px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.doc-editor__toggle-btn--active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ── Whiteboard embed in documents ───────────────────────────────── */
+.doc-wb-embed {
+  margin: 16px 0;
+}
+.doc-wb-embed__inner {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-elevated);
+}
+.doc-wb-embed--live {
+  border-color: var(--accent);
+}
+.doc-wb-embed__img {
+  width: 100%;
+  max-height: 400px;
+  object-fit: contain;
+  display: block;
+  background: #fff;
+}
+.doc-wb-embed__placeholder {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.doc-wb-embed__error {
+  padding: 20px;
+  text-align: center;
+  color: var(--err);
+  font-size: 13px;
+}
+.doc-wb-embed__label {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-dim);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.doc-wb-embed__badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ── Whiteboard picker dialog ───────────────────────────────────── */
+.wb-picker__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.wb-picker__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.wb-picker__item:last-child {
+  border-bottom: none;
+}
+.wb-picker__info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.wb-picker__thumb {
+  width: 48px;
+  height: 36px;
+  object-fit: contain;
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+}
+.wb-picker__name {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-picker__actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* ── Print stylesheet (PDF export) ──────────────────────────────── */
+@media print {
+  body > *:not(.doc-tab) { display: none !important; }
+  .doc-tab { display: block !important; }
+  .doc-tab > .sidebar,
+  .doc-ribbon,
+  .doc-composer,
+  .doc-tab__overlay,
+  .doc-tab__error,
+  .doc-editor__toggle,
+  nav, header, footer { display: none !important; }
+  .doc-tab__main { display: block !important; }
+  .doc-editor { display: block !important; }
+  .doc-editor__content { padding: 0 !important; overflow: visible !important; }
+  .doc-editor__content .tiptap {
+    box-shadow: none !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
 }
