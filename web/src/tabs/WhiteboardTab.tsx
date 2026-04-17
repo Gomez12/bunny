@@ -40,6 +40,7 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string>("");
+  const loadingRef = useRef(false);
   const [dirty, setDirty] = useState(false);
   const autosaveMs = useRef(5_000);
 
@@ -71,7 +72,7 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
 
   const handleSelect = async (id: number) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    setActiveId(id);
+    loadingRef.current = true;
     setError(null);
     try {
       const wb = await fetchWhiteboard(id);
@@ -79,8 +80,11 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
       const elements = restoreElements(Array.isArray(raw) ? raw : [], null);
       setInitialElements(elements);
       lastSavedRef.current = JSON.stringify(elements);
+      setActiveId(id);
     } catch (e) {
       setError(String(e));
+    } finally {
+      loadingRef.current = false;
     }
   };
 
@@ -138,6 +142,7 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
   }, [activeId]);
 
   const handleChange = useCallback(() => {
+    if (loadingRef.current) return;
     setDirty(true);
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
@@ -292,6 +297,7 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
         {activeId !== null ? (
           <>
             <WhiteboardCanvas
+              key={activeId}
               initialElements={initialElements}
               isFullscreen={isFullscreen}
               onApiReady={handleApiReady}

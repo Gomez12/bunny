@@ -1,0 +1,385 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import DocumentSidebar from "../components/DocumentSidebar";
+import DocumentComposer from "../components/DocumentComposer";
+import DocumentEditor, { type DocumentEditorHandle } from "../components/DocumentEditor";
+import WhiteboardPickerDialog from "../components/WhiteboardPickerDialog";
+import {
+  fetchDocuments,
+  fetchDocument,
+  createDocument,
+  patchDocument,
+  deleteDocument,
+  editDocument,
+  askDocument,
+  exportDocument,
+  saveAsTemplate,
+  fetchUiConfig,
+  type DocumentSummary,
+  type ServerEvent,
+} from "../api";
+
+interface Props {
+  project: string;
+  onOpenInChat: (sessionId: string) => void;
+}
+
+export default function DocumentTab({ project, onOpenInChat }: Props) {
+  const [documents, setDocuments] = useState<DocumentSummary[]>([]);
+  const [templates, setTemplates] = useState<DocumentSummary[]>([]);
+  const [activeId, setActiveId] = useState<number | null>(null);
+  const [contentMd, setContentMd] = useState("");
+  const [mode, setMode] = useState<"edit" | "question">("edit");
+  const [streaming, setStreaming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showWbPicker, setShowWbPicker] = useState(false);
+
+  const editorRef = useRef<DocumentEditorHandle>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedRef = useRef<string>("");
+  const [dirty, setDirty] = useState(false);
+  const autosaveMs = useRef(5_000);
+  const contentRef = useRef(contentMd);
+  contentRef.current = contentMd;
+
+  const reload = useCallback(async () => {
+    const [list, tpls] = await Promise.all([
+      fetchDocuments(project),
+      fetchDocuments(project, { template: true }),
+    ]);
+    setDocuments(list);
+    setTemplates(tpls);
+    return list;
+  }, [project]);
+
+  useEffect(() => {
+    void fetchUiConfig()
+      .then((cfg) => { autosaveMs.current = cfg.autosaveIntervalMs; })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    void reload().then((list) => {
+      if (list.length > 0 && activeId === null) {
+        handleSelect(list[0]!.id);
+      }
+    });
+  }, [project]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [activeId]);
+
+  const handleSelect = async (id: number) => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    setError(null);
+    try {
+      const doc = await fetchDocument(id);
+      setContentMd(doc.contentMd);
+      lastSavedRef.current = doc.contentMd;
+      setActiveId(id);
+      setDirty(false);
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const handleCreate = async (name: string) => {
+    try {
+      const doc = await createDocument(project, name);
+      await reload();
+      handleSelect(doc.id);
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteDocument(id);
+      const list = await reload();
+      if (activeId === id) {
+        if (list.length > 0) {
+          handleSelect(list[0]!.id);
+        } else {
+          setActiveId(null);
+          setContentMd("");
+        }
+      }
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const handleRename = async (id: number, name: string) => {
+    try {
+      await patchDocument(id, { name });
+      setDocuments((prev) => prev.map((d) => (d.id === id ? { ...d, name } : d)));
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const doSave = useCallback(async (md: string, docId: number) => {
+    if (md === lastSavedRef.current) return;
+    lastSavedRef.current = md;
+    try {
+      await patchDocument(docId, { contentMd: md });
+      setDocuments((prev) =>
+        prev.map((d) => (d.id === docId ? { ...d, updatedAt: Date.now() } : d)),
+      );
+    } catch {
+      // silent retry on next change
+    }
+  }, []);
+
+  const handleContentChange = useCallback((md: string) => {
+    setContentMd(md);
+    setDirty(true);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null;
+      const currentMd = contentRef.current;
+      void doSave(currentMd, activeId!).then(() => setDirty(false));
+    }, autosaveMs.current);
+  }, [doSave, activeId]);
+
+  const handleManualSave = useCallback(async () => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = null;
+    await doSave(contentRef.current, activeId!);
+    setDirty(false);
+  }, [doSave, activeId]);
+
+  const handleExport = useCallback(async (format: "docx" | "html" | "pdf") => {
+    if (activeId === null) return;
+    if (format === "pdf") {
+      window.print();
+      return;
+    }
+    try {
+      if (dirty) await doSave(contentRef.current, activeId);
+      const blob = await exportDocument(activeId, format);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const docName = documents.find((d) => d.id === activeId)?.name ?? "document";
+      a.download = `${docName}.${format === "docx" ? "docx" : "zip"}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(String(e));
+    }
+  }, [activeId, dirty, doSave, documents]);
+
+  const handleSaveAsTemplate = useCallback(async () => {
+    if (activeId === null) return;
+    try {
+      if (dirty) await doSave(contentRef.current, activeId);
+      await saveAsTemplate(activeId);
+      const tpls = await fetchDocuments(project, { template: true });
+      setTemplates(tpls);
+    } catch (e) {
+      setError(String(e));
+    }
+  }, [activeId, dirty, doSave, project]);
+
+  const handleCreateFromTemplate = useCallback(async (templateId: number, name: string) => {
+    try {
+      const template = await fetchDocument(templateId);
+      const doc = await createDocument(project, name);
+      await patchDocument(doc.id, { contentMd: template.contentMd });
+      await reload();
+      handleSelect(doc.id);
+    } catch (e) {
+      setError(String(e));
+    }
+  }, [project, reload]);
+
+  const handleDeleteTemplate = useCallback(async (id: number) => {
+    try {
+      await deleteDocument(id);
+      const tpls = await fetchDocuments(project, { template: true });
+      setTemplates(tpls);
+    } catch (e) {
+      setError(String(e));
+    }
+  }, [project]);
+
+  const handleRenameTemplate = useCallback(async (id: number, name: string) => {
+    try {
+      await patchDocument(id, { name });
+      setTemplates((prev) => prev.map((t) => (t.id === id ? { ...t, name } : t)));
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  const handleWhiteboardPick = useCallback((whiteboardId: number, wbMode: "live" | "static") => {
+    setShowWbPicker(false);
+    const html = `<div data-whiteboard-embed data-whiteboard-id="${whiteboardId}" data-mode="${wbMode}"></div>`;
+    editorRef.current?.insertHtml(html);
+  }, []);
+
+  const extractMarkdown = (text: string): string | null => {
+    const fenceMatch = text.match(/```markdown?\s*\n?([\s\S]*?)\n?\s*```/);
+    if (fenceMatch) return fenceMatch[1]!;
+    return text.trim() || null;
+  };
+
+  const handleSend = async (prompt: string) => {
+    if (activeId === null) return;
+    setError(null);
+
+    if (mode === "question") {
+      setStreaming(true);
+      try {
+        if (dirty) await doSave(contentRef.current, activeId);
+        const { sessionId } = await askDocument(activeId, {
+          prompt,
+          contentMd: contentRef.current,
+        });
+        onOpenInChat(sessionId);
+      } catch (e) {
+        setError(String(e));
+      } finally {
+        setStreaming(false);
+      }
+      return;
+    }
+
+    // Edit mode: stream the agent response
+    setStreaming(true);
+    try {
+      const res = await editDocument(activeId, { prompt, contentMd: contentRef.current });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` })) as { error?: string };
+        setError(err.error ?? `HTTP ${res.status}`);
+        setStreaming(false);
+        return;
+      }
+
+      let fullContent = "";
+      const reader = res.body?.getReader();
+      if (!reader) {
+        setError("No response body");
+        setStreaming(false);
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const raw = line.slice(6);
+          if (raw === "[DONE]") continue;
+          try {
+            const ev = JSON.parse(raw) as ServerEvent;
+            if (ev.type === "content") fullContent += ev.text;
+            if (ev.type === "error") setError(ev.message);
+          } catch {
+            // ignore parse errors
+          }
+        }
+      }
+
+      const md = extractMarkdown(fullContent);
+      if (!md) {
+        setError("Could not extract markdown from the response");
+        setStreaming(false);
+        return;
+      }
+
+      setContentMd(md);
+      lastSavedRef.current = md;
+      editorRef.current?.setMarkdown(md);
+      await patchDocument(activeId, { contentMd: md });
+      setDocuments((prev) =>
+        prev.map((d) => (d.id === activeId ? { ...d, updatedAt: Date.now() } : d)),
+      );
+      setDirty(false);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setStreaming(false);
+    }
+  };
+
+  return (
+    <div className="doc-tab">
+      <DocumentSidebar
+        documents={documents}
+        templates={templates}
+        activeId={activeId}
+        onSelect={handleSelect}
+        onCreate={handleCreate}
+        onDelete={handleDelete}
+        onRename={handleRename}
+        onCreateFromTemplate={handleCreateFromTemplate}
+        onDeleteTemplate={handleDeleteTemplate}
+        onRenameTemplate={handleRenameTemplate}
+      />
+      <div className="doc-tab__main">
+        {activeId !== null ? (
+          <>
+            <DocumentEditor
+              key={activeId}
+              ref={editorRef}
+              documentId={activeId}
+              contentMd={contentMd}
+              onChange={handleContentChange}
+              onExport={handleExport}
+              onInsertWhiteboard={() => setShowWbPicker(true)}
+              onSaveAsTemplate={handleSaveAsTemplate}
+            />
+            {streaming && (
+              <div className="doc-tab__overlay">
+                <span className="spinner" />
+                <span>AI is editing the document...</span>
+              </div>
+            )}
+            {error && (
+              <div className="doc-tab__error">
+                {error}
+                <button className="doc-tab__error-close" onClick={() => setError(null)}>
+                  &times;
+                </button>
+              </div>
+            )}
+            <DocumentComposer
+              mode={mode}
+              onModeChange={setMode}
+              onSend={handleSend}
+              onSave={handleManualSave}
+              streaming={streaming}
+              dirty={dirty}
+            />
+          </>
+        ) : (
+          <div className="doc-tab__empty">
+            <h2>No documents yet</h2>
+            <p>Create one to get started.</p>
+          </div>
+        )}
+      </div>
+      {showWbPicker && (
+        <WhiteboardPickerDialog
+          project={project}
+          onPick={handleWhiteboardPick}
+          onClose={() => setShowWbPicker(false)}
+        />
+      )}
+    </div>
+  );
+}

@@ -288,6 +288,23 @@ CREATE TABLE IF NOT EXISTS whiteboards (
 );
 CREATE INDEX IF NOT EXISTS idx_whiteboards_project ON whiteboards(project, updated_at);
 
+-- ── Documents ───────────────────────────────────────────────────────────────
+-- Per-project rich-text documents. Content is stored as markdown; the WYSIWYG
+-- editor (Tiptap) is the ephemeral presentation layer.
+CREATE TABLE IF NOT EXISTS documents (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  project         TEXT    NOT NULL,
+  name            TEXT    NOT NULL,
+  content_md      TEXT    NOT NULL DEFAULT '',
+  thumbnail       TEXT,
+  is_template     INTEGER NOT NULL DEFAULT 0,
+  created_by      TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at      INTEGER NOT NULL,
+  updated_at      INTEGER NOT NULL,
+  UNIQUE(project, name)
+);
+CREATE INDEX IF NOT EXISTS idx_documents_project ON documents(project, updated_at);
+
 -- ── Embeddings ───────────────────────────────────────────────────────────────
 -- Created dynamically by db.ts using the configured dimension (default 1536)
 -- because the dimension must be baked into the vec0 CREATE statement.

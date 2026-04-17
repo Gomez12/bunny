@@ -1268,3 +1268,118 @@ export async function askWhiteboard(
     body: JSON.stringify(body),
   });
 }
+
+// ── Documents ────────────────────────────────────────────────────────────────
+
+export interface DocumentSummary {
+  id: number;
+  name: string;
+  thumbnail: string | null;
+  isTemplate: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface DocumentFull extends DocumentSummary {
+  project: string;
+  contentMd: string;
+  createdBy: string | null;
+}
+
+export async function fetchDocuments(
+  project: string,
+  opts?: { template?: boolean },
+): Promise<DocumentSummary[]> {
+  const params = opts?.template !== undefined ? `?template=${opts.template}` : "";
+  const data = await jsonFetch<{ documents: DocumentSummary[] }>(
+    `/api/projects/${encodeURIComponent(project)}/documents${params}`,
+  );
+  return data.documents;
+}
+
+export async function saveAsTemplate(id: number): Promise<DocumentFull> {
+  const data = await jsonFetch<{ document: DocumentFull }>(`/api/documents/${id}/save-as-template`, {
+    method: "POST",
+  });
+  return data.document;
+}
+
+export async function fetchDocument(id: number): Promise<DocumentFull> {
+  const data = await jsonFetch<{ document: DocumentFull }>(`/api/documents/${id}`);
+  return data.document;
+}
+
+export async function createDocument(project: string, name: string): Promise<DocumentFull> {
+  const data = await jsonFetch<{ document: DocumentFull }>(
+    `/api/projects/${encodeURIComponent(project)}/documents`,
+    { method: "POST", body: JSON.stringify({ name }) },
+  );
+  return data.document;
+}
+
+export async function patchDocument(
+  id: number,
+  patch: { name?: string; contentMd?: string; thumbnail?: string | null },
+): Promise<DocumentFull> {
+  const data = await jsonFetch<{ document: DocumentFull }>(`/api/documents/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  return data.document;
+}
+
+export async function deleteDocument(id: number): Promise<void> {
+  await jsonFetch<{ ok: boolean }>(`/api/documents/${id}`, { method: "DELETE" });
+}
+
+export async function editDocument(
+  id: number,
+  body: { prompt: string; contentMd?: string },
+): Promise<Response> {
+  return fetch(`/api/documents/${id}/edit`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function askDocument(
+  id: number,
+  body: { prompt: string; contentMd?: string },
+): Promise<{ sessionId: string; project: string }> {
+  return jsonFetch<{ sessionId: string; project: string }>(`/api/documents/${id}/ask`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function uploadDocumentImage(
+  id: number,
+  file: File,
+): Promise<{ url: string; path: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`/api/documents/${id}/images`, {
+    method: "POST",
+    credentials: "include",
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` })) as { error?: string };
+    throw new Error(err.error ?? `HTTP ${res.status}`);
+  }
+  return res.json() as Promise<{ url: string; path: string }>;
+}
+
+export async function exportDocument(id: number, format: "docx" | "html"): Promise<Blob> {
+  const res = await fetch(`/api/documents/${id}/export/${format}`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` })) as { error?: string };
+    throw new Error(err.error ?? `HTTP ${res.status}`);
+  }
+  return res.blob();
+}

@@ -45,6 +45,7 @@ import { handleAgentRoute } from "./agent_routes.ts";
 import { handleSkillRoute } from "./skill_routes.ts";
 import { handleBoardRoute } from "./board_routes.ts";
 import { handleWhiteboardRoute } from "./whiteboard_routes.ts";
+import { handleDocumentRoute } from "./document_routes.ts";
 import { handleWorkspaceRoute } from "./workspace_routes.ts";
 import { handleScheduledTaskRoute } from "./scheduled_task_routes.ts";
 import type { SchedulerHandle } from "../scheduler/ticker.ts";
@@ -107,6 +108,10 @@ export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<
   // ── Whiteboards (per-project Excalidraw) ──────────────────────────────────
   const whiteboardResponse = await handleWhiteboardRoute(req, url, { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg }, user);
   if (whiteboardResponse) return whiteboardResponse;
+
+  // ── Documents (per-project rich-text) ─────────────────────────────────────
+  const documentResponse = await handleDocumentRoute(req, url, { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg }, user);
+  if (documentResponse) return documentResponse;
 
   // ── Workspace (per-project files) ─────────────────────────────────────────
   const workspaceResponse = await handleWorkspaceRoute(req, url, { db: ctx.db, queue: ctx.queue }, user);
