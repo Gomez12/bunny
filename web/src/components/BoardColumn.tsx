@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { memo, type CSSProperties } from "react";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { BoardCard as BoardCardModel, Swimlane } from "../api";
@@ -19,7 +19,7 @@ interface Props {
   onArchiveCard: (cardId: number) => void;
 }
 
-export default function BoardColumn({
+export default memo(function BoardColumn({
   lane,
   cards,
   allLanes,
@@ -124,4 +124,4 @@ export default function BoardColumn({
       </button>
     </div>
   );
-}
+});

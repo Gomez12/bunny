@@ -31,20 +31,33 @@ import { BOARD_AUTO_RUN_HANDLER, registerBoardAutoRun } from "../board/auto_run_
 
 const DEFAULT_PORT = 3000;
 
-const CORS_BASE_HEADERS: Record<string, string> = {
+const CORS_NO_ORIGIN: Record<string, string> = Object.freeze({
   "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
   "Access-Control-Allow-Credentials": "true",
   Vary: "Origin",
-};
+});
 
 function corsHeaders(req: Request): Record<string, string> {
-  // Credentials mode forbids wildcard origins, so echo the caller's Origin
-  // when present. Same-origin requests (Vite proxy) don't set Origin → skip.
   const origin = req.headers.get("origin");
-  return origin
-    ? { ...CORS_BASE_HEADERS, "Access-Control-Allow-Origin": origin }
-    : { ...CORS_BASE_HEADERS };
+  if (!origin) return CORS_NO_ORIGIN;
+  return { ...CORS_NO_ORIGIN, "Access-Control-Allow-Origin": origin };
+}
+
+const GZIP_MIN_BYTES = 1024;
+
+async function maybeGzip(res: Response, req: Request): Promise<Response> {
+  const ct = res.headers.get("content-type") ?? "";
+  if (!ct.includes("json") && !ct.includes("text")) return res;
+  const ae = req.headers.get("accept-encoding") ?? "";
+  if (!ae.includes("gzip")) return res;
+  const buf = await res.arrayBuffer();
+  if (buf.byteLength < GZIP_MIN_BYTES) return new Response(buf, { status: res.status, headers: res.headers });
+  const compressed = Bun.gzipSync(new Uint8Array(buf));
+  const headers = new Headers(res.headers);
+  headers.set("Content-Encoding", "gzip");
+  headers.delete("Content-Length");
+  return new Response(compressed, { status: res.status, headers });
 }
 
 export interface ServeOptions {
@@ -125,6 +138,10 @@ export async function startServer(opts: ServeOptions = {}): Promise<{ stop: () =
       if (url.pathname.startsWith("/api/")) {
         try {
           res = await handleApi(req, url, ctx);
+          // Compress JSON API responses (skip SSE streams).
+          if (!res.headers.get("content-type")?.includes("event-stream")) {
+            res = await maybeGzip(res, req);
+          }
         } catch (e) {
           res = new Response(JSON.stringify({ error: errorMessage(e) }), {
             status: 500,
@@ -186,11 +203,16 @@ async function serveStatic(pathname: string, root: string): Promise<Response> {
   }
 
   const file = Bun.file(filePath);
-  if (await file.exists()) return new Response(file);
+  if (await file.exists()) {
+    const headers: Record<string, string> = rel.startsWith("assets/")
+      ? { "Cache-Control": "public, max-age=31536000, immutable" }
+      : { "Cache-Control": "no-cache" };
+    return new Response(file, { headers });
+  }
 
   // SPA fallback — let React Router handle unknown paths.
   const index = Bun.file(join(root, "index.html"));
-  if (await index.exists()) return new Response(index);
+  if (await index.exists()) return new Response(index, { headers: { "Cache-Control": "no-cache" } });
   return new Response("not found", { status: 404 });
 }
 

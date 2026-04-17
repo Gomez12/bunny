@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { BoardCard as BoardCardModel, Swimlane } from "../api";
@@ -91,7 +92,7 @@ export function BoardCardPreview({ card }: { card: BoardCardModel }) {
   );
 }
 
-export default function BoardCard({ card, lanes, canEdit, onEdit, onMove, onArchive }: Props) {
+export default memo(function BoardCard({ card, lanes, canEdit, onEdit, onMove, onArchive }: Props) {
   const otherLanes = lanes.filter((l) => l.id !== card.swimlaneId);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } =
     useSortable({
@@ -177,4 +178,4 @@ export default function BoardCard({ card, lanes, canEdit, onEdit, onMove, onArch
       )}
     </div>
   );
-}
+});

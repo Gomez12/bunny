@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import {
   fetchSessions,
   setSessionHiddenFromChat,
@@ -37,7 +37,7 @@ function sameSessions(a: SessionSummary[], b: SessionSummary[]): boolean {
   return true;
 }
 
-export default function SessionSidebar({
+export default memo(function SessionSidebar({
   activeId,
   onPick,
   onNew,
@@ -147,4 +147,4 @@ export default function SessionSidebar({
       </ul>
     </aside>
   );
-}
+});

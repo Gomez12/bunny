@@ -103,9 +103,5 @@ export function upsertEmbedding(db: Database, messageId: number, embedding: numb
 
 /** Serialise a number[] to a little-endian Float32 Buffer that sqlite-vec accepts. */
 export function float32ArrayToBlob(values: number[]): Buffer {
-  const buf = Buffer.alloc(values.length * 4);
-  for (let i = 0; i < values.length; i++) {
-    buf.writeFloatLE(values[i]!, i * 4);
-  }
-  return buf;
+  return Buffer.from(new Float32Array(values).buffer);
 }

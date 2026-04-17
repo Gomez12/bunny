@@ -21,9 +21,16 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
-    // Sourcemaps balloon the shipped binary (every chunk ships its .map).
-    // Keep them in dev (Vite's dev server always produces them) and drop the
-    // emitted files from the prod bundle we embed via scripts/build.ts.
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes("@excalidraw/excalidraw")) return "excalidraw";
+          if (id.includes("@tiptap/") || id.includes("tiptap-markdown")) return "tiptap";
+          if (id.includes("recharts")) return "recharts";
+          if (id.includes("@dnd-kit/")) return "dndkit";
+        },
+      },
+    },
   },
 });

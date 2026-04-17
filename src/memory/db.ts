@@ -63,6 +63,7 @@ export async function openDb(dbPath: string, embedDim = 1536): Promise<Database>
   db.run("PRAGMA mmap_size = 268435456");
   db.run("PRAGMA cache_size = -65536");
   db.run("PRAGMA busy_timeout = 5000");
+  db.run("PRAGMA journal_size_limit = 67108864");
 
   if (sqliteVecLoad) {
     try {
@@ -122,6 +123,14 @@ function migrateColumns(db: Database): void {
   );
   db.run("CREATE INDEX IF NOT EXISTS idx_messages_ts ON messages(ts)");
   db.run("CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts)");
+
+  db.run("CREATE INDEX IF NOT EXISTS idx_cards_swimlane ON board_cards(swimlane_id)");
+  db.run(
+    "CREATE INDEX IF NOT EXISTS idx_card_runs_status_card ON board_card_runs(status, card_id)",
+  );
+  db.run("CREATE INDEX IF NOT EXISTS idx_events_user ON events(user_id, ts)");
+
+  db.run("PRAGMA optimize");
 
   // Auto-seed the 'general' project so every install has a default workspace.
   const now = Date.now();

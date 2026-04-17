@@ -118,9 +118,7 @@ export function startScheduler(opts: StartSchedulerOpts): SchedulerHandle {
       });
       return;
     }
-    for (const task of due) {
-      await runHandler(task, now);
-    }
+    await Promise.allSettled(due.map((task) => runHandler(task, now)));
   };
 
   const runTask = async (taskId: string, now: number = Date.now()): Promise<void> => {

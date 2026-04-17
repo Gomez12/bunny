@@ -7,6 +7,9 @@
 
 import type { EmbedConfig } from "../config.ts";
 
+const EMBED_CACHE_MAX = 32;
+const embedCache = new Map<string, number[]>();
+
 export class EmbedError extends Error {
   constructor(
     message: string,
@@ -23,9 +26,12 @@ export class EmbedError extends Error {
  */
 export async function embed(cfg: EmbedConfig, text: string): Promise<number[]> {
   if (!cfg.apiKey) {
-    // No key configured — return zero vector; vector search will degrade gracefully.
     return new Array<number>(cfg.dim).fill(0);
   }
+
+  const cacheKey = `${cfg.model}:${text}`;
+  const cached = embedCache.get(cacheKey);
+  if (cached) return cached;
 
   const url = cfg.baseUrl.replace(/\/$/, "") + "/embeddings";
   const res = await fetch(url, {
@@ -48,5 +54,12 @@ export async function embed(cfg: EmbedConfig, text: string): Promise<number[]> {
   const json = (await res.json()) as EmbedResponse;
   const vec = json.data[0]?.embedding;
   if (!vec) throw new EmbedError("Empty embedding response", 0);
+
+  if (embedCache.size >= EMBED_CACHE_MAX) {
+    const first = embedCache.keys().next().value!;
+    embedCache.delete(first);
+  }
+  embedCache.set(cacheKey, vec);
+
   return vec;
 }

@@ -8,6 +8,7 @@
  */
 
 import type { Database } from "bun:sqlite";
+import { prep } from "./prepared.ts";
 
 export const POSITION_STEP = 100;
 export const DEFAULT_SWIMLANES = ["Todo", "Doing", "Done"] as const;
@@ -67,18 +68,15 @@ function rowToSwimlane(r: SwimlaneRow): Swimlane {
 const SELECT_COLS = `id, project, name, position, wip_limit, auto_run, default_assignee_user_id, default_assignee_agent, next_swimlane_id, color, lane_group, created_at, updated_at`;
 
 export function listSwimlanes(db: Database, project: string): Swimlane[] {
-  const rows = db
-    .prepare(
-      `SELECT ${SELECT_COLS} FROM board_swimlanes
+  const rows = prep(db,
+    `SELECT ${SELECT_COLS} FROM board_swimlanes
        WHERE project = ? ORDER BY position ASC, id ASC`,
-    )
-    .all(project) as SwimlaneRow[];
+  ).all(project) as SwimlaneRow[];
   return rows.map(rowToSwimlane);
 }
 
 export function getSwimlane(db: Database, id: number): Swimlane | null {
-  const row = db
-    .prepare(`SELECT ${SELECT_COLS} FROM board_swimlanes WHERE id = ?`)
+  const row = prep(db, `SELECT ${SELECT_COLS} FROM board_swimlanes WHERE id = ?`)
     .get(id) as SwimlaneRow | undefined;
   return row ? rowToSwimlane(row) : null;
 }
@@ -99,13 +97,12 @@ export interface CreateSwimlaneOpts {
 export function createSwimlane(db: Database, opts: CreateSwimlaneOpts): Swimlane {
   const now = Date.now();
   const position = opts.position ?? nextPosition(db, opts.project);
-  const info = db
-    .prepare(
-      `INSERT INTO board_swimlanes(project, name, position, wip_limit, auto_run,
+  const info = prep(db,
+    `INSERT INTO board_swimlanes(project, name, position, wip_limit, auto_run,
                                     default_assignee_user_id, default_assignee_agent, next_swimlane_id,
                                     color, lane_group, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
+  )
     .run(
       opts.project,
       opts.name,
@@ -147,7 +144,7 @@ export function updateSwimlane(db: Database, id: number, patch: UpdateSwimlanePa
   const nextLane = patch.nextSwimlaneId === undefined ? existing.nextSwimlaneId : patch.nextSwimlaneId;
   const color = patch.color === undefined ? existing.color : patch.color;
   const group = patch.group === undefined ? existing.group : patch.group;
-  db.prepare(
+  prep(db,
     `UPDATE board_swimlanes
      SET name = ?, position = ?, wip_limit = ?, auto_run = ?,
          default_assignee_user_id = ?, default_assignee_agent = ?, next_swimlane_id = ?,
@@ -162,22 +159,19 @@ export function updateSwimlane(db: Database, id: number, patch: UpdateSwimlanePa
  * caller must move them first to avoid orphaning work.
  */
 export function deleteSwimlane(db: Database, id: number): void {
-  const row = db
-    .prepare(
-      `SELECT COUNT(*) AS n FROM board_cards
+  const row = prep(db,
+    `SELECT COUNT(*) AS n FROM board_cards
        WHERE swimlane_id = ? AND archived_at IS NULL`,
-    )
-    .get(id) as { n: number } | undefined;
+  ).get(id) as { n: number } | undefined;
   if (row && row.n > 0) {
     throw new Error(`swimlane ${id} still has ${row.n} active cards`);
   }
-  db.prepare(`DELETE FROM board_swimlanes WHERE id = ?`).run(id);
+  prep(db, `DELETE FROM board_swimlanes WHERE id = ?`).run(id);
 }
 
 /** Next position = max(position) + POSITION_STEP, or POSITION_STEP if empty. */
 function nextPosition(db: Database, project: string): number {
-  const row = db
-    .prepare(`SELECT MAX(position) AS maxp FROM board_swimlanes WHERE project = ?`)
+  const row = prep(db, `SELECT MAX(position) AS maxp FROM board_swimlanes WHERE project = ?`)
     .get(project) as { maxp: number | null } | undefined;
   const max = row?.maxp ?? null;
   return (max ?? 0) + POSITION_STEP;

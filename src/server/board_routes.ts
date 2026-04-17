@@ -217,10 +217,12 @@ function latestRunStatusByCard(
     .prepare(
       `SELECT r.card_id AS card_id, r.status AS status
          FROM board_card_runs r
-         JOIN board_cards c ON c.id = r.card_id
-        WHERE c.project = ?
-          AND r.id IN (
-            SELECT MAX(id) FROM board_card_runs GROUP BY card_id
+        WHERE r.id IN (
+            SELECT MAX(r2.id)
+              FROM board_card_runs r2
+              JOIN board_cards c2 ON c2.id = r2.card_id
+             WHERE c2.project = ?
+             GROUP BY r2.card_id
           )`,
     )
     .all(project) as Array<{ card_id: number; status: string }>;

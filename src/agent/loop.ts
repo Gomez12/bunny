@@ -51,6 +51,9 @@ import { buildSkillCatalog, loadSkillAssets, listSkillResources } from "../memor
 
 const MAX_TOOL_ITERATIONS = 20;
 
+const SKILL_CATALOG_TTL_MS = 30_000;
+const skillCatalogCache = new Map<string, { catalog: ReturnType<typeof buildSkillCatalog>; ts: number }>();
+
 // Tool names whose handlers live on per-run closures, not the singleton.
 // Scrubbed from the agent's static whitelist before `subset()` so they don't
 // get silently dropped (subset only copies tools that actually exist on the
@@ -150,8 +153,20 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
       .map((a) => ({ name: a.name, description: a.description }));
   }
 
-  const projectSkills = listSkillsForProject(db, project);
-  const skillCatalog = projectSkills.length > 0 ? buildSkillCatalog(projectSkills) : undefined;
+  const now = Date.now();
+  const cachedSkills = skillCatalogCache.get(project);
+  let skillCatalog: ReturnType<typeof buildSkillCatalog> | undefined;
+  let projectSkills: { name: string }[];
+  if (cachedSkills && now - cachedSkills.ts < SKILL_CATALOG_TTL_MS) {
+    skillCatalog = cachedSkills.catalog.length > 0 ? cachedSkills.catalog : undefined;
+    projectSkills = cachedSkills.catalog;
+  } else {
+    const skills = listSkillsForProject(db, project);
+    const catalog = skills.length > 0 ? buildSkillCatalog(skills) : [];
+    skillCatalogCache.set(project, { catalog, ts: now });
+    skillCatalog = catalog.length > 0 ? catalog : undefined;
+    projectSkills = catalog;
+  }
 
   const systemMsg = opts.systemPromptOverride
     ? { role: "system" as const, content: opts.systemPromptOverride }

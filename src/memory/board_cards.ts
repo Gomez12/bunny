@@ -12,6 +12,7 @@
 
 import type { Database } from "bun:sqlite";
 import { POSITION_STEP } from "./board_swimlanes.ts";
+import { prep } from "./prepared.ts";
 import type { Project } from "./projects.ts";
 import type { User } from "../auth/users.ts";
 
@@ -81,19 +82,18 @@ export interface ListCardsOpts {
 
 export function listCards(db: Database, project: string, opts: ListCardsOpts = {}): Card[] {
   const where = opts.includeArchived ? "" : "AND archived_at IS NULL";
-  const rows = db
-    .prepare(
-      `SELECT ${SELECT_COLS} FROM board_cards
+  const rows = prep(
+    db,
+    `SELECT ${SELECT_COLS} FROM board_cards
        WHERE project = ? ${where}
        ORDER BY swimlane_id ASC, position ASC, id ASC`,
-    )
+  )
     .all(project) as CardRow[];
   return rows.map(rowToCard);
 }
 
 export function getCard(db: Database, id: number): Card | null {
-  const row = db
-    .prepare(`SELECT ${SELECT_COLS} FROM board_cards WHERE id = ?`)
+  const row = prep(db, `SELECT ${SELECT_COLS} FROM board_cards WHERE id = ?`)
     .get(id) as CardRow | undefined;
   return row ? rowToCard(row) : null;
 }
@@ -120,14 +120,14 @@ export function createCard(db: Database, opts: CreateCardOpts): Card {
   const now = Date.now();
   const position = opts.position ?? nextPosition(db, opts.swimlaneId);
   const autoRun = opts.autoRun ?? Boolean(opts.assigneeAgent);
-  const info = db
-    .prepare(
-      `INSERT INTO board_cards(project, swimlane_id, position, title, description,
+  const info = prep(
+    db,
+    `INSERT INTO board_cards(project, swimlane_id, position, title, description,
                                assignee_user_id, assignee_agent, auto_run,
                                estimate_hours, percent_done, created_by,
                                created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
+  )
     .run(
       opts.project,
       opts.swimlaneId,
@@ -185,7 +185,7 @@ export function updateCard(db: Database, id: number, patch: UpdateCardPatch): Ca
   }
   const estimateHours = patch.estimateHours === undefined ? existing.estimateHours : patch.estimateHours;
   const percentDone = patch.percentDone === undefined ? existing.percentDone : patch.percentDone;
-  db.prepare(
+  prep(db,
     `UPDATE board_cards
      SET title = ?, description = ?, assignee_user_id = ?, assignee_agent = ?,
          auto_run = ?, estimate_hours = ?, percent_done = ?,
@@ -213,8 +213,7 @@ export function updateCard(db: Database, id: number, patch: UpdateCardPatch): Ca
  * enqueue even if two ticks race.
  */
 export function clearAutoRun(db: Database, id: number): boolean {
-  const info = db
-    .prepare(`UPDATE board_cards SET auto_run = 0, updated_at = ? WHERE id = ? AND auto_run = 1`)
+  const info = prep(db, `UPDATE board_cards SET auto_run = 0, updated_at = ? WHERE id = ? AND auto_run = 1`)
     .run(Date.now(), id);
   return info.changes > 0;
 }
@@ -247,7 +246,7 @@ export function moveCard(db: Database, id: number, opts: MoveCardOpts): Card {
     position = computeMidpointPosition(db, swimlaneId, id, opts.beforeCardId, opts.afterCardId);
   }
 
-  db.prepare(
+  prep(db,
     `UPDATE board_cards
      SET swimlane_id = ?, position = ?, updated_at = ?
      WHERE id = ?`,
@@ -256,7 +255,7 @@ export function moveCard(db: Database, id: number, opts: MoveCardOpts): Card {
 }
 
 export function archiveCard(db: Database, id: number): void {
-  db.prepare(`UPDATE board_cards SET archived_at = ?, updated_at = ? WHERE id = ?`).run(
+  prep(db, `UPDATE board_cards SET archived_at = ?, updated_at = ? WHERE id = ?`).run(
     Date.now(),
     Date.now(),
     id,
@@ -285,8 +284,7 @@ function validateAssignee(userId: string | null, agent: string | null): void {
 }
 
 function nextPosition(db: Database, swimlaneId: number): number {
-  const row = db
-    .prepare(`SELECT MAX(position) AS maxp FROM board_cards WHERE swimlane_id = ?`)
+  const row = prep(db, `SELECT MAX(position) AS maxp FROM board_cards WHERE swimlane_id = ?`)
     .get(swimlaneId) as { maxp: number | null } | undefined;
   return (row?.maxp ?? 0) + POSITION_STEP;
 }
@@ -316,18 +314,15 @@ function computeMidpointPosition(
     return mid === before ? before + 1 : mid;
   }
   // No neighbours given → append to end of target lane (skip moving card).
-  const row = db
-    .prepare(
-      `SELECT MAX(position) AS maxp FROM board_cards
+  const row = prep(db,
+    `SELECT MAX(position) AS maxp FROM board_cards
        WHERE swimlane_id = ? AND id != ?`,
-    )
-    .get(swimlaneId, movingId) as { maxp: number | null } | undefined;
+  ).get(swimlaneId, movingId) as { maxp: number | null } | undefined;
   return (row?.maxp ?? 0) + POSITION_STEP;
 }
 
 function getNeighbourPosition(db: Database, cardId: number): number {
-  const row = db
-    .prepare(`SELECT position FROM board_cards WHERE id = ?`)
+  const row = prep(db, `SELECT position FROM board_cards WHERE id = ?`)
     .get(cardId) as { position: number } | undefined;
   if (!row) throw new Error(`neighbour card ${cardId} not found`);
   return row.position;
