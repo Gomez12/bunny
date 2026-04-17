@@ -44,7 +44,7 @@ Cards with an agent-assignee can be executed via the **Run** button in the card 
 
 ## Web UI
 
-Bunny also has a tab-based web UI: **Chat** (live streaming), **Messages** (all previous sessions from SQLite, searchable via BM25), **Board** (kanban per project, with optional auto-run per swimlane and per card), **Files** (per-project workspace files, upload/download/drag-and-drop), **Tasks** (system and user tasks with cron schedules), **Projects**, **Agents** and **Settings**.
+Bunny also has a tab-based web UI: **Dashboard** (KPIs, charts, activity feed), **Chat** (live streaming), **Messages** (all previous sessions from SQLite, searchable via BM25), **Board** (kanban per project, with optional auto-run per swimlane and per card), **Whiteboard** (per-project Excalidraw with AI edit/question modes), **Documents** (rich-text WYSIWYG editor with AI edit/question modes), **Files** (per-project workspace files, upload/download/drag-and-drop), **Tasks** (system and user tasks with cron schedules), **Projects**, **Agents**, **Skills** (reusable instruction packages), **Logs** (admin-only audit trail), and **Settings**.
 
 ```sh
 # terminal 1 — backend (Bun HTTP + SSE)

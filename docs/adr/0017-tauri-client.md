@@ -36,6 +36,6 @@ client/
 ## Consequences
 
 - Each target platform must be built natively (no Tauri cross-compilation). CI needs macOS, Linux, and Windows runners for client builds.
-- The server binary build (`bun run build`) is completely unaffected.
+- The server binary build (`bun run build`) now includes the Tauri client build by default. Use `--no-client` to skip it (e.g. when no Rust toolchain is available).
 - `client/src-tauri/target/` is added to `.gitignore` (Rust build output).
 - Root `package.json` gains `client:dev` and `client:build` convenience scripts.

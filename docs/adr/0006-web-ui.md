@@ -49,6 +49,8 @@ Messages tab: `GET /api/sessions?q=...` → `listSessions()` (FTS5 filter when `
 
 ## Non-goals (for now)
 
-- Auth / multi-user support.
 - WebSocket upgrade for bidirectional interrupts (agent abort happens client-side via `AbortController`).
-- Events tab (raw queue audit trail) — can come later as a third tab without schema changes.
+
+## Addendum (2026-04)
+
+The UI has grown well beyond the original two-tab MVP. As of now it has thirteen tabs: Dashboard, Chat, Messages, Board, Whiteboard, Documents, Files, Tasks, Projects, Agents, Skills, Logs (admin-only), Settings. Auth and multi-user support shipped in [ADR 0007](./0007-auth-and-users.md). The events/audit trail is available as the admin-only Logs tab. Each major feature is documented in its own ADR (0008–0017). The core decisions from this ADR — no backend framework, React + Vite frontend, `Renderer` interface, SSE over WebSocket, BM25 for search — all remain in effect.

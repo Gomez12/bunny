@@ -29,7 +29,11 @@ bun run check                  # typecheck + test
 bun run docs                   # TypeDoc → docs/api/
 
 bun run web:build              # build web/dist/ (Bun then serves it on :3000 in prod)
-bun run build                  # compile standalone binary via scripts/build.ts
+bun run build                  # compile standalone binary via scripts/build.ts (all platforms + Tauri)
+bun run build:platform darwin-arm64  # single-platform build
+bun run build -- --no-web      # skip Vite build, reuse existing web/dist/
+bun run build -- --no-client   # skip Tauri client build (useful without Rust toolchain)
+bun run build -- --list        # list available build targets
 
 # Tauri desktop client
 cd client && bun install       # install client deps (separate package.json, requires Rust toolchain)
@@ -47,7 +51,7 @@ The agent loop is a thin outer/inner loop (Mihail Eric, _The Emperor Has No Clot
 
 1. **Minimal agent loop** — `src/agent/loop.ts:runAgent` is the only orchestrator: build system prompt (with hybrid recall injected) → stream LLM → if tool_calls, execute in parallel → repeat until assistant answers without tools. Capped at `MAX_TOOL_ITERATIONS = 20`.
 2. **Queue is the spine** — every meaningful action is a fire-and-forget job on a `bunqueue` worker (`src/queue/`) which logs to `events` in SQLite. This covers LLM requests/responses, tool calls/results, memory writes, **and** all HTTP mutations (project/board/agent/task/workspace CRUD, auth events). `LogPayload` carries an optional `userId` so every event is attributable. Every route context (`AuthRouteCtx`, `WorkspaceRouteCtx`, `AgentRouteCtx`, `ScheduledTaskRouteCtx`, `BoardRouteCtx`) includes `queue: BunnyQueue`. Nothing is invisible; nothing blocks the caller.
-3. **Portable state** — single SQLite file under `$BUNNY_HOME`. Schema in `src/memory/schema.sql` (NEVER drop/rename columns — add new ones). The `embeddings` vec0 table is created dynamically because the dimension must be baked into the CREATE statement.
+3. **Portable state** — single SQLite file under `$BUNNY_HOME`. Schema in `src/memory/schema.sql` (NEVER drop/rename columns — add new ones). Key tables: `messages`, `projects`, `agents`, `project_agents`, `skills`, `project_skills`, `board_swimlanes`, `board_cards`, `board_card_runs`, `scheduled_tasks`, `whiteboards`, `documents`, `users`, `auth_sessions`, `api_keys`, `session_visibility`, `events`, `messages_fts` (FTS5). The `embeddings` vec0 table is created dynamically because the dimension must be baked into the CREATE statement.
 
 ### Streaming pipeline
 
@@ -79,9 +83,9 @@ Both `last_n` and `recall_k` can be overridden per-project via the `last_n` / `r
 - Serves `web/dist/` statically if it exists; otherwise shows a dev placeholder pointing at the Vite dev server.
 - Sets `idleTimeout: 0` — SSE streams can outlive the default timeout.
 
-The frontend (`web/`) is React + Vite with its own `package.json`. Tabs: Dashboard (KPIs, time-series charts, tool/agent/project breakdowns, error rates, scheduler health, and recent activity feed — powered by Recharts and a single `GET /api/dashboard?range=` endpoint backed by `src/memory/stats.ts`; admin sees global stats, non-admin sees own data only), Chat (live SSE streaming via `fetch` body-reader, not `EventSource`, because we POST JSON), Messages (sessions listed via `listSessions()`, BM25-filtered when `q` is set, scoped to the active project), Projects (card grid with click-to-switch + create/edit dialog), Whiteboard (per-project Excalidraw whiteboards with LLM edit/question modes), Documents (per-project rich-text WYSIWYG documents backed by Tiptap, stored as markdown, with code-mode toggle, Word ribbon toolbar, and LLM edit/question modes) and Settings (profile, API keys, admin-only user management). Session id is persisted in `localStorage` under `bunny.activeSessionId`, active project under `bunny.activeProject`. Switching project always starts a new session. The app boots by calling `GET /api/auth/me` — 401 drops the user on the login page, a `mustChangePassword` flag gates the forced-change page. All fetches use `credentials: "include"` so the `bunny_session` cookie rides along.
+The frontend (`web/`) is React + Vite with its own `package.json`. Tabs (in UI order): Dashboard (KPIs, time-series charts, tool/agent/project breakdowns, error rates, scheduler health, and recent activity feed — powered by Recharts and a single `GET /api/dashboard?range=24h|7d|30d|90d|all` endpoint backed by `src/memory/stats.ts`; admin sees global stats, non-admin sees own data only), Chat (live SSE streaming via `fetch` body-reader, not `EventSource`, because we POST JSON), Messages (sessions listed via `listSessions()`, BM25-filtered when `q` is set, scoped to the active project), Board (per-project kanban — see Boards section below), Whiteboard (per-project Excalidraw whiteboards with LLM edit/question modes), Documents (per-project rich-text WYSIWYG documents backed by Tiptap, stored as markdown, with code-mode toggle, Word ribbon toolbar, and LLM edit/question modes), Files (per-project workspace file browser — see Workspaces section below), Tasks (scheduled tasks with cron — see Scheduler section below), Projects (card grid with click-to-switch + create/edit dialog), Agents (card grid with create/edit dialog, per-project linking — see Agents section below), Skills (card grid, install-from-URL, project linking — see Skills section below), Logs (admin-only audit trail of all queue events via `GET /api/events`), and Settings (profile, API keys, admin-only user management). Session id is persisted in `localStorage` under `bunny.activeSessionId`, active project under `bunny.activeProject`. Switching project always starts a new session. The app boots by calling `GET /api/auth/me` — 401 drops the user on the login page, a `mustChangePassword` flag gates the forced-change page. All fetches use `credentials: "include"` so the `bunny_session` cookie rides along.
 
-SSE event shapes live in `src/agent/sse_events.ts` and are imported by both `src/agent/render_sse.ts` (backend) and `web/src/api.ts` (frontend) — single source of truth, compile-time drift guard. Vite's `server.fs.allow: [".."]` permits the cross-root import.
+SSE event shapes live in `src/agent/sse_events.ts` and are imported by both `src/agent/render_sse.ts` (backend) and `web/src/api.ts` (frontend) — single source of truth, compile-time drift guard. Event types: `content`, `reasoning`, `tool_call`, `tool_result`, `usage`, `stats`, `error`, `turn_end`, `done`, `card_run_started`, `card_run_finished`. Vite's `server.fs.allow: [".."]` permits the cross-root import.
 
 ### Projects
 
@@ -91,7 +95,7 @@ The **default project name** and the **base system prompt** both come from `[age
 
 Entry points: `src/memory/projects.ts` (CRUD + `validateProjectName` + `getSessionProject`), `src/memory/project_assets.ts` (`ensureProjectDir`, `loadProjectSystemPrompt`, `writeProjectSystemPrompt`). System-prompt composition happens in `src/agent/prompt.ts:buildSystemMessage` — `append=true` (default) concatenates after the base prompt, `append=false` replaces it. Recall (`hybridRecall`, `searchBM25`, `searchVector`) all accept a `project` filter so projects never leak into each other.
 
-CLI: `--project <name>` auto-creates DB row + directory when missing. HTTP: `GET/POST /api/projects`, `GET/PATCH/DELETE /api/projects/:name`; `?project=<name>` on `/api/sessions`; optional `project` field on the `POST /api/chat` body. Web UI: fourth tab "Projects" shows cards, click-to-switch (starts a fresh session), + dialog for create/edit. Project name is immutable (PK + dir); only description, visibility, and system prompt can change. See [ADR 0008](./docs/adr/0008-projects.md).
+CLI: `--project <name>` auto-creates DB row + directory when missing. HTTP: `GET/POST /api/projects`, `GET/PATCH/DELETE /api/projects/:name`; `?project=<name>` on `/api/sessions`; optional `project` field on the `POST /api/chat` body. Web UI: "Projects" tab shows cards, click-to-switch (starts a fresh session), + dialog for create/edit. Project name is immutable (PK + dir); only description, visibility, and system prompt can change. See [ADR 0008](./docs/adr/0008-projects.md).
 
 ### Agents
 
@@ -102,7 +106,7 @@ Named personalities with their own system prompt, tool whitelist and memory knob
 - `POST /api/chat` accepts an optional `agent` field; otherwise `parseMention` (`src/agent/mention.ts`) strips a leading `@name` off the prompt. A mention without a trailing prompt returns 400. The agent **replaces** the default assistant for that turn — there is no fallback or double-answer.
 - Subagents: enable `is_subagent = true` on an agent, then add it to another agent's `allowed_subagents`. The orchestrator then receives the built-in `call_agent(name, prompt)` tool which spawns a nested `runAgent` with a silent renderer (final answer surfaces as the tool result); depth is capped by `MAX_AGENT_CALL_DEPTH = 2`.
 - SSE events (`content`, `reasoning`, `tool_call`, `tool_result`, `turn_end`) carry an optional `author`. `createSseRenderer(sink, { author })` tags every outgoing event; the frontend `MessageBubble` renders `@name` in place of `assistant`. `HistoryTurn.author` propagates the same field from replayed DB rows so reload looks identical.
-- HTTP: `GET/POST /api/agents`, `GET/PATCH/DELETE /api/agents/:name`, `GET/POST /api/projects/:name/agents`, `DELETE /api/projects/:name/agents/:agent`, `GET /api/tools` (for the picker). Web UI: fifth tab "Agents" with a card grid + dialog; per-card checkboxes to link/unlink to each project. See [ADR 0009](./docs/adr/0009-agents.md).
+- HTTP: `GET/POST /api/agents`, `GET/PATCH/DELETE /api/agents/:name`, `GET/POST /api/projects/:name/agents`, `DELETE /api/projects/:name/agents/:agent`, `GET /api/tools` (for the picker). Web UI: "Agents" tab with a card grid + dialog; per-card checkboxes to link/unlink to each project. See [ADR 0009](./docs/adr/0009-agents.md).
 
 ### Skills
 
@@ -128,7 +132,7 @@ Permissions: board-view = `canSeeProject`; swimlane CRUD = admin or `projects.cr
 
 **Agent tools.** `src/tools/board.ts:makeBoardTools` returns six closure-bound tools (`board_list`, `board_get_card`, `board_create_card`, `board_update_card`, `board_move_card`, `board_archive_card`) — same closure pattern as `call_agent`, project + db + userId baked in so an agent in project "alpha" cannot reach project "beta". Spliced into the per-run registry by `buildRunRegistry` in `src/agent/loop.ts`. An agent inheriting all tools (no `tools = [...]` whitelist) gets every board tool by default; a whitelist filters them like any other tool name. Listed in `BOARD_TOOL_NAMES` and surfaced via `/api/tools` so the agent-picker UI shows them.
 
-Web UI: tab "Board" between Messages and Projects. Drag-and-drop via `@dnd-kit/core` + `@dnd-kit/sortable` (PointerSensor with `distance: 5` so in-card buttons keep working). `BoardTab` does optimistic state updates and rolls back on a 4xx. The card edit dialog hosts the **Run** button + a `CardRunLog` that streams the live run via `streamCardRun` and renders historical runs with an "Open in Chat" deep-link to each run's session. See [ADR 0010](./docs/adr/0010-project-boards.md).
+Web UI: "Board" tab between Messages and Whiteboard. Drag-and-drop via `@dnd-kit/core` + `@dnd-kit/sortable` (PointerSensor with `distance: 5` so in-card buttons keep working). `BoardTab` does optimistic state updates and rolls back on a 4xx. The card edit dialog hosts the **Run** button + a `CardRunLog` that streams the live run via `streamCardRun` and renders historical runs with an "Open in Chat" deep-link to each run's session. See [ADR 0010](./docs/adr/0010-project-boards.md).
 
 **Auto-run.** Swimlanes and cards each carry an `auto_run` flag. A card's flag defaults ON the moment an agent assignee is set; a lane's flag is toggled from the column header. The scheduler's built-in `board.auto_run_scan` system-task (see Scheduler) joins both and launches `runCard` with `triggerKind: "scheduled"` for every hit, atomically clearing the card flag via `clearAutoRun` so a given reservation fires exactly once even under concurrent ticks. `GET /api/projects/:p/board` enriches each card DTO with a computed `latestRunStatus`, so the UI splits cards into *pending* / *running* / *answered* / *errored* / *idle*.
 
@@ -140,7 +144,7 @@ Per-project file area under `<projectDir>/workspace/`, seeded with `input/` and 
 
 **HTTP** (`src/server/workspace_routes.ts`, mounted between board and scheduled-task routes): `GET /api/projects/:p/workspace/list?path=…`, `GET …/workspace/file?path=…&encoding=utf8|base64|raw`, `POST …/workspace/file` (JSON or multipart, 100 MB cap), `POST …/workspace/mkdir`, `POST …/workspace/move`, `DELETE /api/projects/:p/workspace?path=…`. Reads = `canSeeProject`, mutations = `canEditProject`.
 
-Web UI: **Files** tab between Board and Tasks. Breadcrumb nav, drag-and-drop upload zone, inline rename/mkdir/delete, lock icon on `input`/`output` roots. Downloads are plain `<a href>` to the `encoding=raw` endpoint. See [ADR 0012](./docs/adr/0012-project-workspaces.md).
+Web UI: **Files** tab between Documents and Tasks. Breadcrumb nav, drag-and-drop upload zone, inline rename/mkdir/delete, lock icon on `input`/`output` roots. Downloads are plain `<a href>` to the `encoding=raw` endpoint. See [ADR 0012](./docs/adr/0012-project-workspaces.md).
 
 ### Whiteboards
 
@@ -166,6 +170,7 @@ Additional features:
 - **Image support**: drag & drop or paste images into the editor. Images are uploaded via `POST /api/documents/:id/images` (multipart) and stored in the project workspace at `documents/<docId>/images/<uuid>.<ext>`, served by the existing workspace file endpoint. Images are selectable with an accent outline.
 - **Whiteboard embeds**: insert whiteboards from the current project via a picker dialog. Two modes: **live** (re-fetches latest thumbnail on render) and **static** (snapshot at insert time). Custom Tiptap node `whiteboardEmbed` in `web/src/components/tiptap/WhiteboardEmbedNode.tsx`.
 - **Export**: Word (.docx) via `POST /api/documents/:id/export/docx` (server-side using `docx` npm package), HTML zip via `POST /api/documents/:id/export/html` (using `jszip`), PDF via `window.print()` with a print stylesheet. Export dropdown in the ribbon toolbar.
+- **Templates**: `POST /api/documents/:id/save-as-template` saves a document as a reusable template.
 
 Web UI: **Documents** tab between Whiteboard and Files. Left sidebar lists saved documents, center has the Tiptap WYSIWYG editor with Word ribbon toolbar (formatting, headings, lists, alignment, tables, images, whiteboard embeds, export), bottom has a composer with edit/question mode toggle. WYSIWYG/Code mode toggle in the ribbon. Auto-saves on changes (debounced). Frontend dependencies: `@tiptap/react`, `@tiptap/starter-kit`, various `@tiptap/extension-*`, `tiptap-markdown`. See [ADR 0016](./docs/adr/0016-documents.md).
 
@@ -181,7 +186,7 @@ Authentication lives in `src/auth/` (`users.ts`, `sessions.ts`, `apikeys.ts`, `p
 
 ### Portable binary with embedded UI
 
-`bun run build` (via `scripts/build.ts`) does: run `vite build` in `web/`, walk `web/dist/`, generate `src/server/web_bundle.ts` with `import … with { type: "file" }` entries keyed by URL pathname, compile the binary with `bun build --compile`, then restore the stub. At runtime `startServer` prefers a filesystem `web/dist/` adjacent to the cwd, falls back to `webBundle` (embedded), and finally to a dev-placeholder HTML page. The stub must stay checked in so `bun test` / dev runs compile without a prior web build.
+`bun run build` (via `scripts/build.ts`) does: run `vite build` in `web/` (skippable with `--no-web`), walk `web/dist/`, generate `src/server/web_bundle.ts` with `import … with { type: "file" }` entries keyed by URL pathname, compile the binary with `bun build --compile` for all platforms, build the Tauri desktop client if `client/src-tauri` exists (skippable with `--no-client`), then restore the stub. At runtime `startServer` prefers a filesystem `web/dist/` adjacent to the cwd, falls back to `webBundle` (embedded), and finally to a dev-placeholder HTML page. The stub must stay checked in so `bun test` / dev runs compile without a prior web build.
 
 ### Desktop Client (Tauri)
 

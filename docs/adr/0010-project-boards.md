@@ -85,7 +85,7 @@ the frontend `web/src/api.ts` picks them up automatically via the shared
 
 ### UI surface
 
-- New "Board" tab between Messages and Projects.
+- New "Board" tab between Messages and Whiteboard (originally between Messages and Projects; tab order shifted as more tabs were added).
 - Drag-and-drop via **`@dnd-kit`** (core + sortable). PointerSensor with a
   5px activation distance keeps clicks on the in-card buttons working.
   Drops translate to `beforeCardId`/`afterCardId` on `POST /api/cards/:id/move`

@@ -50,4 +50,4 @@ Same debounced pattern as whiteboards — saves to backend after configurable de
 - New npm dependencies: `@tiptap/react`, `@tiptap/starter-kit`, various `@tiptap/extension-*`, `tiptap-markdown` (~200KB total chunk, lazy-loaded via tab).
 - Markdown round-trip fidelity is the key risk. Tables, task lists, and code blocks with language tags must survive. If `tiptap-markdown` drops information, a `content_json` column can be added to store ProseMirror JSON as a parallel source of truth.
 - No collaborative editing — one user at a time, same as whiteboards.
-- Future phases: image drag-and-drop with workspace storage, whiteboard embeds (live/static), export to Word/PDF/HTML.
+- All planned future phases are now implemented: image drag-and-drop with workspace storage (`POST /api/documents/:id/images`), whiteboard embeds with live and static modes (`WhiteboardEmbedNode.tsx`), and export to Word (.docx), HTML (zip), and PDF (print stylesheet). See the Documents section of `CLAUDE.md` for full details.

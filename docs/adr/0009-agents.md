@@ -74,7 +74,7 @@ stays orthogonal to it.
 
 ### UI surface
 
-- Fourth tab "Agents" mirrors "Projects": card grid with New/edit/delete and
+- "Agents" tab (after Projects in the nav) mirrors "Projects": card grid with New/edit/delete and
   per-card project-availability checkboxes.
 - SSE events (`content`, `reasoning`, `tool_call`, `tool_result`, `turn_end`)
   carry an optional `author`. The web `MessageBubble` renders `@name` in the
