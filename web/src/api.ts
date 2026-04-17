@@ -1383,3 +1383,171 @@ export async function exportDocument(id: number, format: "docx" | "html"): Promi
   }
   return res.blob();
 }
+
+// ── Contacts ──────────────────────────────────────────────────────────────────
+
+export interface Contact {
+  id: number;
+  project: string;
+  name: string;
+  emails: string[];
+  phones: string[];
+  company: string;
+  title: string;
+  notes: string;
+  avatar: string | null;
+  tags: string[];
+  groups: number[];
+  createdBy: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ContactGroup {
+  id: number;
+  project: string;
+  name: string;
+  color: string | null;
+  createdBy: string | null;
+  createdAt: number;
+  updatedAt: number;
+  memberCount: number;
+}
+
+export interface ContactInput {
+  name: string;
+  emails?: string[];
+  phones?: string[];
+  company?: string;
+  title?: string;
+  notes?: string;
+  avatar?: string | null;
+  tags?: string[];
+  groups?: number[];
+}
+
+export async function fetchContacts(
+  project: string,
+  opts?: { q?: string; group?: number; limit?: number; offset?: number },
+): Promise<{ contacts: Contact[]; total: number }> {
+  const params = new URLSearchParams();
+  if (opts?.q) params.set("q", opts.q);
+  if (opts?.group !== undefined) params.set("group", String(opts.group));
+  if (opts?.limit !== undefined) params.set("limit", String(opts.limit));
+  if (opts?.offset !== undefined) params.set("offset", String(opts.offset));
+  const qs = params.toString();
+  return jsonFetch(`/api/projects/${encodeURIComponent(project)}/contacts${qs ? `?${qs}` : ""}`);
+}
+
+export async function fetchContact(project: string, id: number): Promise<Contact> {
+  const data = await jsonFetch<{ contact: Contact }>(
+    `/api/projects/${encodeURIComponent(project)}/contacts/${id}`,
+  );
+  return data.contact;
+}
+
+export async function createContact(project: string, input: ContactInput): Promise<Contact> {
+  const data = await jsonFetch<{ contact: Contact }>(
+    `/api/projects/${encodeURIComponent(project)}/contacts`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+  return data.contact;
+}
+
+export async function updateContact(project: string, id: number, patch: Partial<ContactInput>): Promise<Contact> {
+  const data = await jsonFetch<{ contact: Contact }>(
+    `/api/projects/${encodeURIComponent(project)}/contacts/${id}`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+  );
+  return data.contact;
+}
+
+export async function deleteContact(project: string, id: number): Promise<void> {
+  await jsonFetch(`/api/projects/${encodeURIComponent(project)}/contacts/${id}`, { method: "DELETE" });
+}
+
+export async function importContacts(
+  project: string,
+  contacts: ContactInput[],
+): Promise<{ imported: number }> {
+  return jsonFetch(`/api/projects/${encodeURIComponent(project)}/contacts/import`, {
+    method: "POST",
+    body: JSON.stringify({ contacts }),
+  });
+}
+
+export function contactVcfUrl(project: string, id: number): string {
+  return `/api/projects/${encodeURIComponent(project)}/contacts/${id}/vcf`;
+}
+
+export async function exportContactsVcf(project: string, ids: number[]): Promise<Blob> {
+  const res = await fetch(`/api/projects/${encodeURIComponent(project)}/contacts/export`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` })) as { error?: string };
+    throw new Error(err.error ?? `HTTP ${res.status}`);
+  }
+  return res.blob();
+}
+
+export async function fetchContactGroups(project: string): Promise<ContactGroup[]> {
+  const data = await jsonFetch<{ groups: ContactGroup[] }>(
+    `/api/projects/${encodeURIComponent(project)}/contact-groups`,
+  );
+  return data.groups;
+}
+
+export async function createContactGroup(
+  project: string,
+  input: { name: string; color?: string },
+): Promise<ContactGroup> {
+  const data = await jsonFetch<{ group: ContactGroup }>(
+    `/api/projects/${encodeURIComponent(project)}/contact-groups`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+  return data.group;
+}
+
+export async function updateContactGroup(
+  project: string,
+  id: number,
+  patch: { name?: string; color?: string | null },
+): Promise<ContactGroup> {
+  const data = await jsonFetch<{ group: ContactGroup }>(
+    `/api/projects/${encodeURIComponent(project)}/contact-groups/${id}`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+  );
+  return data.group;
+}
+
+export async function deleteContactGroup(project: string, id: number): Promise<void> {
+  await jsonFetch(`/api/projects/${encodeURIComponent(project)}/contact-groups/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function editContacts(
+  project: string,
+  body: { prompt: string; contactsSummary?: string },
+): Promise<Response> {
+  return fetch(`/api/projects/${encodeURIComponent(project)}/contacts/edit`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function askContacts(
+  project: string,
+  body: { prompt: string; contactsSummary?: string },
+): Promise<{ sessionId: string; project: string }> {
+  return jsonFetch(`/api/projects/${encodeURIComponent(project)}/contacts/ask`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}

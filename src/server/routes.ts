@@ -46,6 +46,7 @@ import { handleSkillRoute } from "./skill_routes.ts";
 import { handleBoardRoute } from "./board_routes.ts";
 import { handleWhiteboardRoute } from "./whiteboard_routes.ts";
 import { handleDocumentRoute } from "./document_routes.ts";
+import { handleContactRoute } from "./contact_routes.ts";
 import { handleWorkspaceRoute } from "./workspace_routes.ts";
 import { handleScheduledTaskRoute } from "./scheduled_task_routes.ts";
 import type { SchedulerHandle } from "../scheduler/ticker.ts";
@@ -112,6 +113,10 @@ export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<
   // ── Documents (per-project rich-text) ─────────────────────────────────────
   const documentResponse = await handleDocumentRoute(req, url, { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg }, user);
   if (documentResponse) return documentResponse;
+
+  // ── Contacts (per-project contact management) ────────────────────────────
+  const contactResponse = await handleContactRoute(req, url, { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg }, user);
+  if (contactResponse) return contactResponse;
 
   // ── Workspace (per-project files) ─────────────────────────────────────────
   const workspaceResponse = await handleWorkspaceRoute(req, url, { db: ctx.db, queue: ctx.queue }, user);

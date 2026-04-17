@@ -17,9 +17,10 @@ const TasksTab = lazy(() => import("./tabs/TasksTab"));
 const SkillsTab = lazy(() => import("./tabs/SkillsTab"));
 const WhiteboardTab = lazy(() => import("./tabs/WhiteboardTab"));
 const DocumentTab = lazy(() => import("./tabs/DocumentTab"));
+const ContactsTab = lazy(() => import("./tabs/ContactsTab"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 
-type Tab = "dashboard" | "chat" | "messages" | "board" | "whiteboard" | "documents" | "files" | "tasks" | "projects" | "agents" | "skills" | "logs" | "settings";
+type Tab = "dashboard" | "chat" | "messages" | "board" | "whiteboard" | "documents" | "contacts" | "files" | "tasks" | "projects" | "agents" | "skills" | "logs" | "settings";
 
 const SESSION_STORAGE_KEY = "bunny.activeSessionId";
 const PROJECT_STORAGE_KEY = "bunny.activeProject";
@@ -27,7 +28,7 @@ const TAB_STORAGE_KEY = "bunny.activeTab";
 const DEFAULT_PROJECT = "general";
 
 const VALID_TABS: ReadonlySet<string> = new Set<Tab>([
-  "dashboard", "chat", "messages", "board", "whiteboard", "documents", "files", "tasks", "projects", "agents", "skills", "logs", "settings",
+  "dashboard", "chat", "messages", "board", "whiteboard", "documents", "contacts", "files", "tasks", "projects", "agents", "skills", "logs", "settings",
 ]);
 
 function adoptSession(id: string): string {
@@ -164,6 +165,12 @@ export default function App() {
             Documents
           </button>
           <button
+            className={`tab ${tab === "contacts" ? "tab--active" : ""}`}
+            onClick={() => setTab("contacts")}
+          >
+            Contacts
+          </button>
+          <button
             className={`tab ${tab === "files" ? "tab--active" : ""}`}
             onClick={() => setTab("files")}
           >
@@ -259,6 +266,16 @@ export default function App() {
           {tab === "documents" && (
             <DocumentTab
               project={activeProject}
+              onOpenInChat={(sid) => {
+                onPickSession(sid);
+                setTab("chat");
+              }}
+            />
+          )}
+          {tab === "contacts" && (
+            <ContactsTab
+              project={activeProject}
+              currentUser={user}
               onOpenInChat={(sid) => {
                 onPickSession(sid);
                 setTab("chat");

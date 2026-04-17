@@ -6,9 +6,11 @@ interface Props {
   mode: Mode;
   onModeChange: (mode: Mode) => void;
   onSend: (prompt: string) => void;
-  onSave: () => void;
+  onSave?: () => void;
   streaming: boolean;
-  dirty: boolean;
+  dirty?: boolean;
+  editPlaceholder?: string;
+  questionPlaceholder?: string;
 }
 
 export default function DocumentComposer({
@@ -18,6 +20,8 @@ export default function DocumentComposer({
   onSave,
   streaming,
   dirty,
+  editPlaceholder,
+  questionPlaceholder,
 }: Props) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -60,8 +64,8 @@ export default function DocumentComposer({
           className="doc-composer__input"
           placeholder={
             mode === "edit"
-              ? "Describe changes to the document..."
-              : "Ask a question about the document..."
+              ? (editPlaceholder ?? "Describe changes to the document...")
+              : (questionPlaceholder ?? "Ask a question about the document...")
           }
           rows={1}
           disabled={streaming}
@@ -79,14 +83,16 @@ export default function DocumentComposer({
           )}
         </button>
       </form>
-      <button
-        className={`btn doc-composer__save${dirty ? " doc-composer__save--dirty" : ""}`}
-        onClick={onSave}
-        disabled={!dirty || streaming}
-        title={dirty ? "Save document" : "No unsaved changes"}
-      >
-        Save
-      </button>
+      {onSave && (
+        <button
+          className={`btn doc-composer__save${dirty ? " doc-composer__save--dirty" : ""}`}
+          onClick={onSave}
+          disabled={!dirty || streaming}
+          title={dirty ? "Save document" : "No unsaved changes"}
+        >
+          Save
+        </button>
+      )}
     </div>
   );
 }

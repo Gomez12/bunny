@@ -305,6 +305,46 @@ CREATE TABLE IF NOT EXISTS documents (
 );
 CREATE INDEX IF NOT EXISTS idx_documents_project ON documents(project, updated_at);
 
+-- ── Contacts ────────────────────────────────────────────────────────────────
+-- Per-project contact management. Emails, phones, and tags are stored as
+-- JSON arrays in TEXT columns to avoid join tables for simple lists.
+CREATE TABLE IF NOT EXISTS contacts (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  project     TEXT    NOT NULL,
+  name        TEXT    NOT NULL,
+  emails      TEXT    NOT NULL DEFAULT '[]',
+  phones      TEXT    NOT NULL DEFAULT '[]',
+  company     TEXT    NOT NULL DEFAULT '',
+  title       TEXT    NOT NULL DEFAULT '',
+  notes       TEXT    NOT NULL DEFAULT '',
+  avatar      TEXT,
+  tags        TEXT    NOT NULL DEFAULT '[]',
+  created_by  TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at  INTEGER NOT NULL,
+  updated_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_contacts_project ON contacts(project, name);
+CREATE INDEX IF NOT EXISTS idx_contacts_created_by ON contacts(created_by);
+
+CREATE TABLE IF NOT EXISTS contact_groups (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  project     TEXT    NOT NULL,
+  name        TEXT    NOT NULL,
+  color       TEXT,
+  created_by  TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at  INTEGER NOT NULL,
+  updated_at  INTEGER NOT NULL,
+  UNIQUE(project, name)
+);
+CREATE INDEX IF NOT EXISTS idx_contact_groups_project ON contact_groups(project);
+
+CREATE TABLE IF NOT EXISTS contact_group_members (
+  group_id    INTEGER NOT NULL REFERENCES contact_groups(id) ON DELETE CASCADE,
+  contact_id  INTEGER NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+  PRIMARY KEY (group_id, contact_id)
+);
+CREATE INDEX IF NOT EXISTS idx_cgm_contact ON contact_group_members(contact_id);
+
 -- ── Embeddings ───────────────────────────────────────────────────────────────
 -- Created dynamically by db.ts using the configured dimension (default 1536)
 -- because the dimension must be baked into the vec0 CREATE statement.

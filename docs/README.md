@@ -71,3 +71,4 @@ A Tauri v2 desktop app (`client/`) wraps the web UI in a native window. It conne
 - [ADR 0016 — Documents](./adr/0016-documents.md)
 - [ADR 0017 — Tauri desktop client](./adr/0017-tauri-client.md)
 - [ADR 0018 — Web tools](./adr/0018-web-tools.md)
+- [ADR 0019 — Contacts](./adr/0019-contacts.md)
