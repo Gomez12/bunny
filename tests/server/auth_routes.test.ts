@@ -22,6 +22,7 @@ const cfg: BunnyConfig = {
   auth: { defaultAdminUsername: "admin", defaultAdminPassword: "pw-initial", sessionTtlHours: 1 },
   agent: { systemPrompt: "You are Bunny.", defaultProject: "general" },
   ui: { autosaveIntervalMs: 5000 },
+  web: { serpApiKey: "", serpProvider: "serper", serpBaseUrl: "", userAgent: "" },
   sessionId: undefined,
 };
 

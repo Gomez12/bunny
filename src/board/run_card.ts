@@ -182,6 +182,7 @@ export async function runCard(opts: RunCardOpts): Promise<RunCardResult> {
         embedCfg: opts.cfg.embed,
         memoryCfg: opts.cfg.memory,
         agentCfg: opts.cfg.agent,
+        webCfg: opts.cfg.web,
         tools: opts.tools,
         db: opts.db,
         queue: opts.queue,

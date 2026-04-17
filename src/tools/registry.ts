@@ -21,9 +21,29 @@ export interface ToolResult {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ToolHandler = (args: Record<string, any>) => Promise<ToolResult> | ToolResult;
 
+export interface ToolDescriptor {
+  name: string;
+  description: string;
+  parameters: JsonSchemaObject;
+  handler: ToolHandler;
+}
+
 export interface RegisteredTool {
   schema: ToolSchema;
   handler: ToolHandler;
+}
+
+export function toolOk(value: unknown): ToolResult {
+  return { ok: true, output: typeof value === "string" ? value : JSON.stringify(value) };
+}
+
+export function toolErr(msg: string): ToolResult {
+  return { ok: false, output: msg, error: msg };
+}
+
+export function getString(args: Record<string, unknown>, key: string): string | undefined {
+  const v = args[key];
+  return typeof v === "string" && v.length > 0 ? v : undefined;
 }
 
 export class ToolRegistry {
@@ -92,7 +112,7 @@ export class ToolRegistry {
    */
   subset(
     filter: readonly string[] | undefined,
-    extras: Array<{ name: string; description: string; parameters: JsonSchemaObject; handler: ToolHandler }> = [],
+    extras: ToolDescriptor[] = [],
   ): ToolRegistry {
     const next = new ToolRegistry();
     const source = filter ? filter.filter((n) => this.tools.has(n)) : [...this.tools.keys()];

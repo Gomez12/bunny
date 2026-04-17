@@ -75,6 +75,17 @@ export interface UiConfig {
   autosaveIntervalMs: number;
 }
 
+export interface WebConfig {
+  /** SERP API key (e.g. serper.dev). Empty = DuckDuckGo fallback. */
+  serpApiKey: string;
+  /** SERP provider name. Currently only "serper" is supported. */
+  serpProvider: string;
+  /** Override for the SERP endpoint URL. */
+  serpBaseUrl: string;
+  /** Custom User-Agent for web requests. Empty = realistic Chrome default. */
+  userAgent: string;
+}
+
 export interface BunnyConfig {
   llm: LlmConfig;
   embed: EmbedConfig;
@@ -84,6 +95,7 @@ export interface BunnyConfig {
   auth: AuthConfig;
   agent: AgentConfig;
   ui: UiConfig;
+  web: WebConfig;
   sessionId: string | undefined;
 }
 
@@ -99,6 +111,7 @@ interface TomlShape {
   auth?: Partial<{ default_admin_username: string; default_admin_password: string; session_ttl_hours: number }>;
   agent?: Partial<{ system_prompt: string; default_project: string }>;
   ui?: Partial<{ autosave_interval_ms: number }>;
+  web?: Partial<{ serp_api_key: string; serp_provider: string; serp_base_url: string; user_agent: string }>;
 }
 
 const DEFAULTS = {
@@ -133,6 +146,12 @@ When you are done, reply with your final answer without making any more tool cal
   },
   ui: {
     autosaveIntervalMs: 5_000,
+  },
+  web: {
+    serpApiKey: "",
+    serpProvider: "serper",
+    serpBaseUrl: "https://google.serper.dev/search",
+    userAgent: "",
   },
 } as const;
 
@@ -232,6 +251,13 @@ export function loadConfig(opts: { env?: NodeJS.ProcessEnv; cwd?: string } = {})
     autosaveIntervalMs: Number(toml.ui?.autosave_interval_ms ?? DEFAULTS.ui.autosaveIntervalMs),
   };
 
+  const web: WebConfig = {
+    serpApiKey: env["SERP_API_KEY"] ?? toml.web?.serp_api_key ?? DEFAULTS.web.serpApiKey,
+    serpProvider: toml.web?.serp_provider ?? DEFAULTS.web.serpProvider,
+    serpBaseUrl: toml.web?.serp_base_url ?? DEFAULTS.web.serpBaseUrl,
+    userAgent: toml.web?.user_agent ?? DEFAULTS.web.userAgent,
+  };
+
   return {
     llm,
     embed,
@@ -241,6 +267,7 @@ export function loadConfig(opts: { env?: NodeJS.ProcessEnv; cwd?: string } = {})
     auth,
     agent,
     ui,
+    web,
     sessionId: env["BUNNY_SESSION"],
   };
 }

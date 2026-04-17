@@ -146,6 +146,16 @@ Per-project file area under `<projectDir>/workspace/`, seeded with `input/` and 
 
 Web UI: **Files** tab between Documents and Tasks. Breadcrumb nav, drag-and-drop upload zone, inline rename/mkdir/delete, lock icon on `input`/`output` roots. Downloads are plain `<a href>` to the `encoding=raw` endpoint. See [ADR 0012](./docs/adr/0012-project-workspaces.md).
 
+### Web Tools
+
+Three closure-bound agent tools for internet access (`src/tools/web.ts`, names in `WEB_TOOL_NAMES`): `web_fetch`, `web_search`, `web_download`. Same factory pattern as workspace/board tools — project + `WebConfig` baked into closures, spliced into the per-run registry by `buildRunRegistry` in `src/agent/loop.ts`.
+
+- **`web_fetch(url)`** — fetches a URL, strips scripts/styles/nav/footer, converts to markdown via `node-html-markdown`. Output capped at 100 KB. Returns `{ url, title, content, truncated }`.
+- **`web_search(query, max_results?)`** — searches the internet. Uses a SERP API (serper.dev) when `[web] serp_api_key` is configured in `bunny.config.toml` (or `SERP_API_KEY` env var); falls back to DuckDuckGo HTML scraping with retry logic (5 attempts, exponential backoff), then Bing as a second fallback, when no key is set. Returns `{ query, results: [{ title, url, snippet }], source }`.
+- **`web_download(url, path)`** — downloads a file to the project workspace via `writeWorkspaceFile`. Max 100 MB. Returns `{ url, path, size }`.
+
+Config section: `[web]` in `bunny.config.toml` (`serp_api_key`, `serp_provider`, `serp_base_url`, `user_agent`). `WebConfig` interface in `src/config.ts`. Env override: `SERP_API_KEY`. The `parseDuckDuckGoResults` helper is exported for testability. See [ADR 0018](./docs/adr/0018-web-tools.md).
+
 ### Whiteboards
 
 Per-project Excalidraw whiteboards for visual collaboration. Each project can have multiple named whiteboards stored in the `whiteboards` table (elements JSON + thumbnail). Entry point: `src/memory/whiteboards.ts` (CRUD + `canEditWhiteboard`). Routes: `src/server/whiteboard_routes.ts` (mounted between board and workspace routes in `routes.ts`).

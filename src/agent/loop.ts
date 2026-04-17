@@ -19,9 +19,9 @@
  * `call_agent` tool when the agent has `allowed_subagents`.
  */
 
-import type { LlmConfig, EmbedConfig, MemoryConfig, AgentConfig } from "../config.ts";
+import type { LlmConfig, EmbedConfig, MemoryConfig, AgentConfig, WebConfig } from "../config.ts";
 import type { ChatAttachment, ChatMessage } from "../llm/types.ts";
-import type { ToolRegistry } from "../tools/registry.ts";
+import type { ToolRegistry, ToolDescriptor } from "../tools/registry.ts";
 import type { Database } from "bun:sqlite";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
 import type { Renderer } from "./render.ts";
@@ -45,6 +45,7 @@ import { loadAgentAssets } from "../memory/agent_assets.ts";
 import { makeCallAgentTool, CALL_AGENT_TOOL_NAME } from "../tools/call_agent.ts";
 import { makeBoardTools, BOARD_TOOL_NAMES, type BoardToolContext } from "../tools/board.ts";
 import { makeWorkspaceTools, WORKSPACE_TOOL_NAMES } from "../tools/workspace.ts";
+import { makeWebTools, WEB_TOOL_NAMES } from "../tools/web.ts";
 import { makeActivateSkillTool, ACTIVATE_SKILL_TOOL_NAME } from "../tools/activate_skill.ts";
 import { listSkillsForProject } from "../memory/skills.ts";
 import { buildSkillCatalog, loadSkillAssets, listSkillResources } from "../memory/skill_assets.ts";
@@ -63,6 +64,7 @@ const DYNAMIC_TOOL_NAMES = new Set<string>([
   ACTIVATE_SKILL_TOOL_NAME,
   ...BOARD_TOOL_NAMES,
   ...WORKSPACE_TOOL_NAMES,
+  ...WEB_TOOL_NAMES,
 ]);
 
 export interface RunAgentOptions {
@@ -91,6 +93,8 @@ export interface RunAgentOptions {
   db: Database;
   queue: BunnyQueue;
   renderer: Renderer;
+  /** Web tool config (SERP keys, user-agent). Web tools are disabled when omitted. */
+  webCfg?: WebConfig;
   /** When set, replaces the entire system prompt (skips project/agent/recall prompt building). */
   systemPromptOverride?: string;
 }
@@ -219,6 +223,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
     callDepth,
     boardCtx: { db, project, userId: userId ?? "system" },
     skillNames,
+    webCfg: opts.webCfg,
     invokeSubagent: async (subName, subPrompt) => {
       // Subagents run with a silent renderer so only their final answer
       // reaches the UI via the `call_agent` tool_result — no parent-labelled
@@ -382,6 +387,7 @@ interface BuildRunRegistryOpts {
   callDepth: number;
   boardCtx: BoardToolContext;
   skillNames: string[];
+  webCfg?: WebConfig;
   invokeSubagent: (name: string, prompt: string) => Promise<string>;
 }
 
@@ -390,16 +396,21 @@ function buildRunRegistry(opts: BuildRunRegistryOpts): ToolRegistry {
   const whitelist = agentAssets?.tools; // undefined = all tools
   const allowedSubagents = agentAssets?.allowedSubagents ?? [];
 
-  const extras: ReturnType<typeof makeBoardTools> = [];
+  const extras: ToolDescriptor[] = [];
   const allBoard = makeBoardTools(opts.boardCtx);
   const allWorkspace = makeWorkspaceTools({ project: opts.boardCtx.project });
+  const allWeb = opts.webCfg
+    ? makeWebTools({ project: opts.boardCtx.project, webCfg: opts.webCfg })
+    : [];
   if (whitelist) {
     const allow = new Set(whitelist);
     for (const t of allBoard) if (allow.has(t.name)) extras.push(t);
     for (const t of allWorkspace) if (allow.has(t.name)) extras.push(t);
+    for (const t of allWeb) if (allow.has(t.name)) extras.push(t);
   } else {
     extras.push(...allBoard);
     extras.push(...allWorkspace);
+    extras.push(...allWeb);
   }
 
   if (allowedSubagents.length > 0) {

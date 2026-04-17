@@ -11,8 +11,8 @@
  * blow up the LLM context. The UI download route bypasses this cap.
  */
 
-import type { JsonSchemaObject } from "../llm/types.ts";
-import type { ToolHandler, ToolResult } from "./registry.ts";
+import type { ToolDescriptor } from "./registry.ts";
+import { toolOk, toolErr, getString } from "./registry.ts";
 import { errorMessage } from "../util/error.ts";
 import {
   listWorkspace,
@@ -31,34 +31,15 @@ export interface WorkspaceToolContext {
   project: string;
 }
 
-export interface WorkspaceToolDescriptor {
-  name: string;
-  description: string;
-  parameters: JsonSchemaObject;
-  handler: ToolHandler;
-}
-
 /** Cap on bytes returned to the LLM from a single read, per encoding. */
 const MAX_UTF8_BYTES = 64 * 1024;
 const MAX_BASE64_BYTES = 5 * 1024 * 1024;
 
-export function makeWorkspaceTools(ctx: WorkspaceToolContext): WorkspaceToolDescriptor[] {
+export function makeWorkspaceTools(ctx: WorkspaceToolContext): ToolDescriptor[] {
   return [listTool(ctx), readTool(ctx), writeTool(ctx)];
 }
 
-function ok(value: unknown): ToolResult {
-  return { ok: true, output: typeof value === "string" ? value : JSON.stringify(value) };
-}
-function err(msg: string): ToolResult {
-  return { ok: false, output: msg, error: msg };
-}
-
-function getString(args: Record<string, unknown>, key: string): string | undefined {
-  const v = args[key];
-  return typeof v === "string" ? v : undefined;
-}
-
-function listTool(ctx: WorkspaceToolContext): WorkspaceToolDescriptor {
+function listTool(ctx: WorkspaceToolContext): ToolDescriptor {
   return {
     name: "list_workspace_files",
     description:
@@ -76,15 +57,15 @@ function listTool(ctx: WorkspaceToolContext): WorkspaceToolDescriptor {
     handler: (args) => {
       try {
         const entries = listWorkspace(ctx.project, getString(args, "path") ?? "");
-        return ok({ path: getString(args, "path") ?? "", entries });
+        return toolOk({ path: getString(args, "path") ?? "", entries });
       } catch (e) {
-        return err(errorMessage(e));
+        return toolErr(errorMessage(e));
       }
     },
   };
 }
 
-function readTool(ctx: WorkspaceToolContext): WorkspaceToolDescriptor {
+function readTool(ctx: WorkspaceToolContext): ToolDescriptor {
   return {
     name: "read_workspace_file",
     description:
@@ -106,19 +87,19 @@ function readTool(ctx: WorkspaceToolContext): WorkspaceToolDescriptor {
     },
     handler: (args) => {
       const path = getString(args, "path");
-      if (!path) return err("missing 'path'");
+      if (!path) return toolErr("missing 'path'");
       const enc = getString(args, "encoding") === "base64" ? "base64" : "utf8";
       const cap = enc === "base64" ? MAX_BASE64_BYTES : MAX_UTF8_BYTES;
       try {
-        return ok(readWorkspaceFile(ctx.project, path, enc, cap));
+        return toolOk(readWorkspaceFile(ctx.project, path, enc, cap));
       } catch (e) {
-        return err(errorMessage(e));
+        return toolErr(errorMessage(e));
       }
     },
   };
 }
 
-function writeTool(ctx: WorkspaceToolContext): WorkspaceToolDescriptor {
+function writeTool(ctx: WorkspaceToolContext): ToolDescriptor {
   return {
     name: "write_workspace_file",
     description:
@@ -147,13 +128,13 @@ function writeTool(ctx: WorkspaceToolContext): WorkspaceToolDescriptor {
     handler: (args) => {
       const path = getString(args, "path");
       const content = getString(args, "content");
-      if (!path) return err("missing 'path'");
-      if (content === undefined) return err("missing 'content'");
+      if (!path) return toolErr("missing 'path'");
+      if (content === undefined) return toolErr("missing 'content'");
       const enc = getString(args, "encoding") === "base64" ? "base64" : "utf8";
       try {
-        return ok(writeWorkspaceFile(ctx.project, path, content, enc));
+        return toolOk(writeWorkspaceFile(ctx.project, path, content, enc));
       } catch (e) {
-        return err(errorMessage(e));
+        return toolErr(errorMessage(e));
       }
     },
   };

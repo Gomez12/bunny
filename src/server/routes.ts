@@ -355,6 +355,7 @@ async function handleChat(req: Request, ctx: RouteCtx, user: User): Promise<Resp
           embedCfg: ctx.cfg.embed,
           memoryCfg: ctx.cfg.memory,
           agentCfg: ctx.cfg.agent,
+          webCfg: ctx.cfg.web,
           tools: registry,
           db: ctx.db,
           queue: ctx.queue,

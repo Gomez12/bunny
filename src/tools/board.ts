@@ -15,8 +15,8 @@
  */
 
 import type { Database } from "bun:sqlite";
-import type { JsonSchemaObject } from "../llm/types.ts";
-import type { ToolHandler, ToolResult } from "./registry.ts";
+import type { ToolDescriptor } from "./registry.ts";
+import { toolOk, toolErr, getString } from "./registry.ts";
 import { errorMessage } from "../util/error.ts";
 import {
   archiveCard,
@@ -51,14 +51,7 @@ export interface BoardToolContext {
   userId: string;
 }
 
-export interface BoardToolDescriptor {
-  name: string;
-  description: string;
-  parameters: JsonSchemaObject;
-  handler: ToolHandler;
-}
-
-export function makeBoardTools(ctx: BoardToolContext): BoardToolDescriptor[] {
+export function makeBoardTools(ctx: BoardToolContext): ToolDescriptor[] {
   return [
     boardListTool(ctx),
     boardGetCardTool(ctx),
@@ -69,19 +62,6 @@ export function makeBoardTools(ctx: BoardToolContext): BoardToolDescriptor[] {
   ];
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────
-
-function ok(value: unknown): ToolResult {
-  return { ok: true, output: typeof value === "string" ? value : JSON.stringify(value) };
-}
-function err(msg: string): ToolResult {
-  return { ok: false, output: msg, error: msg };
-}
-
-function getString(args: Record<string, unknown>, key: string): string | undefined {
-  const v = args[key];
-  return typeof v === "string" && v.length > 0 ? v : undefined;
-}
 function getNumber(args: Record<string, unknown>, key: string): number | undefined {
   const v = args[key];
   return typeof v === "number" && Number.isFinite(v) ? v : undefined;
@@ -141,7 +121,7 @@ function laneNameMap(lanes: readonly Swimlane[]): Map<number, string> {
 
 // ── Tools ─────────────────────────────────────────────────────────────────
 
-function boardListTool(ctx: BoardToolContext): BoardToolDescriptor {
+function boardListTool(ctx: BoardToolContext): ToolDescriptor {
   return {
     name: "board_list",
     description:
@@ -160,7 +140,7 @@ function boardListTool(ctx: BoardToolContext): BoardToolDescriptor {
         },
       },
     },
-    handler: (args) => {
+    handler: async (args: Record<string, unknown>) => {
       const lanes = listSwimlanes(ctx.db, ctx.project);
       const includeArchived = args["include_archived"] === true;
       let cards = listCards(ctx.db, ctx.project, { includeArchived });
@@ -168,11 +148,11 @@ function boardListTool(ctx: BoardToolContext): BoardToolDescriptor {
       if (laneFilter) {
         const lowered = laneFilter.toLowerCase();
         const lane = lanes.find((l) => l.name.toLowerCase() === lowered);
-        if (!lane) return err(`lane '${laneFilter}' not found`);
+        if (!lane) return toolErr(`lane '${laneFilter}' not found`);
         cards = cards.filter((c) => c.swimlaneId === lane.id);
       }
       const lanesById = laneNameMap(lanes);
-      return ok({
+      return toolOk({
         project: ctx.project,
         swimlanes: lanes.map((l) => ({ id: l.id, name: l.name, position: l.position })),
         cards: cards.map((c) => summariseCard(c, lanesById)),
@@ -181,7 +161,7 @@ function boardListTool(ctx: BoardToolContext): BoardToolDescriptor {
   };
 }
 
-function boardGetCardTool(ctx: BoardToolContext): BoardToolDescriptor {
+function boardGetCardTool(ctx: BoardToolContext): ToolDescriptor {
   return {
     name: "board_get_card",
     description: "Fetch one card by id, including full description and assignee.",
@@ -190,19 +170,19 @@ function boardGetCardTool(ctx: BoardToolContext): BoardToolDescriptor {
       properties: { card_id: { type: "number", description: "Card id." } },
       required: ["card_id"],
     },
-    handler: (args) => {
+    handler: async (args: Record<string, unknown>) => {
       const id = getNumber(args, "card_id");
-      if (id === undefined) return err("missing 'card_id'");
+      if (id === undefined) return toolErr("missing 'card_id'");
       const card = getOwnedCard(ctx, id);
-      if (!card) return err(`card ${id} not found in this project`);
+      if (!card) return toolErr(`card ${id} not found in this project`);
       const lane = getSwimlane(ctx.db, card.swimlaneId);
       const lanesById = new Map(lane ? [[lane.id, lane.name] as const] : []);
-      return ok(summariseCard(card, lanesById));
+      return toolOk(summariseCard(card, lanesById));
     },
   };
 }
 
-function boardCreateCardTool(ctx: BoardToolContext): BoardToolDescriptor {
+function boardCreateCardTool(ctx: BoardToolContext): ToolDescriptor {
   return {
     name: "board_create_card",
     description:
@@ -221,15 +201,15 @@ function boardCreateCardTool(ctx: BoardToolContext): BoardToolDescriptor {
       },
       required: ["title"],
     },
-    handler: (args) => {
+    handler: async (args: Record<string, unknown>) => {
       const title = getString(args, "title");
-      if (!title) return err("'title' is required");
+      if (!title) return toolErr("'title' is required");
       const lanes = listSwimlanes(ctx.db, ctx.project);
       const lane = resolveLane(ctx, args, lanes);
-      if ("error" in lane) return err(lane.error);
+      if ("error" in lane) return toolErr(lane.error);
       const assigneeAgent = getString(args, "assignee_agent");
       if (assigneeAgent && !isAgentLinkedToProject(ctx.db, ctx.project, assigneeAgent)) {
-        return err(`agent '${assigneeAgent}' is not linked to project '${ctx.project}'`);
+        return toolErr(`agent '${assigneeAgent}' is not linked to project '${ctx.project}'`);
       }
       try {
         const card = createCard(ctx.db, {
@@ -240,15 +220,15 @@ function boardCreateCardTool(ctx: BoardToolContext): BoardToolDescriptor {
           assigneeAgent: assigneeAgent ?? null,
           createdBy: ctx.userId,
         });
-        return ok(summariseCard(card, laneNameMap(lanes)));
+        return toolOk(summariseCard(card, laneNameMap(lanes)));
       } catch (e) {
-        return err(errorMessage(e));
+        return toolErr(errorMessage(e));
       }
     },
   };
 }
 
-function boardUpdateCardTool(ctx: BoardToolContext): BoardToolDescriptor {
+function boardUpdateCardTool(ctx: BoardToolContext): ToolDescriptor {
   return {
     name: "board_update_card",
     description:
@@ -267,11 +247,11 @@ function boardUpdateCardTool(ctx: BoardToolContext): BoardToolDescriptor {
       },
       required: ["card_id"],
     },
-    handler: (args) => {
+    handler: async (args: Record<string, unknown>) => {
       const id = getNumber(args, "card_id");
-      if (id === undefined) return err("missing 'card_id'");
+      if (id === undefined) return toolErr("missing 'card_id'");
       const card = getOwnedCard(ctx, id);
-      if (!card) return err(`card ${id} not found in this project`);
+      if (!card) return toolErr(`card ${id} not found in this project`);
       const patch: Parameters<typeof updateCard>[2] = {};
       if (typeof args["title"] === "string") patch.title = args["title"];
       if (typeof args["description"] === "string") patch.description = args["description"];
@@ -281,22 +261,22 @@ function boardUpdateCardTool(ctx: BoardToolContext): BoardToolDescriptor {
           patch.assigneeAgent = null;
         } else {
           if (!isAgentLinkedToProject(ctx.db, ctx.project, v)) {
-            return err(`agent '${v}' is not linked to project '${ctx.project}'`);
+            return toolErr(`agent '${v}' is not linked to project '${ctx.project}'`);
           }
           patch.assigneeAgent = v;
         }
       }
       try {
         const updated = updateCard(ctx.db, id, patch);
-        return ok(summariseCard(updated, laneNameMap(listSwimlanes(ctx.db, ctx.project))));
+        return toolOk(summariseCard(updated, laneNameMap(listSwimlanes(ctx.db, ctx.project))));
       } catch (e) {
-        return err(errorMessage(e));
+        return toolErr(errorMessage(e));
       }
     },
   };
 }
 
-function boardMoveCardTool(ctx: BoardToolContext): BoardToolDescriptor {
+function boardMoveCardTool(ctx: BoardToolContext): ToolDescriptor {
   return {
     name: "board_move_card",
     description: "Move a card to another swimlane (e.g. from 'Todo' to 'Doing').",
@@ -309,25 +289,25 @@ function boardMoveCardTool(ctx: BoardToolContext): BoardToolDescriptor {
       },
       required: ["card_id"],
     },
-    handler: (args) => {
+    handler: async (args: Record<string, unknown>) => {
       const id = getNumber(args, "card_id");
-      if (id === undefined) return err("missing 'card_id'");
+      if (id === undefined) return toolErr("missing 'card_id'");
       const card = getOwnedCard(ctx, id);
-      if (!card) return err(`card ${id} not found in this project`);
+      if (!card) return toolErr(`card ${id} not found in this project`);
       const lanes = listSwimlanes(ctx.db, ctx.project);
       const lane = resolveLane(ctx, args, lanes);
-      if ("error" in lane) return err(lane.error);
+      if ("error" in lane) return toolErr(lane.error);
       try {
         const moved = moveCard(ctx.db, id, { swimlaneId: lane.id });
-        return ok(summariseCard(moved, laneNameMap(lanes)));
+        return toolOk(summariseCard(moved, laneNameMap(lanes)));
       } catch (e) {
-        return err(errorMessage(e));
+        return toolErr(errorMessage(e));
       }
     },
   };
 }
 
-function boardArchiveCardTool(ctx: BoardToolContext): BoardToolDescriptor {
+function boardArchiveCardTool(ctx: BoardToolContext): ToolDescriptor {
   return {
     name: "board_archive_card",
     description: "Soft-archive a card. The card stays in the database but no longer appears on the board.",
@@ -336,13 +316,13 @@ function boardArchiveCardTool(ctx: BoardToolContext): BoardToolDescriptor {
       properties: { card_id: { type: "number", description: "Card id." } },
       required: ["card_id"],
     },
-    handler: (args) => {
+    handler: async (args: Record<string, unknown>) => {
       const id = getNumber(args, "card_id");
-      if (id === undefined) return err("missing 'card_id'");
+      if (id === undefined) return toolErr("missing 'card_id'");
       const card = getOwnedCard(ctx, id);
-      if (!card) return err(`card ${id} not found in this project`);
+      if (!card) return toolErr(`card ${id} not found in this project`);
       archiveCard(ctx.db, id);
-      return ok({ id, archived: true });
+      return toolOk({ id, archived: true });
     },
   };
 }

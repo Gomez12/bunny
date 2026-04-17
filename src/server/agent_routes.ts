@@ -38,6 +38,7 @@ import { CALL_AGENT_TOOL_NAME } from "../tools/call_agent.ts";
 import { BOARD_TOOL_NAMES } from "../tools/board.ts";
 import { WORKSPACE_TOOL_NAMES } from "../tools/workspace.ts";
 import { ACTIVATE_SKILL_TOOL_NAME } from "../tools/activate_skill.ts";
+import { WEB_TOOL_NAMES } from "../tools/web.ts";
 
 // Tool catalogue exposed to agents: real registry tools (minus the implicit
 // `call_agent`) plus the closure-bound board tool names. The registry is
@@ -49,6 +50,7 @@ function availableToolNames(): readonly string[] {
     ...registry.names().filter((n) => n !== CALL_AGENT_TOOL_NAME),
     ...BOARD_TOOL_NAMES,
     ...WORKSPACE_TOOL_NAMES,
+    ...WEB_TOOL_NAMES,
     ACTIVATE_SKILL_TOOL_NAME,
   ]);
 }

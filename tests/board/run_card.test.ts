@@ -71,6 +71,7 @@ function makeCfg(): BunnyConfig {
     auth: { defaultAdminUsername: "admin", defaultAdminPassword: "x", sessionTtlHours: 1 },
     agent: { systemPrompt: "You are a tester.", defaultProject: "alpha" },
     ui: { autosaveIntervalMs: 5000 },
+    web: { serpApiKey: "", serpProvider: "serper", serpBaseUrl: "", userAgent: "" },
     sessionId: undefined,
   };
 }

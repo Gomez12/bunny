@@ -292,6 +292,7 @@ async function handleEdit(
           embedCfg: ctx.cfg.embed,
           memoryCfg: ctx.cfg.memory,
           agentCfg: ctx.cfg.agent,
+          webCfg: ctx.cfg.web,
           tools: toolsRegistry,
           db: ctx.db,
           queue: ctx.queue,
