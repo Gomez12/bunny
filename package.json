@@ -21,10 +21,14 @@
     "typecheck": "bun tsc --noEmit",
     "docs": "typedoc",
     "fmt": "bun x prettier --write src tests",
-    "check": "bun run typecheck && bun test"
+    "check": "bun run typecheck && bun test",
+    "client:dev": "bun --cwd client run dev",
+    "client:build": "bun --cwd client run build"
   },
   "dependencies": {
     "bunqueue": "latest",
+    "docx": "^9.6.1",
+    "jszip": "^3.10.1",
     "sqlite-vec": "latest",
     "yaml": "^2.8.3"
   },

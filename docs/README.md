@@ -45,7 +45,11 @@ Reasoning is stored on `messages.channel='reasoning'` (visible in UI, not used i
 
 ## Web UI
 
-Next to the CLI, Bunny runs a web UI (`bunny serve`) with six tabs: **Chat** (live streaming, scoped to the active project; agents callable via `@name`), **Messages** (all sessions for the active project, BM25-searchable), **Board** (Trello-style kanban per project — drag-and-drop, assign cards to a user or agent, and the **Run** button lets the agent execute the card with live SSE streaming), **Projects** (card grid + create/edit dialog), **Agents** (personalities with their own prompt/tools, per-project opt-in, subagent orchestration via `call_agent`), **Whiteboard** (per-project Excalidraw whiteboards with AI-powered edit and question modes — see [ADR 0015](./adr/0015-whiteboards.md)) and **Settings** (own profile, API keys, and user management for admins). See [ADR 0006](./adr/0006-web-ui.md) for the UI layout, [ADR 0007](./adr/0007-auth-and-users.md) for the auth layer, [ADR 0008](./adr/0008-projects.md) for the projects concept, [ADR 0009](./adr/0009-agents.md) for agents and [ADR 0010](./adr/0010-project-boards.md) for the board. The agent loop is unchanged — the webserver plugs into the same `Renderer` interface as the CLI (via `createSseRenderer`) and passes the authenticated `userId` + optional `agent` to `runAgent`.
+Next to the CLI, Bunny runs a web UI (`bunny serve`) with six tabs: **Chat** (live streaming, scoped to the active project; agents callable via `@name`), **Messages** (all sessions for the active project, BM25-searchable), **Board** (Trello-style kanban per project — drag-and-drop, assign cards to a user or agent, and the **Run** button lets the agent execute the card with live SSE streaming), **Projects** (card grid + create/edit dialog), **Agents** (personalities with their own prompt/tools, per-project opt-in, subagent orchestration via `call_agent`), **Whiteboard** (per-project Excalidraw whiteboards with AI-powered edit and question modes — see [ADR 0015](./adr/0015-whiteboards.md)), **Documents** (per-project rich-text WYSIWYG documents backed by Tiptap, stored as markdown, with Word ribbon toolbar, code-mode toggle, and AI edit/question modes — see [ADR 0016](./adr/0016-documents.md)) and **Settings** (own profile, API keys, and user management for admins). See [ADR 0006](./adr/0006-web-ui.md) for the UI layout, [ADR 0007](./adr/0007-auth-and-users.md) for the auth layer, [ADR 0008](./adr/0008-projects.md) for the projects concept, [ADR 0009](./adr/0009-agents.md) for agents and [ADR 0010](./adr/0010-project-boards.md) for the board. The agent loop is unchanged — the webserver plugs into the same `Renderer` interface as the CLI (via `createSseRenderer`) and passes the authenticated `userId` + optional `agent` to `runAgent`.
+
+## Desktop Client
+
+A Tauri v2 desktop app (`client/`) wraps the web UI in a native window. It connects to a running Bunny server — no embedded server logic. On first launch a setup page asks for the server URL; after saving, subsequent launches navigate directly. Build with `bun run client:build` (requires Rust toolchain). See [ADR 0017](./adr/0017-tauri-client.md).
 
 ## See also
 
@@ -63,3 +67,6 @@ Next to the CLI, Bunny runs a web UI (`bunny serve`) with six tabs: **Chat** (li
 - [ADR 0012 — Project workspaces](./adr/0012-project-workspaces.md)
 - [ADR 0013 — Agent skills](./adr/0013-agent-skills.md)
 - [ADR 0014 — Dashboard](./adr/0014-dashboard.md)
+- [ADR 0015 — Whiteboards](./adr/0015-whiteboards.md)
+- [ADR 0016 — Documents](./adr/0016-documents.md)
+- [ADR 0017 — Tauri desktop client](./adr/0017-tauri-client.md)

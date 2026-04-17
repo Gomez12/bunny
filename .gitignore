@@ -25,6 +25,9 @@ docs/api/
 *.swp
 *.swo
 
+# Tauri / Rust build output
+client/src-tauri/target/
+
 # Test artefacts
 coverage/
 *.log

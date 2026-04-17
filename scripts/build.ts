@@ -12,10 +12,11 @@
  * file stays inert in git / tests.
  *
  * Usage:
- *   bun run build                              # build web + all binaries
+ *   bun run build                              # build web + all binaries + client
  *   bun run build:platform darwin-arm64        # single platform
  *   bun run scripts/build.ts --list            # list targets
  *   bun run scripts/build.ts --no-web          # skip Vite step (reuse existing web/dist)
+ *   bun run scripts/build.ts --no-client       # skip Tauri client build
  *
  * Output:
  *   dist/bunny-darwin-arm64
@@ -23,9 +24,10 @@
  *   dist/bunny-linux-arm64
  *   dist/bunny-linux-x64
  *   dist/bunny-windows-x64.exe
+ *   dist/client/                               # Tauri desktop client bundles
  */
 
-import { mkdirSync, readdirSync, statSync, writeFileSync, existsSync } from "node:fs";
+import { cpSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync, existsSync } from "node:fs";
 import { join, posix, relative, resolve } from "node:path";
 
 interface Target {
@@ -48,6 +50,8 @@ const DIST         = join(ROOT, "dist");
 const WEB_DIR      = join(ROOT, "web");
 const WEB_DIST     = join(WEB_DIR, "dist");
 const BUNDLE_FILE  = join(ROOT, "src", "server", "web_bundle.ts");
+const CLIENT_DIR   = join(ROOT, "client");
+const CLIENT_DIST  = join(DIST, "client");
 
 const BUNDLE_STUB = `/**
  * Embedded web bundle manifest.
@@ -83,6 +87,7 @@ const platformArg = (() => {
 })();
 
 const skipWeb = args.includes("--no-web");
+const skipClient = args.includes("--no-client");
 
 const targets = platformArg
   ? TARGETS.filter((t) => t.id === platformArg)
@@ -157,6 +162,59 @@ function writeBundleManifest(): void {
 
 function restoreBundleStub(): void {
   writeFileSync(BUNDLE_FILE, BUNDLE_STUB);
+}
+
+// ---------------------------------------------------------------------------
+// Tauri client
+
+function buildClient(): void {
+  if (skipClient) {
+    process.stdout.write("Skipping Tauri client build (--no-client)\n");
+    return;
+  }
+
+  if (!existsSync(join(CLIENT_DIR, "src-tauri"))) {
+    process.stdout.write("Skipping Tauri client build (client/src-tauri not found)\n");
+    return;
+  }
+
+  process.stdout.write("Building Tauri client … ");
+
+  if (!existsSync(join(CLIENT_DIR, "node_modules"))) {
+    const install = Bun.spawnSync(["bun", "install"], { cwd: CLIENT_DIR });
+    if (install.exitCode !== 0) {
+      process.stderr.write(new TextDecoder().decode(install.stderr));
+      throw new Error("client: bun install failed");
+    }
+  }
+
+  const tauri = Bun.spawnSync(["bun", "run", "tauri", "build"], {
+    cwd: CLIENT_DIR,
+    env: { ...process.env },
+  });
+
+  if (tauri.exitCode !== 0) {
+    process.stderr.write(new TextDecoder().decode(tauri.stderr));
+    throw new Error("client: tauri build failed");
+  }
+
+  console.log("✓");
+
+  const bundleDir = join(CLIENT_DIR, "src-tauri", "target", "release", "bundle");
+  if (!existsSync(bundleDir)) {
+    console.warn("  ⚠ Tauri bundle directory not found — skipping copy to dist/client/");
+    return;
+  }
+
+  if (existsSync(CLIENT_DIST)) rmSync(CLIENT_DIST, { recursive: true });
+  mkdirSync(CLIENT_DIST, { recursive: true });
+  cpSync(bundleDir, CLIENT_DIST, { recursive: true });
+
+  const entries = readdirSync(CLIENT_DIST, { recursive: true }) as string[];
+  const files = entries.filter((e) => {
+    try { return statSync(join(CLIENT_DIST, e)).isFile(); } catch { return false; }
+  });
+  process.stdout.write(`Client bundle: ${files.length} file(s) → dist/client/\n`);
 }
 
 // ---------------------------------------------------------------------------
@@ -241,6 +299,8 @@ try {
     );
   }
   await Promise.all(runners);
+
+  buildClient();
 } finally {
   // Always restore the stub so git stays clean and `bun test` works.
   restoreBundleStub();

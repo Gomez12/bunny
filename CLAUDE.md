@@ -30,6 +30,11 @@ bun run docs                   # TypeDoc → docs/api/
 
 bun run web:build              # build web/dist/ (Bun then serves it on :3000 in prod)
 bun run build                  # compile standalone binary via scripts/build.ts
+
+# Tauri desktop client
+cd client && bun install       # install client deps (separate package.json, requires Rust toolchain)
+bun run client:dev             # Tauri dev mode (opens native window)
+bun run client:build           # Tauri production build (platform-specific installer)
 ```
 
 **Runtime requirement:** Bun ≥ 1.3.0. Node is not supported — the project relies on `bun:sqlite`, `Bun.serve`, `Bun.TOML`, `bun:test`.
@@ -74,7 +79,7 @@ Both `last_n` and `recall_k` can be overridden per-project via the `last_n` / `r
 - Serves `web/dist/` statically if it exists; otherwise shows a dev placeholder pointing at the Vite dev server.
 - Sets `idleTimeout: 0` — SSE streams can outlive the default timeout.
 
-The frontend (`web/`) is React + Vite with its own `package.json`. Tabs: Dashboard (KPIs, time-series charts, tool/agent/project breakdowns, error rates, scheduler health, and recent activity feed — powered by Recharts and a single `GET /api/dashboard?range=` endpoint backed by `src/memory/stats.ts`; admin sees global stats, non-admin sees own data only), Chat (live SSE streaming via `fetch` body-reader, not `EventSource`, because we POST JSON), Messages (sessions listed via `listSessions()`, BM25-filtered when `q` is set, scoped to the active project), Projects (card grid with click-to-switch + create/edit dialog), Whiteboard (per-project Excalidraw whiteboards with LLM edit/question modes) and Settings (profile, API keys, admin-only user management). Session id is persisted in `localStorage` under `bunny.activeSessionId`, active project under `bunny.activeProject`. Switching project always starts a new session. The app boots by calling `GET /api/auth/me` — 401 drops the user on the login page, a `mustChangePassword` flag gates the forced-change page. All fetches use `credentials: "include"` so the `bunny_session` cookie rides along.
+The frontend (`web/`) is React + Vite with its own `package.json`. Tabs: Dashboard (KPIs, time-series charts, tool/agent/project breakdowns, error rates, scheduler health, and recent activity feed — powered by Recharts and a single `GET /api/dashboard?range=` endpoint backed by `src/memory/stats.ts`; admin sees global stats, non-admin sees own data only), Chat (live SSE streaming via `fetch` body-reader, not `EventSource`, because we POST JSON), Messages (sessions listed via `listSessions()`, BM25-filtered when `q` is set, scoped to the active project), Projects (card grid with click-to-switch + create/edit dialog), Whiteboard (per-project Excalidraw whiteboards with LLM edit/question modes), Documents (per-project rich-text WYSIWYG documents backed by Tiptap, stored as markdown, with code-mode toggle, Word ribbon toolbar, and LLM edit/question modes) and Settings (profile, API keys, admin-only user management). Session id is persisted in `localStorage` under `bunny.activeSessionId`, active project under `bunny.activeProject`. Switching project always starts a new session. The app boots by calling `GET /api/auth/me` — 401 drops the user on the login page, a `mustChangePassword` flag gates the forced-change page. All fetches use `credentials: "include"` so the `bunny_session` cookie rides along.
 
 SSE event shapes live in `src/agent/sse_events.ts` and are imported by both `src/agent/render_sse.ts` (backend) and `web/src/api.ts` (frontend) — single source of truth, compile-time drift guard. Vite's `server.fs.allow: [".."]` permits the cross-root import.
 
@@ -145,7 +150,24 @@ Two LLM interaction modes:
 - **Edit mode** (`POST /api/whiteboards/:id/edit`): uses `runAgent` with `systemPromptOverride` to modify whiteboard elements via natural language. The session is hidden from Chat/Messages via `session_visibility`. Frontend extracts JSON from the response and updates the canvas.
 - **Question mode** (`POST /api/whiteboards/:id/ask`): saves the whiteboard, creates a chat session with the PNG as an attachment, returns `{ sessionId }` for navigation to the Chat tab.
 
-Web UI: **Whiteboard** tab between Board and Files. Left sidebar lists saved whiteboards with thumbnails, center has the Excalidraw canvas with fullscreen toggle, bottom has a composer with edit/question mode toggle. Auto-saves on changes (debounced 2s). Thumbnails generated client-side via `exportToBlob`. Frontend dependency: `@excalidraw/excalidraw`. See [ADR 0015](./docs/adr/0015-whiteboards.md).
+Web UI: **Whiteboard** tab between Board and Documents. Left sidebar lists saved whiteboards with thumbnails, center has the Excalidraw canvas with fullscreen toggle, bottom has a composer with edit/question mode toggle. Auto-saves on changes (debounced 2s). Thumbnails generated client-side via `exportToBlob`. Frontend dependency: `@excalidraw/excalidraw`. See [ADR 0015](./docs/adr/0015-whiteboards.md).
+
+### Documents
+
+Per-project rich-text documents stored as markdown. The `documents` table (`id`, `project`, `name`, `content_md`, `thumbnail`, `created_by`, timestamps; `UNIQUE(project, name)`) is project-scoped like whiteboards. Entry point: `src/memory/documents.ts` (CRUD + `canEditDocument`). Routes: `src/server/document_routes.ts` (mounted between whiteboard and workspace routes in `routes.ts`).
+
+The WYSIWYG editor uses Tiptap (ProseMirror-based) with `tiptap-markdown` for round-trip serialization. A Word-style ribbon toolbar (`DocumentRibbon.tsx`) provides formatting controls. A subtle toggle switches between WYSIWYG and raw markdown/code mode.
+
+Two LLM interaction modes (same pattern as whiteboards):
+- **Edit mode** (`POST /api/documents/:id/edit`): uses `runAgent` with `systemPromptOverride` to modify document content. Frontend extracts markdown from the response and updates the editor.
+- **Question mode** (`POST /api/documents/:id/ask`): creates a chat session with document content + question, returns `{ sessionId }` for navigation to Chat tab.
+
+Additional features:
+- **Image support**: drag & drop or paste images into the editor. Images are uploaded via `POST /api/documents/:id/images` (multipart) and stored in the project workspace at `documents/<docId>/images/<uuid>.<ext>`, served by the existing workspace file endpoint. Images are selectable with an accent outline.
+- **Whiteboard embeds**: insert whiteboards from the current project via a picker dialog. Two modes: **live** (re-fetches latest thumbnail on render) and **static** (snapshot at insert time). Custom Tiptap node `whiteboardEmbed` in `web/src/components/tiptap/WhiteboardEmbedNode.tsx`.
+- **Export**: Word (.docx) via `POST /api/documents/:id/export/docx` (server-side using `docx` npm package), HTML zip via `POST /api/documents/:id/export/html` (using `jszip`), PDF via `window.print()` with a print stylesheet. Export dropdown in the ribbon toolbar.
+
+Web UI: **Documents** tab between Whiteboard and Files. Left sidebar lists saved documents, center has the Tiptap WYSIWYG editor with Word ribbon toolbar (formatting, headings, lists, alignment, tables, images, whiteboard embeds, export), bottom has a composer with edit/question mode toggle. WYSIWYG/Code mode toggle in the ribbon. Auto-saves on changes (debounced). Frontend dependencies: `@tiptap/react`, `@tiptap/starter-kit`, various `@tiptap/extension-*`, `tiptap-markdown`. See [ADR 0016](./docs/adr/0016-documents.md).
 
 ### Scheduler
 
@@ -160,6 +182,12 @@ Authentication lives in `src/auth/` (`users.ts`, `sessions.ts`, `apikeys.ts`, `p
 ### Portable binary with embedded UI
 
 `bun run build` (via `scripts/build.ts`) does: run `vite build` in `web/`, walk `web/dist/`, generate `src/server/web_bundle.ts` with `import … with { type: "file" }` entries keyed by URL pathname, compile the binary with `bun build --compile`, then restore the stub. At runtime `startServer` prefers a filesystem `web/dist/` adjacent to the cwd, falls back to `webBundle` (embedded), and finally to a dev-placeholder HTML page. The stub must stay checked in so `bun test` / dev runs compile without a prior web build.
+
+### Desktop Client (Tauri)
+
+A lightweight Tauri v2 desktop app under `client/` that wraps the server's web UI in a native window. It does **not** embed the server — it connects to a running Bunny instance. On first launch a local setup page asks for the server URL; after saving, subsequent launches navigate directly. The URL is persisted via `tauri-plugin-store` in OS-appropriate app data. A "File → Reset Connection" menu item clears the stored URL and returns to setup.
+
+Structure: `client/package.json` (Tauri CLI + API deps), `client/ui/` (static setup page — no bundler), `client/src-tauri/` (Rust side: `lib.rs` with store plugin + menu, `tauri.conf.json` with `withGlobalTauri: true` and `csp: null` for remote content). Builds natively per platform via `bun run client:build`. See [ADR 0017](./docs/adr/0017-tauri-client.md).
 
 ## Conventions
 

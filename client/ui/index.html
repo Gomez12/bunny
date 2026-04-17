@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bunny — Connect</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="card">
+    <h1>🐰 Bunny</h1>
+
+    <div id="loading">
+      <p>Loading&hellip;</p>
+    </div>
+
+    <form id="setup" style="display:none">
+      <label for="server-url">Server address</label>
+      <input
+        id="server-url"
+        type="url"
+        placeholder="http://192.168.1.10:3000"
+        required
+        autofocus
+      />
+      <button type="submit">Connect</button>
+      <p class="hint">Enter the URL of your running Bunny server.</p>
+    </form>
+
+    <div id="error" style="display:none">
+      <p class="error-text"></p>
+    </div>
+  </div>
+
+  <script src="setup.js" type="module"></script>
+</body>
+</html>
