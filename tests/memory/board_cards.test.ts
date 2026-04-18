@@ -332,6 +332,7 @@ function baseUser(overrides: Partial<User> & { id: string }): User {
     mustChangePassword: overrides.mustChangePassword ?? false,
     expandThinkBubbles: overrides.expandThinkBubbles ?? false,
     expandToolBubbles: overrides.expandToolBubbles ?? false,
+    preferredLanguage: overrides.preferredLanguage ?? null,
     createdAt: overrides.createdAt ?? Date.now(),
     updatedAt: overrides.updatedAt ?? Date.now(),
   };

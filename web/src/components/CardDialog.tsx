@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { Agent, AuthUser, BoardCard, Swimlane } from "../api";
 import { listUsers, runCard } from "../api";
 import CardRunLog from "./CardRunLog";
+import TranslationsPanel from "./TranslationsPanel";
 
 export interface CardDialogValue {
   swimlaneId: number;
@@ -301,6 +302,15 @@ export default function CardDialog({
               liveRunId={liveRunId}
             />
           </div>
+        )}
+        {mode === "edit" && initial?.originalLang && (
+          <TranslationsPanel
+            kind="board_card"
+            entityId={initial.id}
+            projectName={initial.project}
+            currentUser={currentUser}
+            originalLang={initial.originalLang}
+          />
         )}
       </div>
     </div>

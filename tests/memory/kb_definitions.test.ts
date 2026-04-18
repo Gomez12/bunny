@@ -35,6 +35,7 @@ function userRow(id: string, role: "admin" | "user"): User {
     updatedAt: 0,
     expandThinkBubbles: false,
     expandToolBubbles: false,
+    preferredLanguage: null,
   };
 }
 
@@ -374,6 +375,8 @@ describe("canEditDefinition", () => {
     name: "alpha",
     description: null,
     visibility: "public",
+    languages: ["en"],
+    defaultLanguage: "en",
     createdBy: "owner",
     createdAt: 0,
     updatedAt: 0,

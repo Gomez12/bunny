@@ -9,6 +9,10 @@ import {
   type DefinitionInput,
   type ServerEvent,
 } from "../api";
+import LanguageTabs from "./LanguageTabs";
+import StatusPill, { type PillStatus } from "./StatusPill";
+import { useTranslations } from "../hooks/useTranslations";
+import { translationStatusToPill } from "./LanguageTabs";
 
 type Props =
   | {
@@ -218,6 +222,18 @@ export default function DefinitionDialog(props: Props) {
   const canGenerate = props.mode === "edit" && canEdit && !generating;
   const canClear = props.mode === "edit" && canEdit && hasLlmData && !generating;
 
+  const originalLang = current?.originalLang ?? null;
+  const tr = useTranslations(
+    "kb_definition",
+    props.mode === "edit" ? current!.id : null,
+    props.project,
+    props.currentUser,
+    originalLang,
+  );
+  const showTabs = props.mode === "edit" && !!originalLang && tr.languages.length > 1;
+  const sourceActive = !showTabs || tr.isSourceActive;
+  const activeTranslationFields = tr.activeTranslation?.fields ?? {};
+
   return (
     <div className="modal-backdrop" onClick={handleClose}>
       <div className="modal modal--wide kb-dialog" onClick={(e) => e.stopPropagation()}>
@@ -236,6 +252,43 @@ export default function DefinitionDialog(props: Props) {
             </div>
           )}
 
+          {showTabs && (
+            <LanguageTabs
+              languages={tr.languages}
+              sourceLang={originalLang!}
+              activeLang={tr.activeLang}
+              translations={tr.translations}
+              onChange={tr.setActiveLang}
+            />
+          )}
+
+          {sourceActive ? (
+            <SourceBody />
+          ) : (
+            <TranslationBody />
+          )}
+        </div>
+
+        {props.mode === "edit" && initial?.originalLang && (
+          <TranslationsPanelStub />
+        )}
+
+        <div className="modal__footer">
+          <button className="btn" onClick={handleClose}>Close</button>
+          {canEdit && sourceActive && (
+            <button className="btn btn--send" onClick={() => void handleSaveMeta()} disabled={saving}>
+              {saving ? "Saving…" : props.mode === "create" ? "Create" : "Save"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── Rendered bodies ──────────────────────────────────────────────────────
+  function SourceBody() {
+    return (
+      <>
           <div className="kb-dialog__field">
             <label>Term *</label>
             <input
@@ -381,17 +434,102 @@ export default function DefinitionDialog(props: Props) {
               </div>
             </div>
           )}
+      </>
+    );
+  }
+
+  function TranslationBody() {
+    const t = tr.activeTranslation;
+    const pill: PillStatus = t
+      ? translationStatusToPill(t)
+      : "pending";
+    const termTr = activeTranslationFields["term"] ?? "";
+    const manualTr = activeTranslationFields["manual_description"] ?? "";
+    const shortTr = activeTranslationFields["llm_short"] ?? "";
+    const longTr = activeTranslationFields["llm_long"] ?? "";
+    return (
+      <>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 8,
+          }}
+        >
+          <span style={{ fontSize: 12, color: "var(--text-dim)" }}>
+            Read-only translation of the source.
+          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <StatusPill status={pill} />
+            <button
+              type="button"
+              className="btn"
+              onClick={() => void tr.translate()}
+              disabled={tr.triggering || t?.status === "translating"}
+              title="Re-run the translation for this language"
+            >
+              {tr.triggering ? "Sending…" : "Translate now"}
+            </button>
+          </div>
+        </div>
+        {tr.err && <div className="kb-dialog__error">{tr.err}</div>}
+        {t?.status === "error" && t.error && (
+          <div className="kb-dialog__error">{t.error}</div>
+        )}
+
+        <div className="kb-dialog__field">
+          <label>Term</label>
+          <div className="kb-dialog__readonly">
+            {termTr || <em className="kb-dialog__placeholder">Not translated yet.</em>}
+          </div>
         </div>
 
-        <div className="modal__footer">
-          <button className="btn" onClick={handleClose}>Close</button>
-          {canEdit && (
-            <button className="btn btn--send" onClick={() => void handleSaveMeta()} disabled={saving}>
-              {saving ? "Saving…" : props.mode === "create" ? "Create" : "Save"}
-            </button>
-          )}
+        <div className="kb-dialog__field">
+          <label>Manual description</label>
+          <div className="kb-dialog__readonly">
+            {manualTr || <em className="kb-dialog__placeholder">Not translated yet.</em>}
+          </div>
         </div>
-      </div>
-    </div>
-  );
+
+        <div className="kb-dialog__panel">
+          <span className="kb-dialog__panel-label">Short description</span>
+          <div className="kb-dialog__readonly">
+            {shortTr || <em className="kb-dialog__placeholder">Not translated yet.</em>}
+          </div>
+        </div>
+
+        <div className="kb-dialog__panel">
+          <span className="kb-dialog__panel-label">Long description</span>
+          <div className="kb-dialog__readonly kb-dialog__readonly--long">
+            {longTr || <em className="kb-dialog__placeholder">Not translated yet.</em>}
+          </div>
+        </div>
+
+        <div className="kb-dialog__panel">
+          <span className="kb-dialog__panel-label">Sources</span>
+          {current && current.llmSources.length > 0 ? (
+            <ul className="kb-dialog__sources">
+              {current.llmSources.map((s, i) => (
+                <li key={`${s.url}-${i}`}>
+                  <a href={s.url} target="_blank" rel="noopener noreferrer">
+                    {s.title || s.url}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <em className="kb-dialog__placeholder">No sources.</em>
+          )}
+          <span className="kb-dialog__hint" style={{ marginTop: 6 }}>
+            Sources are language-neutral and come from the source language.
+          </span>
+        </div>
+      </>
+    );
+  }
+
+  function TranslationsPanelStub() {
+    return null;
+  }
 }

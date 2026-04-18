@@ -26,6 +26,8 @@ export interface Project {
   name: string;
   description: string | null;
   visibility: ProjectVisibility;
+  languages: string[];
+  defaultLanguage: string;
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
@@ -35,6 +37,40 @@ export interface Project {
   lastN: number | null;
   /** null = inherit the global [memory] default (bunny.config.toml). */
   recallK: number | null;
+}
+
+export type TranslationKind =
+  | "kb_definition"
+  | "document"
+  | "contact"
+  | "board_card";
+
+export type TranslationStatus =
+  | "pending"
+  | "translating"
+  | "ready"
+  | "error";
+
+export interface TranslationDto {
+  id: number;
+  lang: string;
+  status: TranslationStatus;
+  error: string | null;
+  sourceVersion: number;
+  sourceHash: string | null;
+  translatingAt: number | null;
+  isOrphaned: boolean;
+  fields: Record<string, string | null>;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface TranslationsResponse {
+  kind: TranslationKind;
+  entityId: number;
+  projectLanguages: string[];
+  defaultLanguage: string;
+  translations: TranslationDto[];
 }
 
 export interface StoredMessage {
@@ -301,6 +337,7 @@ export interface AuthUser {
   mustChangePassword: boolean;
   expandThinkBubbles: boolean;
   expandToolBubbles: boolean;
+  preferredLanguage: string | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -372,6 +409,7 @@ export async function updateOwnProfile(patch: {
   email?: string | null;
   expandThinkBubbles?: boolean;
   expandToolBubbles?: boolean;
+  preferredLanguage?: string | null;
 }): Promise<AuthUser> {
   const { user } = await jsonFetch<{ user: AuthUser }>("/api/users/me", {
     method: "PATCH",
@@ -475,6 +513,8 @@ export async function createProject(input: {
   visibility?: ProjectVisibility;
   lastN?: number | null;
   recallK?: number | null;
+  languages?: string[];
+  defaultLanguage?: string;
 }): Promise<Project> {
   const { project } = await jsonFetch<{ project: Project }>("/api/projects", {
     method: "POST",
@@ -492,6 +532,8 @@ export async function updateProject(
     visibility?: ProjectVisibility;
     lastN?: number | null;
     recallK?: number | null;
+    languages?: string[];
+    defaultLanguage?: string;
   },
 ): Promise<Project> {
   const { project } = await jsonFetch<{ project: Project }>(
@@ -503,6 +545,30 @@ export async function updateProject(
 
 export async function deleteProject(name: string): Promise<void> {
   await jsonFetch<{ ok: true }>(`/api/projects/${encodeURIComponent(name)}`, { method: "DELETE" });
+}
+
+// ── Translations ────────────────────────────────────────────────────────────
+
+export async function fetchTranslations(
+  project: string,
+  kind: TranslationKind,
+  entityId: number,
+): Promise<TranslationsResponse> {
+  return jsonFetch<TranslationsResponse>(
+    `/api/projects/${encodeURIComponent(project)}/translations/${kind}/${entityId}`,
+  );
+}
+
+export async function triggerTranslate(
+  project: string,
+  kind: TranslationKind,
+  entityId: number,
+  lang: string,
+): Promise<void> {
+  await jsonFetch<{ ok: true }>(
+    `/api/projects/${encodeURIComponent(project)}/translations/${kind}/${entityId}/${lang}`,
+    { method: "POST" },
+  );
 }
 
 // ── Agents ──────────────────────────────────────────────────────────────────
@@ -713,6 +779,7 @@ export interface BoardCard {
   autoRun: boolean;
   estimateHours: number | null;
   percentDone: number | null;
+  originalLang: string | null;
   createdBy: string;
   createdAt: number;
   updatedAt: number;
@@ -1283,6 +1350,7 @@ export interface DocumentSummary {
 export interface DocumentFull extends DocumentSummary {
   project: string;
   contentMd: string;
+  originalLang: string | null;
   createdBy: string | null;
 }
 
@@ -1398,6 +1466,7 @@ export interface Contact {
   avatar: string | null;
   tags: string[];
   groups: number[];
+  originalLang: string | null;
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
@@ -1576,6 +1645,7 @@ export interface Definition {
   llmGeneratedAt: number | null;
   isProjectDependent: boolean;
   activeDescription: ActiveDescription;
+  originalLang: string | null;
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;

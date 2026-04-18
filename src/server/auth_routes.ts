@@ -15,6 +15,7 @@ import {
   getUserByUsername,
   getUserPasswordHash,
   listUsers,
+  normalisePreferredLanguage,
   setPassword,
   updateUser,
 } from "../auth/users.ts";
@@ -43,6 +44,7 @@ function publicUser(u: User) {
     mustChangePassword: u.mustChangePassword,
     expandThinkBubbles: u.expandThinkBubbles,
     expandToolBubbles: u.expandToolBubbles,
+    preferredLanguage: u.preferredLanguage,
     createdAt: u.createdAt,
     updatedAt: u.updatedAt,
   };
@@ -290,13 +292,24 @@ async function patchOwnProfile(
     email?: string | null;
     expandThinkBubbles?: boolean;
     expandToolBubbles?: boolean;
+    preferredLanguage?: string | null;
   }>(req);
   if (!body) return json({ error: "invalid body" }, 400);
+  let preferredLanguage: string | null | undefined;
+  try {
+    preferredLanguage = normalisePreferredLanguage(body.preferredLanguage);
+  } catch (e) {
+    return json(
+      { error: e instanceof Error ? e.message : "invalid preferred_language" },
+      400,
+    );
+  }
   const updated = updateUser(ctx.db, user.id, {
     displayName: body.displayName,
     email: body.email,
     expandThinkBubbles: body.expandThinkBubbles,
     expandToolBubbles: body.expandToolBubbles,
+    preferredLanguage,
   });
   if (updated) {
     const changed = Object.keys(body).filter(

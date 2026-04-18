@@ -16,6 +16,7 @@ export interface User {
   mustChangePassword: boolean;
   expandThinkBubbles: boolean;
   expandToolBubbles: boolean;
+  preferredLanguage: string | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -30,8 +31,27 @@ interface UserRow {
   must_change_pw: number;
   expand_think_bubbles: number;
   expand_tool_bubbles: number;
+  preferred_language: string | null;
   created_at: number;
   updated_at: number;
+}
+
+const ISO_639_1_RE = /^[a-z]{2}$/;
+
+/** Normalise a preferred-language input. `null` and `""` clear the preference. */
+export function normalisePreferredLanguage(
+  raw: unknown,
+): string | null | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === null || raw === "") return null;
+  if (typeof raw !== "string") {
+    throw new Error("preferred_language must be a string");
+  }
+  const code = raw.toLowerCase();
+  if (!ISO_639_1_RE.test(code)) {
+    throw new Error(`invalid preferred_language '${raw}' (ISO 639-1 expected)`);
+  }
+  return code;
 }
 
 function rowToUser(r: UserRow): User {
@@ -44,6 +64,7 @@ function rowToUser(r: UserRow): User {
     mustChangePassword: r.must_change_pw === 1,
     expandThinkBubbles: r.expand_think_bubbles === 1,
     expandToolBubbles: r.expand_tool_bubbles === 1,
+    preferredLanguage: r.preferred_language,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -88,6 +109,7 @@ export async function createUser(
     mustChangePassword: opts.mustChangePassword ?? false,
     expandThinkBubbles: false,
     expandToolBubbles: false,
+    preferredLanguage: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -158,6 +180,7 @@ export interface UpdateUserOpts {
   mustChangePassword?: boolean;
   expandThinkBubbles?: boolean;
   expandToolBubbles?: boolean;
+  preferredLanguage?: string | null;
 }
 
 export function updateUser(
@@ -184,11 +207,16 @@ export function updateUser(
       opts.expandToolBubbles === undefined
         ? current.expandToolBubbles
         : opts.expandToolBubbles,
+    preferredLanguage:
+      opts.preferredLanguage === undefined
+        ? current.preferredLanguage
+        : opts.preferredLanguage,
   };
   const now = Date.now();
   db.prepare(
     `UPDATE users SET role = ?, display_name = ?, email = ?, must_change_pw = ?,
-       expand_think_bubbles = ?, expand_tool_bubbles = ?, updated_at = ? WHERE id = ?`,
+       expand_think_bubbles = ?, expand_tool_bubbles = ?, preferred_language = ?,
+       updated_at = ? WHERE id = ?`,
   ).run(
     next.role,
     next.displayName,
@@ -196,6 +224,7 @@ export function updateUser(
     next.mustChangePassword ? 1 : 0,
     next.expandThinkBubbles ? 1 : 0,
     next.expandToolBubbles ? 1 : 0,
+    next.preferredLanguage,
     now,
     id,
   );

@@ -58,6 +58,7 @@ import { handleContactRoute } from "./contact_routes.ts";
 import { handleKbRoute } from "./kb_routes.ts";
 import { handleWorkspaceRoute } from "./workspace_routes.ts";
 import { handleScheduledTaskRoute } from "./scheduled_task_routes.ts";
+import { handleTranslationRoute } from "./translation_routes.ts";
 import type { SchedulerHandle } from "../scheduler/ticker.ts";
 import type { HandlerRegistry } from "../scheduler/handlers.ts";
 import { parseMention } from "../agent/mention.ts";
@@ -171,6 +172,20 @@ export async function handleApi(
     user,
   );
   if (workspaceResponse) return workspaceResponse;
+
+  // ── Translations (per-entity multi-language sidecars) ─────────────────────
+  const translationResponse = await handleTranslationRoute(
+    req,
+    url,
+    {
+      db: ctx.db,
+      queue: ctx.queue,
+      cfg: ctx.cfg,
+      scheduler: ctx.scheduler,
+    },
+    user,
+  );
+  if (translationResponse) return translationResponse;
 
   // ── Scheduler (system + user tasks) ───────────────────────────────────────
   const taskResponse = await handleScheduledTaskRoute(
@@ -486,6 +501,8 @@ interface ProjectDto {
   name: string;
   description: string | null;
   visibility: ProjectVisibility;
+  languages: string[];
+  defaultLanguage: string;
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
@@ -526,6 +543,8 @@ function toProjectDto(p: Project): ProjectDto {
     name: p.name,
     description: p.description,
     visibility: p.visibility,
+    languages: p.languages,
+    defaultLanguage: p.defaultLanguage,
     createdBy: p.createdBy,
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
@@ -544,6 +563,8 @@ interface ProjectBody {
   visibility?: ProjectVisibility;
   lastN?: number | null;
   recallK?: number | null;
+  languages?: string[];
+  defaultLanguage?: string;
 }
 
 async function handleCreateProject(
@@ -566,6 +587,8 @@ async function handleCreateProject(
       name,
       description: body.description ?? null,
       visibility: body.visibility === "private" ? "private" : "public",
+      languages: body.languages,
+      defaultLanguage: body.defaultLanguage,
       createdBy: user.id,
     });
     // Fresh project: mkdir then write once. No second load/overwrite.
@@ -621,6 +644,8 @@ async function handlePatchProject(
     const updated = updateProject(ctx.db, name, {
       description: body.description,
       visibility: body.visibility,
+      languages: body.languages,
+      defaultLanguage: body.defaultLanguage,
     });
     const touchesPrompt =
       body.systemPrompt !== undefined || body.appendMode !== undefined;

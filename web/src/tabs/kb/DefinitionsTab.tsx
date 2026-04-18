@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import EmptyState from "../../components/EmptyState";
 import DefinitionDialog from "../../components/DefinitionDialog";
+import LangBadge from "../../components/LangBadge";
 import {
   fetchDefinitions,
   createDefinition,
@@ -172,6 +173,7 @@ export default function DefinitionsTab({ project, currentUser }: Props) {
             >
               <div className="kb-card__header">
                 <span className="kb-card__term">{d.term}</span>
+                {d.originalLang && <LangBadge lang={d.originalLang} title={`Source language: ${d.originalLang.toUpperCase()}`} />}
                 {d.isProjectDependent && (
                   <span className="kb-chip kb-chip--project" title="Project-dependent definition">
                     project

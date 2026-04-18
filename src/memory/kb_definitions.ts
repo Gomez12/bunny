@@ -10,6 +10,22 @@
 import type { Database } from "bun:sqlite";
 import type { User } from "../auth/users.ts";
 import type { Project } from "./projects.ts";
+import {
+  createTranslationSlots,
+  markAllStale as markTranslationsStale,
+  registerKind,
+  type TranslatableKind,
+} from "./translatable.ts";
+
+export const KB_DEFINITION_KIND: TranslatableKind = {
+  name: "kb_definition",
+  entityTable: "kb_definitions",
+  sidecarTable: "kb_definition_translations",
+  entityFk: "definition_id",
+  sourceFields: ["term", "manual_description", "llm_short", "llm_long"],
+  sidecarFields: ["term", "manual_description", "llm_short", "llm_long"],
+};
+registerKind(KB_DEFINITION_KIND);
 
 export type ActiveDescription = "manual" | "short" | "long";
 export type LlmStatus = "idle" | "generating" | "error";
@@ -33,6 +49,7 @@ export interface Definition {
   llmGeneratedAt: number | null;
   isProjectDependent: boolean;
   activeDescription: ActiveDescription;
+  originalLang: string | null;
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
@@ -52,6 +69,7 @@ interface DefinitionRow {
   llm_generated_at: number | null;
   is_project_dependent: number;
   active_description: string;
+  original_lang: string | null;
   created_by: string | null;
   created_at: number;
   updated_at: number;
@@ -60,7 +78,7 @@ interface DefinitionRow {
 const SELECT_COLS = `id, project, term, manual_description, llm_short, llm_long,
                      llm_sources, llm_cleared, llm_status, llm_error,
                      llm_generated_at, is_project_dependent, active_description,
-                     created_by, created_at, updated_at`;
+                     original_lang, created_by, created_at, updated_at`;
 
 function parseSources(raw: string): DefinitionSource[] {
   try {
@@ -106,6 +124,7 @@ function rowToDefinition(r: DefinitionRow): Definition {
     llmGeneratedAt: r.llm_generated_at,
     isProjectDependent: r.is_project_dependent !== 0,
     activeDescription: normaliseActive(r.active_description),
+    originalLang: r.original_lang,
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -184,7 +203,20 @@ export interface CreateDefinitionOpts {
   manualDescription?: string;
   isProjectDependent?: boolean;
   activeDescription?: ActiveDescription;
+  originalLang?: string;
   createdBy: string;
+}
+
+function resolveOriginalLang(
+  db: Database,
+  project: string,
+  explicit: string | undefined,
+): string | null {
+  if (explicit) return explicit;
+  const row = db
+    .prepare(`SELECT default_language FROM projects WHERE name = ?`)
+    .get(project) as { default_language: string } | undefined;
+  return row?.default_language ?? null;
 }
 
 function validateActiveDescription(
@@ -204,14 +236,15 @@ export function createDefinition(
   const active = validateActiveDescription(opts.activeDescription);
   const now = Date.now();
 
+  const originalLang = resolveOriginalLang(db, opts.project, opts.originalLang);
   const info = db
     .prepare(
       `INSERT INTO kb_definitions(
          project, term, manual_description,
          llm_short, llm_long, llm_sources, llm_cleared, llm_status, llm_error,
          llm_generated_at, is_project_dependent, active_description,
-         created_by, created_at, updated_at
-       ) VALUES (?, ?, ?, NULL, NULL, '[]', 0, 'idle', NULL, NULL, ?, ?, ?, ?, ?)`,
+         original_lang, created_by, created_at, updated_at
+       ) VALUES (?, ?, ?, NULL, NULL, '[]', 0, 'idle', NULL, NULL, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       opts.project,
@@ -219,11 +252,14 @@ export function createDefinition(
       opts.manualDescription ?? "",
       opts.isProjectDependent ? 1 : 0,
       active,
+      originalLang,
       opts.createdBy,
       now,
       now,
     );
-  return getDefinition(db, Number(info.lastInsertRowid))!;
+  const id = Number(info.lastInsertRowid);
+  createTranslationSlots(db, KB_DEFINITION_KIND, id);
+  return getDefinition(db, id)!;
 }
 
 export interface UpdateDefinitionPatch {
@@ -271,6 +307,10 @@ export function updateDefinition(
     id,
   );
 
+  const sourceChanged =
+    term !== existing.term || manualDescription !== existing.manualDescription;
+  if (sourceChanged) markTranslationsStale(db, KB_DEFINITION_KIND, id);
+
   return getDefinition(db, id)!;
 }
 
@@ -317,6 +357,9 @@ export function setLlmResult(
     now,
     id,
   );
+  // llm_short + llm_long are source fields for the translation layer —
+  // regenerating them invalidates all translations.
+  markTranslationsStale(db, KB_DEFINITION_KIND, id);
   const updated = getDefinition(db, id);
   if (!updated)
     throw new Error(`definition ${id} vanished during setLlmResult`);
@@ -352,6 +395,8 @@ export function clearLlmFields(db: Database, id: number): Definition {
          updated_at = ?
      WHERE id = ?`,
   ).run(Date.now(), id);
+  // The LLM source fields were cleared — translations must re-derive too.
+  markTranslationsStale(db, KB_DEFINITION_KIND, id);
   const updated = getDefinition(db, id);
   if (!updated) throw new Error(`definition ${id} not found`);
   return updated;

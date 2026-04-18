@@ -48,12 +48,14 @@ CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, ts);
 -- Logical workspaces: each project has its own directory under $BUNNY_HOME/projects/<name>/
 -- and its own systemprompt.toml that augments (or replaces) the base system prompt.
 CREATE TABLE IF NOT EXISTS projects (
-  name        TEXT    PRIMARY KEY,
-  description TEXT,
-  visibility  TEXT    NOT NULL DEFAULT 'public',  -- 'public' | 'private'
-  created_by  TEXT    REFERENCES users(id) ON DELETE SET NULL,
-  created_at  INTEGER NOT NULL,
-  updated_at  INTEGER NOT NULL
+  name              TEXT    PRIMARY KEY,
+  description       TEXT,
+  visibility        TEXT    NOT NULL DEFAULT 'public',  -- 'public' | 'private'
+  languages         TEXT    NOT NULL DEFAULT '["en"]',  -- JSON array of ISO 639-1
+  default_language  TEXT    NOT NULL DEFAULT 'en',      -- must appear in languages
+  created_by        TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at        INTEGER NOT NULL,
+  updated_at        INTEGER NOT NULL
 );
 
 -- ── Agents ──────────────────────────────────────────────────────────────────
@@ -120,6 +122,7 @@ CREATE TABLE IF NOT EXISTS users (
   must_change_pw INTEGER NOT NULL DEFAULT 0,
   expand_think_bubbles INTEGER NOT NULL DEFAULT 0,
   expand_tool_bubbles  INTEGER NOT NULL DEFAULT 0,
+  preferred_language   TEXT,                          -- ISO 639-1; null = inherit project default
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
 );
@@ -196,6 +199,8 @@ CREATE TABLE IF NOT EXISTS board_cards (
   auto_run          INTEGER NOT NULL DEFAULT 0,    -- 1 = eligible for auto-run scan (cleared on enqueue)
   estimate_hours    REAL,
   percent_done      INTEGER,
+  original_lang     TEXT,                          -- ISO 639-1 of the source title+description
+  source_version    INTEGER NOT NULL DEFAULT 1,    -- bumps on every source-field edit
   created_by        TEXT    NOT NULL,
   created_at        INTEGER NOT NULL,
   updated_at        INTEGER NOT NULL,
@@ -298,6 +303,8 @@ CREATE TABLE IF NOT EXISTS documents (
   content_md      TEXT    NOT NULL DEFAULT '',
   thumbnail       TEXT,
   is_template     INTEGER NOT NULL DEFAULT 0,
+  original_lang   TEXT,                            -- ISO 639-1 of the source name+content
+  source_version  INTEGER NOT NULL DEFAULT 1,      -- bumps on every source-field edit
   created_by      TEXT    REFERENCES users(id) ON DELETE SET NULL,
   created_at      INTEGER NOT NULL,
   updated_at      INTEGER NOT NULL,
@@ -309,19 +316,21 @@ CREATE INDEX IF NOT EXISTS idx_documents_project ON documents(project, updated_a
 -- Per-project contact management. Emails, phones, and tags are stored as
 -- JSON arrays in TEXT columns to avoid join tables for simple lists.
 CREATE TABLE IF NOT EXISTS contacts (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  project     TEXT    NOT NULL,
-  name        TEXT    NOT NULL,
-  emails      TEXT    NOT NULL DEFAULT '[]',
-  phones      TEXT    NOT NULL DEFAULT '[]',
-  company     TEXT    NOT NULL DEFAULT '',
-  title       TEXT    NOT NULL DEFAULT '',
-  notes       TEXT    NOT NULL DEFAULT '',
-  avatar      TEXT,
-  tags        TEXT    NOT NULL DEFAULT '[]',
-  created_by  TEXT    REFERENCES users(id) ON DELETE SET NULL,
-  created_at  INTEGER NOT NULL,
-  updated_at  INTEGER NOT NULL
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  project        TEXT    NOT NULL,
+  name           TEXT    NOT NULL,
+  emails         TEXT    NOT NULL DEFAULT '[]',
+  phones         TEXT    NOT NULL DEFAULT '[]',
+  company        TEXT    NOT NULL DEFAULT '',
+  title          TEXT    NOT NULL DEFAULT '',
+  notes          TEXT    NOT NULL DEFAULT '',
+  avatar         TEXT,
+  tags           TEXT    NOT NULL DEFAULT '[]',
+  original_lang  TEXT,                           -- ISO 639-1 of the source notes field
+  source_version INTEGER NOT NULL DEFAULT 1,     -- bumps on every notes edit
+  created_by     TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at     INTEGER NOT NULL,
+  updated_at     INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_contacts_project ON contacts(project, name);
 CREATE INDEX IF NOT EXISTS idx_contacts_created_by ON contacts(created_by);
@@ -361,19 +370,103 @@ CREATE TABLE IF NOT EXISTS kb_definitions (
   manual_description   TEXT    NOT NULL DEFAULT '',
   llm_short            TEXT,
   llm_long             TEXT,
-  llm_sources          TEXT    NOT NULL DEFAULT '[]',   -- JSON: [{title,url}]
+  llm_sources          TEXT    NOT NULL DEFAULT '[]',   -- JSON: [{title,url}] (language-neutral)
   llm_cleared          INTEGER NOT NULL DEFAULT 0,      -- 1 = user explicitly cleared
   llm_status           TEXT    NOT NULL DEFAULT 'idle', -- 'idle' | 'generating' | 'error'
   llm_error            TEXT,
   llm_generated_at     INTEGER,                         -- Unix ms of last successful generation
   is_project_dependent INTEGER NOT NULL DEFAULT 0,
   active_description   TEXT    NOT NULL DEFAULT 'manual', -- 'manual' | 'short' | 'long'
+  original_lang        TEXT,                            -- ISO 639-1 of the source fields
+  source_version       INTEGER NOT NULL DEFAULT 1,      -- bumps on every source-field edit
   created_by           TEXT    REFERENCES users(id) ON DELETE SET NULL,
   created_at           INTEGER NOT NULL,
   updated_at           INTEGER NOT NULL,
   UNIQUE(project, term)
 );
 CREATE INDEX IF NOT EXISTS idx_kb_definitions_project ON kb_definitions(project, term);
+
+-- ── Translations ────────────────────────────────────────────────────────────
+-- Per-entity sidecar tables. Each holds one row per (entity, target-language)
+-- except the entity's own `original_lang` — the entity columns themselves are
+-- the source copy. `source_hash` is sha256(JSON.stringify(sourceFields)) at
+-- the time of translation; it lets the scheduler skip regeneration when a
+-- revert brings source back to a previously-translated state even though
+-- `source_version` has moved. `translating_at` supports the daily stuck-row
+-- sweep (src/translation/sweep_stuck_handler.ts).
+
+CREATE TABLE IF NOT EXISTS kb_definition_translations (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  definition_id      INTEGER NOT NULL REFERENCES kb_definitions(id) ON DELETE CASCADE,
+  lang               TEXT    NOT NULL,
+  term               TEXT,
+  manual_description TEXT,
+  llm_short          TEXT,
+  llm_long           TEXT,
+  status             TEXT    NOT NULL DEFAULT 'pending', -- 'pending'|'translating'|'ready'|'error'
+  error              TEXT,
+  source_version     INTEGER NOT NULL,
+  source_hash        TEXT,
+  translating_at     INTEGER,
+  created_at         INTEGER NOT NULL,
+  updated_at         INTEGER NOT NULL,
+  UNIQUE(definition_id, lang)
+);
+CREATE INDEX IF NOT EXISTS idx_kb_def_trans_lookup  ON kb_definition_translations(definition_id, lang);
+CREATE INDEX IF NOT EXISTS idx_kb_def_trans_pending ON kb_definition_translations(status, source_version);
+
+CREATE TABLE IF NOT EXISTS document_translations (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  document_id     INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  lang            TEXT    NOT NULL,
+  name            TEXT,
+  content_md      TEXT,
+  status          TEXT    NOT NULL DEFAULT 'pending',
+  error           TEXT,
+  source_version  INTEGER NOT NULL,
+  source_hash     TEXT,
+  translating_at  INTEGER,
+  created_at      INTEGER NOT NULL,
+  updated_at      INTEGER NOT NULL,
+  UNIQUE(document_id, lang)
+);
+CREATE INDEX IF NOT EXISTS idx_doc_trans_lookup  ON document_translations(document_id, lang);
+CREATE INDEX IF NOT EXISTS idx_doc_trans_pending ON document_translations(status, source_version);
+
+CREATE TABLE IF NOT EXISTS contact_translations (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  contact_id      INTEGER NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+  lang            TEXT    NOT NULL,
+  notes           TEXT,
+  status          TEXT    NOT NULL DEFAULT 'pending',
+  error           TEXT,
+  source_version  INTEGER NOT NULL,
+  source_hash     TEXT,
+  translating_at  INTEGER,
+  created_at      INTEGER NOT NULL,
+  updated_at      INTEGER NOT NULL,
+  UNIQUE(contact_id, lang)
+);
+CREATE INDEX IF NOT EXISTS idx_contact_trans_lookup  ON contact_translations(contact_id, lang);
+CREATE INDEX IF NOT EXISTS idx_contact_trans_pending ON contact_translations(status, source_version);
+
+CREATE TABLE IF NOT EXISTS board_card_translations (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  card_id         INTEGER NOT NULL REFERENCES board_cards(id) ON DELETE CASCADE,
+  lang            TEXT    NOT NULL,
+  title           TEXT,
+  description     TEXT,
+  status          TEXT    NOT NULL DEFAULT 'pending',
+  error           TEXT,
+  source_version  INTEGER NOT NULL,
+  source_hash     TEXT,
+  translating_at  INTEGER,
+  created_at      INTEGER NOT NULL,
+  updated_at      INTEGER NOT NULL,
+  UNIQUE(card_id, lang)
+);
+CREATE INDEX IF NOT EXISTS idx_card_trans_lookup  ON board_card_translations(card_id, lang);
+CREATE INDEX IF NOT EXISTS idx_card_trans_pending ON board_card_translations(status, source_version);
 
 -- ── Embeddings ───────────────────────────────────────────────────────────────
 -- Created dynamically by db.ts using the configured dimension (default 1536)

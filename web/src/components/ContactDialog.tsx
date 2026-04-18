@@ -1,5 +1,8 @@
 import { useState, type FormEvent } from "react";
-import type { Contact, ContactGroup } from "../api";
+import type { AuthUser, Contact, ContactGroup } from "../api";
+import LanguageTabs, { translationStatusToPill } from "./LanguageTabs";
+import StatusPill, { type PillStatus } from "./StatusPill";
+import { useTranslations } from "../hooks/useTranslations";
 
 export interface ContactDialogValue {
   name: string;
@@ -17,6 +20,9 @@ interface Props {
   mode: "create" | "edit";
   initial?: Contact;
   allGroups: ContactGroup[];
+  /** Required for the translations panel — omitted on create since the
+   *  contact doesn't exist yet. */
+  currentUser?: AuthUser;
   onClose: () => void;
   onSubmit: (value: ContactDialogValue) => Promise<void>;
 }
@@ -25,6 +31,7 @@ export default function ContactDialog({
   mode,
   initial,
   allGroups,
+  currentUser,
   onClose,
   onSubmit,
 }: Props) {
@@ -182,14 +189,13 @@ export default function ContactDialog({
             </label>
           </div>
 
-          <label className="project-form__field">
-            Notes
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-            />
-          </label>
+          <NotesField
+            mode={mode}
+            initial={initial}
+            currentUser={currentUser}
+            notes={notes}
+            setNotes={setNotes}
+          />
 
           <label className="project-form__field">
             Tags (comma-separated)
@@ -263,6 +269,113 @@ export default function ContactDialog({
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Notes field with a language tabstrip. The source-language tab is editable;
+ * other project languages render the translated notes read-only with a
+ * status pill + "Translate now" button. In create mode, the tabstrip is
+ * suppressed entirely — translations land only after the contact is saved.
+ */
+function NotesField({
+  mode,
+  initial,
+  currentUser,
+  notes,
+  setNotes,
+}: {
+  mode: "create" | "edit";
+  initial?: Contact;
+  currentUser?: AuthUser;
+  notes: string;
+  setNotes: (v: string) => void;
+}) {
+  const originalLang = initial?.originalLang ?? null;
+  const tr = useTranslations(
+    "contact",
+    mode === "edit" && initial ? initial.id : null,
+    initial?.project ?? "",
+    currentUser ?? null,
+    originalLang,
+  );
+  const showTabs =
+    mode === "edit" &&
+    !!initial &&
+    !!originalLang &&
+    !!currentUser &&
+    tr.languages.length > 1;
+
+  if (!showTabs) {
+    return (
+      <label className="project-form__field">
+        Notes
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={3}
+        />
+      </label>
+    );
+  }
+
+  const isSourceActive = tr.activeLang === originalLang;
+  const t = tr.activeTranslation;
+  const pill: PillStatus = t ? translationStatusToPill(t) : "pending";
+  const translatedNotes = (t?.fields["notes"] ?? "") as string;
+
+  return (
+    <div className="project-form__field">
+      <span>Notes</span>
+      <LanguageTabs
+        languages={tr.languages}
+        sourceLang={originalLang!}
+        activeLang={tr.activeLang}
+        translations={tr.translations}
+        onChange={tr.setActiveLang}
+      />
+      {isSourceActive ? (
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={3}
+        />
+      ) : (
+        <>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 6,
+            }}
+          >
+            <span style={{ fontSize: 12, color: "var(--text-dim)" }}>
+              Read-only translation — edit the source tab to change the content.
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <StatusPill status={pill} />
+              <button
+                type="button"
+                className="btn"
+                onClick={() => void tr.translate()}
+                disabled={tr.triggering || t?.status === "translating"}
+              >
+                {tr.triggering ? "Sending…" : "Translate now"}
+              </button>
+            </div>
+          </div>
+          <div className="lang-readonly">
+            {translatedNotes || (
+              <em style={{ color: "var(--text-faint)" }}>Not translated yet.</em>
+            )}
+          </div>
+          {t?.status === "error" && t.error && (
+            <div className="lang-readonly__error">{t.error}</div>
+          )}
+        </>
+      )}
     </div>
   );
 }

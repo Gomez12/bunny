@@ -213,6 +213,7 @@ export default function App() {
           {tab === "documents" && (
             <DocumentTab
               project={activeProject}
+              currentUser={user}
               onOpenInChat={(sid) => {
                 onPickSession(sid);
                 setTab("chat");

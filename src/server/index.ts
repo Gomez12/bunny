@@ -31,6 +31,14 @@ import {
   BOARD_AUTO_RUN_HANDLER,
   registerBoardAutoRun,
 } from "../board/auto_run_handler.ts";
+import {
+  TRANSLATION_HANDLER,
+  registerAutoTranslate,
+} from "../translation/auto_translate_handler.ts";
+import {
+  TRANSLATION_SWEEP_HANDLER,
+  registerSweepStuck,
+} from "../translation/sweep_stuck_handler.ts";
 
 const DEFAULT_PORT = 3000;
 
@@ -97,6 +105,8 @@ export async function startServer(
   const queue = createBunnyQueue(db);
 
   registerBoardAutoRun(defaultHandlerRegistry);
+  registerAutoTranslate(defaultHandlerRegistry);
+  registerSweepStuck(defaultHandlerRegistry);
   const bootNow = Date.now();
   const boardAutoRunCron = "*/5 * * * *";
   try {
@@ -110,6 +120,36 @@ export async function startServer(
   } catch (e) {
     console.warn(
       "[bunny] failed to seed board.auto_run_scan:",
+      errorMessage(e),
+    );
+  }
+  const translationCron = "*/5 * * * *";
+  try {
+    ensureSystemTask(db, TRANSLATION_HANDLER, {
+      name: "Auto-translate entities",
+      description:
+        "Translate pending entity sidecar rows into every configured project language (every 5 minutes).",
+      cronExpr: translationCron,
+      nextRunAt: computeNextRun(translationCron, bootNow),
+    });
+  } catch (e) {
+    console.warn(
+      "[bunny] failed to seed translation.auto_translate_scan:",
+      errorMessage(e),
+    );
+  }
+  const translationSweepCron = "0 3 * * *";
+  try {
+    ensureSystemTask(db, TRANSLATION_SWEEP_HANDLER, {
+      name: "Translation stuck-row sweep",
+      description:
+        "Reclaim translation rows stuck in 'translating' (daily at 03:00).",
+      cronExpr: translationSweepCron,
+      nextRunAt: computeNextRun(translationSweepCron, bootNow),
+    });
+  } catch (e) {
+    console.warn(
+      "[bunny] failed to seed translation.sweep_stuck:",
       errorMessage(e),
     );
   }

@@ -1,6 +1,34 @@
 import type { Database } from "bun:sqlite";
 import type { User } from "../auth/users.ts";
 import type { Project } from "./projects.ts";
+import {
+  createTranslationSlots,
+  markAllStale as markTranslationsStale,
+  registerKind,
+  type TranslatableKind,
+} from "./translatable.ts";
+
+export const CONTACT_KIND: TranslatableKind = {
+  name: "contact",
+  entityTable: "contacts",
+  sidecarTable: "contact_translations",
+  entityFk: "contact_id",
+  sourceFields: ["notes"],
+  sidecarFields: ["notes"],
+};
+registerKind(CONTACT_KIND);
+
+function resolveOriginalLangForContact(
+  db: Database,
+  project: string,
+  explicit: string | undefined,
+): string | null {
+  if (explicit) return explicit;
+  const row = db
+    .prepare(`SELECT default_language FROM projects WHERE name = ?`)
+    .get(project) as { default_language: string } | undefined;
+  return row?.default_language ?? null;
+}
 
 export interface Contact {
   id: number;
@@ -14,6 +42,7 @@ export interface Contact {
   avatar: string | null;
   tags: string[];
   groups: number[];
+  originalLang: string | null;
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
@@ -41,6 +70,7 @@ interface ContactRow {
   notes: string;
   avatar: string | null;
   tags: string;
+  original_lang: string | null;
   created_by: string | null;
   created_at: number;
   updated_at: number;
@@ -80,6 +110,7 @@ function rowToContact(r: ContactRow, groups: number[] = []): Contact {
     avatar: r.avatar,
     tags: parseJsonArray(r.tags),
     groups,
+    originalLang: r.original_lang,
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -87,7 +118,7 @@ function rowToContact(r: ContactRow, groups: number[] = []): Contact {
 }
 
 const SELECT_COLS = `id, project, name, emails, phones, company, title, notes,
-                     avatar, tags, created_by, created_at, updated_at`;
+                     avatar, tags, original_lang, created_by, created_at, updated_at`;
 
 function batchGetGroupIds(
   db: Database,
@@ -209,6 +240,7 @@ export interface CreateContactOpts {
   avatar?: string | null;
   tags?: string[];
   groups?: number[];
+  originalLang?: string;
   createdBy: string;
 }
 
@@ -216,12 +248,17 @@ export function createContact(db: Database, opts: CreateContactOpts): Contact {
   const name = opts.name.trim();
   if (!name) throw new Error("contact name is required");
   const now = Date.now();
+  const originalLang = resolveOriginalLangForContact(
+    db,
+    opts.project,
+    opts.originalLang,
+  );
 
   const info = db
     .prepare(
       `INSERT INTO contacts(project, name, emails, phones, company, title, notes,
-                             avatar, tags, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                             avatar, tags, original_lang, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       opts.project,
@@ -233,6 +270,7 @@ export function createContact(db: Database, opts: CreateContactOpts): Contact {
       opts.notes ?? "",
       opts.avatar ?? null,
       JSON.stringify(opts.tags ?? []),
+      originalLang,
       opts.createdBy,
       now,
       now,
@@ -245,7 +283,7 @@ export function createContact(db: Database, opts: CreateContactOpts): Contact {
     );
     for (const gid of opts.groups) stmt.run(gid, contactId);
   }
-
+  createTranslationSlots(db, CONTACT_KIND, contactId);
   return getContact(db, contactId)!;
 }
 
@@ -299,6 +337,8 @@ export function updateContact(
     id,
   );
 
+  if (notes !== existing.notes) markTranslationsStale(db, CONTACT_KIND, id);
+
   let groups = existing.groups;
   if (patch.groups !== undefined) {
     db.prepare(`DELETE FROM contact_group_members WHERE contact_id = ?`).run(
@@ -339,11 +379,16 @@ export function bulkCreateContacts(
 ): number {
   const insertContact = db.prepare(
     `INSERT INTO contacts(project, name, emails, phones, company, title, notes,
-                           avatar, tags, created_by, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                           avatar, tags, original_lang, created_by, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const insertGroup = db.prepare(
     `INSERT OR IGNORE INTO contact_group_members(group_id, contact_id) VALUES (?, ?)`,
+  );
+  const projectDefaultLang = resolveOriginalLangForContact(
+    db,
+    project,
+    undefined,
   );
 
   const tx = db.transaction(() => {
@@ -361,14 +406,16 @@ export function bulkCreateContacts(
         c.notes ?? "",
         c.avatar ?? null,
         JSON.stringify(c.tags ?? []),
+        c.originalLang ?? projectDefaultLang,
         createdBy,
         now,
         now,
       );
+      const contactId = Number(info.lastInsertRowid);
       if (c.groups?.length) {
-        const contactId = Number(info.lastInsertRowid);
         for (const gid of c.groups) insertGroup.run(gid, contactId);
       }
+      createTranslationSlots(db, CONTACT_KIND, contactId);
     }
     return contacts.length;
   });

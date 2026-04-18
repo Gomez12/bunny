@@ -93,6 +93,19 @@ export interface SseKbDefinitionGeneratedEvent {
   sources: number;
 }
 
+/** Emitted when a translation sidecar row reaches a terminal state (ready or
+ * error) inside a session-scoped SSE stream. Only fires when the translation
+ * ran inside an active user session — background scheduler ticks have no
+ * project-room broadcast primitive, so the frontend relies on polling. */
+export interface SseTranslationGeneratedEvent {
+  type: "translation_generated";
+  kind: "kb_definition" | "document" | "contact" | "board_card";
+  entityId: number;
+  lang: string;
+  status: "ready" | "error";
+  error?: string;
+}
+
 export type SseEvent =
   | SseContentEvent
   | SseReasoningEvent
@@ -105,4 +118,5 @@ export type SseEvent =
   | SseDoneEvent
   | SseCardRunStartedEvent
   | SseCardRunFinishedEvent
-  | SseKbDefinitionGeneratedEvent;
+  | SseKbDefinitionGeneratedEvent
+  | SseTranslationGeneratedEvent;

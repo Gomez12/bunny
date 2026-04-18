@@ -498,6 +498,7 @@ export default function ContactsTab({ project, currentUser, onOpenInChat }: Prop
           mode="edit"
           initial={dialog.contact}
           allGroups={groups}
+          currentUser={currentUser}
           onClose={() => setDialog({ kind: "closed" })}
           onSubmit={handleEdit(dialog.contact)}
         />

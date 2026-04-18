@@ -1,6 +1,34 @@
 import type { Database } from "bun:sqlite";
 import type { Project } from "./projects.ts";
 import type { User } from "../auth/users.ts";
+import {
+  createTranslationSlots,
+  markAllStale as markTranslationsStale,
+  registerKind,
+  type TranslatableKind,
+} from "./translatable.ts";
+
+export const DOCUMENT_KIND: TranslatableKind = {
+  name: "document",
+  entityTable: "documents",
+  sidecarTable: "document_translations",
+  entityFk: "document_id",
+  sourceFields: ["name", "content_md"],
+  sidecarFields: ["name", "content_md"],
+};
+registerKind(DOCUMENT_KIND);
+
+function resolveOriginalLang(
+  db: Database,
+  project: string,
+  explicit: string | undefined,
+): string | null {
+  if (explicit) return explicit;
+  const row = db
+    .prepare(`SELECT default_language FROM projects WHERE name = ?`)
+    .get(project) as { default_language: string } | undefined;
+  return row?.default_language ?? null;
+}
 
 export interface Document {
   id: number;
@@ -9,6 +37,7 @@ export interface Document {
   contentMd: string;
   thumbnail: string | null;
   isTemplate: boolean;
+  originalLang: string | null;
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
@@ -26,6 +55,7 @@ interface DocumentRow {
   content_md: string;
   thumbnail: string | null;
   is_template: number;
+  original_lang: string | null;
   created_by: string | null;
   created_at: number;
   updated_at: number;
@@ -39,6 +69,7 @@ function rowToDocument(r: DocumentRow): Document {
     contentMd: r.content_md,
     thumbnail: r.thumbnail,
     isTemplate: r.is_template === 1,
+    originalLang: r.original_lang,
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -46,7 +77,7 @@ function rowToDocument(r: DocumentRow): Document {
 }
 
 const SELECT_COLS = `id, project, name, content_md, thumbnail, is_template,
-                     created_by, created_at, updated_at`;
+                     original_lang, created_by, created_at, updated_at`;
 
 const SUMMARY_COLS = `id, name, thumbnail, is_template, created_at, updated_at`;
 
@@ -90,6 +121,7 @@ export interface CreateDocumentOpts {
   contentMd?: string;
   thumbnail?: string;
   isTemplate?: boolean;
+  originalLang?: string;
   createdBy: string;
 }
 
@@ -100,11 +132,12 @@ export function createDocument(
   const name = opts.name.trim();
   if (!name) throw new Error("document name is required");
   const now = Date.now();
+  const originalLang = resolveOriginalLang(db, opts.project, opts.originalLang);
   const info = db
     .prepare(
       `INSERT INTO documents(project, name, content_md, thumbnail, is_template,
-                             created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                             original_lang, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       opts.project,
@@ -112,11 +145,14 @@ export function createDocument(
       opts.contentMd ?? "",
       opts.thumbnail ?? null,
       opts.isTemplate ? 1 : 0,
+      originalLang,
       opts.createdBy,
       now,
       now,
     );
-  return getDocument(db, Number(info.lastInsertRowid))!;
+  const id = Number(info.lastInsertRowid);
+  createTranslationSlots(db, DOCUMENT_KIND, id);
+  return getDocument(db, id)!;
 }
 
 export interface UpdateDocumentPatch {
@@ -144,6 +180,11 @@ export function updateDocument(
      SET name = ?, content_md = ?, thumbnail = ?, updated_at = ?
      WHERE id = ?`,
   ).run(name, contentMd, thumbnail, Date.now(), id);
+
+  const sourceChanged =
+    name !== existing.name || contentMd !== existing.contentMd;
+  if (sourceChanged) markTranslationsStale(db, DOCUMENT_KIND, id);
+
   return getDocument(db, id)!;
 }
 

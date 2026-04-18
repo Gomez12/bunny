@@ -57,6 +57,8 @@ export default function ProjectsTab({ currentUser, activeProject, onPickProject 
       visibility: v.visibility,
       lastN: v.lastN,
       recallK: v.recallK,
+      languages: v.languages,
+      defaultLanguage: v.defaultLanguage,
     });
     await syncAgentLinks(v.name, [], v.linkedAgents);
     await refresh();
@@ -70,6 +72,8 @@ export default function ProjectsTab({ currentUser, activeProject, onPickProject 
       visibility: v.visibility,
       lastN: v.lastN,
       recallK: v.recallK,
+      languages: v.languages,
+      defaultLanguage: v.defaultLanguage,
     });
     const before = agents.filter((a) => a.projects.includes(v.name)).map((a) => a.name);
     await syncAgentLinks(v.name, before, v.linkedAgents);

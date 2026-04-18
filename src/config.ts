@@ -91,6 +91,17 @@ export interface WebConfig {
   userAgent: string;
 }
 
+export interface TranslationConfig {
+  /** Max sidecar rows translated per scheduler tick (cap on one-shot LLM fan-out). */
+  maxPerTick: number;
+  /** Upper bound on source markdown/text size — anything larger is rejected. */
+  maxDocumentBytes: number;
+  /** Threshold in ms after which a `translating` row is swept back to pending. */
+  stuckThresholdMs: number;
+  /** System prompt for the translation handler. Empty = hard-coded default. */
+  systemPrompt: string;
+}
+
 export interface BunnyConfig {
   llm: LlmConfig;
   embed: EmbedConfig;
@@ -101,6 +112,7 @@ export interface BunnyConfig {
   agent: AgentConfig;
   ui: UiConfig;
   web: WebConfig;
+  translation: TranslationConfig;
   sessionId: string | undefined;
 }
 
@@ -134,6 +146,12 @@ interface TomlShape {
     serp_provider: string;
     serp_base_url: string;
     user_agent: string;
+  }>;
+  translation?: Partial<{
+    max_per_tick: number;
+    max_document_bytes: number;
+    stuck_threshold_ms: number;
+    system_prompt: string;
   }>;
 }
 
@@ -178,6 +196,12 @@ When you are done, reply with your final answer without making any more tool cal
     serpProvider: "serper",
     serpBaseUrl: "https://google.serper.dev/search",
     userAgent: "",
+  },
+  translation: {
+    maxPerTick: 20,
+    maxDocumentBytes: 30_720,
+    stuckThresholdMs: 30 * 60 * 1000,
+    systemPrompt: "",
   },
 } as const;
 
@@ -313,6 +337,24 @@ export function loadConfig(
     userAgent: toml.web?.user_agent ?? DEFAULTS.web.userAgent,
   };
 
+  const translation: TranslationConfig = {
+    maxPerTick: Number(
+      env["TRANSLATION_MAX_PER_TICK"] ??
+        toml.translation?.max_per_tick ??
+        DEFAULTS.translation.maxPerTick,
+    ),
+    maxDocumentBytes: Number(
+      toml.translation?.max_document_bytes ??
+        DEFAULTS.translation.maxDocumentBytes,
+    ),
+    stuckThresholdMs: Number(
+      toml.translation?.stuck_threshold_ms ??
+        DEFAULTS.translation.stuckThresholdMs,
+    ),
+    systemPrompt:
+      toml.translation?.system_prompt ?? DEFAULTS.translation.systemPrompt,
+  };
+
   return {
     llm,
     embed,
@@ -323,6 +365,7 @@ export function loadConfig(
     agent,
     ui,
     web,
+    translation,
     sessionId: env["BUNNY_SESSION"],
   };
 }

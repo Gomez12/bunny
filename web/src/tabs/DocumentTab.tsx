@@ -3,6 +3,10 @@ import DocumentSidebar from "../components/DocumentSidebar";
 import DocumentComposer from "../components/DocumentComposer";
 import DocumentEditor, { type DocumentEditorHandle } from "../components/DocumentEditor";
 import WhiteboardPickerDialog from "../components/WhiteboardPickerDialog";
+import LanguageTabs, { translationStatusToPill } from "../components/LanguageTabs";
+import StatusPill, { type PillStatus } from "../components/StatusPill";
+import MarkdownContent from "../components/MarkdownContent";
+import { useTranslations } from "../hooks/useTranslations";
 import {
   fetchDocuments,
   fetchDocument,
@@ -14,19 +18,24 @@ import {
   exportDocument,
   saveAsTemplate,
   fetchUiConfig,
+  type AuthUser,
   type DocumentSummary,
   type ServerEvent,
 } from "../api";
 
 interface Props {
   project: string;
+  currentUser: AuthUser;
   onOpenInChat: (sessionId: string) => void;
 }
 
-export default function DocumentTab({ project, onOpenInChat }: Props) {
+export default function DocumentTab({ project, currentUser, onOpenInChat }: Props) {
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [templates, setTemplates] = useState<DocumentSummary[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
+  const [activeOriginalLang, setActiveOriginalLang] = useState<string | null>(
+    null,
+  );
   const [contentMd, setContentMd] = useState("");
   const [mode, setMode] = useState<"edit" | "question">("edit");
   const [streaming, setStreaming] = useState(false);
@@ -79,6 +88,7 @@ export default function DocumentTab({ project, onOpenInChat }: Props) {
       setContentMd(doc.contentMd);
       lastSavedRef.current = doc.contentMd;
       setActiveId(id);
+      setActiveOriginalLang(doc.originalLang);
       setDirty(false);
     } catch (e) {
       setError(String(e));
@@ -332,40 +342,26 @@ export default function DocumentTab({ project, onOpenInChat }: Props) {
       />
       <div className="doc-tab__main">
         {activeId !== null ? (
-          <>
-            <DocumentEditor
-              key={activeId}
-              ref={editorRef}
-              documentId={activeId}
-              contentMd={contentMd}
-              onChange={handleContentChange}
-              onExport={handleExport}
-              onInsertWhiteboard={() => setShowWbPicker(true)}
-              onSaveAsTemplate={handleSaveAsTemplate}
-            />
-            {streaming && (
-              <div className="doc-tab__overlay">
-                <span className="spinner" />
-                <span>AI is editing the document...</span>
-              </div>
-            )}
-            {error && (
-              <div className="doc-tab__error">
-                {error}
-                <button className="doc-tab__error-close" onClick={() => setError(null)}>
-                  &times;
-                </button>
-              </div>
-            )}
-            <DocumentComposer
-              mode={mode}
-              onModeChange={setMode}
-              onSend={handleSend}
-              onSave={handleManualSave}
-              streaming={streaming}
-              dirty={dirty}
-            />
-          </>
+          <DocumentBody
+            project={project}
+            currentUser={currentUser}
+            activeId={activeId}
+            contentMd={contentMd}
+            activeOriginalLang={activeOriginalLang}
+            editorRef={editorRef}
+            handleContentChange={handleContentChange}
+            handleExport={handleExport}
+            onInsertWhiteboard={() => setShowWbPicker(true)}
+            handleSaveAsTemplate={handleSaveAsTemplate}
+            streaming={streaming}
+            error={error}
+            setError={setError}
+            mode={mode}
+            setMode={setMode}
+            handleSend={handleSend}
+            handleManualSave={handleManualSave}
+            dirty={dirty}
+          />
         ) : (
           <div className="doc-tab__empty">
             <h2>No documents yet</h2>
@@ -381,5 +377,147 @@ export default function DocumentTab({ project, onOpenInChat }: Props) {
         />
       )}
     </div>
+  );
+}
+
+interface DocumentBodyProps {
+  project: string;
+  currentUser: AuthUser;
+  activeId: number;
+  contentMd: string;
+  activeOriginalLang: string | null;
+  editorRef: React.RefObject<DocumentEditorHandle | null>;
+  handleContentChange: (md: string) => void;
+  handleExport: (format: "docx" | "html" | "pdf") => Promise<void>;
+  onInsertWhiteboard: () => void;
+  handleSaveAsTemplate: () => Promise<void>;
+  streaming: boolean;
+  error: string | null;
+  setError: (e: string | null) => void;
+  mode: "edit" | "question";
+  setMode: (m: "edit" | "question") => void;
+  handleSend: (prompt: string) => Promise<void>;
+  handleManualSave: () => Promise<void>;
+  dirty: boolean;
+}
+
+/**
+ * Document body with a language tabstrip above the editor. On the source-lang
+ * tab the Tiptap editor owns the content; other tabs render the translated
+ * markdown read-only via `<MarkdownContent>` with a "Translate now" button.
+ */
+function DocumentBody(p: DocumentBodyProps) {
+  const tr = useTranslations(
+    "document",
+    p.activeId,
+    p.project,
+    p.currentUser,
+    p.activeOriginalLang,
+  );
+  const showTabs = !!p.activeOriginalLang && tr.languages.length > 1;
+  const isSourceActive = !showTabs || tr.isSourceActive;
+  const t = tr.activeTranslation;
+  const pill: PillStatus = t ? translationStatusToPill(t) : "pending";
+  const translatedName = (t?.fields["name"] ?? "") as string;
+  const translatedContent = (t?.fields["content_md"] ?? "") as string;
+
+  return (
+    <>
+      {showTabs && (
+        <div style={{ padding: "12px 24px 0 24px" }}>
+          <LanguageTabs
+            languages={tr.languages}
+            sourceLang={p.activeOriginalLang!}
+            activeLang={tr.activeLang}
+            translations={tr.translations}
+            onChange={tr.setActiveLang}
+          />
+        </div>
+      )}
+      {isSourceActive ? (
+        <>
+          <DocumentEditor
+            key={p.activeId}
+            ref={p.editorRef}
+            documentId={p.activeId}
+            contentMd={p.contentMd}
+            onChange={p.handleContentChange}
+            onExport={p.handleExport}
+            onInsertWhiteboard={p.onInsertWhiteboard}
+            onSaveAsTemplate={p.handleSaveAsTemplate}
+          />
+          {p.streaming && (
+            <div className="doc-tab__overlay">
+              <span className="spinner" />
+              <span>AI is editing the document...</span>
+            </div>
+          )}
+          {p.error && (
+            <div className="doc-tab__error">
+              {p.error}
+              <button className="doc-tab__error-close" onClick={() => p.setError(null)}>
+                &times;
+              </button>
+            </div>
+          )}
+          <DocumentComposer
+            mode={p.mode}
+            onModeChange={p.setMode}
+            onSend={p.handleSend}
+            onSave={p.handleManualSave}
+            streaming={p.streaming}
+            dirty={p.dirty}
+          />
+        </>
+      ) : (
+        <div
+          style={{
+            padding: "12px 24px 24px 24px",
+            overflowY: "auto",
+            flex: 1,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 12,
+            }}
+          >
+            <h2 style={{ margin: 0, fontSize: 20 }}>
+              {translatedName || (
+                <em style={{ color: "var(--text-faint)" }}>Not translated yet</em>
+              )}
+            </h2>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <StatusPill status={pill} />
+              <button
+                type="button"
+                className="btn"
+                onClick={() => void tr.translate()}
+                disabled={tr.triggering || t?.status === "translating"}
+              >
+                {tr.triggering ? "Sending…" : "Translate now"}
+              </button>
+            </div>
+          </div>
+          <div style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 12 }}>
+            Read-only translation — switch to the source tab to edit.
+          </div>
+          {t?.status === "error" && t.error && (
+            <div className="doc-tab__error">{t.error}</div>
+          )}
+          {translatedContent.trim() ? (
+            <MarkdownContent text={translatedContent} />
+          ) : (
+            <div className="lang-readonly lang-readonly--empty">
+              No translation yet — click "Translate now" to run it immediately,
+              or wait for the next scheduled tick (every 5 min).
+            </div>
+          )}
+        </div>
+      )}
+    </>
   );
 }

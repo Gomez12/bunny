@@ -15,9 +15,36 @@ export interface ProjectDialogValue {
   lastN: number | null;
   /** null = inherit the global [memory] default. */
   recallK: number | null;
+  /** ISO 639-1 codes supported by the project. */
+  languages: string[];
+  /** Must be a member of `languages`. */
+  defaultLanguage: string;
   /** Agent names that should be linked to this project after submit. */
   linkedAgents: string[];
 }
+
+/** Curated list of ISO 639-1 codes with English display names. Extend freely —
+ * any valid 2-letter code would work server-side, this is just the picker. */
+const LANGUAGE_OPTIONS: ReadonlyArray<{ code: string; name: string }> = [
+  { code: "en", name: "English" },
+  { code: "nl", name: "Nederlands" },
+  { code: "de", name: "Deutsch" },
+  { code: "fr", name: "Français" },
+  { code: "es", name: "Español" },
+  { code: "it", name: "Italiano" },
+  { code: "pt", name: "Português" },
+  { code: "sv", name: "Svenska" },
+  { code: "no", name: "Norsk" },
+  { code: "da", name: "Dansk" },
+  { code: "pl", name: "Polski" },
+  { code: "fi", name: "Suomi" },
+  { code: "tr", name: "Türkçe" },
+  { code: "ja", name: "日本語" },
+  { code: "zh", name: "中文" },
+  { code: "ko", name: "한국어" },
+  { code: "ru", name: "Русский" },
+  { code: "ar", name: "العربية" },
+];
 
 interface Props {
   mode: "create" | "edit";
@@ -42,6 +69,10 @@ export default function ProjectDialog({
   const [visibility, setVisibility] = useState<ProjectVisibility>(initial?.visibility ?? "public");
   const [lastN, setLastN] = useState<string>(initial?.lastN == null ? "" : String(initial.lastN));
   const [recallK, setRecallK] = useState<string>(initial?.recallK == null ? "" : String(initial.recallK));
+  const [languages, setLanguages] = useState<string[]>(initial?.languages ?? ["en"]);
+  const [defaultLanguage, setDefaultLanguage] = useState<string>(
+    initial?.defaultLanguage ?? initial?.languages?.[0] ?? "en",
+  );
   const [linkedAgents, setLinkedAgents] = useState<string[]>(() => {
     if (!initial) return [];
     return allAgents.filter((a) => a.projects.includes(initial.name)).map((a) => a.name);
@@ -68,6 +99,14 @@ export default function ProjectDialog({
       setError("Memory overrides must be blank or a non-negative integer.");
       return;
     }
+    if (languages.length === 0) {
+      setError("Pick at least one language for the project.");
+      return;
+    }
+    if (!languages.includes(defaultLanguage)) {
+      setError("Default language must be one of the selected languages.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -79,6 +118,8 @@ export default function ProjectDialog({
         visibility,
         lastN: parsedLastN,
         recallK: parsedRecallK,
+        languages,
+        defaultLanguage,
         linkedAgents,
       });
       onClose();
@@ -187,6 +228,63 @@ export default function ProjectDialog({
               </span>
             </label>
           </div>
+
+          <label className="project-form__field">
+            <span>Languages</span>
+            <div className="project-form__chips">
+              {LANGUAGE_OPTIONS.map((opt) => {
+                const checked = languages.includes(opt.code);
+                return (
+                  <label
+                    key={opt.code}
+                    className="project-form__chip"
+                    title={opt.name}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() =>
+                        setLanguages((prev) => {
+                          const next = checked
+                            ? prev.filter((l) => l !== opt.code)
+                            : [...prev, opt.code];
+                          if (!next.includes(defaultLanguage)) {
+                            setDefaultLanguage(next[0] ?? "en");
+                          }
+                          return next;
+                        })
+                      }
+                    />
+                    <span>
+                      {opt.code.toUpperCase()} · {opt.name}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            <span className="project-form__hint">
+              Every entity is authored in one of these and auto-translated to the rest.
+            </span>
+          </label>
+
+          <label className="project-form__field">
+            <span>Default language</span>
+            <select
+              value={defaultLanguage}
+              onChange={(e) => setDefaultLanguage(e.target.value)}
+            >
+              {languages.map((l) => (
+                <option key={l} value={l}>
+                  {l.toUpperCase()} ·{" "}
+                  {LANGUAGE_OPTIONS.find((o) => o.code === l)?.name ?? l}
+                </option>
+              ))}
+            </select>
+            <span className="project-form__hint">
+              New entities created in this project start in this language unless
+              the user has overridden their preferred language.
+            </span>
+          </label>
 
           <label className="project-form__field">
             <span>Available agents</span>

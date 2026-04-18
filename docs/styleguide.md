@@ -168,6 +168,8 @@ Sanctioned icon usage at the time of writing (see `web/src/lib/icons.ts` for the
 | Agent | `Bot` |
 | Skill | `Sparkles` |
 | Logout | `LogOut` |
+| Language (surface) | `Globe` |
+| Language (tool) | `Languages` |
 
 ---
 
@@ -235,3 +237,4 @@ Events may carry `author` (agent name) — when set, render `@name` instead of t
 - **2026-04-17** — Initial styleguide. Introduced sidebar navigation (10 items in 4 groups), `lucide-react` icon system via `web/src/lib/icons.ts`, rabbit mascot (brand / watermark / empty / auth), shared primitives `Sidebar` / `EmptyState`. Tab count 14 → 10. See [ADR 0020](./adr/0020-ui-redesign-and-styleguide.md).
 - **2026-04-18** — Switched to a 56 px icon-rail that expands to 240 px on hover as an overlay (VS Code pattern), restoring the tab-owned context columns (Chat, Documents, Whiteboard, Contacts sidebars). Fixes the layout regression where an always-on 240 px sidebar collided with tabs that carry their own sidebar.
 - **2026-04-18** — Added **Knowledge Base** nav item (icon: `Library`) in the Content group. New card shape `.kb-card` (same 20 px padding / 12 px radius / auto-fill grid as `.contact-card` / `.project-card`) with status chips (`.kb-chip--idle|--generating|--ok|--cleared|--error|--active|--project`). Dialog reuses the `.modal.modal--wide` shell. New icons in the barrel: `Library`, `Eraser`, `ExternalLink`. See [ADR 0021](./adr/0021-knowledge-base-definitions.md).
+- **2026-04-18** — Added multi-language translation primitives. New components: `<LanguageTabs>` (pill-shaped tabstrip, source tab highlighted with a filled `LangBadge`, translation tabs carry a `<StatusPill>`), `<LangBadge>` (compact 2-letter uppercase pill in accent colour — used next to entity titles in list rows to show source language), `<StatusPill>` (generic status pill, reuses `.kb-chip` variants; statuses: `up-to-date` / `translating` / `stale` / `pending` / `failed` / `source` / `orphaned`), `<TranslationsPanel>` (drops into every entity dialog; tabstrip + read-only translation body + "Translate now" button; polls every 5 s while any row is transient). New CSS classes: `.lang-badge`, `.lang-tabs`, `.lang-tab`, `.lang-tab--active`, `.lang-tab--source`, `.lang-readonly` (+ `--empty` modifier), `.lang-readonly__header`, `.lang-readonly__translate-btn`, `.lang-readonly__error`. New icons in the barrel: `Globe`, `Languages`. See [ADR 0022](./adr/0022-multi-language-translation.md).

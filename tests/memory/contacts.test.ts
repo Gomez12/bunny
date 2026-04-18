@@ -384,6 +384,7 @@ describe("canEditContact", () => {
       updatedAt: 0,
       expandThinkBubbles: false,
       expandToolBubbles: false,
+      preferredLanguage: null,
     };
     const project = { name: "alpha", createdBy: "owner" } as Project;
     expect(canEditContact(admin, c, project)).toBe(true);
@@ -408,6 +409,7 @@ describe("canEditContact", () => {
       updatedAt: 0,
       expandThinkBubbles: false,
       expandToolBubbles: false,
+      preferredLanguage: null,
     };
     const project = { name: "alpha", createdBy: "owner" } as Project;
     expect(canEditContact(user, c, project)).toBe(true);
@@ -432,6 +434,7 @@ describe("canEditContact", () => {
       updatedAt: 0,
       expandThinkBubbles: false,
       expandToolBubbles: false,
+      preferredLanguage: null,
     };
     const project = { name: "alpha", createdBy: "owner" } as Project;
     expect(canEditContact(user, c, project)).toBe(false);

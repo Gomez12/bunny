@@ -15,6 +15,34 @@ import { POSITION_STEP } from "./board_swimlanes.ts";
 import { prep } from "./prepared.ts";
 import type { Project } from "./projects.ts";
 import type { User } from "../auth/users.ts";
+import {
+  createTranslationSlots,
+  markAllStale as markTranslationsStale,
+  registerKind,
+  type TranslatableKind,
+} from "./translatable.ts";
+
+export const BOARD_CARD_KIND: TranslatableKind = {
+  name: "board_card",
+  entityTable: "board_cards",
+  sidecarTable: "board_card_translations",
+  entityFk: "card_id",
+  sourceFields: ["title", "description"],
+  sidecarFields: ["title", "description"],
+};
+registerKind(BOARD_CARD_KIND);
+
+function resolveOriginalLangForCard(
+  db: Database,
+  project: string,
+  explicit: string | undefined,
+): string | null {
+  if (explicit) return explicit;
+  const row = db
+    .prepare(`SELECT default_language FROM projects WHERE name = ?`)
+    .get(project) as { default_language: string } | undefined;
+  return row?.default_language ?? null;
+}
 
 export interface Card {
   id: number;
@@ -28,6 +56,7 @@ export interface Card {
   autoRun: boolean;
   estimateHours: number | null;
   percentDone: number | null;
+  originalLang: string | null;
   createdBy: string;
   createdAt: number;
   updatedAt: number;
@@ -46,6 +75,7 @@ interface CardRow {
   auto_run: number;
   estimate_hours: number | null;
   percent_done: number | null;
+  original_lang: string | null;
   created_by: string;
   created_at: number;
   updated_at: number;
@@ -65,6 +95,7 @@ function rowToCard(r: CardRow): Card {
     autoRun: (r.auto_run ?? 0) !== 0,
     estimateHours: r.estimate_hours ?? null,
     percentDone: r.percent_done ?? null,
+    originalLang: r.original_lang,
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -74,7 +105,7 @@ function rowToCard(r: CardRow): Card {
 
 const SELECT_COLS = `id, project, swimlane_id, position, title, description,
                      assignee_user_id, assignee_agent, auto_run, estimate_hours, percent_done,
-                     created_by, created_at, updated_at, archived_at`;
+                     original_lang, created_by, created_at, updated_at, archived_at`;
 
 export interface ListCardsOpts {
   includeArchived?: boolean;
@@ -114,6 +145,7 @@ export interface CreateCardOpts {
   autoRun?: boolean;
   estimateHours?: number | null;
   percentDone?: number | null;
+  originalLang?: string;
   createdBy: string;
   position?: number;
 }
@@ -125,13 +157,18 @@ export function createCard(db: Database, opts: CreateCardOpts): Card {
   const now = Date.now();
   const position = opts.position ?? nextPosition(db, opts.swimlaneId);
   const autoRun = opts.autoRun ?? Boolean(opts.assigneeAgent);
+  const originalLang = resolveOriginalLangForCard(
+    db,
+    opts.project,
+    opts.originalLang,
+  );
   const info = prep(
     db,
     `INSERT INTO board_cards(project, swimlane_id, position, title, description,
                                assignee_user_id, assignee_agent, auto_run,
-                               estimate_hours, percent_done, created_by,
-                               created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                               estimate_hours, percent_done, original_lang,
+                               created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     opts.project,
     opts.swimlaneId,
@@ -143,11 +180,14 @@ export function createCard(db: Database, opts: CreateCardOpts): Card {
     autoRun ? 1 : 0,
     opts.estimateHours ?? null,
     opts.percentDone ?? null,
+    originalLang,
     opts.createdBy,
     now,
     now,
   );
-  return getCard(db, Number(info.lastInsertRowid))!;
+  const id = Number(info.lastInsertRowid);
+  createTranslationSlots(db, BOARD_CARD_KIND, id);
+  return getCard(db, id)!;
 }
 
 export interface UpdateCardPatch {
@@ -223,6 +263,11 @@ export function updateCard(
     Date.now(),
     id,
   );
+
+  const sourceChanged =
+    title !== existing.title || description !== existing.description;
+  if (sourceChanged) markTranslationsStale(db, BOARD_CARD_KIND, id);
+
   return getCard(db, id)!;
 }
 

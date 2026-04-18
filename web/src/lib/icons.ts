@@ -56,6 +56,8 @@ export {
   Sparkles,
   LogOut,
   Menu,
+  Globe,
+  Languages,
 } from "lucide-react";
 
 /**

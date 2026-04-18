@@ -17,9 +17,47 @@ export interface Project {
   name: string;
   description: string | null;
   visibility: ProjectVisibility;
+  languages: string[];
+  defaultLanguage: string;
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
+}
+
+const ISO_639_1_RE = /^[a-z]{2}$/;
+
+/** Normalise + validate a languages/default_language pair. Throws on invalid input. */
+export function validateLanguages(
+  rawLanguages: unknown,
+  rawDefault: unknown,
+): { languages: string[]; defaultLanguage: string } {
+  if (!Array.isArray(rawLanguages) || rawLanguages.length === 0) {
+    throw new Error("languages must be a non-empty array of ISO 639-1 codes");
+  }
+  const languages: string[] = [];
+  for (const l of rawLanguages) {
+    if (typeof l !== "string") {
+      throw new Error("languages must contain only strings");
+    }
+    const code = l.toLowerCase();
+    if (!ISO_639_1_RE.test(code)) {
+      throw new Error(`invalid language code '${l}' (ISO 639-1 expected)`);
+    }
+    if (!languages.includes(code)) languages.push(code);
+  }
+  if (typeof rawDefault !== "string") {
+    throw new Error("default_language must be a string");
+  }
+  const def = rawDefault.toLowerCase();
+  if (!ISO_639_1_RE.test(def)) {
+    throw new Error(`invalid default_language '${rawDefault}'`);
+  }
+  if (!languages.includes(def)) {
+    throw new Error(
+      `default_language '${def}' must be listed in languages [${languages.join(", ")}]`,
+    );
+  }
+  return { languages, defaultLanguage: def };
 }
 
 export const DEFAULT_PROJECT = "general";
@@ -39,38 +77,61 @@ interface ProjectRow {
   name: string;
   description: string | null;
   visibility: string;
+  languages: string | null;
+  default_language: string | null;
   created_by: string | null;
   created_at: number;
   updated_at: number;
 }
 
+function parseLanguages(raw: string | null): string[] {
+  if (!raw) return ["en"];
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return ["en"];
+    const out: string[] = [];
+    for (const v of arr) {
+      if (typeof v === "string" && ISO_639_1_RE.test(v)) out.push(v);
+    }
+    return out.length ? out : ["en"];
+  } catch {
+    return ["en"];
+  }
+}
+
 function rowToProject(r: ProjectRow): Project {
+  const languages = parseLanguages(r.languages);
+  const def =
+    r.default_language && ISO_639_1_RE.test(r.default_language)
+      ? r.default_language
+      : languages[0]!;
   return {
     name: r.name,
     description: r.description,
     visibility: (r.visibility === "private"
       ? "private"
       : "public") as ProjectVisibility,
+    languages,
+    defaultLanguage: languages.includes(def) ? def : languages[0]!,
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
 }
 
+const PROJECT_SELECT_COLS = `name, description, visibility, languages, default_language,
+                              created_by, created_at, updated_at`;
+
 export function listProjects(db: Database): Project[] {
   const rows = db
-    .prepare(
-      `SELECT name, description, visibility, created_by, created_at, updated_at FROM projects ORDER BY name ASC`,
-    )
+    .prepare(`SELECT ${PROJECT_SELECT_COLS} FROM projects ORDER BY name ASC`)
     .all() as ProjectRow[];
   return rows.map(rowToProject);
 }
 
 export function getProject(db: Database, name: string): Project | null {
   const row = db
-    .prepare(
-      `SELECT name, description, visibility, created_by, created_at, updated_at FROM projects WHERE name = ?`,
-    )
+    .prepare(`SELECT ${PROJECT_SELECT_COLS} FROM projects WHERE name = ?`)
     .get(name) as ProjectRow | undefined;
   return row ? rowToProject(row) : null;
 }
@@ -79,19 +140,30 @@ export interface CreateProjectOpts {
   name: string;
   description?: string | null;
   visibility?: ProjectVisibility;
+  languages?: string[];
+  defaultLanguage?: string;
   createdBy?: string | null;
 }
 
 export function createProject(db: Database, opts: CreateProjectOpts): Project {
   const name = validateProjectName(opts.name);
   const now = Date.now();
+  const rawLanguages = opts.languages ?? ["en"];
+  const rawDefault = opts.defaultLanguage ?? rawLanguages[0] ?? "en";
+  const { languages, defaultLanguage } = validateLanguages(
+    rawLanguages,
+    rawDefault,
+  );
   db.prepare(
-    `INSERT INTO projects(name, description, visibility, created_by, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO projects(name, description, visibility, languages, default_language,
+                          created_by, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     name,
     opts.description ?? null,
     opts.visibility ?? "public",
+    JSON.stringify(languages),
+    defaultLanguage,
     opts.createdBy ?? null,
     now,
     now,
@@ -103,6 +175,8 @@ export function createProject(db: Database, opts: CreateProjectOpts): Project {
 export interface UpdateProjectPatch {
   description?: string | null;
   visibility?: ProjectVisibility;
+  languages?: string[];
+  defaultLanguage?: string;
 }
 
 export function updateProject(
@@ -115,9 +189,28 @@ export function updateProject(
   const description =
     patch.description === undefined ? existing.description : patch.description;
   const visibility = patch.visibility ?? existing.visibility;
+  let languages = existing.languages;
+  let defaultLanguage = existing.defaultLanguage;
+  if (patch.languages !== undefined || patch.defaultLanguage !== undefined) {
+    const nextLanguages = patch.languages ?? existing.languages;
+    const nextDefault = patch.defaultLanguage ?? existing.defaultLanguage;
+    const validated = validateLanguages(nextLanguages, nextDefault);
+    languages = validated.languages;
+    defaultLanguage = validated.defaultLanguage;
+  }
   db.prepare(
-    `UPDATE projects SET description = ?, visibility = ?, updated_at = ? WHERE name = ?`,
-  ).run(description, visibility, Date.now(), name);
+    `UPDATE projects
+       SET description = ?, visibility = ?, languages = ?, default_language = ?,
+           updated_at = ?
+     WHERE name = ?`,
+  ).run(
+    description,
+    visibility,
+    JSON.stringify(languages),
+    defaultLanguage,
+    Date.now(),
+    name,
+  );
   return getProject(db, name)!;
 }
 

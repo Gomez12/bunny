@@ -54,11 +54,33 @@ export default function SettingsPage({
   );
 }
 
+const LANGUAGE_OPTIONS: ReadonlyArray<{ code: string; name: string }> = [
+  { code: "en", name: "English" },
+  { code: "nl", name: "Nederlands" },
+  { code: "de", name: "Deutsch" },
+  { code: "fr", name: "Français" },
+  { code: "es", name: "Español" },
+  { code: "it", name: "Italiano" },
+  { code: "pt", name: "Português" },
+  { code: "sv", name: "Svenska" },
+  { code: "no", name: "Norsk" },
+  { code: "da", name: "Dansk" },
+  { code: "pl", name: "Polski" },
+  { code: "fi", name: "Suomi" },
+  { code: "tr", name: "Türkçe" },
+  { code: "ja", name: "日本語" },
+  { code: "zh", name: "中文" },
+  { code: "ko", name: "한국어" },
+  { code: "ru", name: "Русский" },
+  { code: "ar", name: "العربية" },
+];
+
 function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthUser) => void }) {
   const [displayName, setDisplayName] = useState(user.displayName ?? "");
   const [email, setEmail] = useState(user.email ?? "");
   const [expandThink, setExpandThink] = useState(user.expandThinkBubbles);
   const [expandTool, setExpandTool] = useState(user.expandToolBubbles);
+  const [preferredLang, setPreferredLang] = useState<string>(user.preferredLanguage ?? "");
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -69,6 +91,7 @@ function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthU
     setEmail(user.email ?? "");
     setExpandThink(user.expandThinkBubbles);
     setExpandTool(user.expandToolBubbles);
+    setPreferredLang(user.preferredLanguage ?? "");
   }, [user]);
 
   const save = async (e: React.FormEvent) => {
@@ -81,6 +104,7 @@ function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthU
         email: email || null,
         expandThinkBubbles: expandThink,
         expandToolBubbles: expandTool,
+        preferredLanguage: preferredLang || null,
       });
       onUpdated(u);
       setMsg("Profile saved.");
@@ -124,6 +148,25 @@ function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthU
         <label>
           <span>Email</span>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        </label>
+        <label>
+          <span>Preferred language</span>
+          <select
+            value={preferredLang}
+            onChange={(e) => setPreferredLang(e.target.value)}
+          >
+            <option value="">Follow project default</option>
+            {LANGUAGE_OPTIONS.map((opt) => (
+              <option key={opt.code} value={opt.code}>
+                {opt.code.toUpperCase()} · {opt.name}
+              </option>
+            ))}
+          </select>
+          <span className="muted" style={{ fontSize: 12 }}>
+            Determines the language you author new entities in and the first
+            tab shown when you open existing entities. If a project doesn't
+            support this language, we use that project's default.
+          </span>
         </label>
         <h3>Chat display</h3>
         <label className="checkbox">

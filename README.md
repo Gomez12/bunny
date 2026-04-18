@@ -26,6 +26,10 @@ bun run src/index.ts --project alpha "write an intro for this project"
 
 The CLI auto-creates the DB row and directory if they don't exist yet. Switching projects starts a new session — one session belongs to exactly one project. See [ADR 0008](./docs/adr/0008-projects.md).
 
+### Multi-language translation
+
+A project can declare a list of **languages** plus a default. Every KB definition, document, contact `notes`, and board card is authored in one source language (picked from the project's list, defaulting to the user's preferred language when set) and automatically translated into the project's other languages by a scheduled task (every 5 minutes). Translations are read-only; only the source is editable. Editing a source field marks translations `stale`; edit-and-revert is a zero-cost no-op because we hash the source fields. Open any entity dialog to see the language tabstrip — the source tab is editable, the others show the translated content with a status pill and a "Translate now" button. Set your own `preferred_language` in Settings to control both which language new entities are authored in and which tab opens first when you view an existing one. See [ADR 0022](./docs/adr/0022-multi-language-translation.md).
+
 ### Agents
 
 An **agent** is a named personality with its own system prompt and a restricted tool-set. Create one in the web UI ("Agents" tab → `+ New agent`), link it to a project, and invoke it in Chat by prefixing your message with `@name`:

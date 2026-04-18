@@ -135,6 +135,53 @@ function migrateColumns(db: Database): void {
   addColumn(
     "ALTER TABLE documents ADD COLUMN is_template INTEGER NOT NULL DEFAULT 0",
   );
+  // ── Multi-language support ────────────────────────────────────────────────
+  addColumn(
+    "ALTER TABLE projects ADD COLUMN languages TEXT NOT NULL DEFAULT '[\"en\"]'",
+  );
+  addColumn(
+    "ALTER TABLE projects ADD COLUMN default_language TEXT NOT NULL DEFAULT 'en'",
+  );
+  addColumn("ALTER TABLE users ADD COLUMN preferred_language TEXT");
+  for (const t of ["kb_definitions", "documents", "contacts", "board_cards"]) {
+    addColumn(`ALTER TABLE ${t} ADD COLUMN original_lang TEXT`);
+    addColumn(
+      `ALTER TABLE ${t} ADD COLUMN source_version INTEGER NOT NULL DEFAULT 1`,
+    );
+  }
+  // Backfill original_lang once for legacy rows.
+  db.run(
+    `UPDATE kb_definitions
+       SET original_lang = COALESCE(
+         (SELECT default_language FROM projects WHERE projects.name = kb_definitions.project),
+         'en'
+       )
+     WHERE original_lang IS NULL`,
+  );
+  db.run(
+    `UPDATE documents
+       SET original_lang = COALESCE(
+         (SELECT default_language FROM projects WHERE projects.name = documents.project),
+         'en'
+       )
+     WHERE original_lang IS NULL`,
+  );
+  db.run(
+    `UPDATE contacts
+       SET original_lang = COALESCE(
+         (SELECT default_language FROM projects WHERE projects.name = contacts.project),
+         'en'
+       )
+     WHERE original_lang IS NULL`,
+  );
+  db.run(
+    `UPDATE board_cards
+       SET original_lang = COALESCE(
+         (SELECT default_language FROM projects WHERE projects.name = board_cards.project),
+         'en'
+       )
+     WHERE original_lang IS NULL`,
+  );
   db.run("CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_id)");
   db.run(
     "CREATE INDEX IF NOT EXISTS idx_messages_session_user ON messages(session_id, user_id)",

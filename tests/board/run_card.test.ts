@@ -113,6 +113,12 @@ function makeCfg(): BunnyConfig {
       serpBaseUrl: "",
       userAgent: "",
     },
+    translation: {
+      maxPerTick: 20,
+      maxDocumentBytes: 30_720,
+      stuckThresholdMs: 30 * 60 * 1000,
+      systemPrompt: "",
+    },
     sessionId: undefined,
   };
 }
