@@ -345,6 +345,36 @@ CREATE TABLE IF NOT EXISTS contact_group_members (
 );
 CREATE INDEX IF NOT EXISTS idx_cgm_contact ON contact_group_members(contact_id);
 
+-- ── Knowledge Base: Definitions ──────────────────────────────────────────────
+-- Per-project dictionary of project-specific terms. Each row holds up to three
+-- candidate descriptions (manual, short LLM, long LLM) plus a list of external
+-- source links. `active_description` names the one the project considers
+-- authoritative. `llm_cleared` distinguishes "never generated" (llm_cleared=0
+-- with NULL fields — future auto-fill scheduler target) from "explicitly
+-- cleared by user" (llm_cleared=1, NULL fields — auto-fill skips). `term` is
+-- stored COLLATE NOCASE so "Supplier" and "supplier" collide on the
+-- UNIQUE(project, term) constraint.
+CREATE TABLE IF NOT EXISTS kb_definitions (
+  id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+  project              TEXT    NOT NULL,
+  term                 TEXT    NOT NULL COLLATE NOCASE,
+  manual_description   TEXT    NOT NULL DEFAULT '',
+  llm_short            TEXT,
+  llm_long             TEXT,
+  llm_sources          TEXT    NOT NULL DEFAULT '[]',   -- JSON: [{title,url}]
+  llm_cleared          INTEGER NOT NULL DEFAULT 0,      -- 1 = user explicitly cleared
+  llm_status           TEXT    NOT NULL DEFAULT 'idle', -- 'idle' | 'generating' | 'error'
+  llm_error            TEXT,
+  llm_generated_at     INTEGER,                         -- Unix ms of last successful generation
+  is_project_dependent INTEGER NOT NULL DEFAULT 0,
+  active_description   TEXT    NOT NULL DEFAULT 'manual', -- 'manual' | 'short' | 'long'
+  created_by           TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at           INTEGER NOT NULL,
+  updated_at           INTEGER NOT NULL,
+  UNIQUE(project, term)
+);
+CREATE INDEX IF NOT EXISTS idx_kb_definitions_project ON kb_definitions(project, term);
+
 -- ── Embeddings ───────────────────────────────────────────────────────────────
 -- Created dynamically by db.ts using the configured dimension (default 1536)
 -- because the dimension must be baked into the vec0 CREATE statement.

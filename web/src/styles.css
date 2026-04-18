@@ -4108,3 +4108,313 @@ button {
   margin-bottom: 12px;
 }
 
+/* ── Knowledge Base: Definitions ──────────────────────────────── */
+.kb-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 24px;
+  overflow-y: auto;
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+}
+.kb-tab__header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.kb-tab__search-wrap {
+  flex: 1;
+}
+.kb-tab__search {
+  width: 100%;
+  font: inherit;
+  padding: 8px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+}
+.kb-tab__search:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.kb-tab__error {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--err);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.kb-tab__error-close {
+  background: transparent;
+  border: none;
+  color: var(--err);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.kb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.kb-card {
+  position: relative;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.kb-card:hover {
+  border-color: var(--accent-soft);
+  transform: translateY(-1px);
+}
+.kb-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.kb-card__term {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.kb-card__chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.kb-card__preview {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.kb-card__preview--empty {
+  color: var(--text-faint);
+}
+.kb-card__actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: none;
+  gap: 4px;
+}
+.kb-card:hover .kb-card__actions {
+  display: flex;
+}
+.kb-card__action-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 16px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.kb-card__action-btn:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+.kb-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.6;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  background: var(--bg);
+}
+.kb-chip--active {
+  color: var(--text);
+  border-color: var(--accent-soft);
+}
+.kb-chip--project { color: var(--accent); border-color: var(--accent-soft); }
+.kb-chip--ok { color: var(--ok); border-color: rgba(34, 197, 94, 0.4); }
+.kb-chip--generating {
+  color: var(--accent);
+  border-color: var(--accent-soft);
+}
+.kb-chip--error { color: var(--err); border-color: rgba(239, 68, 68, 0.4); }
+.kb-chip--cleared { color: var(--text-faint); }
+
+/* Definition dialog (uses .modal + .modal--wide as the shell). */
+.kb-dialog.modal.modal--wide { width: 640px; }
+.kb-dialog__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.kb-dialog__field label {
+  color: var(--text);
+  font-weight: 500;
+}
+.kb-dialog__field--inline {
+  gap: 4px;
+}
+.kb-dialog__input,
+.kb-dialog__textarea {
+  font: inherit;
+  padding: 8px 10px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.kb-dialog__textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+.kb-dialog__hint {
+  display: block;
+  color: var(--text-faint);
+  font-weight: 400;
+  font-size: 12px;
+  margin-top: 2px;
+}
+.kb-dialog__checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+}
+.kb-dialog__checkbox input {
+  margin-top: 3px;
+}
+.kb-dialog__active-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.kb-dialog__active-row input[type="radio"] {
+  margin: 0;
+}
+
+.kb-dialog__llm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.kb-dialog__llm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.kb-dialog__llm-title {
+  font-weight: 600;
+  color: var(--text);
+}
+.kb-dialog__llm-actions {
+  display: flex;
+  gap: 8px;
+}
+.kb-dialog__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.kb-dialog__panel-label {
+  color: var(--text);
+  font-weight: 500;
+  font-size: 13px;
+}
+.kb-dialog__readonly {
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+.kb-dialog__readonly--long {
+  max-height: 200px;
+  overflow-y: auto;
+}
+.kb-dialog__placeholder {
+  color: var(--text-faint);
+}
+.kb-dialog__sources {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+.kb-dialog__sources a {
+  color: var(--accent);
+}
+.kb-dialog__log {
+  margin: 0;
+  padding: 8px 10px;
+  background: var(--tool-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  max-height: 120px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+.kb-dialog__error {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--err);
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.kb-dialog__error button {
+  background: transparent;
+  border: none;
+  color: var(--err);
+  font-size: 16px;
+  cursor: pointer;
+}
+.kb-dialog__note {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-style: italic;
+}
+

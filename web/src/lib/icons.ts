@@ -21,6 +21,7 @@ export {
   Folder,
   Users,
   Package,
+  Library,
   LayoutDashboard,
   Settings,
 
@@ -39,6 +40,8 @@ export {
   Play,
   Pause,
   RefreshCw,
+  Eraser,
+  ExternalLink,
 
   // Status
   AlertCircle,

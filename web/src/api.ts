@@ -1551,3 +1551,118 @@ export async function askContacts(
     body: JSON.stringify(body),
   });
 }
+
+// ── Knowledge Base: Definitions ─────────────────────────────────────────────
+
+export type ActiveDescription = "manual" | "short" | "long";
+export type LlmStatus = "idle" | "generating" | "error";
+
+export interface DefinitionSource {
+  title: string;
+  url: string;
+}
+
+export interface Definition {
+  id: number;
+  project: string;
+  term: string;
+  manualDescription: string;
+  llmShort: string | null;
+  llmLong: string | null;
+  llmSources: DefinitionSource[];
+  llmCleared: boolean;
+  llmStatus: LlmStatus;
+  llmError: string | null;
+  llmGeneratedAt: number | null;
+  isProjectDependent: boolean;
+  activeDescription: ActiveDescription;
+  createdBy: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface DefinitionInput {
+  term: string;
+  manualDescription?: string;
+  isProjectDependent?: boolean;
+  activeDescription?: ActiveDescription;
+}
+
+export async function fetchDefinitions(
+  project: string,
+  opts?: { q?: string; limit?: number; offset?: number },
+): Promise<{ definitions: Definition[]; total: number }> {
+  const params = new URLSearchParams();
+  if (opts?.q) params.set("q", opts.q);
+  if (opts?.limit !== undefined) params.set("limit", String(opts.limit));
+  if (opts?.offset !== undefined) params.set("offset", String(opts.offset));
+  const qs = params.toString();
+  return jsonFetch(
+    `/api/projects/${encodeURIComponent(project)}/kb/definitions${qs ? `?${qs}` : ""}`,
+  );
+}
+
+export async function createDefinition(
+  project: string,
+  input: DefinitionInput,
+): Promise<Definition> {
+  const data = await jsonFetch<{ definition: Definition }>(
+    `/api/projects/${encodeURIComponent(project)}/kb/definitions`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+  return data.definition;
+}
+
+export async function updateDefinition(
+  project: string,
+  id: number,
+  patch: Partial<DefinitionInput>,
+): Promise<Definition> {
+  const data = await jsonFetch<{ definition: Definition }>(
+    `/api/projects/${encodeURIComponent(project)}/kb/definitions/${id}`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+  );
+  return data.definition;
+}
+
+export async function deleteDefinition(project: string, id: number): Promise<void> {
+  await jsonFetch(
+    `/api/projects/${encodeURIComponent(project)}/kb/definitions/${id}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function setDefinitionActive(
+  project: string,
+  id: number,
+  active: ActiveDescription,
+): Promise<Definition> {
+  const data = await jsonFetch<{ definition: Definition }>(
+    `/api/projects/${encodeURIComponent(project)}/kb/definitions/${id}/active`,
+    { method: "POST", body: JSON.stringify({ active }) },
+  );
+  return data.definition;
+}
+
+export async function clearDefinitionLlm(project: string, id: number): Promise<Definition> {
+  const data = await jsonFetch<{ definition: Definition }>(
+    `/api/projects/${encodeURIComponent(project)}/kb/definitions/${id}/clear-llm`,
+    { method: "POST" },
+  );
+  return data.definition;
+}
+
+/**
+ * Kick off LLM generation for a definition. Returns the raw streaming Response
+ * so the caller can parse SSE events (content / tool_call / tool_result /
+ * kb_definition_generated / error / done).
+ */
+export async function streamGenerateDefinition(
+  project: string,
+  id: number,
+): Promise<Response> {
+  return fetch(
+    `/api/projects/${encodeURIComponent(project)}/kb/definitions/${id}/generate`,
+    { method: "POST", credentials: "include" },
+  );
+}

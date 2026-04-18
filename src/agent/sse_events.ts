@@ -85,6 +85,14 @@ export interface SseCardRunFinishedEvent {
   error?: string;
 }
 
+/** Emitted by the KB /generate handler once the model's JSON has been parsed
+ * and persisted. Tells the client the stored row is up to date. */
+export interface SseKbDefinitionGeneratedEvent {
+  type: "kb_definition_generated";
+  definitionId: number;
+  sources: number;
+}
+
 export type SseEvent =
   | SseContentEvent
   | SseReasoningEvent
@@ -96,4 +104,5 @@ export type SseEvent =
   | SseTurnEndEvent
   | SseDoneEvent
   | SseCardRunStartedEvent
-  | SseCardRunFinishedEvent;
+  | SseCardRunFinishedEvent
+  | SseKbDefinitionGeneratedEvent;

@@ -144,6 +144,7 @@ Sanctioned icon usage at the time of writing (see `web/src/lib/icons.ts` for the
 | Whiteboard | `Palette` |
 | Files | `Folder` |
 | Contacts | `Users` |
+| Knowledge Base | `Library` |
 | Workspace | `Package` |
 | Dashboard | `LayoutDashboard` |
 | Settings | `Settings` |
@@ -233,3 +234,4 @@ Events may carry `author` (agent name) — when set, render `@name` instead of t
 
 - **2026-04-17** — Initial styleguide. Introduced sidebar navigation (10 items in 4 groups), `lucide-react` icon system via `web/src/lib/icons.ts`, rabbit mascot (brand / watermark / empty / auth), shared primitives `Sidebar` / `EmptyState`. Tab count 14 → 10. See [ADR 0020](./adr/0020-ui-redesign-and-styleguide.md).
 - **2026-04-18** — Switched to a 56 px icon-rail that expands to 240 px on hover as an overlay (VS Code pattern), restoring the tab-owned context columns (Chat, Documents, Whiteboard, Contacts sidebars). Fixes the layout regression where an always-on 240 px sidebar collided with tabs that carry their own sidebar.
+- **2026-04-18** — Added **Knowledge Base** nav item (icon: `Library`) in the Content group. New card shape `.kb-card` (same 20 px padding / 12 px radius / auto-fill grid as `.contact-card` / `.project-card`) with status chips (`.kb-chip--idle|--generating|--ok|--cleared|--error|--active|--project`). Dialog reuses the `.modal.modal--wide` shell. New icons in the barrel: `Library`, `Eraser`, `ExternalLink`. See [ADR 0021](./adr/0021-knowledge-base-definitions.md).

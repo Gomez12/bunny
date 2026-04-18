@@ -14,9 +14,17 @@ import { getMessagesBySession } from "../memory/messages.ts";
 import type { ChatAttachment } from "../llm/types.ts";
 import { getSessionOwners, listSessions } from "../memory/sessions.ts";
 import { setSessionHiddenFromChat } from "../memory/session_visibility.ts";
-import { listEventFacets, listEvents, type ListEventsFilter } from "../memory/events.ts";
+import {
+  listEventFacets,
+  listEvents,
+  type ListEventsFilter,
+} from "../memory/events.ts";
 import { runAgent } from "../agent/loop.ts";
-import { createSseRenderer, controllerSink, finishSse } from "../agent/render_sse.ts";
+import {
+  createSseRenderer,
+  controllerSink,
+  finishSse,
+} from "../agent/render_sse.ts";
 import { registry } from "../tools/index.ts";
 import { errorMessage } from "../util/error.ts";
 import { authenticate } from "./auth_middleware.ts";
@@ -47,6 +55,7 @@ import { handleBoardRoute } from "./board_routes.ts";
 import { handleWhiteboardRoute } from "./whiteboard_routes.ts";
 import { handleDocumentRoute } from "./document_routes.ts";
 import { handleContactRoute } from "./contact_routes.ts";
+import { handleKbRoute } from "./kb_routes.ts";
 import { handleWorkspaceRoute } from "./workspace_routes.ts";
 import { handleScheduledTaskRoute } from "./scheduled_task_routes.ts";
 import type { SchedulerHandle } from "../scheduler/ticker.ts";
@@ -62,7 +71,11 @@ export interface RouteCtx {
   handlerRegistry: HandlerRegistry;
 }
 
-export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<Response> {
+export async function handleApi(
+  req: Request,
+  url: URL,
+  ctx: RouteCtx,
+): Promise<Response> {
   const { pathname } = url;
 
   // Auth / user / apikey routes take precedence.
@@ -81,7 +94,11 @@ export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<
   const agentResponse = await handleAgentRoute(
     req,
     url,
-    { db: ctx.db, queue: ctx.queue, defaultProject: ctx.cfg.agent.defaultProject },
+    {
+      db: ctx.db,
+      queue: ctx.queue,
+      defaultProject: ctx.cfg.agent.defaultProject,
+    },
     user,
   );
   if (agentResponse) return agentResponse;
@@ -90,7 +107,11 @@ export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<
   const skillResponse = await handleSkillRoute(
     req,
     url,
-    { db: ctx.db, queue: ctx.queue, defaultProject: ctx.cfg.agent.defaultProject },
+    {
+      db: ctx.db,
+      queue: ctx.queue,
+      defaultProject: ctx.cfg.agent.defaultProject,
+    },
     user,
   );
   if (skillResponse) return skillResponse;
@@ -107,26 +128,60 @@ export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<
   if (boardResponse) return boardResponse;
 
   // ── Whiteboards (per-project Excalidraw) ──────────────────────────────────
-  const whiteboardResponse = await handleWhiteboardRoute(req, url, { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg }, user);
+  const whiteboardResponse = await handleWhiteboardRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg },
+    user,
+  );
   if (whiteboardResponse) return whiteboardResponse;
 
   // ── Documents (per-project rich-text) ─────────────────────────────────────
-  const documentResponse = await handleDocumentRoute(req, url, { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg }, user);
+  const documentResponse = await handleDocumentRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg },
+    user,
+  );
   if (documentResponse) return documentResponse;
 
   // ── Contacts (per-project contact management) ────────────────────────────
-  const contactResponse = await handleContactRoute(req, url, { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg }, user);
+  const contactResponse = await handleContactRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg },
+    user,
+  );
   if (contactResponse) return contactResponse;
 
+  // ── Knowledge Base (per-project definitions) ─────────────────────────────
+  const kbResponse = await handleKbRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg },
+    user,
+  );
+  if (kbResponse) return kbResponse;
+
   // ── Workspace (per-project files) ─────────────────────────────────────────
-  const workspaceResponse = await handleWorkspaceRoute(req, url, { db: ctx.db, queue: ctx.queue }, user);
+  const workspaceResponse = await handleWorkspaceRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue },
+    user,
+  );
   if (workspaceResponse) return workspaceResponse;
 
   // ── Scheduler (system + user tasks) ───────────────────────────────────────
   const taskResponse = await handleScheduledTaskRoute(
     req,
     url,
-    { db: ctx.db, queue: ctx.queue, scheduler: ctx.scheduler, registry: ctx.handlerRegistry },
+    {
+      db: ctx.db,
+      queue: ctx.queue,
+      scheduler: ctx.scheduler,
+      registry: ctx.handlerRegistry,
+    },
     user,
   );
   if (taskResponse) return taskResponse;
@@ -174,7 +229,9 @@ export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<
     // Admins may opt-in to the global view with scope=all; everyone else is
     // always restricted to their own sessions.
     const allowAll = user.role === "admin" && scope === "all";
-    const filter: { userId?: string; project?: string } = allowAll ? {} : { userId: user.id };
+    const filter: { userId?: string; project?: string } = allowAll
+      ? {}
+      : { userId: user.id };
     if (projectParam) filter.project = projectParam;
     const sessions = listSessions(ctx.db, {
       search: q,
@@ -202,7 +259,12 @@ export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<
       return json({ error: "hiddenFromChat (boolean) is required" }, 400);
     }
     setSessionHiddenFromChat(ctx.db, user.id, sessionId, body.hiddenFromChat);
-    void ctx.queue.log({ topic: "session", kind: "update", userId: user.id, data: { sessionId, hiddenFromChat: body.hiddenFromChat } });
+    void ctx.queue.log({
+      topic: "session",
+      kind: "update",
+      userId: user.id,
+      data: { sessionId, hiddenFromChat: body.hiddenFromChat },
+    });
     return json({ ok: true, sessionId, hiddenFromChat: body.hiddenFromChat });
   }
 
@@ -237,14 +299,22 @@ export async function handleApi(req: Request, url: URL, ctx: RouteCtx): Promise<
   return json({ error: "not found", path: pathname }, 404);
 }
 
-function canAccessSession(ctx: RouteCtx, user: User, sessionId: string): boolean {
+function canAccessSession(
+  ctx: RouteCtx,
+  user: User,
+  sessionId: string,
+): boolean {
   if (user.role === "admin") return true;
   const owners = getSessionOwners(ctx.db, sessionId);
   if (owners.length === 0) return true; // legacy / anonymous session — allow
   return owners.includes(user.id);
 }
 
-async function handleChat(req: Request, ctx: RouteCtx, user: User): Promise<Response> {
+async function handleChat(
+  req: Request,
+  ctx: RouteCtx,
+  user: User,
+): Promise<Response> {
   interface ChatBody {
     sessionId?: string;
     prompt?: string;
@@ -267,19 +337,37 @@ async function handleChat(req: Request, ctx: RouteCtx, user: User): Promise<Resp
   // base64 payload; raw bytes are ≈ 0.75× that).
   const MAX_ATTACHMENTS = 4;
   const MAX_DATAURL_BYTES = 10 * 1024 * 1024;
-  const ALLOWED_IMG_MIME = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+  const ALLOWED_IMG_MIME = new Set([
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+    "image/webp",
+  ]);
   const attachments: ChatAttachment[] = [];
   if (body.attachments) {
-    if (!Array.isArray(body.attachments) || body.attachments.length > MAX_ATTACHMENTS) {
-      return json({ error: `at most ${MAX_ATTACHMENTS} attachments allowed` }, 400);
+    if (
+      !Array.isArray(body.attachments) ||
+      body.attachments.length > MAX_ATTACHMENTS
+    ) {
+      return json(
+        { error: `at most ${MAX_ATTACHMENTS} attachments allowed` },
+        400,
+      );
     }
     for (const a of body.attachments) {
-      if (a?.kind !== "image") return json({ error: "unsupported attachment kind" }, 400);
+      if (a?.kind !== "image")
+        return json({ error: "unsupported attachment kind" }, 400);
       if (typeof a.mime !== "string" || !ALLOWED_IMG_MIME.has(a.mime)) {
         return json({ error: `unsupported image mime '${a.mime}'` }, 400);
       }
-      if (typeof a.dataUrl !== "string" || !a.dataUrl.startsWith(`data:${a.mime};base64,`)) {
-        return json({ error: "attachment dataUrl must be a base64 data URL" }, 400);
+      if (
+        typeof a.dataUrl !== "string" ||
+        !a.dataUrl.startsWith(`data:${a.mime};base64,`)
+      ) {
+        return json(
+          { error: "attachment dataUrl must be a base64 data URL" },
+          400,
+        );
       }
       if (a.dataUrl.length > MAX_DATAURL_BYTES) {
         return json({ error: "attachment exceeds size limit" }, 413);
@@ -311,12 +399,16 @@ async function handleChat(req: Request, ctx: RouteCtx, user: User): Promise<Resp
   // Resolve + validate project: must match any existing session context.
   let project: string;
   try {
-    const requested = body.project ? validateProjectName(body.project) : undefined;
+    const requested = body.project
+      ? validateProjectName(body.project)
+      : undefined;
     const existing = getSessionProject(ctx.db, sessionId);
     if (existing !== null) {
       if (requested && requested !== existing) {
         return json(
-          { error: `session belongs to project '${existing}', got '${requested}'` },
+          {
+            error: `session belongs to project '${existing}', got '${requested}'`,
+          },
           409,
         );
       }
@@ -337,7 +429,9 @@ async function handleChat(req: Request, ctx: RouteCtx, user: User): Promise<Resp
     if (!a) return json({ error: `agent '${agentName}' does not exist` }, 404);
     if (!isAgentLinkedToProject(ctx.db, project, agentName)) {
       return json(
-        { error: `agent '${agentName}' is not available in project '${project}'` },
+        {
+          error: `agent '${agentName}' is not available in project '${project}'`,
+        },
         403,
       );
     }
@@ -452,7 +546,11 @@ interface ProjectBody {
   recallK?: number | null;
 }
 
-async function handleCreateProject(req: Request, ctx: RouteCtx, user: User): Promise<Response> {
+async function handleCreateProject(
+  req: Request,
+  ctx: RouteCtx,
+  user: User,
+): Promise<Response> {
   let body: ProjectBody;
   try {
     body = (await req.json()) as ProjectBody;
@@ -475,9 +573,22 @@ async function handleCreateProject(req: Request, ctx: RouteCtx, user: User): Pro
     writeProjectSystemPrompt(
       name,
       { prompt: body.systemPrompt ?? "", append: body.appendMode !== false },
-      { lastN: parseMemoryOverride(body.lastN), recallK: parseMemoryOverride(body.recallK) },
+      {
+        lastN: parseMemoryOverride(body.lastN),
+        recallK: parseMemoryOverride(body.recallK),
+      },
     );
-    void ctx.queue.log({ topic: "project", kind: "create", userId: user.id, data: { name, visibility: body.visibility ?? "public", description: body.description ?? null, hasSystemPrompt: !!(body.systemPrompt) } });
+    void ctx.queue.log({
+      topic: "project",
+      kind: "create",
+      userId: user.id,
+      data: {
+        name,
+        visibility: body.visibility ?? "public",
+        description: body.description ?? null,
+        hasSystemPrompt: !!body.systemPrompt,
+      },
+    });
     return json({ project: toProjectDto(created) }, 201);
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -511,8 +622,10 @@ async function handlePatchProject(
       description: body.description,
       visibility: body.visibility,
     });
-    const touchesPrompt = body.systemPrompt !== undefined || body.appendMode !== undefined;
-    const touchesMemory = body.lastN !== undefined || body.recallK !== undefined;
+    const touchesPrompt =
+      body.systemPrompt !== undefined || body.appendMode !== undefined;
+    const touchesMemory =
+      body.lastN !== undefined || body.recallK !== undefined;
     if (touchesPrompt || touchesMemory) {
       // writeProjectSystemPrompt internally merges with the current on-disk
       // state, so partial patches only need to name the fields that changed.
@@ -521,14 +634,25 @@ async function handlePatchProject(
       if (body.appendMode !== undefined) sp.append = body.appendMode;
       const memory = touchesMemory
         ? {
-            ...(body.lastN !== undefined ? { lastN: parseMemoryOverride(body.lastN) } : {}),
-            ...(body.recallK !== undefined ? { recallK: parseMemoryOverride(body.recallK) } : {}),
+            ...(body.lastN !== undefined
+              ? { lastN: parseMemoryOverride(body.lastN) }
+              : {}),
+            ...(body.recallK !== undefined
+              ? { recallK: parseMemoryOverride(body.recallK) }
+              : {}),
           }
         : undefined;
       writeProjectSystemPrompt(name, sp, memory);
     }
-    const changed = Object.keys(body).filter((k) => (body as Record<string, unknown>)[k] !== undefined);
-    void ctx.queue.log({ topic: "project", kind: "update", userId: user.id, data: { name, changed } });
+    const changed = Object.keys(body).filter(
+      (k) => (body as Record<string, unknown>)[k] !== undefined,
+    );
+    void ctx.queue.log({
+      topic: "project",
+      kind: "update",
+      userId: user.id,
+      data: { name, changed },
+    });
     return json({ project: toProjectDto(updated) });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -561,13 +685,22 @@ function parseEventsFilter(url: URL): ListEventsFilter {
   };
 }
 
-function handleDeleteProject(ctx: RouteCtx, user: User, name: string): Response {
+function handleDeleteProject(
+  ctx: RouteCtx,
+  user: User,
+  name: string,
+): Response {
   const p = getProject(ctx.db, name);
   if (!p) return json({ error: "not found" }, 404);
   if (!canEditProject(p, user)) return json({ error: "forbidden" }, 403);
   try {
     deleteProject(ctx.db, name);
-    void ctx.queue.log({ topic: "project", kind: "delete", userId: user.id, data: { name } });
+    void ctx.queue.log({
+      topic: "project",
+      kind: "delete",
+      userId: user.id,
+      data: { name },
+    });
     return json({ ok: true });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -576,13 +709,18 @@ function handleDeleteProject(ctx: RouteCtx, user: User, name: string): Response 
 
 // ── Image upload (browser‐side FileReader workaround) ──────────────────────
 
-const UPLOAD_ALLOWED_MIME = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+const UPLOAD_ALLOWED_MIME = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+]);
 const UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
 
 async function handleUploadImage(req: Request): Promise<Response> {
   let form: globalThis.FormData;
   try {
-    form = await req.formData() as unknown as globalThis.FormData;
+    form = (await req.formData()) as unknown as globalThis.FormData;
   } catch {
     return json({ error: "expected multipart/form-data" }, 400);
   }
