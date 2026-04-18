@@ -19,6 +19,7 @@ Add a Tauri v2 desktop client under `client/` at the project root. The client is
 3. **No bundler for the setup page**: three static files (`index.html`, `setup.js`, `style.css`) loaded via `withGlobalTauri: true` — avoids adding Vite/webpack to the client.
 4. **`tauri-plugin-store`** for persistence: handles OS-appropriate app data paths automatically.
 5. **Menu-based reset**: "File → Reset Connection" clears the stored URL and returns to the setup page.
+6. **External links open in the system browser**: the main webview is built programmatically (`tauri.conf.json` keeps an empty `windows` array) so a `WebviewWindowBuilder::on_navigation` handler can be attached. Any navigation whose origin (scheme+host+port) does not match the saved server URL — or the local Tauri origin — is cancelled and forwarded to the OS handler via `tauri-plugin-opener`. A small `initialization_script` rewrites `<a target="_blank">` clicks and `window.open(...)` calls to plain `window.location.href` assignments so they hit the same `on_navigation` filter. The whitelist is the saved server URL, derived from the existing setup-page flow — no separate user-managed list in v1.
 
 ## Structure
 
