@@ -39,6 +39,10 @@ import {
   TRANSLATION_SWEEP_HANDLER,
   registerSweepStuck,
 } from "../translation/sweep_stuck_handler.ts";
+import {
+  QUICK_CHAT_HIDE_HANDLER,
+  registerQuickChatHide,
+} from "../scheduler/handlers/session_quick_chat.ts";
 
 const DEFAULT_PORT = 3000;
 
@@ -107,6 +111,7 @@ export async function startServer(
   registerBoardAutoRun(defaultHandlerRegistry);
   registerAutoTranslate(defaultHandlerRegistry);
   registerSweepStuck(defaultHandlerRegistry);
+  registerQuickChatHide(defaultHandlerRegistry);
   const bootNow = Date.now();
   const boardAutoRunCron = "*/5 * * * *";
   try {
@@ -150,6 +155,22 @@ export async function startServer(
   } catch (e) {
     console.warn(
       "[bunny] failed to seed translation.sweep_stuck:",
+      errorMessage(e),
+    );
+  }
+  const quickChatHideCron = "*/5 * * * *";
+  try {
+    ensureSystemTask(db, QUICK_CHAT_HIDE_HANDLER, {
+      name: "Hide inactive Quick Chats",
+      description:
+        "Hide Quick Chat sessions whose newest message is older than 15 minutes (every 5 minutes).",
+      cronExpr: quickChatHideCron,
+      payload: { inactivityMs: 15 * 60 * 1000 },
+      nextRunAt: computeNextRun(quickChatHideCron, bootNow),
+    });
+  } catch (e) {
+    console.warn(
+      "[bunny] failed to seed session.hide_inactive_quick_chats:",
       errorMessage(e),
     );
   }

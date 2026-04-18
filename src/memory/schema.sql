@@ -38,9 +38,13 @@ CREATE TABLE IF NOT EXISTS messages (
   user_id      TEXT,                        -- owning user (null for anonymous/historical)
   project      TEXT,                        -- owning project name (null = 'general')
   author       TEXT,                        -- responding agent name (null = default assistant)
-  attachments  TEXT                         -- JSON array of {kind,mime,dataUrl} (null = no attachments)
+  attachments  TEXT,                        -- JSON array of {kind,mime,dataUrl} (null = no attachments)
+  edited_at            INTEGER,             -- ms; set when content was rewritten via the edit affordance
+  trimmed_at           INTEGER,             -- ms; soft-delete used by "save and regenerate"
+  regen_of_message_id  INTEGER              -- assistant alt-version pointer (chain of regenerations)
 );
 CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, ts);
+CREATE INDEX IF NOT EXISTS idx_messages_regen_of ON messages(regen_of_message_id);
 -- idx_messages_project is created in db.ts:migrateColumns so it also works on
 -- upgraded databases where the `project` column is added by ALTER TABLE.
 
@@ -104,10 +108,18 @@ END;
 
 CREATE TRIGGER IF NOT EXISTS messages_fts_update
   AFTER UPDATE ON messages
-  WHEN NEW.channel = 'content'
+  WHEN NEW.channel = 'content' AND NEW.trimmed_at IS NULL
 BEGIN
   INSERT INTO messages_fts(messages_fts, rowid, content) VALUES ('delete', OLD.id, OLD.content);
   INSERT INTO messages_fts(rowid, content) VALUES (NEW.id, NEW.content);
+END;
+
+-- Soft-delete: drop the FTS row when trimmed_at is set on a content row.
+CREATE TRIGGER IF NOT EXISTS messages_fts_trim
+  AFTER UPDATE OF trimmed_at ON messages
+  WHEN OLD.channel = 'content' AND OLD.trimmed_at IS NULL AND NEW.trimmed_at IS NOT NULL
+BEGIN
+  INSERT INTO messages_fts(messages_fts, rowid, content) VALUES ('delete', OLD.id, OLD.content);
 END;
 
 -- ── Users & Auth ─────────────────────────────────────────────────────────────
@@ -154,10 +166,13 @@ CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id);
 -- other user. The session itself remains intact and stays visible under the
 -- Messages tab, where the user can unhide it. One row per (user, session).
 CREATE TABLE IF NOT EXISTS session_visibility (
-  user_id          TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  session_id       TEXT    NOT NULL,
-  hidden_from_chat INTEGER NOT NULL DEFAULT 0,
-  updated_at       INTEGER NOT NULL,
+  user_id                TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  session_id             TEXT    NOT NULL,
+  hidden_from_chat       INTEGER NOT NULL DEFAULT 0,
+  is_quick_chat          INTEGER NOT NULL DEFAULT 0,   -- 1 = throwaway session; eligible for inactivity auto-hide
+  forked_from_session_id TEXT,                         -- src session id when this row records a fork
+  forked_from_message_id INTEGER,                      -- src message id at the fork pivot (null = full copy)
+  updated_at             INTEGER NOT NULL,
   PRIMARY KEY (user_id, session_id)
 );
 CREATE INDEX IF NOT EXISTS idx_session_visibility_session ON session_visibility(session_id);

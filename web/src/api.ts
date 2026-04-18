@@ -18,6 +18,10 @@ export interface SessionSummary {
   project: string;
   /** True iff the *current viewer* has hidden this session from their chat sidebar. */
   hiddenFromChat: boolean;
+  /** True iff the viewer has marked this session as a Quick Chat. */
+  isQuickChat: boolean;
+  /** Source session id when this session was created via "Fork to Quick Chat". */
+  forkedFromSessionId: string | null;
 }
 
 export type ProjectVisibility = "public" | "private";
@@ -95,6 +99,12 @@ export interface StoredMessage {
   author: string | null;
   /** User-turn attachments (images). Null when absent. */
   attachments: ChatAttachment[] | null;
+  /** Unix ms when this message was edited via the edit affordance (null = never). */
+  editedAt: number | null;
+  /** Original assistant message id this row regenerates (null = root / not a regen). */
+  regenOfMessageId: number | null;
+  /** Ordered chain of all versions (root first). Length 1 = no regenerations. */
+  regenChain: Array<{ id: number; ts: number; content: string | null }>;
 }
 
 export interface TurnStats {
@@ -132,8 +142,21 @@ export function reorderReasoning(messages: StoredMessage[]): StoredMessage[] {
 export interface HistoryTurn {
   id: string;
   prompt: string;
+  /** DB id of the user prompt row (used for edit/fork/trim affordances). */
+  promptMessageId: number;
+  /** True iff the user prompt has been edited at least once. */
+  promptEdited: boolean;
   reasoning: string;
   content: string;
+  /** DB id of the assistant content row that produced `content` (the active version). */
+  contentMessageId: number | null;
+  /** True iff the active assistant content row has been edited at least once. */
+  contentEdited: boolean;
+  /**
+   * All versions of this assistant answer (ordered, root first). Length 1 =
+   * no regenerations. The `id` of the *active* version is `contentMessageId`.
+   */
+  regenChain: Array<{ id: number; ts: number; content: string | null }>;
   toolCalls: Array<{
     id: string;
     name: string;
@@ -157,13 +180,46 @@ export function groupTurns(messages: StoredMessage[]): HistoryTurn[] {
   const turns: HistoryTurn[] = [];
   let current: HistoryTurn | null = null;
 
+  // Index assistant content rows by their regen-chain root, so that when we
+  // walk the linear stream we can pick the *active* (latest) version per turn.
+  const rootOf = new Map<number, number>(); // messageId -> root id
+  const versionsByRoot = new Map<number, StoredMessage[]>();
+  for (const m of messages) {
+    if (m.role !== "assistant" || m.channel !== "content") continue;
+    const root = m.regenOfMessageId
+      ? rootOf.get(m.regenOfMessageId) ?? m.regenOfMessageId
+      : m.id;
+    rootOf.set(m.id, root);
+    let bucket = versionsByRoot.get(root);
+    if (!bucket) {
+      bucket = [];
+      versionsByRoot.set(root, bucket);
+    }
+    bucket.push(m);
+  }
+  // Sort each bucket so the active (latest by ts) version is last.
+  for (const arr of versionsByRoot.values()) {
+    arr.sort((a, b) => a.ts - b.ts || a.id - b.id);
+  }
+  // For non-active versions, remember which root they belong to so we can skip
+  // them entirely (the active version stands in for the whole chain).
+  const skipIds = new Set<number>();
+  for (const arr of versionsByRoot.values()) {
+    for (let i = 0; i < arr.length - 1; i++) skipIds.add(arr[i]!.id);
+  }
+
   for (const m of messages) {
     if (m.role === "user") {
       current = {
         id: `turn-${m.id}`,
         prompt: m.content ?? "",
+        promptMessageId: m.id,
+        promptEdited: m.editedAt != null,
         reasoning: "",
         content: "",
+        contentMessageId: null,
+        contentEdited: false,
+        regenChain: [],
         toolCalls: [],
         stats: null,
         author: null,
@@ -173,12 +229,20 @@ export function groupTurns(messages: StoredMessage[]): HistoryTurn[] {
       continue;
     }
     if (!current) continue;
+    // Skip superseded assistant content rows entirely — only the active
+    // version of a regen chain participates in the rendered turn.
+    if (skipIds.has(m.id)) continue;
 
     if (m.role === "assistant" && m.channel === "reasoning") {
       current.reasoning += (current.reasoning ? "\n\n" : "") + (m.content ?? "");
       if (m.author) current.author = m.author;
     } else if (m.role === "assistant" && m.channel === "content") {
       current.content += (current.content ? "\n\n" : "") + (m.content ?? "");
+      current.contentMessageId = m.id;
+      current.contentEdited = m.editedAt != null;
+      current.regenChain = m.regenChain ?? [
+        { id: m.id, ts: m.ts, content: m.content },
+      ];
       if (m.author) current.author = m.author;
       if (m.durationMs != null) {
         current.stats = {
@@ -242,6 +306,117 @@ export async function setSessionHiddenFromChat(
   });
 }
 
+export async function setSessionQuickChat(
+  sessionId: string,
+  isQuickChat: boolean,
+): Promise<void> {
+  await jsonFetch<{ ok: true }>(
+    `/api/sessions/${encodeURIComponent(sessionId)}/quick-chat`,
+    { method: "PATCH", body: JSON.stringify({ isQuickChat }) },
+  );
+}
+
+export async function forkSessionApi(
+  srcSessionId: string,
+  opts: {
+    untilMessageId?: number | null;
+    asQuickChat?: boolean;
+    project?: string;
+    /** Overwrite the last copied message's content in the new session only.
+     *  Used by the "edit then fork" affordance — the source row is untouched. */
+    editLastMessageContent?: string;
+  } = {},
+): Promise<{ sessionId: string; project: string; copiedCount: number }> {
+  return jsonFetch<{ sessionId: string; project: string; copiedCount: number }>(
+    `/api/sessions/${encodeURIComponent(srcSessionId)}/fork`,
+    { method: "POST", body: JSON.stringify(opts) },
+  );
+}
+
+export async function patchMessage(messageId: number, content: string): Promise<void> {
+  await jsonFetch<{ ok: true }>(`/api/messages/${messageId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ content }),
+  });
+}
+
+export async function trimMessagesAfter(messageId: number): Promise<{ trimmedCount: number }> {
+  const res = await jsonFetch<{ ok: true; trimmedCount: number }>(
+    `/api/messages/${messageId}/trim-after`,
+    { method: "POST" },
+  );
+  return { trimmedCount: res.trimmedCount };
+}
+
+/**
+ * Open an SSE stream and dispatch each `data:` payload to `onEvent`.
+ * Used by every front-end SSE consumer (chat, regenerate, card runs) — the
+ * frame parser, error decoding, and abort plumbing live exactly once here.
+ */
+function openSseStream(
+  url: string,
+  init: RequestInit,
+  onEvent: (ev: ServerEvent) => void,
+): { done: Promise<void>; abort: () => void } {
+  const controller = new AbortController();
+  const done = (async () => {
+    const res = await fetch(url, {
+      credentials: "include",
+      ...init,
+      signal: controller.signal,
+    });
+    if (!res.ok || !res.body) {
+      let msg = `${init.method ?? "GET"} ${url} → ${res.status}`;
+      try {
+        const err = (await res.json()) as { error?: string };
+        if (err?.error) msg = err.error;
+      } catch {
+        // body wasn't JSON
+      }
+      throw new Error(msg);
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const { value, done: streamDone } = await reader.read();
+      if (streamDone) break;
+      buf += decoder.decode(value, { stream: true });
+      let idx: number;
+      while ((idx = buf.indexOf("\n\n")) !== -1) {
+        const frame = buf.slice(0, idx);
+        buf = buf.slice(idx + 2);
+        for (const line of frame.split("\n")) {
+          if (!line.startsWith("data:")) continue;
+          const payload = line.slice(5).trim();
+          if (!payload) continue;
+          try {
+            onEvent(JSON.parse(payload) as ServerEvent);
+          } catch {
+            // skip malformed frames rather than killing the stream
+          }
+        }
+      }
+    }
+  })();
+  return { done, abort: () => controller.abort() };
+}
+
+/**
+ * Regenerate an assistant message as an alternate version. The new assistant
+ * row carries `regen_of_message_id = messageId` server-side.
+ */
+export function regenerateAssistantMessage(
+  messageId: number,
+  onEvent: (ev: ServerEvent) => void,
+): { done: Promise<void>; abort: () => void } {
+  return openSseStream(
+    `/api/messages/${messageId}/regenerate`,
+    { method: "POST" },
+    onEvent,
+  );
+}
+
 export async function fetchMessages(sessionId: string): Promise<StoredMessage[]> {
   const url = `/api/sessions/${encodeURIComponent(sessionId)}/messages`;
   const res = await fetch(url, { credentials: "include" });
@@ -271,57 +446,15 @@ export function streamChat(
   },
   onEvent: (ev: ServerEvent) => void,
 ): { done: Promise<void>; abort: () => void } {
-  const controller = new AbortController();
-
-  const done = (async () => {
-    const res = await fetch("/api/chat", {
+  return openSseStream(
+    "/api/chat",
+    {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-      credentials: "include",
-      signal: controller.signal,
-    });
-
-    if (!res.ok || !res.body) {
-      let msg = `POST /api/chat → ${res.status}`;
-      try {
-        const err = (await res.json()) as { error?: string };
-        if (err?.error) msg = err.error;
-      } catch {
-        // ignore — body wasn't JSON
-      }
-      throw new Error(msg);
-    }
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = "";
-
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-
-      // SSE frames separated by "\n\n".
-      let idx: number;
-      while ((idx = buf.indexOf("\n\n")) !== -1) {
-        const frame = buf.slice(0, idx);
-        buf = buf.slice(idx + 2);
-        for (const line of frame.split("\n")) {
-          if (!line.startsWith("data:")) continue;
-          const payload = line.slice(5).trim();
-          if (!payload) continue;
-          try {
-            onEvent(JSON.parse(payload) as ServerEvent);
-          } catch {
-            // Skip malformed frames rather than killing the stream.
-          }
-        }
-      }
-    }
-  })();
-
-  return { done, abort: () => controller.abort() };
+    },
+    onEvent,
+  );
 }
 
 // ── Auth & user management ──────────────────────────────────────────────────
@@ -932,45 +1065,11 @@ export function streamCardRun(
   runId: number,
   onEvent: (ev: ServerEvent) => void,
 ): { done: Promise<void>; abort: () => void } {
-  const controller = new AbortController();
-  const done = (async () => {
-    const url = `/api/cards/${cardId}/runs/${runId}/stream`;
-    const res = await fetch(url, { credentials: "include", signal: controller.signal });
-    if (!res.ok || !res.body) {
-      let msg = `GET ${url} → ${res.status}`;
-      try {
-        const err = (await res.json()) as { error?: string };
-        if (err?.error) msg = err.error;
-      } catch {
-        // ignore
-      }
-      throw new Error(msg);
-    }
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = "";
-    while (true) {
-      const { value, done: streamDone } = await reader.read();
-      if (streamDone) break;
-      buf += decoder.decode(value, { stream: true });
-      let idx: number;
-      while ((idx = buf.indexOf("\n\n")) !== -1) {
-        const frame = buf.slice(0, idx);
-        buf = buf.slice(idx + 2);
-        for (const line of frame.split("\n")) {
-          if (!line.startsWith("data:")) continue;
-          const payload = line.slice(5).trim();
-          if (!payload) continue;
-          try {
-            onEvent(JSON.parse(payload) as ServerEvent);
-          } catch {
-            // skip malformed
-          }
-        }
-      }
-    }
-  })();
-  return { done, abort: () => controller.abort() };
+  return openSseStream(
+    `/api/cards/${cardId}/runs/${runId}/stream`,
+    { method: "GET" },
+    onEvent,
+  );
 }
 
 // ── Scheduled tasks ─────────────────────────────────────────────────────────

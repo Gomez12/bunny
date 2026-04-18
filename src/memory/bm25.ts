@@ -39,7 +39,7 @@ export function searchBM25(
   // Escape special FTS5 characters to support plain-text queries.
   const escaped = escapeFts5(query);
 
-  const clauses = ["messages_fts MATCH ?"];
+  const clauses = ["messages_fts MATCH ?", "m.trimmed_at IS NULL"];
   const params: (string | number | null)[] = [escaped];
   if (sessionId) {
     clauses.push("m.session_id = ?");

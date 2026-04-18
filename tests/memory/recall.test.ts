@@ -128,4 +128,31 @@ describe("hybridRecall", () => {
     }
     db.close();
   });
+
+  test("trimmed messages are excluded from BM25 + recall", async () => {
+    const db = await setup();
+    const pivot = insertMessage(db, {
+      sessionId: "s1",
+      role: "user",
+      content: "keepable text",
+    });
+    insertMessage(db, {
+      sessionId: "s1",
+      role: "assistant",
+      content: "trimmable trampoline payload",
+    });
+    // Sanity: both rows are recalled before trim.
+    expect(searchBM25(db, "trampoline").length).toBe(1);
+    const beforeTrim = await hybridRecall(db, mockEmbedCfg, "trampoline", 5);
+    expect(beforeTrim.length).toBe(1);
+
+    // Trim the assistant row away.
+    const { trimSessionAfter } = await import("../../src/memory/messages.ts");
+    trimSessionAfter(db, "s1", pivot);
+
+    expect(searchBM25(db, "trampoline").length).toBe(0);
+    const afterTrim = await hybridRecall(db, mockEmbedCfg, "trampoline", 5);
+    expect(afterTrim.length).toBe(0);
+    db.close();
+  });
 });

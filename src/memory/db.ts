@@ -108,6 +108,18 @@ function migrateColumns(db: Database): void {
   addColumn("ALTER TABLE messages ADD COLUMN project TEXT");
   addColumn("ALTER TABLE messages ADD COLUMN author TEXT");
   addColumn("ALTER TABLE messages ADD COLUMN attachments TEXT");
+  addColumn("ALTER TABLE messages ADD COLUMN edited_at INTEGER");
+  addColumn("ALTER TABLE messages ADD COLUMN trimmed_at INTEGER");
+  addColumn("ALTER TABLE messages ADD COLUMN regen_of_message_id INTEGER");
+  addColumn(
+    "ALTER TABLE session_visibility ADD COLUMN is_quick_chat INTEGER NOT NULL DEFAULT 0",
+  );
+  addColumn(
+    "ALTER TABLE session_visibility ADD COLUMN forked_from_session_id TEXT",
+  );
+  addColumn(
+    "ALTER TABLE session_visibility ADD COLUMN forked_from_message_id INTEGER",
+  );
   addColumn("ALTER TABLE events ADD COLUMN user_id TEXT");
   addColumn(
     "ALTER TABLE board_swimlanes ADD COLUMN auto_run INTEGER NOT NULL DEFAULT 0",
@@ -195,6 +207,9 @@ function migrateColumns(db: Database): void {
     "CREATE INDEX IF NOT EXISTS idx_messages_session_role_channel_ts ON messages(session_id, role, channel, ts)",
   );
   db.run("CREATE INDEX IF NOT EXISTS idx_messages_ts ON messages(ts)");
+  db.run(
+    "CREATE INDEX IF NOT EXISTS idx_messages_regen_of ON messages(regen_of_message_id)",
+  );
   db.run("CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts)");
 
   db.run(

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { createSession, fetchMe, logout, type AuthUser } from "./api";
+import { createSession, fetchMe, logout, setSessionQuickChat, type AuthUser } from "./api";
 import LoginPage from "./pages/LoginPage";
 import ChangePasswordPage from "./pages/ChangePasswordPage";
 import Sidebar, { type NavTabId } from "./components/Sidebar";
@@ -131,6 +131,18 @@ export default function App() {
     setSessionId(adoptSession(await createSession()));
   };
 
+  const onNewQuickChat = async () => {
+    const id = await createSession();
+    try {
+      await setSessionQuickChat(id, true);
+    } catch (e) {
+      // Non-fatal: the session is still created, just won't carry the QC flag
+      // until the user toggles it via the composer checkbox.
+      console.error(e);
+    }
+    setSessionId(adoptSession(id));
+  };
+
   const onPickSession = (id: string) => {
     setSessionId(adoptSession(id));
   };
@@ -181,6 +193,7 @@ export default function App() {
               currentUser={user}
               onPickSession={onPickSession}
               onNewSession={onNewSession}
+              onNewQuickChat={onNewQuickChat}
             />
           )}
           {tab === "board" && (

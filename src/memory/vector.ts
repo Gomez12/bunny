@@ -34,9 +34,9 @@ export function searchVector(
   // Serialize the query embedding to the binary format sqlite-vec expects.
   const queryBlob = float32ArrayToBlob(queryEmbedding);
 
-  const needsPostFilter = project !== undefined || ownAuthor !== undefined;
-  // vec0 does not support joins in the MATCH clause; over-fetch and post-filter.
-  const fetchK = needsPostFilter ? k * 4 : k;
+  // vec0 does not support joins in the MATCH clause; over-fetch and post-filter
+  // (always — the post-filter has to drop trimmed rows even without project/author).
+  const fetchK = k * 4;
 
   try {
     // vec0 does not support joins inside a MATCH query, so we over-fetch and
@@ -49,14 +49,15 @@ export function searchVector(
          AND k = ?
        ORDER BY distance`,
     ).all(queryBlob, fetchK) as Array<{ message_id: number; distance: number }>;
-    if (!needsPostFilter || rows.length === 0) {
-      return rows
-        .slice(0, k)
-        .map((r) => ({ messageId: r.message_id, distance: r.distance }));
-    }
+    if (rows.length === 0) return [];
+    // Always post-filter so trimmed rows never leak through, even when the
+    // caller didn't pass project/ownAuthor.
     const ids = rows.map((r) => r.message_id);
     const placeholders = ids.map(() => "?").join(",");
-    const filterClauses: string[] = [`id IN (${placeholders})`];
+    const filterClauses: string[] = [
+      `id IN (${placeholders})`,
+      `trimmed_at IS NULL`,
+    ];
     const filterParams: (string | number | null)[] = [...ids];
     if (project !== undefined) {
       filterClauses.push(`COALESCE(project, 'general') = ?`);

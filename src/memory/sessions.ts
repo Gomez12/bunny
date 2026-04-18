@@ -9,6 +9,7 @@
 import type { Database } from "bun:sqlite";
 import { searchBM25 } from "./bm25.ts";
 import { prep } from "./prepared.ts";
+import { recordSessionFork } from "./session_visibility.ts";
 
 export interface SessionSummary {
   sessionId: string;
@@ -25,6 +26,10 @@ export interface SessionSummary {
   /** True iff the *viewer* has hidden this session from their chat sidebar.
    *  Always false when no `viewerId` is passed to listSessions. */
   hiddenFromChat: boolean;
+  /** True iff the viewer has marked this session as a Quick Chat. */
+  isQuickChat: boolean;
+  /** Source session id when this session was created via "Fork to Quick Chat". */
+  forkedFromSessionId: string | null;
 }
 
 /**
@@ -86,9 +91,14 @@ export function listSessions(
     ? "LEFT JOIN session_visibility sv ON sv.session_id = agg.session_id AND sv.user_id = ?"
     : "";
   const visibilitySelect = opts.viewerId
-    ? "COALESCE(sv.hidden_from_chat, 0) AS hidden"
-    : "0 AS hidden";
+    ? `COALESCE(sv.hidden_from_chat, 0) AS hidden,
+       COALESCE(sv.is_quick_chat, 0) AS is_quick_chat,
+       sv.forked_from_session_id AS forked_from_session_id`
+    : `0 AS hidden, 0 AS is_quick_chat, NULL AS forked_from_session_id`;
   const aggWhere = where.replace(/\bm\./g, "");
+  const aggClauses = aggWhere
+    ? `${aggWhere} AND trimmed_at IS NULL`
+    : `WHERE trimmed_at IS NULL`;
 
   const sql = `
     WITH agg AS (
@@ -99,7 +109,7 @@ export function listSessions(
         COUNT(*) AS n,
         COALESCE(MAX(project), 'general') AS project
       FROM messages
-      ${aggWhere}
+      ${aggClauses}
       GROUP BY session_id
       ORDER BY last_ts DESC
       LIMIT ?
@@ -110,11 +120,13 @@ export function listSessions(
         (SELECT substr(COALESCE(content, ''), 1, 80)
            FROM messages
            WHERE session_id = agg.session_id AND role = 'user' AND channel = 'content'
+             AND trimmed_at IS NULL
            ORDER BY ts ASC, id ASC
            LIMIT 1) AS title,
         (SELECT user_id
            FROM messages
            WHERE session_id = agg.session_id AND role = 'user' AND channel = 'content'
+             AND trimmed_at IS NULL
            ORDER BY ts ASC, id ASC
            LIMIT 1) AS owner_id
       FROM agg
@@ -150,6 +162,8 @@ export function listSessions(
     owner_display_name: string | null;
     project: string;
     hidden: number;
+    is_quick_chat: number;
+    forked_from_session_id: string | null;
   }>;
 
   return rows.map((r) => ({
@@ -163,6 +177,8 @@ export function listSessions(
     displayName: r.owner_display_name,
     project: r.project,
     hiddenFromChat: r.hidden === 1,
+    isQuickChat: r.is_quick_chat === 1,
+    forkedFromSessionId: r.forked_from_session_id ?? null,
   }));
 }
 
@@ -194,6 +210,8 @@ export function getSessionOwners(db: Database, sessionId: string): string[] {
   const hit = cache.get(sessionId);
   const now = Date.now();
   if (hit && now - hit.at < OWNERS_TTL_MS) return hit.owners;
+  // Ownership intentionally ignores trimmed_at — a user who has soft-deleted
+  // their own contributions still owns the session for ACL purposes.
   const rows = prep(
     db,
     `SELECT DISTINCT user_id FROM messages WHERE session_id = ? AND user_id IS NOT NULL`,
@@ -210,4 +228,134 @@ export function getSessionOwners(db: Database, sessionId: string): string[] {
 export function invalidateSessionOwners(db: Database, sessionId: string): void {
   const m = ownersCache.get(db);
   if (m) m.delete(sessionId);
+}
+
+export interface ForkSessionOpts {
+  /** User performing the fork — becomes the owner of every copied row. */
+  userId: string;
+  /** Project the fork lands in. Defaults to the source session's project. */
+  project?: string;
+  /**
+   * If set, only copy messages with `id <= untilMessageId` (inclusive).
+   * NULL copies the whole session (excluding any rows that are already trimmed).
+   */
+  untilMessageId?: number | null;
+  /** Mark the new session as a Quick Chat for the forking user. */
+  asQuickChat?: boolean;
+  /**
+   * When set, overwrite the content of the last copied row in the new
+   * session with this string. Used by the "edit then fork" affordance so
+   * the user's draft lands in the fork without mutating the source row.
+   */
+  editLastMessageContent?: string;
+}
+
+export interface ForkSessionResult {
+  sessionId: string;
+  copiedCount: number;
+  project: string;
+}
+
+/**
+ * Copy a session's message history into a brand-new session id. Each copied
+ * row is stamped with the caller's `userId` (so the new session shows up under
+ * "Mine"); ts values are renumbered to (now + index*1ms) so chronological
+ * order is preserved without colliding with the source. Trimmed and reasoning
+ * rows are skipped — only the parts that round-trip cleanly back into the
+ * agent loop are copied. Embeddings are NOT cloned in v1 (FTS picks up the
+ * new rows automatically via the existing insert trigger).
+ */
+export function forkSession(
+  db: Database,
+  srcSessionId: string,
+  opts: ForkSessionOpts,
+): ForkSessionResult {
+  const newSessionId = crypto.randomUUID();
+  const now = Date.now();
+
+  type SrcRow = {
+    id: number;
+    role: string;
+    channel: string;
+    content: string | null;
+    tool_call_id: string | null;
+    tool_name: string | null;
+    provider_sig: string | null;
+    ok: number | null;
+    duration_ms: number | null;
+    prompt_tokens: number | null;
+    completion_tokens: number | null;
+    project: string | null;
+    author: string | null;
+    attachments: string | null;
+  };
+
+  const rows = db
+    .prepare(
+      `SELECT id, role, channel, content, tool_call_id, tool_name, provider_sig,
+              ok, duration_ms, prompt_tokens, completion_tokens, project, author,
+              attachments
+         FROM messages
+        WHERE session_id = ?
+          AND trimmed_at IS NULL
+          AND (? IS NULL OR id <= ?)
+        ORDER BY ts ASC, id ASC`,
+    )
+    .all(
+      srcSessionId,
+      opts.untilMessageId ?? null,
+      opts.untilMessageId ?? null,
+    ) as SrcRow[];
+
+  const project =
+    opts.project ?? rows.find((r) => r.project)?.project ?? "general";
+
+  const insert = db.prepare(
+    `INSERT INTO messages (
+        session_id, ts, role, channel, content, tool_call_id, tool_name,
+        provider_sig, ok, duration_ms, prompt_tokens, completion_tokens,
+        user_id, project, author, attachments)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+
+  let copied = 0;
+  const lastIdx = rows.length - 1;
+  const txn = db.transaction(() => {
+    rows.forEach((r, idx) => {
+      const content =
+        idx === lastIdx && opts.editLastMessageContent !== undefined
+          ? opts.editLastMessageContent
+          : r.content;
+      insert.run(
+        newSessionId,
+        now + idx,
+        r.role,
+        r.channel,
+        content,
+        r.tool_call_id,
+        r.tool_name,
+        r.provider_sig,
+        r.ok,
+        r.duration_ms,
+        r.prompt_tokens,
+        r.completion_tokens,
+        opts.userId,
+        project,
+        r.author,
+        r.attachments,
+      );
+      copied++;
+    });
+    recordSessionFork(
+      db,
+      opts.userId,
+      newSessionId,
+      { sessionId: srcSessionId, messageId: opts.untilMessageId ?? null },
+      Boolean(opts.asQuickChat),
+    );
+  });
+  txn();
+
+  invalidateSessionOwners(db, newSessionId);
+  return { sessionId: newSessionId, copiedCount: copied, project };
 }

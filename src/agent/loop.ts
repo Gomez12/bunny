@@ -123,6 +123,11 @@ export interface RunAgentOptions {
   webCfg?: WebConfig;
   /** When set, replaces the entire system prompt (skips project/agent/recall prompt building). */
   systemPromptOverride?: string;
+  /** Regenerate path: the prompt is already in the DB; don't insert it again. */
+  skipUserInsert?: boolean;
+  /** Stamp `regen_of_message_id` on the first assistant content row produced
+   *  by this run (multi-step continuations are NOT chained). */
+  regenOfMessageId?: number;
 }
 
 /** Run one user turn through the agent loop. Returns the final assistant response. */
@@ -229,26 +234,28 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
         skillCatalog,
       });
 
-  const userMsgId = insertMessage(db, {
-    sessionId,
-    userId,
-    project,
-    role: "user",
-    content: prompt,
-    attachments: attachments && attachments.length > 0 ? attachments : null,
-    // User turns are always stamped as null — `author` means "who wrote
-    // this", not "who it was addressed to". Recall / `getRecentTurns` still
-    // include user rows unconditionally when a scope is set.
-    author: null,
-  });
-  void indexMessage(db, embedCfg, userMsgId, prompt);
-  void queue.log({
-    topic: "memory",
-    kind: "index",
-    sessionId,
-    userId,
-    data: { role: "user", agent: agentName },
-  });
+  if (!opts.skipUserInsert) {
+    const userMsgId = insertMessage(db, {
+      sessionId,
+      userId,
+      project,
+      role: "user",
+      content: prompt,
+      attachments: attachments && attachments.length > 0 ? attachments : null,
+      // User turns are always stamped as null — `author` means "who wrote
+      // this", not "who it was addressed to". Recall / `getRecentTurns` still
+      // include user rows unconditionally when a scope is set.
+      author: null,
+    });
+    void indexMessage(db, embedCfg, userMsgId, prompt);
+    void queue.log({
+      topic: "memory",
+      kind: "index",
+      sessionId,
+      userId,
+      data: { role: "user", agent: agentName },
+    });
+  }
 
   const userMessage: ChatMessage = { role: "user", content: prompt };
   if (attachments && attachments.length > 0)
@@ -291,6 +298,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
   });
 
   let iterations = 0;
+  let pendingRegenOfMessageId: number | null = opts.regenOfMessageId ?? null;
 
   while (iterations++ < MAX_TOOL_ITERATIONS) {
     const toolSchemas = runTools.list();
@@ -363,8 +371,12 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
         channel: "content",
         content: assistantContent,
         author: agentName ?? null,
+        regenOfMessageId: pendingRegenOfMessageId,
         ...stats,
       });
+      // Only the FIRST assistant content row in this run is part of the
+      // regen chain. Tool-step continuations write fresh assistant rows.
+      pendingRegenOfMessageId = null;
       void indexMessage(db, embedCfg, aid, assistantContent);
     }
     renderer.onStats(stats);

@@ -84,4 +84,5 @@ A Tauri v2 desktop app (`client/`) wraps the web UI in a native window. It conne
 - [ADR 0020 — UI redesign & styleguide](./adr/0020-ui-redesign-and-styleguide.md)
 - [ADR 0021 — Knowledge Base: definitions](./adr/0021-knowledge-base-definitions.md)
 - [ADR 0022 — Multi-language translation](./adr/0022-multi-language-translation.md)
+- [ADR 0023 — Chat refinements: Quick Chats, Fork, Edit & Regenerate](./adr/0023-chat-quick-chats-fork-edit-regen.md)
 - [Styleguide](./styleguide.md)

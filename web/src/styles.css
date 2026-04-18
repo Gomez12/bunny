@@ -275,6 +275,221 @@ button {
   opacity: 0.7;
 }
 
+/* ── Quick Chat: visual marker + composer controls ─────────────── */
+.sidebar__new-row {
+  display: flex;
+  gap: 6px;
+}
+.sidebar__new-row .sidebar__new {
+  flex: 1;
+}
+.sidebar__new-quick {
+  flex: 0 0 auto;
+  font-weight: 600;
+  padding: 10px 10px;
+}
+.sidebar__section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sidebar__hidden-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 10px;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+.sidebar__hidden-toggle input {
+  margin: 0;
+}
+.sidebar__item--quick {
+  border-left: 2px solid var(--accent);
+  padding-left: 8px;
+}
+.sidebar__quick-badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+.chat__quickbanner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  font-size: 11px;
+  background: linear-gradient(
+    90deg,
+    rgba(124, 92, 255, 0.12),
+    rgba(124, 92, 255, 0.04)
+  );
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border);
+}
+.chat__quickbanner-badge {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 9px;
+}
+.chat__qctoggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-faint);
+  cursor: pointer;
+  user-select: none;
+}
+.chat__qctoggle input {
+  margin: 0;
+}
+
+/* ── Message bubble actions + edit mode + version navigator ────── */
+.bubble {
+  position: relative;
+}
+.bubble__actions {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.bubble:hover .bubble__actions,
+.bubble:focus-within .bubble__actions {
+  opacity: 1;
+}
+.bubble__action {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-faint);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.bubble__action:hover {
+  color: var(--text);
+}
+/* When the bubble enters edit mode, force a comfortable working width
+   instead of letting it collapse to the textarea's intrinsic size. The
+   user bubble normally hugs its content (`max-width: 80%`); without an
+   explicit width here it would shrink to fit a placeholder + buttons. */
+.bubble--editing.bubble--user {
+  width: min(80%, 640px);
+  align-self: flex-end;
+}
+.bubble--editing.bubble--assistant {
+  width: 100%;
+}
+.bubble--editing .bubble__actions {
+  display: none;
+}
+.bubble__edit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+.bubble__edit-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 96px;
+  resize: vertical;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.bubble__edit-textarea:focus {
+  border-color: var(--accent);
+}
+.bubble__edit-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.bubble__edit-buttons .btn {
+  font-size: 12px;
+  padding: 5px 12px;
+}
+.bubble__edit-cancel {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 5px 8px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+}
+.bubble__edit-cancel:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--bg-elevated);
+}
+.bubble__edit-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.bubble__edited-tag {
+  margin-left: 6px;
+  font-size: 10px;
+  color: var(--text-faint);
+  font-style: italic;
+}
+.bubble__regen-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  font-size: 10px;
+  color: var(--text-faint);
+}
+.bubble__regen-nav button {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 5px;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1.4;
+}
+.bubble__regen-nav button:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--bg-elevated);
+}
+.bubble__regen-nav button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* ── Chat tab ────────────────────────────────────────────────── */
 .chat {
   display: grid;

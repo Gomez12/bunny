@@ -9,6 +9,8 @@ interface Props {
   activeId: string | null;
   onPick: (id: string) => void;
   onNew: () => void;
+  /** Optional second action: start a new Quick Chat (auto-hides after inactivity). */
+  onNewQuickChat?: () => void;
   /** Bump this to force a refetch (e.g. after a turn completes). */
   refreshKey?: unknown;
   /** "mine" (default) or "all" — only honored server-side for admins. */
@@ -17,8 +19,11 @@ interface Props {
   showOwner?: boolean;
   /** Restrict the listed sessions to a single project. */
   project?: string;
-  /** Drop sessions the viewer has hidden from chat. Default false. */
+  /** When true, exclude hidden sessions. The toggle below flips this. */
   excludeHidden?: boolean;
+  /** When provided, renders a "Show hidden" toggle. `value` is true when
+   *  hidden sessions should be displayed. */
+  showHiddenToggle?: { value: boolean; onChange: (v: boolean) => void };
   /** Render a per-row hide/unhide control. Default false. */
   allowToggleHidden?: boolean;
   /** Admin-only scope toggle. When provided, renders a segmented control. */
@@ -31,7 +36,8 @@ function sameSessions(a: SessionSummary[], b: SessionSummary[]): boolean {
     if (
       a[i]!.sessionId !== b[i]!.sessionId ||
       a[i]!.lastTs !== b[i]!.lastTs ||
-      a[i]!.hiddenFromChat !== b[i]!.hiddenFromChat
+      a[i]!.hiddenFromChat !== b[i]!.hiddenFromChat ||
+      a[i]!.isQuickChat !== b[i]!.isQuickChat
     ) {
       return false;
     }
@@ -43,11 +49,13 @@ export default memo(function SessionSidebar({
   activeId,
   onPick,
   onNew,
+  onNewQuickChat,
   refreshKey,
   scope,
   showOwner,
   project,
   excludeHidden,
+  showHiddenToggle,
   allowToggleHidden,
   scopeToggle,
 }: Props) {
@@ -91,9 +99,21 @@ export default memo(function SessionSidebar({
 
   return (
     <aside className="sidebar">
-      <button className="btn btn--send sidebar__new" onClick={onNew}>
-        + New chat
-      </button>
+      <div className="sidebar__new-row">
+        <button className="btn btn--send sidebar__new" onClick={onNew}>
+          + New chat
+        </button>
+        {onNewQuickChat && (
+          <button
+            type="button"
+            className="btn btn--ghost sidebar__new-quick"
+            title="Start a Quick Chat — auto-hides after 15 min of inactivity"
+            onClick={onNewQuickChat}
+          >
+            + Quick
+          </button>
+        )}
+      </div>
       <input
         type="search"
         className="sidebar__search"
@@ -129,7 +149,19 @@ export default memo(function SessionSidebar({
           </button>
         </div>
       )}
-      <div className="sidebar__section">Sessions</div>
+      <div className="sidebar__section">
+        <span>Sessions</span>
+        {showHiddenToggle && (
+          <label className="sidebar__hidden-toggle" title="Show sessions you have hidden">
+            <input
+              type="checkbox"
+              checked={showHiddenToggle.value}
+              onChange={(e) => showHiddenToggle.onChange(e.target.checked)}
+            />
+            Show hidden
+          </label>
+        )}
+      </div>
       <ul className="sidebar__list">
         {sessions.length === 0 && (
           <li className="sidebar__empty">No sessions yet.</li>
@@ -140,15 +172,20 @@ export default memo(function SessionSidebar({
               className={
                 "sidebar__item" +
                 (s.sessionId === activeId ? " sidebar__item--active" : "") +
-                (s.hiddenFromChat ? " sidebar__item--hidden" : "")
+                (s.hiddenFromChat ? " sidebar__item--hidden" : "") +
+                (s.isQuickChat ? " sidebar__item--quick" : "")
               }
               onClick={() => onPick(s.sessionId)}
               title={
+                (s.isQuickChat ? "(quick chat)\n" : "") +
                 (s.hiddenFromChat ? "(hidden from chat)\n" : "") +
                 new Date(s.lastTs).toLocaleString()
               }
             >
-              <div className="sidebar__item-title">{s.title || "(untitled)"}</div>
+              <div className="sidebar__item-title">
+                {s.isQuickChat && <span className="sidebar__quick-badge">QC</span>}
+                {s.title || "(untitled)"}
+              </div>
               <div className="sidebar__item-meta">
                 {showOwner && (
                   <span className="sidebar__owner">

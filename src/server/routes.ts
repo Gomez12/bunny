@@ -59,6 +59,7 @@ import { handleKbRoute } from "./kb_routes.ts";
 import { handleWorkspaceRoute } from "./workspace_routes.ts";
 import { handleScheduledTaskRoute } from "./scheduled_task_routes.ts";
 import { handleTranslationRoute } from "./translation_routes.ts";
+import { handleChatRoute } from "./chat_routes.ts";
 import type { SchedulerHandle } from "../scheduler/ticker.ts";
 import type { HandlerRegistry } from "../scheduler/handlers.ts";
 import { parseMention } from "../agent/mention.ts";
@@ -234,6 +235,22 @@ export async function handleApi(
     if (req.method === "PATCH") return handlePatchProject(req, ctx, user, name);
     if (req.method === "DELETE") return handleDeleteProject(ctx, user, name);
   }
+
+  // ── Chat-domain routes (quick-chat, fork, message edit/trim/regenerate) ──
+  // Mounted before the generic session/message handlers below so the more
+  // specific paths (e.g. /api/sessions/:id/quick-chat) match first.
+  const chatResponse = await handleChatRoute(
+    req,
+    url,
+    {
+      db: ctx.db,
+      queue: ctx.queue,
+      cfg: ctx.cfg,
+      canAccessSession: (sid) => canAccessSession(ctx, user, sid),
+    },
+    user,
+  );
+  if (chatResponse) return chatResponse;
 
   // GET /api/sessions?q=...&scope=mine|all&project=<name>&excludeHidden=1
   if (pathname === "/api/sessions" && req.method === "GET") {

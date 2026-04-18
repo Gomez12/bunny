@@ -36,3 +36,52 @@ export function isSessionHiddenFromChat(
     .get(userId, sessionId) as { h: number } | null;
   return row?.h === 1;
 }
+
+/** Toggle the per-user quick-chat flag for a session. */
+export function setSessionQuickChat(
+  db: Database,
+  userId: string,
+  sessionId: string,
+  isQuickChat: boolean,
+): void {
+  const now = Date.now();
+  db.prepare(
+    `INSERT INTO session_visibility (user_id, session_id, hidden_from_chat, is_quick_chat, updated_at)
+     VALUES (?, ?, 0, ?, ?)
+     ON CONFLICT(user_id, session_id) DO UPDATE SET
+       is_quick_chat = excluded.is_quick_chat,
+       updated_at    = excluded.updated_at`,
+  ).run(userId, sessionId, isQuickChat ? 1 : 0, now);
+}
+
+/**
+ * Mark a freshly-forked session: stamps the quick-chat flag plus the source
+ * session/message ids that produced the fork. Used by `forkSession`.
+ */
+export function recordSessionFork(
+  db: Database,
+  userId: string,
+  sessionId: string,
+  src: { sessionId: string; messageId: number | null },
+  asQuickChat: boolean,
+): void {
+  const now = Date.now();
+  db.prepare(
+    `INSERT INTO session_visibility (
+        user_id, session_id, hidden_from_chat, is_quick_chat,
+        forked_from_session_id, forked_from_message_id, updated_at)
+     VALUES (?, ?, 0, ?, ?, ?, ?)
+     ON CONFLICT(user_id, session_id) DO UPDATE SET
+       is_quick_chat          = excluded.is_quick_chat,
+       forked_from_session_id = excluded.forked_from_session_id,
+       forked_from_message_id = excluded.forked_from_message_id,
+       updated_at             = excluded.updated_at`,
+  ).run(
+    userId,
+    sessionId,
+    asQuickChat ? 1 : 0,
+    src.sessionId,
+    src.messageId,
+    now,
+  );
+}

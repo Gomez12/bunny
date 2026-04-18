@@ -1,10 +1,19 @@
-import { useEffect, useRef, useState, type DragEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import Composer, {
   MAX_IMAGE_BYTES,
   resolveImageMime,
   type ComposerHandle,
 } from "../components/Composer";
-import { uploadImageForDataUrl } from "../api";
+import {
+  fetchSessions,
+  forkSessionApi,
+  patchMessage,
+  regenerateAssistantMessage,
+  setSessionQuickChat,
+  trimMessagesAfter,
+  uploadImageForDataUrl,
+  type SessionSummary,
+} from "../api";
 import MessageBubble from "../components/MessageBubble";
 import MarkdownContent from "../components/MarkdownContent";
 import ReasoningBlock from "../components/ReasoningBlock";
@@ -27,6 +36,8 @@ interface Props {
   currentUser: AuthUser;
   onPickSession: (id: string) => void;
   onNewSession: () => void;
+  /** Optional: start a brand-new session AND mark it as a Quick Chat. */
+  onNewQuickChat?: () => void;
 }
 
 export default function ChatTab({
@@ -35,13 +46,34 @@ export default function ChatTab({
   currentUser,
   onPickSession,
   onNewSession,
+  onNewQuickChat,
 }: Props) {
   const expandThink = currentUser.expandThinkBubbles;
   const expandTool = currentUser.expandToolBubbles;
   const [history, setHistory] = useState<HistoryTurn[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  // Per-turn regen-version override (keyed by user-prompt message id).
+  const [regenIndex, setRegenIndex] = useState<Record<number, number>>({});
+  const [regeneratingTurnId, setRegeneratingTurnId] = useState<string | null>(null);
+  const [activeSessionMeta, setActiveSessionMeta] = useState<{
+    isQuickChat: boolean;
+    forkedFromSessionId: string | null;
+  } | null>(null);
+  const [showHidden, setShowHidden] = useState(false);
 
+  const refreshHistory = useCallback(async () => {
+    try {
+      const msgs = await fetchMessages(sessionId);
+      setHistory(groupTurns(reorderReasoning(msgs)));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [sessionId]);
+
+  // Bump the sidebar refreshKey on turn end so a new session surfaces in
+  // "Mine"; intentionally do NOT refetch chat history (the live turn is
+  // already rendered — refetching would render it twice).
   const { turns, streaming, send, abort, reset } = useSSEChat(sessionId, project, () =>
     setRefreshKey((k) => k + 1),
   );
@@ -193,12 +225,39 @@ export default function ChatTab({
 
   useEffect(() => {
     reset();
+    setRegenIndex({});
+    setRegeneratingTurnId(null);
     setLoadingHistory(true);
     fetchMessages(sessionId)
       .then((msgs) => setHistory(groupTurns(reorderReasoning(msgs))))
       .catch((e) => console.error(e))
       .finally(() => setLoadingHistory(false));
   }, [sessionId, reset]);
+
+  // Toggles via the composer checkbox update activeSessionMeta directly,
+  // so refetching here on each turn end is intentionally avoided.
+  useEffect(() => {
+    let cancelled = false;
+    fetchSessions(undefined, { project, scope: "mine" })
+      .then((list: SessionSummary[]) => {
+        if (cancelled) return;
+        const me = list.find((s) => s.sessionId === sessionId);
+        const next = me
+          ? { isQuickChat: me.isQuickChat, forkedFromSessionId: me.forkedFromSessionId }
+          : { isQuickChat: false, forkedFromSessionId: null };
+        setActiveSessionMeta((prev) =>
+          prev &&
+          prev.isQuickChat === next.isQuickChat &&
+          prev.forkedFromSessionId === next.forkedFromSessionId
+            ? prev
+            : next,
+        );
+      })
+      .catch(() => setActiveSessionMeta({ isQuickChat: false, forkedFromSessionId: null }));
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, project]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -208,18 +267,135 @@ export default function ChatTab({
 
   const isEmpty = !loadingHistory && history.length === 0 && turns.length === 0;
 
+  const handleToggleQuickChat = useCallback(
+    async (next: boolean) => {
+      const prev = activeSessionMeta;
+      setActiveSessionMeta((m) =>
+        m ? { ...m, isQuickChat: next } : { isQuickChat: next, forkedFromSessionId: null },
+      );
+      try {
+        await setSessionQuickChat(sessionId, next);
+        setRefreshKey((k) => k + 1);
+      } catch (e) {
+        console.error(e);
+        setActiveSessionMeta(prev);
+      }
+    },
+    [activeSessionMeta, sessionId],
+  );
+
+  const handleEditUserPrompt = useCallback(
+    async (turn: HistoryTurn, content: string) => {
+      await patchMessage(turn.promptMessageId, content);
+      await refreshHistory();
+    },
+    [refreshHistory],
+  );
+
+  const handleSaveAndRegenerate = useCallback(
+    async (turn: HistoryTurn, content: string) => {
+      await patchMessage(turn.promptMessageId, content);
+      await trimMessagesAfter(turn.promptMessageId);
+      // Re-run the agent against the (now edited) user message in place. We
+      // hit /regenerate rather than /api/chat so no fresh user row is
+      // inserted — the original prompt row is the "prompt" for this turn.
+      setRegeneratingTurnId(turn.id);
+      await new Promise<void>((resolve, reject) => {
+        const { done } = regenerateAssistantMessage(turn.promptMessageId, () => {
+          /* events ignored — we refresh on done */
+        });
+        done.then(resolve).catch(reject);
+      })
+        .catch((e) => console.error(e))
+        .finally(() => setRegeneratingTurnId(null));
+      await refreshHistory();
+    },
+    [refreshHistory],
+  );
+
+  const handleEditAssistant = useCallback(
+    async (turn: HistoryTurn, content: string) => {
+      if (turn.contentMessageId == null) return;
+      await patchMessage(turn.contentMessageId, content);
+      await refreshHistory();
+    },
+    [refreshHistory],
+  );
+
+  const handleFork = useCallback(
+    async (
+      _turn: HistoryTurn,
+      untilMessageId: number,
+      editedContent?: string,
+    ) => {
+      // Edit-then-fork should NOT mutate the source. The fork API rewrites
+      // the last copied message in the new session only when
+      // `editLastMessageContent` is set.
+      const { sessionId: newId } = await forkSessionApi(sessionId, {
+        untilMessageId,
+        asQuickChat: true,
+        project,
+        ...(editedContent !== undefined
+          ? { editLastMessageContent: editedContent }
+          : {}),
+      });
+      onPickSession(newId);
+    },
+    [sessionId, project, onPickSession],
+  );
+
+  const handleRegenerateAssistant = useCallback(
+    async (turn: HistoryTurn) => {
+      if (turn.contentMessageId == null) return;
+      setRegeneratingTurnId(turn.id);
+      await new Promise<void>((resolve, reject) => {
+        const { done } = regenerateAssistantMessage(turn.contentMessageId!, () => {
+          /* events ignored — we refresh on done */
+        });
+        done.then(resolve).catch(reject);
+      })
+        .catch((e) => console.error(e))
+        .finally(() => setRegeneratingTurnId(null));
+      await refreshHistory();
+    },
+    [refreshHistory],
+  );
+
+  const sidebarShowOwner = currentUser.role === "admin" && adminScope === "all";
+
+  // For each rendered turn, derive the assistant content to show — either the
+  // active version (latest) or the user's manually-selected older alternate.
+  const turnContent = useMemo(() => {
+    const out = new Map<string, string>();
+    for (const t of history) {
+      const overrideIdx = regenIndex[t.promptMessageId];
+      if (overrideIdx !== undefined && t.regenChain[overrideIdx]) {
+        out.set(t.id, t.regenChain[overrideIdx]!.content ?? t.content);
+      } else {
+        out.set(t.id, t.content);
+      }
+    }
+    return out;
+  }, [history, regenIndex]);
+
   return (
     <div className="chat">
       <SessionSidebar
         activeId={sessionId}
         onPick={onPickSession}
         onNew={onNewSession}
+        onNewQuickChat={onNewQuickChat}
         refreshKey={refreshKey}
         project={project}
-        excludeHidden={adminScope === "mine"}
+        excludeHidden={!showHidden && adminScope === "mine"}
+        showHiddenToggle={
+          adminScope === "mine"
+            ? { value: showHidden, onChange: setShowHidden }
+            : undefined
+        }
         allowToggleHidden
         scope={currentUser.role === "admin" ? adminScope : undefined}
-        showOwner={currentUser.role === "admin" && adminScope === "all"}
+        showOwner={sidebarShowOwner}
         scopeToggle={
           currentUser.role === "admin"
             ? { value: adminScope, onChange: setAdminScope }
@@ -238,6 +414,15 @@ export default function ChatTab({
             <div className="chat__dropzone-inner">Drop image to attach</div>
           </div>
         )}
+        {activeSessionMeta?.isQuickChat && (
+          <div className="chat__quickbanner">
+            <span className="chat__quickbanner-badge">Quick Chat</span>
+            <span>Auto-hides 15 min after the last message.</span>
+            {activeSessionMeta.forkedFromSessionId && (
+              <span>· forked from {activeSessionMeta.forkedFromSessionId.slice(0, 8)}</span>
+            )}
+          </div>
+        )}
         <div className="chat__scroll" ref={scrollRef}>
           {isEmpty && (
             <EmptyState
@@ -245,35 +430,76 @@ export default function ChatTab({
               description={`Project ${project} · session ${sessionId.slice(0, 8)}`}
             />
           )}
-          {history.map((t) => (
-            <div key={t.id} className="turn">
-              <MessageBubble role="user">
-                {t.attachments.length > 0 && (
-                  <div className="bubble__attachments">
-                    {t.attachments.map((a, i) => (
-                      <img key={i} src={a.dataUrl} alt={`attachment ${i + 1}`} />
-                    ))}
-                  </div>
-                )}
-                {t.prompt}
-              </MessageBubble>
-              <MessageBubble role="assistant" author={t.author}>
-                {t.reasoning && <ReasoningBlock text={t.reasoning} defaultOpen={expandThink} />}
-                {t.toolCalls.map((tc) => (
-                  <ToolCallCard
-                    key={tc.id}
-                    name={tc.name}
-                    args={tc.args}
-                    ok={tc.ok}
-                    output={tc.output}
-                    defaultOpen={expandTool}
-                  />
-                ))}
-                {t.content && <MarkdownContent text={t.content} />}
-                <StatsFooter stats={t.stats} />
-              </MessageBubble>
-            </div>
-          ))}
+          {history.map((t) => {
+            const versionContent = turnContent.get(t.id) ?? t.content;
+            const isRegenerating = regeneratingTurnId === t.id;
+            return (
+              <div key={t.id} className="turn">
+                <MessageBubble
+                  role="user"
+                  rawContent={t.prompt}
+                  edited={t.promptEdited}
+                  actions={{
+                    onSave: (c) => handleEditUserPrompt(t, c),
+                    onSaveAndRegenerate: (c) => handleSaveAndRegenerate(t, c),
+                    onFork: (edited) => handleFork(t, t.promptMessageId, edited),
+                  }}
+                >
+                  {t.attachments.length > 0 && (
+                    <div className="bubble__attachments">
+                      {t.attachments.map((a, i) => (
+                        <img key={i} src={a.dataUrl} alt={`attachment ${i + 1}`} />
+                      ))}
+                    </div>
+                  )}
+                  {t.prompt}
+                </MessageBubble>
+                <MessageBubble
+                  role="assistant"
+                  author={t.author}
+                  rawContent={versionContent}
+                  edited={t.contentEdited}
+                  regenChain={t.regenChain}
+                  selectedIndex={
+                    regenIndex[t.promptMessageId] ?? Math.max(0, t.regenChain.length - 1)
+                  }
+                  onSelectIndex={(idx) =>
+                    setRegenIndex((m) => ({ ...m, [t.promptMessageId]: idx }))
+                  }
+                  actions={{
+                    onSave: t.contentMessageId != null
+                      ? (c) => handleEditAssistant(t, c)
+                      : undefined,
+                    onFork: t.contentMessageId != null
+                      ? (edited) => handleFork(t, t.contentMessageId!, edited)
+                      : undefined,
+                    onRegenerate: t.contentMessageId != null
+                      ? () => handleRegenerateAssistant(t)
+                      : undefined,
+                  }}
+                >
+                  {t.reasoning && <ReasoningBlock text={t.reasoning} defaultOpen={expandThink} />}
+                  {t.toolCalls.map((tc) => (
+                    <ToolCallCard
+                      key={tc.id}
+                      name={tc.name}
+                      args={tc.args}
+                      ok={tc.ok}
+                      output={tc.output}
+                      defaultOpen={expandTool}
+                    />
+                  ))}
+                  {versionContent && <MarkdownContent text={versionContent} />}
+                  {isRegenerating && (
+                    <div className="bubble__pending">
+                      <span className="spinner" /> regenerating…
+                    </div>
+                  )}
+                  <StatsFooter stats={t.stats} />
+                </MessageBubble>
+              </div>
+            );
+          })}
           {turns.map((t) => (
             <div key={t.id} className="turn">
               <MessageBubble role="user">
@@ -323,14 +549,24 @@ export default function ChatTab({
               to continue this session.
             </div>
           ) : (
-            <Composer
-              ref={composerRef}
-              disabled={streaming}
-              streaming={streaming}
-              onSubmit={send}
-              onAbort={abort}
-              project={project}
-            />
+            <>
+              <Composer
+                ref={composerRef}
+                disabled={streaming}
+                streaming={streaming}
+                onSubmit={send}
+                onAbort={abort}
+                project={project}
+              />
+              <label className="chat__qctoggle" title="Mark this session as a Quick Chat (auto-hides after 15 min of inactivity)">
+                <input
+                  type="checkbox"
+                  checked={Boolean(activeSessionMeta?.isQuickChat)}
+                  onChange={(e) => void handleToggleQuickChat(e.target.checked)}
+                />
+                Quick Chat
+              </label>
+            </>
           )}
         </div>
       </div>

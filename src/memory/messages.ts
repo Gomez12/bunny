@@ -40,6 +40,21 @@ export interface StoredMessage {
   author: string | null;
   /** User-turn attachments (images). Null when absent. */
   attachments: ChatAttachment[] | null;
+  /** Unix ms when this message was edited via the edit affordance (null = never). */
+  editedAt: number | null;
+  /**
+   * For an assistant message that was produced by clicking "Regenerate", the
+   * id of the original message it is an alternate version of. NULL when this
+   * is the chain's root.
+   */
+  regenOfMessageId: number | null;
+  /**
+   * Ordered list of all versions in this regen chain (root first), populated
+   * by getMessagesBySession. Each entry carries the version's content so the
+   * UI can flip between alternates without an extra round-trip. Length 1 =
+   * no regens.
+   */
+  regenChain: Array<{ id: number; ts: number; content: string | null }>;
 }
 
 export interface InsertMessageOpts {
@@ -61,11 +76,16 @@ export interface InsertMessageOpts {
   author?: string | null;
   /** Attachments (images) for user turns. */
   attachments?: ChatAttachment[] | null;
+  /**
+   * For assistant messages produced via "Regenerate", the id of the original
+   * message in the chain. NULL for everything else.
+   */
+  regenOfMessageId?: number | null;
 }
 
 const INSERT_MESSAGE_SQL = `
-    INSERT INTO messages (session_id, ts, role, channel, content, tool_call_id, tool_name, provider_sig, ok, duration_ms, prompt_tokens, completion_tokens, user_id, project, author, attachments)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO messages (session_id, ts, role, channel, content, tool_call_id, tool_name, provider_sig, ok, duration_ms, prompt_tokens, completion_tokens, user_id, project, author, attachments, regen_of_message_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     RETURNING id
   `;
 
@@ -89,6 +109,7 @@ export function insertMessage(db: Database, opts: InsertMessageOpts): number {
     opts.attachments && opts.attachments.length > 0
       ? JSON.stringify(opts.attachments)
       : null,
+    opts.regenOfMessageId ?? null,
   ) as { id: number } | undefined;
   if (opts.userId) invalidateSessionOwners(db, opts.sessionId);
   return row?.id ?? 0;
@@ -118,7 +139,7 @@ export function getRecentTurns(
 ): Array<ChatMessage & { messageId: number }> {
   if (limit <= 0) return [];
   const baseClauses =
-    "session_id = ? AND channel = 'content' AND role IN ('user', 'assistant') AND content IS NOT NULL AND content != ''";
+    "session_id = ? AND channel = 'content' AND role IN ('user', 'assistant') AND content IS NOT NULL AND content != '' AND trimmed_at IS NULL";
   const params: (string | number | null)[] = [sessionId];
   let sql: string;
   if (ownAuthor !== undefined) {
@@ -162,10 +183,11 @@ export function getMessagesBySession(
               m.tool_name, m.provider_sig, m.ok, m.duration_ms, m.prompt_tokens,
               m.completion_tokens, m.user_id, COALESCE(m.project, 'general') AS project,
               m.author AS author, m.attachments AS attachments,
+              m.edited_at AS edited_at, m.regen_of_message_id AS regen_of_message_id,
               u.username AS username, u.display_name AS display_name
        FROM messages m
        LEFT JOIN users u ON u.id = m.user_id
-       WHERE m.session_id = ? ORDER BY m.ts ASC`,
+       WHERE m.session_id = ? AND m.trimmed_at IS NULL ORDER BY m.ts ASC`,
     )
     .all(sessionId) as Array<{
     id: number;
@@ -185,9 +207,12 @@ export function getMessagesBySession(
     project: string;
     author: string | null;
     attachments: string | null;
+    edited_at: number | null;
+    regen_of_message_id: number | null;
     username: string | null;
     display_name: string | null;
   }>;
+  const chains = buildRegenChains(rows);
   return rows.map((r) => ({
     id: r.id,
     sessionId: r.session_id,
@@ -206,9 +231,177 @@ export function getMessagesBySession(
     project: r.project,
     author: r.author,
     attachments: parseAttachments(r.attachments),
+    editedAt: r.edited_at,
+    regenOfMessageId: r.regen_of_message_id,
+    regenChain: chains.get(r.id) ?? [
+      { id: r.id, ts: r.ts, content: r.content },
+    ],
     username: r.username,
     displayName: r.display_name,
   }));
+}
+
+/** Map each row id to the ordered list of versions in its regen chain (root first). */
+function buildRegenChains(
+  rows: Array<{
+    id: number;
+    ts: number;
+    content: string | null;
+    regen_of_message_id: number | null;
+  }>,
+): Map<number, Array<{ id: number; ts: number; content: string | null }>> {
+  const childrenByRoot = new Map<
+    number,
+    Array<{ id: number; ts: number; content: string | null }>
+  >();
+  const rowById = new Map(rows.map((r) => [r.id, r] as const));
+
+  // Find the chain root for a given row (climb regen_of pointers).
+  const rootOf = (id: number): number => {
+    let cur = id;
+    const seen = new Set<number>();
+    for (;;) {
+      if (seen.has(cur)) return cur; // cycle guard
+      seen.add(cur);
+      const row = rowById.get(cur);
+      if (!row || row.regen_of_message_id == null) return cur;
+      cur = row.regen_of_message_id;
+    }
+  };
+
+  for (const r of rows) {
+    const root = rootOf(r.id);
+    let arr = childrenByRoot.get(root);
+    if (!arr) {
+      arr = [];
+      childrenByRoot.set(root, arr);
+    }
+    arr.push({ id: r.id, ts: r.ts, content: r.content });
+  }
+
+  // Sort each chain by ts (ascending) so the root is first, latest is last.
+  for (const arr of childrenByRoot.values()) {
+    arr.sort((a, b) => a.ts - b.ts || a.id - b.id);
+  }
+
+  // Propagate the chain to every member id.
+  const out = new Map<
+    number,
+    Array<{ id: number; ts: number; content: string | null }>
+  >();
+  for (const r of rows) {
+    out.set(
+      r.id,
+      childrenByRoot.get(rootOf(r.id)) ?? [
+        { id: r.id, ts: r.ts, content: r.content },
+      ],
+    );
+  }
+  return out;
+}
+
+/** Rewrite a message's content and stamp `edited_at`. ACL is the caller's job. */
+export function editMessageContent(
+  db: Database,
+  messageId: number,
+  newContent: string,
+): void {
+  db.prepare(`UPDATE messages SET content = ?, edited_at = ? WHERE id = ?`).run(
+    newContent,
+    Date.now(),
+    messageId,
+  );
+}
+
+/**
+ * Soft-delete every message in `sessionId` whose `id` is strictly greater
+ * than the pivot message's `id`. We compare on `id` (autoincrement, strictly
+ * monotonic) rather than `ts`, because messages inserted in the same
+ * millisecond share a timestamp and a `ts > pivot.ts` predicate would skip
+ * them. Returns the count of trimmed rows. The pivot row itself is NOT
+ * trimmed. Idempotent: rows already trimmed are skipped.
+ *
+ * RETURNING is preferred over `result.changes` because the FTS5 trim trigger
+ * cascades writes into `messages_fts` that inflate sqlite3_changes().
+ */
+export function trimSessionAfter(
+  db: Database,
+  sessionId: string,
+  pivotMessageId: number,
+): { trimmedCount: number } {
+  const rows = db
+    .prepare(
+      `UPDATE messages SET trimmed_at = ?
+         WHERE session_id = ? AND id > ? AND trimmed_at IS NULL
+       RETURNING id`,
+    )
+    .all(Date.now(), sessionId, pivotMessageId) as Array<{ id: number }>;
+  return { trimmedCount: rows.length };
+}
+
+/**
+ * Look up the owning user_id for a message, or null when the row is anonymous
+ * (legacy) or does not exist.
+ */
+export function getMessageOwner(
+  db: Database,
+  messageId: number,
+): { sessionId: string; userId: string | null; role: MessageRole } | null {
+  const row = db
+    .prepare(
+      `SELECT session_id, user_id, role FROM messages WHERE id = ? AND trimmed_at IS NULL`,
+    )
+    .get(messageId) as
+    | { session_id: string; user_id: string | null; role: string }
+    | undefined;
+  if (!row) return null;
+  return {
+    sessionId: row.session_id,
+    userId: row.user_id,
+    role: row.role as MessageRole,
+  };
+}
+
+/**
+ * Find the most recent user-content message in `sessionId` whose `id` is
+ * strictly less than `pivotMessageId`. Used by regenerate to recover the
+ * prompt that produced the assistant message we are regenerating from. We
+ * order by `id` rather than `ts` to handle messages inserted in the same
+ * millisecond deterministically.
+ */
+export function findPriorUserMessage(
+  db: Database,
+  sessionId: string,
+  pivotMessageId: number,
+): { id: number; content: string; ts: number } | null {
+  const row = db
+    .prepare(
+      `SELECT id, content, ts FROM messages
+         WHERE session_id = ? AND role = 'user' AND channel = 'content'
+           AND content IS NOT NULL AND content != ''
+           AND trimmed_at IS NULL
+           AND id < ?
+         ORDER BY id DESC LIMIT 1`,
+    )
+    .get(sessionId, pivotMessageId) as
+    | { id: number; content: string; ts: number }
+    | undefined;
+  return row ?? null;
+}
+
+/**
+ * Permission check for message edit / trim / regenerate. Admins always pass;
+ * otherwise the caller must own the message. Anonymous (legacy) rows have no
+ * owner and can only be touched by admins. Mirrors `canEditCard` /
+ * `canEditDocument`.
+ */
+export function canEditMessage(
+  ownerId: string | null,
+  user: { id: string; role: string },
+): boolean {
+  if (user.role === "admin") return true;
+  if (ownerId === null) return false;
+  return ownerId === user.id;
 }
 
 function parseAttachments(raw: string | null): ChatAttachment[] | null {
