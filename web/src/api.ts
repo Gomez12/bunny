@@ -3,6 +3,21 @@
 import type { SseEvent } from "../../src/agent/sse_events";
 import type { ChatAttachment } from "../../src/llm/types";
 
+export type Theme = "light" | "dark";
+
+/** Payload that Documents / Whiteboards / Contacts hand off to Chat so the
+ *  arriving session auto-sends one prompt as a Quick Chat. */
+export interface OpenInChatPayload {
+  prompt: string;
+  attachments?: ChatAttachment[];
+  isQuickChat?: boolean;
+}
+
+export type OpenInChatFn = (
+  sessionId: string,
+  payload: OpenInChatPayload,
+) => void;
+
 export type ServerEvent = SseEvent;
 export type { ChatAttachment };
 
@@ -1425,11 +1440,19 @@ export async function editWhiteboard(
   });
 }
 
+export interface AskResponse {
+  sessionId: string;
+  project: string;
+  prompt: string;
+  attachments?: ChatAttachment[];
+  isQuickChat: boolean;
+}
+
 export async function askWhiteboard(
   id: number,
-  body: { prompt: string; elementsJson?: string; screenshotDataUrl?: string; thumbnail?: string },
-): Promise<{ sessionId: string; project: string }> {
-  return jsonFetch<{ sessionId: string; project: string }>(`/api/whiteboards/${id}/ask`, {
+  body: { prompt: string; elementsJson?: string; thumbnail?: string },
+): Promise<AskResponse> {
+  return jsonFetch<AskResponse>(`/api/whiteboards/${id}/ask`, {
     method: "POST",
     body: JSON.stringify(body),
   });
@@ -1514,8 +1537,8 @@ export async function editDocument(
 export async function askDocument(
   id: number,
   body: { prompt: string; contentMd?: string },
-): Promise<{ sessionId: string; project: string }> {
-  return jsonFetch<{ sessionId: string; project: string }>(`/api/documents/${id}/ask`, {
+): Promise<AskResponse> {
+  return jsonFetch<AskResponse>(`/api/documents/${id}/ask`, {
     method: "POST",
     body: JSON.stringify(body),
   });
@@ -1713,8 +1736,8 @@ export async function editContacts(
 export async function askContacts(
   project: string,
   body: { prompt: string; contactsSummary?: string },
-): Promise<{ sessionId: string; project: string }> {
-  return jsonFetch(`/api/projects/${encodeURIComponent(project)}/contacts/ask`, {
+): Promise<AskResponse> {
+  return jsonFetch<AskResponse>(`/api/projects/${encodeURIComponent(project)}/contacts/ask`, {
     method: "POST",
     body: JSON.stringify(body),
   });

@@ -12,6 +12,7 @@ import {
   setSessionQuickChat,
   trimMessagesAfter,
   uploadImageForDataUrl,
+  type ChatAttachment,
   type SessionSummary,
 } from "../api";
 import MessageBubble from "../components/MessageBubble";
@@ -38,6 +39,15 @@ interface Props {
   onNewSession: () => void;
   /** Optional: start a brand-new session AND mark it as a Quick Chat. */
   onNewQuickChat?: () => void;
+  /** Handoff payload from Documents / Whiteboards / Contacts "ask". The tab
+   * auto-sends this prompt (once) after the session prop catches up. */
+  pendingChatSend?: {
+    sessionId: string;
+    prompt: string;
+    attachments?: ChatAttachment[];
+    isQuickChat?: boolean;
+  } | null;
+  onConsumePendingChatSend?: () => void;
 }
 
 export default function ChatTab({
@@ -47,6 +57,8 @@ export default function ChatTab({
   onPickSession,
   onNewSession,
   onNewQuickChat,
+  pendingChatSend,
+  onConsumePendingChatSend,
 }: Props) {
   const expandThink = currentUser.expandThinkBubbles;
   const expandTool = currentUser.expandToolBubbles;
@@ -227,6 +239,10 @@ export default function ChatTab({
     reset();
     setRegenIndex({});
     setRegeneratingTurnId(null);
+    // Clear stale QC / fork meta from the previous session so nothing leaks
+    // into the new one — the pending-consume effect may seed it, and
+    // fetchSessions will populate it once the session row exists.
+    setActiveSessionMeta(null);
     setLoadingHistory(true);
     fetchMessages(sessionId)
       .then((msgs) => setHistory(groupTurns(reorderReasoning(msgs))))
@@ -234,17 +250,40 @@ export default function ChatTab({
       .finally(() => setLoadingHistory(false));
   }, [sessionId, reset]);
 
-  // Toggles via the composer checkbox update activeSessionMeta directly,
-  // so refetching here on each turn end is intentionally avoided.
+  // Auto-send the handoff prompt from Documents / Whiteboards / Contacts.
+  // Gated on `sessionId === pending.sessionId` so the prompt can't leak into a
+  // stale session if the user switched mid-flight; cleared immediately to
+  // avoid re-firing on remount.
+  useEffect(() => {
+    if (!pendingChatSend) return;
+    if (pendingChatSend.sessionId !== sessionId) return;
+    if (pendingChatSend.isQuickChat) {
+      setActiveSessionMeta((prev) => ({
+        isQuickChat: true,
+        forkedFromSessionId: prev?.forkedFromSessionId ?? null,
+      }));
+    }
+    send(pendingChatSend.prompt, pendingChatSend.attachments ?? []);
+    onConsumePendingChatSend?.();
+  }, [pendingChatSend, sessionId, send, onConsumePendingChatSend]);
+
+  // Toggles via the composer checkbox update activeSessionMeta directly. We
+  // also re-run on `refreshKey` so the flag picks up the real DB row once a
+  // handoff session (Documents/Whiteboards "ask") materialises on turn_end.
+  // When `me` is undefined (session not yet in `messages`) we *preserve* the
+  // existing meta rather than resetting — otherwise the seed set by a pending
+  // handoff payload would flash then clear.
   useEffect(() => {
     let cancelled = false;
     fetchSessions(undefined, { project, scope: "mine" })
       .then((list: SessionSummary[]) => {
         if (cancelled) return;
         const me = list.find((s) => s.sessionId === sessionId);
-        const next = me
-          ? { isQuickChat: me.isQuickChat, forkedFromSessionId: me.forkedFromSessionId }
-          : { isQuickChat: false, forkedFromSessionId: null };
+        if (!me) return;
+        const next = {
+          isQuickChat: me.isQuickChat,
+          forkedFromSessionId: me.forkedFromSessionId,
+        };
         setActiveSessionMeta((prev) =>
           prev &&
           prev.isQuickChat === next.isQuickChat &&
@@ -253,11 +292,13 @@ export default function ChatTab({
             : next,
         );
       })
-      .catch(() => setActiveSessionMeta({ isQuickChat: false, forkedFromSessionId: null }));
+      .catch(() => {
+        /* leave existing meta in place on fetch error */
+      });
     return () => {
       cancelled = true;
     };
-  }, [sessionId, project]);
+  }, [sessionId, project, refreshKey]);
 
   useEffect(() => {
     const el = scrollRef.current;

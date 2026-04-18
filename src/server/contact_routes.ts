@@ -8,8 +8,10 @@ import { json, readJson } from "./http.ts";
 import { canSeeProject, canEditProject } from "./routes.ts";
 import { getProject, validateProjectName } from "../memory/projects.ts";
 import type { Project } from "../memory/projects.ts";
-import { setSessionHiddenFromChat } from "../memory/session_visibility.ts";
-import { insertMessage } from "../memory/messages.ts";
+import {
+  setSessionHiddenFromChat,
+  setSessionQuickChat,
+} from "../memory/session_visibility.ts";
 import { runAgent } from "../agent/loop.ts";
 import {
   createSseRenderer,
@@ -584,14 +586,7 @@ async function handleAsk(
     ? `[Contacts Summary]\n\n${contactsSummary}\n\n${prompt}`
     : prompt;
 
-  insertMessage(ctx.db, {
-    sessionId,
-    role: "user",
-    channel: "content",
-    content: fullPrompt,
-    userId: user.id,
-    project: r.project,
-  });
+  setSessionQuickChat(ctx.db, user.id, sessionId, true);
 
   void ctx.queue.log({
     topic: "contact",
@@ -600,5 +595,10 @@ async function handleAsk(
     data: { project: r.project, prompt, sessionId },
   });
 
-  return json({ sessionId, project: r.project });
+  return json({
+    sessionId,
+    project: r.project,
+    prompt: fullPrompt,
+    isQuickChat: true,
+  });
 }

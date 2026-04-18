@@ -58,6 +58,8 @@ export {
   Menu,
   Globe,
   Languages,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 /**

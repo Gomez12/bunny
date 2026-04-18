@@ -2,7 +2,7 @@
 
 The canonical visual reference for the Bunny web UI. Contributors and Claude Code should consult this doc before adding new UI. If a value in here contradicts the code, **fix one of them** — don't ignore the drift.
 
-Dark mode only. Single theme. Bun ≥ 1.3.0, React + Vite, plain CSS with custom properties (no Tailwind, no CSS-in-JS). All tokens live in `web/src/styles.css:1-18`.
+Dual theme (light + dark). The default palette under `:root` is dark; `[data-theme="light"]` overrides the same tokens for the light palette. `web/src/App.tsx` writes the `data-theme` attribute on `<html>` from `localStorage.bunny.theme`, falling back to `prefers-color-scheme` on first load. A Sun/Moon button in the sidebar footer toggles between them. Bun ≥ 1.3.0, React + Vite, plain CSS with custom properties (no Tailwind, no CSS-in-JS). All tokens live at the top of `web/src/styles.css`.
 
 ---
 
@@ -10,24 +10,33 @@ Dark mode only. Single theme. Bun ≥ 1.3.0, React + Vite, plain CSS with custom
 
 ### Colors
 
-| Token | Value | Use |
-| --- | --- | --- |
-| `--bg` | `#0f1115` | Page root / main content area |
-| `--bg-elevated` | `#171a21` | Cards, dialogs, assistant message bubbles |
-| `--bg-sidebar` | `#0b0d12` | Navigation chrome, composer rails |
-| `--border` | `#23272f` | 1 px borders, separators |
-| `--text` | `#e6e8ee` | Primary body text |
-| `--text-dim` | `#9aa0aa` | Secondary / meta text, placeholders |
-| `--text-faint` | `#6b7280` | Tertiary captions, disabled labels |
-| `--accent` | `#7c5cff` | Primary action, active state, brand dot |
-| `--accent-soft` | `#5b47bf` | Accent outline on active pills |
-| `--user-bg` | `#2a2f3a` | User message bubble background |
-| `--assistant-bg` | `#171a21` | Assistant message bubble (same as elevated) |
-| `--tool-bg` | `#141823` | Tool-call / tool-result blocks |
-| `--ok` | `#22c55e` | Success / healthy status |
-| `--err` | `#ef4444` | Error / destructive |
+| Token | Dark | Light | Use |
+| --- | --- | --- | --- |
+| `--bg` | `#0f1115` | `#ffffff` | Page root / main content area |
+| `--bg-elevated` | `#171a21` | `#f7f8fa` | Cards, dialogs, assistant message bubbles |
+| `--bg-sidebar` | `#0b0d12` | `#eef0f4` | Navigation chrome, composer rails |
+| `--border` | `#23272f` | `#dde1e8` | 1 px borders, separators |
+| `--text` | `#e6e8ee` | `#1a1d22` | Primary body text |
+| `--text-dim` | `#9aa0aa` | `#5b6270` | Secondary / meta text, placeholders |
+| `--text-faint` | `#6b7280` | `#8b919c` | Tertiary captions, disabled labels |
+| `--accent` | `#7c5cff` | `#6849f4` | Primary action, active state, brand dot |
+| `--accent-soft` | `#5b47bf` | `#a394ff` | Accent outline on active pills |
+| `--user-bg` | `#2a2f3a` | `#eef0f4` | User message bubble background |
+| `--assistant-bg` | `#171a21` | `#f7f8fa` | Assistant message bubble (same as elevated) |
+| `--tool-bg` | `#141823` | `#f2f4f8` | Tool-call / tool-result blocks |
+| `--ok` | `#22c55e` | `#16a34a` | Success / healthy status |
+| `--err` | `#ef4444` | `#dc2626` | Error / destructive |
+| `--code-bg` | `#1e1e2e` | `#1e1e2e` | Preformatted / syntax-highlighted blocks (stays dark in both themes so `github-dark.css` keeps working) |
+| `--code-fg` | `#cdd6f4` | `#cdd6f4` | Code text inside `--code-bg` |
+| `--inline-code-bg` | `rgba(255,255,255,.08)` | `rgba(0,0,0,.06)` | Inline `<code>` tint |
+| `--shadow-soft` | `rgba(0,0,0,.35)` | `rgba(15,17,22,.08)` | Default card shadow |
+| `--hover-bg` | `rgba(255,255,255,.03)` | `rgba(15,17,22,.04)` | Row hover tint (tables, feeds, logs) |
+| `--hairline` | `rgba(255,255,255,.05)` | `rgba(15,17,22,.06)` | Ultra-subtle separator |
 
-**Rule:** no new hex literals in component CSS — add a token or reuse one. If you need a one-off semantic (e.g. a warning amber), add it to the token table and document it here.
+**Rules:**
+- No new hex literals in component CSS — add a token or reuse one. If you need a one-off semantic (e.g. a warning amber), add it to the token table and document it here.
+- When you add a rule that depends on "this surface is dark", add a matching `[data-theme="light"]` override — or reach for a token that already flips. Hardcoded `rgba(255,255,255,…)` for hover tints / hairlines is a smell: use `--hover-bg` / `--hairline`.
+- `color-scheme: dark` / `color-scheme: light` is set on `:root` / `[data-theme="light"]` — this flips native scrollbars and form controls automatically.
 
 ### Spacing scale
 
@@ -238,3 +247,4 @@ Events may carry `author` (agent name) — when set, render `@name` instead of t
 - **2026-04-18** — Switched to a 56 px icon-rail that expands to 240 px on hover as an overlay (VS Code pattern), restoring the tab-owned context columns (Chat, Documents, Whiteboard, Contacts sidebars). Fixes the layout regression where an always-on 240 px sidebar collided with tabs that carry their own sidebar.
 - **2026-04-18** — Added **Knowledge Base** nav item (icon: `Library`) in the Content group. New card shape `.kb-card` (same 20 px padding / 12 px radius / auto-fill grid as `.contact-card` / `.project-card`) with status chips (`.kb-chip--idle|--generating|--ok|--cleared|--error|--active|--project`). Dialog reuses the `.modal.modal--wide` shell. New icons in the barrel: `Library`, `Eraser`, `ExternalLink`. See [ADR 0021](./adr/0021-knowledge-base-definitions.md).
 - **2026-04-18** — Added multi-language translation primitives. New components: `<LanguageTabs>` (pill-shaped tabstrip, source tab highlighted with a filled `LangBadge`, translation tabs carry a `<StatusPill>`), `<LangBadge>` (compact 2-letter uppercase pill in accent colour — used next to entity titles in list rows to show source language), `<StatusPill>` (generic status pill, reuses `.kb-chip` variants; statuses: `up-to-date` / `translating` / `stale` / `pending` / `failed` / `source` / `orphaned`), `<TranslationsPanel>` (drops into every entity dialog; tabstrip + read-only translation body + "Translate now" button; polls every 5 s while any row is transient). New CSS classes: `.lang-badge`, `.lang-tabs`, `.lang-tab`, `.lang-tab--active`, `.lang-tab--source`, `.lang-readonly` (+ `--empty` modifier), `.lang-readonly__header`, `.lang-readonly__translate-btn`, `.lang-readonly__error`. New icons in the barrel: `Globe`, `Languages`. See [ADR 0022](./adr/0022-multi-language-translation.md).
+- **2026-04-18** — **Introduced light theme.** Palette defined on `[data-theme="light"]` mirroring every existing token (bg / text / accent-soft / user-bg / tool-bg / etc.) plus new tokens for theme-aware surfaces: `--code-bg` / `--code-fg` (kept dark in both modes for `github-dark.css` compatibility), `--inline-code-bg`, `--overlay-bg`, `--shadow-soft`, `--hover-bg`, `--hairline`. `App.tsx` drives the `data-theme` attribute on `<html>`, persists to `localStorage.bunny.theme`, and follows OS `prefers-color-scheme` until the user makes an explicit choice. Sidebar footer gains a Sun/Moon toggle (class `.nav__theme`, matches `.nav__logout` shape). New icons in the barrel: `Sun`, `Moon`. Replaced hardcoded dark hexes (`#0b0d12`, `#1e1e2e`, `#1a1d23`) and `rgba(255,…)` hover tints with the new tokens across `styles.css`.

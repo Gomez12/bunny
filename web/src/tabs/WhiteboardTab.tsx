@@ -23,7 +23,7 @@ import {
 
 interface Props {
   project: string;
-  onOpenInChat: (sessionId: string) => void;
+  onOpenInChat: import("../api").OpenInChatFn;
 }
 
 export default function WhiteboardTab({ project, onOpenInChat }: Props) {
@@ -179,13 +179,21 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
         await saveNow();
         const screenshotDataUrl = await exportCanvasPng(apiRef.current);
         const elements = apiRef.current.getSceneElements();
-        const { sessionId } = await askWhiteboard(activeId, {
+        const res = await askWhiteboard(activeId, {
           prompt,
           elementsJson: JSON.stringify(elements),
-          screenshotDataUrl,
           thumbnail: await exportThumbnail(apiRef.current),
         });
-        onOpenInChat(sessionId);
+        // Build the image attachment locally — the PNG data URL is already
+        // in-memory here; round-tripping it through the server response only
+        // doubles bandwidth and can push past Bun's JSON body size.
+        onOpenInChat(res.sessionId, {
+          prompt: res.prompt,
+          attachments: screenshotDataUrl
+            ? [{ kind: "image", mime: "image/png", dataUrl: screenshotDataUrl }]
+            : undefined,
+          isQuickChat: res.isQuickChat,
+        });
       } catch (e) {
         setError(String(e));
       } finally {

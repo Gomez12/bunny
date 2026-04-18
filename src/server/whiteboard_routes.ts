@@ -15,8 +15,10 @@ import {
   listWhiteboards,
   updateWhiteboard,
 } from "../memory/whiteboards.ts";
-import { setSessionHiddenFromChat } from "../memory/session_visibility.ts";
-import { insertMessage } from "../memory/messages.ts";
+import {
+  setSessionHiddenFromChat,
+  setSessionQuickChat,
+} from "../memory/session_visibility.ts";
 import { runAgent } from "../agent/loop.ts";
 import {
   createSseRenderer,
@@ -391,7 +393,6 @@ async function handleAsk(
   const body = await readJson<{
     prompt?: string;
     elementsJson?: string;
-    screenshotDataUrl?: string;
     thumbnail?: string;
   }>(req);
   if (!body) return json({ error: "invalid json" }, 400);
@@ -408,27 +409,12 @@ async function handleAsk(
 
   const sessionId = randomUUID();
 
-  const attachments = body.screenshotDataUrl
-    ? [
-        {
-          kind: "image" as const,
-          mime: "image/png",
-          dataUrl: body.screenshotDataUrl,
-        },
-      ]
-    : [];
+  // The screenshot PNG is attached client-side (it's already in-memory
+  // there) — see WhiteboardTab.handleSend. This endpoint only persists the
+  // canvas state + primes the session.
+  const fullPrompt = `The user is asking about the whiteboard "${wb.name}". The image of the whiteboard is attached.\n\nQuestion: ${prompt}`;
 
-  const fullPrompt = `[Whiteboard: "${wb.name}"]\n\n${prompt}`;
-
-  insertMessage(ctx.db, {
-    sessionId,
-    role: "user",
-    channel: "content",
-    content: fullPrompt,
-    userId: user.id,
-    project: wb.project,
-    attachments,
-  });
+  setSessionQuickChat(ctx.db, user.id, sessionId, true);
 
   void ctx.queue.log({
     topic: "whiteboard",
@@ -437,5 +423,10 @@ async function handleAsk(
     data: { id, project: wb.project, prompt, sessionId },
   });
 
-  return json({ sessionId, project: wb.project });
+  return json({
+    sessionId,
+    project: wb.project,
+    prompt: fullPrompt,
+    isQuickChat: true,
+  });
 }

@@ -1,4 +1,9 @@
 :root {
+  /* Default is dark. A light palette lives under [data-theme="light"] below —
+   * App.tsx writes the attribute on <html> from localStorage, falling back to
+   * the OS `prefers-color-scheme`. All UI chrome must drive its colour from a
+   * token; literal hexes in component CSS should be rare and, if required,
+   * have a light-mode override sibling. */
   --bg: #0f1115;
   --bg-elevated: #171a21;
   --bg-sidebar: #0b0d12;
@@ -13,8 +18,41 @@
   --tool-bg: #141823;
   --ok: #22c55e;
   --err: #ef4444;
+  /* Code/preformatted blocks — dark in both themes by convention. */
+  --code-bg: #1e1e2e;
+  --code-fg: #cdd6f4;
+  --inline-code-bg: rgba(255, 255, 255, 0.08);
+  /* Default card/modal drop shadow. Modal backdrops keep their literal
+   * `rgba(0,0,0,.55)` — dim-to-black reads correctly in both themes. */
+  --shadow-soft: rgba(0, 0, 0, 0.35);
+  /* Subtle hover tint + hairline separator for dense rows (tables, feeds). */
+  --hover-bg: rgba(255, 255, 255, 0.03);
+  --hairline: rgba(255, 255, 255, 0.05);
   --radius: 12px;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --bg: #ffffff;
+  --bg-elevated: #f7f8fa;
+  --bg-sidebar: #eef0f4;
+  --border: #dde1e8;
+  --text: #1a1d22;
+  --text-dim: #5b6270;
+  --text-faint: #8b919c;
+  --accent: #6849f4;
+  --accent-soft: #a394ff;
+  --user-bg: #eef0f4;
+  --assistant-bg: #f7f8fa;
+  --tool-bg: #f2f4f8;
+  --ok: #16a34a;
+  --err: #dc2626;
+  --inline-code-bg: rgba(0, 0, 0, 0.06);
+  --shadow-soft: rgba(15, 17, 22, 0.08);
+  --hover-bg: rgba(15, 17, 22, 0.04);
+  --hairline: rgba(15, 17, 22, 0.06);
+  color-scheme: light;
 }
 
 * {
@@ -858,7 +896,7 @@ button {
   font-size: 12px;
 }
 .bubble__toolresult {
-  background: #0b0d12;
+  background: var(--bg-sidebar);
   padding: 10px;
   border-radius: 6px;
   font-family: var(--font-mono);
@@ -902,7 +940,7 @@ button {
 .toolcall {
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #0b0d12;
+  background: var(--bg-sidebar);
   overflow: hidden;
 }
 .toolcall__head {
@@ -2114,7 +2152,7 @@ button {
   background: var(--bg-elevated);
   z-index: 1;
 }
-.files-table tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
+.files-table tbody tr:hover { background: var(--hover-bg); }
 .files-table tbody tr:last-child td { border-bottom: 0; }
 .files-name-btn {
   all: unset;
@@ -2392,7 +2430,7 @@ button {
   z-index: 1;
 }
 .logs-row { cursor: pointer; }
-.logs-row:hover { background: rgba(255, 255, 255, 0.03); }
+.logs-row:hover { background: var(--hover-bg); }
 .logs-row--open { background: rgba(124, 92, 255, 0.08); }
 .logs-row--error td.error-cell { color: var(--err); }
 .logs-row .mono { font-family: var(--font-mono); }
@@ -2562,8 +2600,8 @@ button {
 
 /* Tooltip */
 .dash-tooltip {
-  background: #1a1d23;
-  border: 1px solid #2a2d35;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 12px;
@@ -2658,7 +2696,7 @@ button {
   gap: 8px;
   padding: 4px 0;
   font-size: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--hairline);
 }
 .dash-feed-item--err { color: var(--err); }
 
@@ -2946,11 +2984,55 @@ button {
   overflow: hidden;
 }
 .doc-tab__main {
-  display: grid;
-  grid-template-rows: 1fr auto auto;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
   overflow: hidden;
   position: relative;
+}
+.doc-tab__tabs {
+  flex: 0 0 auto;
+  padding: 12px 24px 0;
+}
+.doc-tab__content {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.doc-tab__content > * {
+  flex: 1 1 0;
+  min-height: 0;
+}
+.doc-tab__translation {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 24px 24px;
+}
+.doc-tab__translation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.doc-tab__translation-title {
+  margin: 0;
+  font-size: 20px;
+}
+.doc-tab__translation-title em {
+  color: var(--text-faint);
+}
+.doc-tab__translation-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.doc-tab__translation-hint {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 12px;
 }
 .doc-tab__empty {
   display: flex;
@@ -3114,14 +3196,14 @@ button {
   margin: 0 0 12px;
 }
 .doc-editor__content .tiptap code {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--inline-code-bg);
   padding: 2px 5px;
   border-radius: 3px;
   font-size: 13px;
 }
 .doc-editor__content .tiptap pre {
-  background: #1e1e2e;
-  color: #cdd6f4;
+  background: var(--code-bg);
+  color: var(--code-fg);
   padding: 16px;
   border-radius: 6px;
   overflow-x: auto;
@@ -3231,9 +3313,9 @@ button {
   margin: 40px auto;
   display: block;
   padding: 72px 72px;
-  background: #1e1e2e;
-  color: #cdd6f4;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+  background: var(--code-bg);
+  color: var(--code-fg);
+  box-shadow: 0 2px 12px var(--shadow-soft);
   border: 1px solid var(--border);
   border-radius: 4px;
   outline: none;
@@ -4178,7 +4260,8 @@ button {
   color: var(--text);
   border-color: var(--border);
 }
-.nav__logout {
+.nav__logout,
+.nav__theme {
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -4193,16 +4276,20 @@ button {
   overflow: hidden;
   min-width: 40px;
 }
-.nav__logout:hover {
+.nav__logout:hover,
+.nav__theme:hover {
   background: var(--bg-elevated);
   color: var(--text);
 }
-.nav__logout span {
+.nav__logout span,
+.nav__theme span {
   opacity: 0;
   transition: opacity 0.12s ease;
 }
 .nav:hover .nav__logout span,
-.nav:focus-within .nav__logout span {
+.nav:focus-within .nav__logout span,
+.nav:hover .nav__theme span,
+.nav:focus-within .nav__theme span {
   opacity: 1;
 }
 
@@ -4250,7 +4337,8 @@ button {
   .nav__group-label,
   .nav__item-label,
   .nav__user,
-  .nav__logout span {
+  .nav__logout span,
+  .nav__theme span {
     opacity: 1;
   }
   .nav__drawer-btn {

@@ -1,5 +1,13 @@
-import { lazy, Suspense, useEffect, useState } from "react";
-import { createSession, fetchMe, logout, setSessionQuickChat, type AuthUser } from "./api";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import {
+  createSession,
+  fetchMe,
+  logout,
+  setSessionQuickChat,
+  type AuthUser,
+  type OpenInChatPayload,
+  type Theme,
+} from "./api";
 import LoginPage from "./pages/LoginPage";
 import ChangePasswordPage from "./pages/ChangePasswordPage";
 import Sidebar, { type NavTabId } from "./components/Sidebar";
@@ -23,7 +31,30 @@ type Tab = NavTabId;
 const SESSION_STORAGE_KEY = "bunny.activeSessionId";
 const PROJECT_STORAGE_KEY = "bunny.activeProject";
 const TAB_STORAGE_KEY = "bunny.activeTab";
+const THEME_STORAGE_KEY = "bunny.theme";
 const DEFAULT_PROJECT = "general";
+
+function resolveStoredTheme(): Theme {
+  const stored = localStorage.getItem(THEME_STORAGE_KEY);
+  if (stored === "light" || stored === "dark") return stored;
+  if (typeof window !== "undefined" && window.matchMedia) {
+    return window.matchMedia("(prefers-color-scheme: light)").matches
+      ? "light"
+      : "dark";
+  }
+  return "dark";
+}
+
+function applyTheme(theme: Theme): void {
+  document.documentElement.dataset.theme = theme;
+}
+
+// Apply the stored theme synchronously at module load so the first paint
+// already matches. Without this, React mounts against the default dark
+// palette and flashes to light on the subsequent effect tick.
+if (typeof document !== "undefined") {
+  applyTheme(resolveStoredTheme());
+}
 
 const VALID_TABS: ReadonlySet<string> = new Set<Tab>([
   "chat",
@@ -95,6 +126,36 @@ export default function App() {
     () => localStorage.getItem(PROJECT_STORAGE_KEY) || DEFAULT_PROJECT,
   );
   const [user, setUser] = useState<AuthUser | null | undefined>(undefined); // undefined = loading
+  const [theme, setThemeRaw] = useState<Theme>(resolveStoredTheme);
+  const setTheme = (t: Theme) => {
+    localStorage.setItem(THEME_STORAGE_KEY, t);
+    applyTheme(t);
+    setThemeRaw(t);
+  };
+  // Follow OS changes while the user hasn't made an explicit choice. As soon
+  // as they click the toggle, the stored value pins the theme across devices.
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const mql = window.matchMedia("(prefers-color-scheme: light)");
+    const onChange = (e: MediaQueryListEvent) => {
+      if (localStorage.getItem(THEME_STORAGE_KEY)) return;
+      const next: Theme = e.matches ? "light" : "dark";
+      applyTheme(next);
+      setThemeRaw(next);
+    };
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+  // When a tab (Documents / Whiteboards / Contacts) hands off to Chat with a
+  // prompt to auto-send on arrival, ChatTab reads this, calls send(), and
+  // clears it via onConsumePendingChatSend so it doesn't re-fire.
+  const [pendingChatSend, setPendingChatSend] = useState<
+    (OpenInChatPayload & { sessionId: string }) | null
+  >(null);
+  const onConsumePendingChatSend = useCallback(
+    () => setPendingChatSend(null),
+    [],
+  );
 
   useEffect(() => {
     void fetchMe().then(setUser);
@@ -147,6 +208,12 @@ export default function App() {
     setSessionId(adoptSession(id));
   };
 
+  const onOpenInChat = (sid: string, payload?: OpenInChatPayload) => {
+    if (payload?.prompt) setPendingChatSend({ sessionId: sid, ...payload });
+    onPickSession(sid);
+    setTab("chat");
+  };
+
   const onPickProject = async (name: string) => {
     setActiveProject(adoptProject(name));
     // Switching project always starts a fresh session (one project per session).
@@ -178,6 +245,8 @@ export default function App() {
         activeProject={activeProject}
         onPickProjectTab={() => setTab("workspace")}
         onLogout={onLogout}
+        theme={theme}
+        onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
       />
 
       <main
@@ -194,16 +263,15 @@ export default function App() {
               onPickSession={onPickSession}
               onNewSession={onNewSession}
               onNewQuickChat={onNewQuickChat}
+              pendingChatSend={pendingChatSend}
+              onConsumePendingChatSend={onConsumePendingChatSend}
             />
           )}
           {tab === "board" && (
             <BoardTab
               project={activeProject}
               currentUser={user}
-              onOpenInChat={(sid) => {
-                onPickSession(sid);
-                setTab("chat");
-              }}
+              onOpenInChat={(sid) => onOpenInChat(sid)}
             />
           )}
           {tab === "workspace" && (
@@ -215,32 +283,20 @@ export default function App() {
             />
           )}
           {tab === "whiteboard" && (
-            <WhiteboardTab
-              project={activeProject}
-              onOpenInChat={(sid) => {
-                onPickSession(sid);
-                setTab("chat");
-              }}
-            />
+            <WhiteboardTab project={activeProject} onOpenInChat={onOpenInChat} />
           )}
           {tab === "documents" && (
             <DocumentTab
               project={activeProject}
               currentUser={user}
-              onOpenInChat={(sid) => {
-                onPickSession(sid);
-                setTab("chat");
-              }}
+              onOpenInChat={onOpenInChat}
             />
           )}
           {tab === "contacts" && (
             <ContactsTab
               project={activeProject}
               currentUser={user}
-              onOpenInChat={(sid) => {
-                onPickSession(sid);
-                setTab("chat");
-              }}
+              onOpenInChat={onOpenInChat}
             />
           )}
           {tab === "knowledge-base" && (

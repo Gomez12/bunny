@@ -26,7 +26,7 @@ import {
 interface Props {
   project: string;
   currentUser: AuthUser;
-  onOpenInChat: (sessionId: string) => void;
+  onOpenInChat: import("../api").OpenInChatFn;
 }
 
 export default function DocumentTab({ project, currentUser, onOpenInChat }: Props) {
@@ -246,11 +246,15 @@ export default function DocumentTab({ project, currentUser, onOpenInChat }: Prop
       setStreaming(true);
       try {
         if (dirty) await doSave(contentRef.current, activeId);
-        const { sessionId } = await askDocument(activeId, {
+        const res = await askDocument(activeId, {
           prompt,
           contentMd: contentRef.current,
         });
-        onOpenInChat(sessionId);
+        onOpenInChat(res.sessionId, {
+          prompt: res.prompt,
+          attachments: res.attachments,
+          isQuickChat: res.isQuickChat,
+        });
       } catch (e) {
         setError(String(e));
       } finally {
@@ -424,7 +428,7 @@ function DocumentBody(p: DocumentBodyProps) {
   return (
     <>
       {showTabs && (
-        <div style={{ padding: "12px 24px 0 24px" }}>
+        <div className="doc-tab__tabs">
           <LanguageTabs
             languages={tr.languages}
             sourceLang={p.activeOriginalLang!}
@@ -434,8 +438,8 @@ function DocumentBody(p: DocumentBodyProps) {
           />
         </div>
       )}
-      {isSourceActive ? (
-        <>
+      <div className="doc-tab__content">
+        {isSourceActive ? (
           <DocumentEditor
             key={p.activeId}
             ref={p.editorRef}
@@ -446,77 +450,67 @@ function DocumentBody(p: DocumentBodyProps) {
             onInsertWhiteboard={p.onInsertWhiteboard}
             onSaveAsTemplate={p.handleSaveAsTemplate}
           />
-          {p.streaming && (
-            <div className="doc-tab__overlay">
-              <span className="spinner" />
-              <span>AI is editing the document...</span>
+        ) : (
+          <div className="doc-tab__translation">
+            <div className="doc-tab__translation-header">
+              <h2 className="doc-tab__translation-title">
+                {translatedName || <em>Not translated yet</em>}
+              </h2>
+              <div className="doc-tab__translation-actions">
+                <StatusPill status={pill} />
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => void tr.translate()}
+                  disabled={tr.triggering || t?.status === "translating"}
+                >
+                  {tr.triggering ? "Sending…" : "Translate now"}
+                </button>
+              </div>
             </div>
-          )}
-          {p.error && (
-            <div className="doc-tab__error">
-              {p.error}
-              <button className="doc-tab__error-close" onClick={() => p.setError(null)}>
-                &times;
-              </button>
+            <div className="doc-tab__translation-hint">
+              Read-only translation — switch to the source tab to edit.
             </div>
-          )}
-          <DocumentComposer
-            mode={p.mode}
-            onModeChange={p.setMode}
-            onSend={p.handleSend}
-            onSave={p.handleManualSave}
-            streaming={p.streaming}
-            dirty={p.dirty}
-          />
-        </>
-      ) : (
-        <div
-          style={{
-            padding: "12px 24px 24px 24px",
-            overflowY: "auto",
-            flex: 1,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: 12,
-            }}
-          >
-            <h2 style={{ margin: 0, fontSize: 20 }}>
-              {translatedName || (
-                <em style={{ color: "var(--text-faint)" }}>Not translated yet</em>
-              )}
-            </h2>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <StatusPill status={pill} />
-              <button
-                type="button"
-                className="btn"
-                onClick={() => void tr.translate()}
-                disabled={tr.triggering || t?.status === "translating"}
-              >
-                {tr.triggering ? "Sending…" : "Translate now"}
-              </button>
-            </div>
+            {t?.status === "error" && t.error && (
+              <div className="doc-tab__error">{t.error}</div>
+            )}
+            {translatedContent.trim() ? (
+              <MarkdownContent text={translatedContent} />
+            ) : (
+              <div className="lang-readonly lang-readonly--empty">
+                No translation yet — click "Translate now" to run it
+                immediately, or wait for the next scheduled tick (every 5 min).
+              </div>
+            )}
           </div>
-          <div style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 12 }}>
-            Read-only translation — switch to the source tab to edit.
-          </div>
-          {t?.status === "error" && t.error && (
-            <div className="doc-tab__error">{t.error}</div>
-          )}
-          {translatedContent.trim() ? (
-            <MarkdownContent text={translatedContent} />
-          ) : (
-            <div className="lang-readonly lang-readonly--empty">
-              No translation yet — click "Translate now" to run it immediately,
-              or wait for the next scheduled tick (every 5 min).
-            </div>
-          )}
+        )}
+      </div>
+      {isSourceActive && p.streaming && (
+        <div className="doc-tab__overlay">
+          <span className="spinner" />
+          <span>AI is editing the document...</span>
         </div>
+      )}
+      {isSourceActive && p.error && (
+        <div className="doc-tab__error">
+          {p.error}
+          <button
+            className="doc-tab__error-close"
+            onClick={() => p.setError(null)}
+          >
+            &times;
+          </button>
+        </div>
+      )}
+      {isSourceActive && (
+        <DocumentComposer
+          mode={p.mode}
+          onModeChange={p.setMode}
+          onSend={p.handleSend}
+          onSave={p.handleManualSave}
+          streaming={p.streaming}
+          dirty={p.dirty}
+        />
       )}
     </>
   );

@@ -26,7 +26,7 @@ import {
 interface Props {
   project: string;
   currentUser: AuthUser;
-  onOpenInChat: (sessionId: string) => void;
+  onOpenInChat: import("../api").OpenInChatFn;
 }
 
 type DialogState =
@@ -199,8 +199,12 @@ export default function ContactsTab({ project, currentUser, onOpenInChat }: Prop
     if (mode === "question") {
       setStreaming(true);
       try {
-        const { sessionId } = await askContacts(project, { prompt, contactsSummary });
-        onOpenInChat(sessionId);
+        const res = await askContacts(project, { prompt, contactsSummary });
+        onOpenInChat(res.sessionId, {
+          prompt: res.prompt,
+          attachments: res.attachments,
+          isQuickChat: res.isQuickChat,
+        });
       } catch (e) {
         setError(String(e));
       } finally {

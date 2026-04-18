@@ -15,8 +15,10 @@ import {
   ICON_DEFAULTS,
   Menu,
   X,
+  Sun,
+  Moon,
 } from "../lib/icons";
-import type { AuthUser } from "../api";
+import type { AuthUser, Theme } from "../api";
 
 export type NavTabId =
   | "chat"
@@ -79,6 +81,8 @@ type Props = {
   activeProject: string;
   onPickProjectTab: () => void;
   onLogout: () => void;
+  theme: Theme;
+  onToggleTheme: () => void;
 };
 
 export default function Sidebar({
@@ -88,9 +92,14 @@ export default function Sidebar({
   activeProject,
   onPickProjectTab,
   onLogout,
+  theme,
+  onToggleTheme,
 }: Props) {
   const [open, setOpen] = useState(false);
   const closeDrawer = () => setOpen(false);
+
+  const isDark = theme === "dark";
+  const themeLabel = isDark ? "Switch to light mode" : "Switch to dark mode";
 
   return (
     <>
@@ -169,6 +178,16 @@ export default function Sidebar({
               <Settings size={14} />
             </button>
           </div>
+          <button
+            type="button"
+            className="nav__theme"
+            onClick={onToggleTheme}
+            title={themeLabel}
+            aria-label={themeLabel}
+          >
+            {isDark ? <Sun size={14} /> : <Moon size={14} />}
+            <span>{isDark ? "Light mode" : "Dark mode"}</span>
+          </button>
           <button type="button" className="nav__logout" onClick={onLogout} aria-label="Logout">
             <LogOut size={14} />
             <span>Logout</span>
