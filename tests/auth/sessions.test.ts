@@ -58,7 +58,11 @@ describe("auth sessions", () => {
     issueSession(db, u.id);
     issueSession(db, u.id);
     revokeUserSessions(db, u.id);
-    const n = (db.prepare(`SELECT COUNT(*) AS n FROM auth_sessions`).get() as { n: number }).n;
+    const n = (
+      db.prepare(`SELECT COUNT(*) AS n FROM auth_sessions`).get() as {
+        n: number;
+      }
+    ).n;
     expect(n).toBe(0);
     db.close();
   });

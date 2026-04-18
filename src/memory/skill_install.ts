@@ -137,7 +137,9 @@ export async function installSkillFromGitHub(
   const { owner, repo, ref, path } = parsed;
 
   const entries = await fetchGitHubContents(owner, repo, path, ref);
-  const skillMdEntry = entries.find((e) => e.name === "SKILL.md" && e.type === "file");
+  const skillMdEntry = entries.find(
+    (e) => e.name === "SKILL.md" && e.type === "file",
+  );
   if (!skillMdEntry || !skillMdEntry.download_url) {
     throw new Error(`no SKILL.md found at ${url}`);
   }
@@ -146,7 +148,9 @@ export async function installSkillFromGitHub(
   const { frontmatter } = parseFrontmatter(skillMdContent, "");
 
   const dirName = path.split("/").filter(Boolean).pop() ?? "";
-  const skillName = validateSkillName(targetName ?? (frontmatter.name || dirName));
+  const skillName = validateSkillName(
+    targetName ?? (frontmatter.name || dirName),
+  );
 
   const skillDir = paths.skillDir(skillName);
   mkdirSync(skillDir, { recursive: true });
@@ -181,7 +185,9 @@ export async function installSkillFromSkillsSh(
   // We construct the GitHub URL and delegate.
   const parts = identifier.replace(/^\/+|\/+$/g, "").split("/");
   if (parts.length < 2) {
-    throw new Error(`invalid skills.sh identifier: ${identifier} (expected owner/repo[/path])`);
+    throw new Error(
+      `invalid skills.sh identifier: ${identifier} (expected owner/repo[/path])`,
+    );
   }
   const githubUrl = `https://github.com/${parts.join("/")}`;
   return installSkillFromGitHub(githubUrl, targetName);

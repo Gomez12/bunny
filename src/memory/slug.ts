@@ -13,9 +13,11 @@ export function validateSlugName(
   regex: RegExp,
   label: string,
 ): string {
-  if (typeof raw !== "string") throw new Error(`${label} name must be a string`);
+  if (typeof raw !== "string")
+    throw new Error(`${label} name must be a string`);
   const name = raw.trim().toLowerCase();
-  if (RESERVED_SLUGS.has(name)) throw new Error(`${label} name '${name}' is reserved`);
+  if (RESERVED_SLUGS.has(name))
+    throw new Error(`${label} name '${name}' is reserved`);
   if (!regex.test(name)) {
     throw new Error(
       `${label} name must match ${regex.source} (lowercase, digits, _ or -)`,

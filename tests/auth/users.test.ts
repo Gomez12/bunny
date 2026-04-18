@@ -27,7 +27,11 @@ async function newDb() {
 describe("users", () => {
   test("create + hash + verify roundtrip", async () => {
     const db = await newDb();
-    const u = await createUser(db, { username: "alice", password: "secret123", role: "admin" });
+    const u = await createUser(db, {
+      username: "alice",
+      password: "secret123",
+      role: "admin",
+    });
     expect(u.role).toBe("admin");
     const hash = getUserPasswordHash(db, u.id)!;
     expect(await verifyPassword("secret123", hash)).toBe(true);
@@ -38,20 +42,38 @@ describe("users", () => {
   test("username uniqueness enforced", async () => {
     const db = await newDb();
     await createUser(db, { username: "bob", password: "pw" });
-    await expect(createUser(db, { username: "bob", password: "pw2" })).rejects.toThrow();
+    await expect(
+      createUser(db, { username: "bob", password: "pw2" }),
+    ).rejects.toThrow();
     db.close();
   });
 
   test("list + search + delete", async () => {
     const db = await newDb();
-    await createUser(db, { username: "alice", password: "x", displayName: "Alice" });
-    await createUser(db, { username: "bob", password: "x", email: "bob@example.com" });
+    await createUser(db, {
+      username: "alice",
+      password: "x",
+      displayName: "Alice",
+    });
+    await createUser(db, {
+      username: "bob",
+      password: "x",
+      email: "bob@example.com",
+    });
     await createUser(db, { username: "carol", password: "x" });
 
     expect(countUsers(db)).toBe(3);
-    expect(listUsers(db).map((u) => u.username)).toEqual(["alice", "bob", "carol"]);
-    expect(listUsers(db, { q: "ali" }).map((u) => u.username)).toEqual(["alice"]);
-    expect(listUsers(db, { q: "example" }).map((u) => u.username)).toEqual(["bob"]);
+    expect(listUsers(db).map((u) => u.username)).toEqual([
+      "alice",
+      "bob",
+      "carol",
+    ]);
+    expect(listUsers(db, { q: "ali" }).map((u) => u.username)).toEqual([
+      "alice",
+    ]);
+    expect(listUsers(db, { q: "example" }).map((u) => u.username)).toEqual([
+      "bob",
+    ]);
 
     const bob = getUserByUsername(db, "bob")!;
     deleteUser(db, bob.id);

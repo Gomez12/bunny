@@ -42,7 +42,9 @@ describe("resolveBunnyPath", () => {
   test("joins segments under home", () => {
     process.env["BUNNY_HOME"] = join(tmp, "state2");
     try {
-      expect(resolveBunnyPath("logs", "x.log")).toBe(join(tmp, "state2", "logs", "x.log"));
+      expect(resolveBunnyPath("logs", "x.log")).toBe(
+        join(tmp, "state2", "logs", "x.log"),
+      );
     } finally {
       delete process.env["BUNNY_HOME"];
     }

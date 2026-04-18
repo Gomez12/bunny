@@ -40,10 +40,17 @@ describe("loadConfig", () => {
     const cwd = newCwd();
     writeFileSync(
       join(cwd, "bunny.config.toml"),
-      ['[agent]', 'default_project = "workshop"', 'system_prompt = "tomlprompt"'].join("\n"),
+      [
+        "[agent]",
+        'default_project = "workshop"',
+        'system_prompt = "tomlprompt"',
+      ].join("\n"),
     );
     const cfg = loadConfig({
-      env: { BUNNY_DEFAULT_PROJECT: "fromenv", BUNNY_SYSTEM_PROMPT: "envprompt" },
+      env: {
+        BUNNY_DEFAULT_PROJECT: "fromenv",
+        BUNNY_SYSTEM_PROMPT: "envprompt",
+      },
       cwd,
     });
     expect(cfg.agent.defaultProject).toBe("fromenv");
@@ -52,7 +59,11 @@ describe("loadConfig", () => {
 
   test("env overrides defaults", () => {
     const cfg = loadConfig({
-      env: { LLM_BASE_URL: "http://localhost:11434/v1", LLM_MODEL: "llama3", LLM_API_KEY: "sk-x" },
+      env: {
+        LLM_BASE_URL: "http://localhost:11434/v1",
+        LLM_MODEL: "llama3",
+        LLM_API_KEY: "sk-x",
+      },
       cwd: newCwd(),
     });
     expect(cfg.llm.baseUrl).toBe("http://localhost:11434/v1");
@@ -78,7 +89,7 @@ describe("loadConfig", () => {
     );
     const cfg = loadConfig({ env: { LLM_MODEL: "from-env" }, cwd });
     expect(cfg.llm.baseUrl).toBe("https://toml.example/v1"); // TOML wins over default
-    expect(cfg.llm.model).toBe("from-env");                  // env wins over TOML
+    expect(cfg.llm.model).toBe("from-env"); // env wins over TOML
     expect(cfg.llm.profile).toBe("deepseek");
     expect(cfg.memory.indexReasoning).toBe(true);
     expect(cfg.memory.recallK).toBe(12);
@@ -91,7 +102,10 @@ describe("loadConfig", () => {
   });
 
   test("EMBED_API_KEY falls back to LLM_API_KEY", () => {
-    const cfg = loadConfig({ env: { LLM_API_KEY: "sk-shared" }, cwd: newCwd() });
+    const cfg = loadConfig({
+      env: { LLM_API_KEY: "sk-shared" },
+      cwd: newCwd(),
+    });
     expect(cfg.embed.apiKey).toBe("sk-shared");
   });
 });

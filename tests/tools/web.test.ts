@@ -4,7 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ensureProjectDir } from "../../src/memory/project_assets.ts";
 import { readWorkspaceFile } from "../../src/memory/workspace_fs.ts";
-import { makeWebTools, WEB_TOOL_NAMES, parseDuckDuckGoResults, parseBingResults } from "../../src/tools/web.ts";
+import {
+  makeWebTools,
+  WEB_TOOL_NAMES,
+  parseDuckDuckGoResults,
+  parseBingResults,
+} from "../../src/tools/web.ts";
 import type { WebConfig } from "../../src/config.ts";
 
 let tmp: string;
@@ -47,13 +52,22 @@ function tools(cfg: WebConfig = webCfgNoKey) {
   };
 }
 
-function mockFetch(handler: (url: string | URL | Request, init?: RequestInit) => Response | Promise<Response>) {
+function mockFetch(
+  handler: (
+    url: string | URL | Request,
+    init?: RequestInit,
+  ) => Response | Promise<Response>,
+) {
   globalThis.fetch = mock(handler as typeof fetch) as unknown as typeof fetch;
 }
 
 describe("web tools", () => {
   test("exported names cover handler set", () => {
-    expect([...WEB_TOOL_NAMES].sort()).toEqual(["web_download", "web_fetch", "web_search"]);
+    expect([...WEB_TOOL_NAMES].sort()).toEqual([
+      "web_download",
+      "web_fetch",
+      "web_search",
+    ]);
   });
 
   // -----------------------------------------------------------------------
@@ -62,14 +76,15 @@ describe("web tools", () => {
 
   describe("web_fetch", () => {
     test("converts HTML to markdown with title and links", async () => {
-      mockFetch(() =>
-        new Response(
-          `<html><head><title>Test Page</title></head><body>
+      mockFetch(
+        () =>
+          new Response(
+            `<html><head><title>Test Page</title></head><body>
            <p>Hello <a href="https://example.com">world</a></p>
            <img src="https://example.com/img.png" alt="photo">
            </body></html>`,
-          { headers: { "Content-Type": "text/html" } },
-        ),
+            { headers: { "Content-Type": "text/html" } },
+          ),
       );
       const r = await tools().fetch.handler({ url: "https://example.com" });
       expect(r.ok).toBe(true);
@@ -81,13 +96,14 @@ describe("web tools", () => {
     });
 
     test("strips nav, footer, script, style", async () => {
-      mockFetch(() =>
-        new Response(
-          `<html><head><style>body{}</style><script>alert(1)</script></head><body>
+      mockFetch(
+        () =>
+          new Response(
+            `<html><head><style>body{}</style><script>alert(1)</script></head><body>
            <nav>Nav stuff</nav><main>Main content</main><footer>Footer</footer>
            </body></html>`,
-          { headers: { "Content-Type": "text/html" } },
-        ),
+            { headers: { "Content-Type": "text/html" } },
+          ),
       );
       const r = await tools().fetch.handler({ url: "https://example.com" });
       expect(r.ok).toBe(true);
@@ -100,7 +116,9 @@ describe("web tools", () => {
 
     test("truncates at 100KB", async () => {
       const big = "<html><body>" + "a".repeat(200_000) + "</body></html>";
-      mockFetch(() => new Response(big, { headers: { "Content-Type": "text/html" } }));
+      mockFetch(
+        () => new Response(big, { headers: { "Content-Type": "text/html" } }),
+      );
       const r = await tools().fetch.handler({ url: "https://example.com" });
       expect(r.ok).toBe(true);
       const out = JSON.parse(r.output);
@@ -108,15 +126,27 @@ describe("web tools", () => {
     });
 
     test("rejects non-2xx", async () => {
-      mockFetch(() => new Response("Not Found", { status: 404, statusText: "Not Found" }));
-      const r = await tools().fetch.handler({ url: "https://example.com/missing" });
+      mockFetch(
+        () =>
+          new Response("Not Found", { status: 404, statusText: "Not Found" }),
+      );
+      const r = await tools().fetch.handler({
+        url: "https://example.com/missing",
+      });
       expect(r.ok).toBe(false);
       expect(r.output).toContain("404");
     });
 
     test("rejects binary content-type", async () => {
-      mockFetch(() => new Response("bytes", { headers: { "Content-Type": "application/pdf" } }));
-      const r = await tools().fetch.handler({ url: "https://example.com/file.pdf" });
+      mockFetch(
+        () =>
+          new Response("bytes", {
+            headers: { "Content-Type": "application/pdf" },
+          }),
+      );
+      const r = await tools().fetch.handler({
+        url: "https://example.com/file.pdf",
+      });
       expect(r.ok).toBe(false);
       expect(r.output).toContain("web_download");
     });
@@ -145,13 +175,23 @@ describe("web tools", () => {
         return new Response(
           JSON.stringify({
             organic: [
-              { title: "Result 1", link: "https://r1.com", snippet: "Snippet 1" },
-              { title: "Result 2", link: "https://r2.com", snippet: "Snippet 2" },
+              {
+                title: "Result 1",
+                link: "https://r1.com",
+                snippet: "Snippet 1",
+              },
+              {
+                title: "Result 2",
+                link: "https://r2.com",
+                snippet: "Snippet 2",
+              },
             ],
           }),
         );
       });
-      const r = await tools(webCfgWithKey).search.handler({ query: "bun runtime" });
+      const r = await tools(webCfgWithKey).search.handler({
+        query: "bun runtime",
+      });
       expect(r.ok).toBe(true);
       const out = JSON.parse(r.output);
       expect(out.source).toBe("serper");
@@ -166,7 +206,10 @@ describe("web tools", () => {
         expect(body.num).toBeLessThanOrEqual(10);
         return new Response(JSON.stringify({ organic: [] }));
       });
-      await tools(webCfgWithKey).search.handler({ query: "test", max_results: 20 });
+      await tools(webCfgWithKey).search.handler({
+        query: "test",
+        max_results: 20,
+      });
     });
   });
 
@@ -199,16 +242,19 @@ describe("web tools", () => {
     });
 
     test("falls back to DDG when no SERP key", async () => {
-      mockFetch(() =>
-        new Response(
-          `<div class="result results_links web-result">
+      mockFetch(
+        () =>
+          new Response(
+            `<div class="result results_links web-result">
              <a class="result__a" href="https://duckduckgo.com/l/?uddg=https%3A%2F%2Fbun.sh">Bun</a>
              <a class="result__snippet">Fast JS runtime</a>
            </div>`,
-          { headers: { "Content-Type": "text/html" } },
-        ),
+            { headers: { "Content-Type": "text/html" } },
+          ),
       );
-      const r = await tools(webCfgNoKey).search.handler({ query: "bun runtime" });
+      const r = await tools(webCfgNoKey).search.handler({
+        query: "bun runtime",
+      });
       expect(r.ok).toBe(true);
       const out = JSON.parse(r.output);
       expect(out.source).toBe("duckduckgo");
@@ -269,7 +315,12 @@ describe("web tools", () => {
 
     test("falls back to Bing when DDG fails completely", async () => {
       mockFetch((url) => {
-        const urlStr = typeof url === "string" ? url : url instanceof URL ? url.toString() : (url as Request).url;
+        const urlStr =
+          typeof url === "string"
+            ? url
+            : url instanceof URL
+              ? url.toString()
+              : (url as Request).url;
         if (urlStr.includes("duckduckgo")) {
           throw new Error("Unable to connect");
         }
@@ -298,38 +349,63 @@ describe("web tools", () => {
   describe("web_download", () => {
     test("downloads binary file to workspace", async () => {
       const bytes = Buffer.from([0x50, 0x4b, 0x03, 0x04, 0xff, 0x00]);
-      mockFetch(() => new Response(bytes, { headers: { "Content-Type": "application/zip" } }));
-      const r = await tools().download.handler({ url: "https://example.com/file.zip", path: "input/file.zip" });
+      mockFetch(
+        () =>
+          new Response(bytes, {
+            headers: { "Content-Type": "application/zip" },
+          }),
+      );
+      const r = await tools().download.handler({
+        url: "https://example.com/file.zip",
+        path: "input/file.zip",
+      });
       expect(r.ok).toBe(true);
       const out = JSON.parse(r.output);
       expect(out.path).toBe("input/file.zip");
       expect(out.size).toBe(bytes.byteLength);
-      const read = readWorkspaceFile("alpha", "input/file.zip", "base64", 10_000);
+      const read = readWorkspaceFile(
+        "alpha",
+        "input/file.zip",
+        "base64",
+        10_000,
+      );
       const roundTripped = Buffer.from(read.content, "base64");
       expect(roundTripped).toEqual(bytes);
     });
 
     test("rejects files over 100MB by Content-Length", async () => {
-      mockFetch(() =>
-        new Response("", {
-          headers: { "Content-Length": String(200 * 1024 * 1024) },
-        }),
+      mockFetch(
+        () =>
+          new Response("", {
+            headers: { "Content-Length": String(200 * 1024 * 1024) },
+          }),
       );
-      const r = await tools().download.handler({ url: "https://example.com/huge.bin", path: "input/huge.bin" });
+      const r = await tools().download.handler({
+        url: "https://example.com/huge.bin",
+        path: "input/huge.bin",
+      });
       expect(r.ok).toBe(false);
       expect(r.output).toContain("too large");
     });
 
     test("rejects path traversal", async () => {
       mockFetch(() => new Response("data"));
-      const r = await tools().download.handler({ url: "https://example.com/x", path: "../../etc/passwd" });
+      const r = await tools().download.handler({
+        url: "https://example.com/x",
+        path: "../../etc/passwd",
+      });
       expect(r.ok).toBe(false);
       expect(r.output).toContain("escapes");
     });
 
     test("rejects non-2xx", async () => {
-      mockFetch(() => new Response("", { status: 500, statusText: "Server Error" }));
-      const r = await tools().download.handler({ url: "https://example.com/x", path: "input/x" });
+      mockFetch(
+        () => new Response("", { status: 500, statusText: "Server Error" }),
+      );
+      const r = await tools().download.handler({
+        url: "https://example.com/x",
+        path: "input/x",
+      });
       expect(r.ok).toBe(false);
       expect(r.output).toContain("500");
     });
@@ -342,7 +418,10 @@ describe("web tools", () => {
     });
 
     test("rejects non-http url", async () => {
-      const r = await tools().download.handler({ url: "ftp://example.com/x", path: "input/x" });
+      const r = await tools().download.handler({
+        url: "ftp://example.com/x",
+        path: "input/x",
+      });
       expect(r.ok).toBe(false);
     });
   });

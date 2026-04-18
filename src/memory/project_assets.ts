@@ -5,7 +5,13 @@
  * prompt content and tuning.
  */
 
-import { mkdirSync, writeFileSync, readFileSync, existsSync, statSync } from "node:fs";
+import {
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  existsSync,
+  statSync,
+} from "node:fs";
 import { join } from "node:path";
 import { paths } from "../paths.ts";
 import { validateProjectName } from "./projects.ts";
@@ -54,7 +60,10 @@ export function workspaceDir(name: string): string {
 export const WORKSPACE_DEFAULT_SUBDIRS = ["input", "output"] as const;
 
 /** Create the on-disk project directory (and a stub systemprompt.toml) if missing. */
-export function ensureProjectDir(name: string, initial?: ProjectOverridesPatch): string {
+export function ensureProjectDir(
+  name: string,
+  initial?: ProjectOverridesPatch,
+): string {
   const dir = projectDir(name);
   mkdirSync(dir, { recursive: true });
   // Seed workspace + its default subdirs. Idempotent — mkdir recursive skips
@@ -102,7 +111,10 @@ export function loadProjectSystemPrompt(name: string): ProjectSystemPrompt {
 }
 
 /** mtime-keyed cache so runAgent doesn't re-read + re-parse on every turn. */
-const assetsCache = new Map<string, { mtimeMs: number; assets: ProjectAssets }>();
+const assetsCache = new Map<
+  string,
+  { mtimeMs: number; assets: ProjectAssets }
+>();
 
 /** Aggregate all per-project on-disk assets into a single value. */
 export function loadProjectAssets(name: string): ProjectAssets {
@@ -143,7 +155,10 @@ export function loadProjectAssets(name: string): ProjectAssets {
     return assets;
   } catch {
     // Malformed TOML → defaults (non-fatal). Don't cache so a fix takes effect.
-    return { systemPrompt: { ...DEFAULT_SYSTEM_PROMPT }, memory: { ...DEFAULT_MEMORY } };
+    return {
+      systemPrompt: { ...DEFAULT_SYSTEM_PROMPT },
+      memory: { ...DEFAULT_MEMORY },
+    };
   }
 }
 
@@ -153,7 +168,8 @@ export function loadProjectAssets(name: string): ProjectAssets {
  * NaN, non-numeric) so "invalid" and "inherit global" map to the same state.
  */
 export function parseMemoryOverride(raw: unknown): number | null {
-  const n = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN;
+  const n =
+    typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN;
   if (!Number.isFinite(n) || n < 0) return null;
   return Math.floor(n);
 }
@@ -167,8 +183,10 @@ function renderSystemPromptToml(
   const escaped = prompt.replace(/"""/g, '\\"\\"\\"');
 
   const memoryLines: string[] = [];
-  if (typeof memory.lastN === "number") memoryLines.push(`last_n = ${Math.floor(memory.lastN)}`);
-  if (typeof memory.recallK === "number") memoryLines.push(`recall_k = ${Math.floor(memory.recallK)}`);
+  if (typeof memory.lastN === "number")
+    memoryLines.push(`last_n = ${Math.floor(memory.lastN)}`);
+  if (typeof memory.recallK === "number")
+    memoryLines.push(`recall_k = ${Math.floor(memory.recallK)}`);
   const memoryBlock = memoryLines.length
     ? `\n# Per-project memory overrides — omit a line to inherit from the\n# global [memory] block in bunny.config.toml.\n${memoryLines.join("\n")}\n`
     : `\n# Optional per-project memory overrides — inherit globals by default.\n# last_n  = 10   # verbatim short-term turns replayed each request\n# recall_k = 8   # BM25+kNN hits injected into the system prompt\n`;

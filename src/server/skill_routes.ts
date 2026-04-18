@@ -52,7 +52,9 @@ export async function handleSkillRoute(
   if (pathname === "/api/skills" && req.method === "GET") {
     const skills = listSkills(ctx.db).filter((s) => canSeeSkill(s, user));
     const projectMap = mapProjectsBySkill(ctx.db);
-    return json({ skills: skills.map((s) => toSkillDto(s, projectMap.get(s.name) ?? [])) });
+    return json({
+      skills: skills.map((s) => toSkillDto(s, projectMap.get(s.name) ?? [])),
+    });
   }
 
   if (pathname === "/api/skills" && req.method === "POST") {
@@ -71,18 +73,25 @@ export async function handleSkillRoute(
     if (req.method === "DELETE") return handleDeleteSkill(ctx, user, name);
   }
 
-  const projectSkillsMatch = pathname.match(/^\/api\/projects\/([^/]+)\/skills$/);
+  const projectSkillsMatch = pathname.match(
+    /^\/api\/projects\/([^/]+)\/skills$/,
+  );
   if (projectSkillsMatch) {
     const rawProject = decodeURIComponent(projectSkillsMatch[1]!);
-    if (req.method === "GET") return handleListProjectSkills(ctx, user, rawProject);
-    if (req.method === "POST") return handleLinkSkill(req, ctx, user, rawProject);
+    if (req.method === "GET")
+      return handleListProjectSkills(ctx, user, rawProject);
+    if (req.method === "POST")
+      return handleLinkSkill(req, ctx, user, rawProject);
   }
 
-  const linkMatch = pathname.match(/^\/api\/projects\/([^/]+)\/skills\/([^/]+)$/);
+  const linkMatch = pathname.match(
+    /^\/api\/projects\/([^/]+)\/skills\/([^/]+)$/,
+  );
   if (linkMatch) {
     const rawProject = decodeURIComponent(linkMatch[1]!);
     const rawSkill = decodeURIComponent(linkMatch[2]!);
-    if (req.method === "DELETE") return handleUnlinkSkill(ctx, user, rawProject, rawSkill);
+    if (req.method === "DELETE")
+      return handleUnlinkSkill(ctx, user, rawProject, rawSkill);
   }
 
   return null;
@@ -150,7 +159,11 @@ interface SkillBody {
   skillMd?: string;
 }
 
-async function handleCreateSkill(req: Request, ctx: SkillRouteCtx, user: User): Promise<Response> {
+async function handleCreateSkill(
+  req: Request,
+  ctx: SkillRouteCtx,
+  user: User,
+): Promise<Response> {
   let body: SkillBody;
   try {
     body = (await req.json()) as SkillBody;
@@ -159,9 +172,12 @@ async function handleCreateSkill(req: Request, ctx: SkillRouteCtx, user: User): 
   }
   try {
     const name = validateSkillName(body.name ?? "");
-    if (getSkill(ctx.db, name)) return json({ error: `skill '${name}' already exists` }, 409);
+    if (getSkill(ctx.db, name))
+      return json({ error: `skill '${name}' already exists` }, 409);
 
-    const skillMd = body.skillMd ?? `---\nname: ${name}\ndescription: ${body.description ?? ""}\n---\n`;
+    const skillMd =
+      body.skillMd ??
+      `---\nname: ${name}\ndescription: ${body.description ?? ""}\n---\n`;
     ensureSkillDir(name, skillMd);
 
     const created = createSkill(ctx.db, {
@@ -179,13 +195,20 @@ async function handleCreateSkill(req: Request, ctx: SkillRouteCtx, user: User): 
       userId: user.id,
       data: { name, visibility: body.visibility ?? "private" },
     });
-    return json({ skill: toSkillDto(created, listProjectsForSkill(ctx.db, name)) }, 201);
+    return json(
+      { skill: toSkillDto(created, listProjectsForSkill(ctx.db, name)) },
+      201,
+    );
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
   }
 }
 
-async function handleInstallSkill(req: Request, ctx: SkillRouteCtx, user: User): Promise<Response> {
+async function handleInstallSkill(
+  req: Request,
+  ctx: SkillRouteCtx,
+  user: User,
+): Promise<Response> {
   let body: { url?: string; name?: string };
   try {
     body = (await req.json()) as { url?: string; name?: string };
@@ -195,9 +218,15 @@ async function handleInstallSkill(req: Request, ctx: SkillRouteCtx, user: User):
   const rawUrl = typeof body.url === "string" ? body.url.trim() : "";
   if (!rawUrl) return json({ error: "'url' is required" }, 400);
   try {
-    const isSkillsSh = rawUrl.includes("skills.sh") || (!rawUrl.includes("github.com") && /^[a-z0-9_-]+\/[a-z0-9_-]+/i.test(rawUrl));
+    const isSkillsSh =
+      rawUrl.includes("skills.sh") ||
+      (!rawUrl.includes("github.com") &&
+        /^[a-z0-9_-]+\/[a-z0-9_-]+/i.test(rawUrl));
     const result = isSkillsSh
-      ? await installSkillFromSkillsSh(rawUrl.replace(/^https?:\/\/skills\.sh\//, ""), body.name)
+      ? await installSkillFromSkillsSh(
+          rawUrl.replace(/^https?:\/\/skills\.sh\//, ""),
+          body.name,
+        )
       : await installSkillFromGitHub(rawUrl, body.name);
 
     if (getSkill(ctx.db, result.name)) {
@@ -225,13 +254,20 @@ async function handleInstallSkill(req: Request, ctx: SkillRouteCtx, user: User):
       data: { name: result.name, sourceUrl: result.sourceUrl },
     });
     const skill = getSkill(ctx.db, result.name)!;
-    return json({ skill: toSkillDto(skill, listProjectsForSkill(ctx.db, result.name)) }, 201);
+    return json(
+      { skill: toSkillDto(skill, listProjectsForSkill(ctx.db, result.name)) },
+      201,
+    );
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
   }
 }
 
-function handleGetSkill(ctx: SkillRouteCtx, user: User, name: string): Response {
+function handleGetSkill(
+  ctx: SkillRouteCtx,
+  user: User,
+  name: string,
+): Response {
   const s = getSkill(ctx.db, name);
   if (!s) return json({ error: "not found" }, 404);
   if (!canSeeSkill(s, user)) return json({ error: "forbidden" }, 403);
@@ -261,27 +297,47 @@ async function handlePatchSkill(
     if (body.skillMd !== undefined) {
       writeSkillMd(name, body.skillMd);
     }
-    void ctx.queue.log({ topic: "skill", kind: "update", userId: user.id, data: { name } });
-    return json({ skill: toSkillDto(updated, listProjectsForSkill(ctx.db, name)) });
+    void ctx.queue.log({
+      topic: "skill",
+      kind: "update",
+      userId: user.id,
+      data: { name },
+    });
+    return json({
+      skill: toSkillDto(updated, listProjectsForSkill(ctx.db, name)),
+    });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
   }
 }
 
-function handleDeleteSkill(ctx: SkillRouteCtx, user: User, name: string): Response {
+function handleDeleteSkill(
+  ctx: SkillRouteCtx,
+  user: User,
+  name: string,
+): Response {
   const s = getSkill(ctx.db, name);
   if (!s) return json({ error: "not found" }, 404);
   if (!canEditSkill(s, user)) return json({ error: "forbidden" }, 403);
   try {
     deleteSkill(ctx.db, name);
-    void ctx.queue.log({ topic: "skill", kind: "delete", userId: user.id, data: { name } });
+    void ctx.queue.log({
+      topic: "skill",
+      kind: "delete",
+      userId: user.id,
+      data: { name },
+    });
     return json({ ok: true });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
   }
 }
 
-function handleListProjectSkills(ctx: SkillRouteCtx, user: User, rawProject: string): Response {
+function handleListProjectSkills(
+  ctx: SkillRouteCtx,
+  user: User,
+  rawProject: string,
+): Response {
   let project: string;
   try {
     project = validateProjectName(rawProject);
@@ -290,12 +346,20 @@ function handleListProjectSkills(ctx: SkillRouteCtx, user: User, rawProject: str
   }
   const p = getProject(ctx.db, project);
   if (!p) return json({ error: "project not found" }, 404);
-  if (p.visibility === "private" && user.role !== "admin" && p.createdBy !== user.id) {
+  if (
+    p.visibility === "private" &&
+    user.role !== "admin" &&
+    p.createdBy !== user.id
+  ) {
     return json({ error: "forbidden" }, 403);
   }
-  const skills = listSkillsForProject(ctx.db, project).filter((s) => canSeeSkill(s, user));
+  const skills = listSkillsForProject(ctx.db, project).filter((s) =>
+    canSeeSkill(s, user),
+  );
   const projectMap = mapProjectsBySkill(ctx.db);
-  return json({ skills: skills.map((s) => toSkillDto(s, projectMap.get(s.name) ?? [])) });
+  return json({
+    skills: skills.map((s) => toSkillDto(s, projectMap.get(s.name) ?? [])),
+  });
 }
 
 async function handleLinkSkill(
@@ -323,9 +387,15 @@ async function handleLinkSkill(
   }
   try {
     const skill = validateSkillName(body.skill ?? "");
-    if (!getSkill(ctx.db, skill)) return json({ error: "skill not found" }, 404);
+    if (!getSkill(ctx.db, skill))
+      return json({ error: "skill not found" }, 404);
     linkSkillToProject(ctx.db, project, skill);
-    void ctx.queue.log({ topic: "skill", kind: "link", userId: user.id, data: { project, skill } });
+    void ctx.queue.log({
+      topic: "skill",
+      kind: "link",
+      userId: user.id,
+      data: { project, skill },
+    });
     return json({ ok: true });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -352,6 +422,11 @@ function handleUnlinkSkill(
     return json({ error: "forbidden" }, 403);
   }
   unlinkSkillFromProject(ctx.db, project, skill);
-  void ctx.queue.log({ topic: "skill", kind: "unlink", userId: user.id, data: { project, skill } });
+  void ctx.queue.log({
+    topic: "skill",
+    kind: "unlink",
+    userId: user.id,
+    data: { project, skill },
+  });
   return json({ ok: true });
 }

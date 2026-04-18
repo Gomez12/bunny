@@ -37,7 +37,9 @@ function tools() {
 
 describe("board tools — schema", () => {
   test("BOARD_TOOL_NAMES matches makeBoardTools output", () => {
-    const names = makeBoardTools({ db, project: "alpha", userId: "u1" }).map((t) => t.name);
+    const names = makeBoardTools({ db, project: "alpha", userId: "u1" }).map(
+      (t) => t.name,
+    );
     expect(names.sort()).toEqual([...BOARD_TOOL_NAMES].sort());
   });
 });
@@ -53,7 +55,10 @@ describe("board_list", () => {
     expect(created.ok).toBe(true);
     const out = await handlers["board_list"]!({});
     expect(out.ok).toBe(true);
-    const data = JSON.parse(out.output) as { swimlanes: unknown[]; cards: { title: string }[] };
+    const data = JSON.parse(out.output) as {
+      swimlanes: unknown[];
+      cards: { title: string }[];
+    };
     expect(data.swimlanes.length).toBe(3);
     expect(data.cards.map((c) => c.title)).toContain("first");
   });
@@ -76,7 +81,10 @@ describe("board_create_card", () => {
   });
 
   test("rejects unknown lane", async () => {
-    const r = await tools()["board_create_card"]!({ title: "x", lane: "ghost" });
+    const r = await tools()["board_create_card"]!({
+      title: "x",
+      lane: "ghost",
+    });
     expect(r.ok).toBe(false);
     expect(r.output).toMatch(/not found/);
   });
@@ -109,9 +117,15 @@ describe("board_create_card", () => {
 describe("board_move_card", () => {
   test("moves between lanes by name", async () => {
     const [todo, doing] = listSwimlanes(db, "alpha");
-    const created = await tools()["board_create_card"]!({ title: "x", lane_id: todo!.id });
+    const created = await tools()["board_create_card"]!({
+      title: "x",
+      lane_id: todo!.id,
+    });
     const id = (JSON.parse(created.output) as { id: number }).id;
-    const moved = await tools()["board_move_card"]!({ card_id: id, lane: "Doing" });
+    const moved = await tools()["board_move_card"]!({
+      card_id: id,
+      lane: "Doing",
+    });
     expect(moved.ok).toBe(true);
     expect(getCard(db, id)!.swimlaneId).toBe(doing!.id);
   });
@@ -134,7 +148,10 @@ describe("board_update_card", () => {
       assignee_agent: "a1",
     });
     const id = (JSON.parse(created.output) as { id: number }).id;
-    const cleared = await tools()["board_update_card"]!({ card_id: id, assignee_agent: "" });
+    const cleared = await tools()["board_update_card"]!({
+      card_id: id,
+      assignee_agent: "",
+    });
     expect(cleared.ok).toBe(true);
     expect(getCard(db, id)!.assigneeAgent).toBeNull();
   });
@@ -142,7 +159,10 @@ describe("board_update_card", () => {
 
 describe("board_archive_card", () => {
   test("archives and disappears from default board_list", async () => {
-    const created = await tools()["board_create_card"]!({ title: "x", lane: "Todo" });
+    const created = await tools()["board_create_card"]!({
+      title: "x",
+      lane: "Todo",
+    });
     const id = (JSON.parse(created.output) as { id: number }).id;
     await tools()["board_archive_card"]!({ card_id: id });
     const list = await tools()["board_list"]!({});

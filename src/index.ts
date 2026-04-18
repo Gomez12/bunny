@@ -60,7 +60,13 @@ function parseArgs(argv: string[]): {
     }
   }
 
-  return { prompt: rest.join(" ").trim(), session, hideReasoning, apiKey, project };
+  return {
+    prompt: rest.join(" ").trim(),
+    session,
+    hideReasoning,
+    apiKey,
+    project,
+  };
 }
 
 async function main(argv: string[]): Promise<number> {
@@ -71,7 +77,13 @@ async function main(argv: string[]): Promise<number> {
     return 0;
   }
 
-  const { prompt, session, hideReasoning, apiKey, project: projectArg } = parseArgs(argv);
+  const {
+    prompt,
+    session,
+    hideReasoning,
+    apiKey,
+    project: projectArg,
+  } = parseArgs(argv);
 
   if (!prompt) {
     process.stderr.write(
@@ -109,7 +121,9 @@ async function main(argv: string[]): Promise<number> {
   const configuredDefault = validateProjectName(cfg.agent.defaultProject);
   let project: string;
   try {
-    const normalisedArg = projectArg ? validateProjectName(projectArg) : undefined;
+    const normalisedArg = projectArg
+      ? validateProjectName(projectArg)
+      : undefined;
     const existing = getSessionProject(db, sessionId);
     if (existing !== null) {
       if (normalisedArg && normalisedArg !== existing) {

@@ -2,7 +2,10 @@
 
 import type { Database } from "bun:sqlite";
 import { clearAutoRun } from "../memory/board_cards.ts";
-import type { HandlerRegistry, TaskHandlerContext } from "../scheduler/handlers.ts";
+import type {
+  HandlerRegistry,
+  TaskHandlerContext,
+} from "../scheduler/handlers.ts";
 import { runCard } from "./run_card.ts";
 import { registry as toolRegistry } from "../tools/index.ts";
 import { errorMessage } from "../util/error.ts";
@@ -37,7 +40,9 @@ function selectCandidates(db: Database): Candidate[] {
     .all() as Candidate[];
 }
 
-export async function boardAutoRunHandler(ctx: TaskHandlerContext): Promise<void> {
+export async function boardAutoRunHandler(
+  ctx: TaskHandlerContext,
+): Promise<void> {
   const { db, queue, cfg } = ctx;
   const candidates = selectCandidates(db);
   if (candidates.length === 0) return;
@@ -49,7 +54,12 @@ export async function boardAutoRunHandler(ctx: TaskHandlerContext): Promise<void
       void queue.log({
         topic: "scheduler",
         kind: "skip",
-        data: { cardId: cand.id, reason: "agent-unlinked", project: cand.project, agent: cand.agent },
+        data: {
+          cardId: cand.id,
+          reason: "agent-unlinked",
+          project: cand.project,
+          agent: cand.agent,
+        },
       });
       continue;
     }

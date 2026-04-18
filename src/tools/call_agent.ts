@@ -26,7 +26,8 @@ export const CALL_AGENT_SCHEMA: JsonSchemaObject = {
     },
     prompt: {
       type: "string",
-      description: "The task / question to hand off. Include all context the subagent needs.",
+      description:
+        "The task / question to hand off. Include all context the subagent needs.",
     },
   },
   required: ["name", "prompt"],
@@ -60,7 +61,9 @@ export function makeCallAgentTool(ctx: CallAgentContext): {
       );
     }
     if (ctx.depth >= MAX_AGENT_CALL_DEPTH) {
-      return errorResult(`call_agent: max depth ${MAX_AGENT_CALL_DEPTH} reached`);
+      return errorResult(
+        `call_agent: max depth ${MAX_AGENT_CALL_DEPTH} reached`,
+      );
     }
     try {
       const answer = await ctx.invoke(name, prompt);

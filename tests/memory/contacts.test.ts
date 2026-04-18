@@ -54,7 +54,11 @@ afterEach(() => {
 describe("createContact", () => {
   test("creates a contact with defaults", async () => {
     const { db } = await setup();
-    const c = createContact(db, { project: "alpha", name: "John Doe", createdBy: "owner" });
+    const c = createContact(db, {
+      project: "alpha",
+      name: "John Doe",
+      createdBy: "owner",
+    });
     expect(c.id).toBeGreaterThan(0);
     expect(c.project).toBe("alpha");
     expect(c.name).toBe("John Doe");
@@ -99,7 +103,11 @@ describe("createContact", () => {
 
   test("links to groups on creation", async () => {
     const { db } = await setup();
-    const g = createGroup(db, { project: "alpha", name: "Work", createdBy: "owner" });
+    const g = createGroup(db, {
+      project: "alpha",
+      name: "Work",
+      createdBy: "owner",
+    });
     const c = createContact(db, {
       project: "alpha",
       name: "Bob",
@@ -130,10 +138,20 @@ describe("listContacts", () => {
 
   test("search filters by name", async () => {
     const { db } = await setup();
-    createContact(db, { project: "alpha", name: "Alice Wonderland", createdBy: "owner" });
-    createContact(db, { project: "alpha", name: "Bob Builder", createdBy: "owner" });
+    createContact(db, {
+      project: "alpha",
+      name: "Alice Wonderland",
+      createdBy: "owner",
+    });
+    createContact(db, {
+      project: "alpha",
+      name: "Bob Builder",
+      createdBy: "owner",
+    });
 
-    const { contacts: results } = listContacts(db, "alpha", { search: "alice" });
+    const { contacts: results } = listContacts(db, "alpha", {
+      search: "alice",
+    });
     expect(results).toHaveLength(1);
     expect(results[0]!.name).toBe("Alice Wonderland");
     db.close();
@@ -149,7 +167,9 @@ describe("listContacts", () => {
     });
     createContact(db, { project: "alpha", name: "Bob", createdBy: "owner" });
 
-    const { contacts: results } = listContacts(db, "alpha", { search: "example.com" });
+    const { contacts: results } = listContacts(db, "alpha", {
+      search: "example.com",
+    });
     expect(results).toHaveLength(1);
     expect(results[0]!.name).toBe("Alice");
     db.close();
@@ -157,8 +177,17 @@ describe("listContacts", () => {
 
   test("filters by group", async () => {
     const { db } = await setup();
-    const g = createGroup(db, { project: "alpha", name: "VIP", createdBy: "owner" });
-    createContact(db, { project: "alpha", name: "Alice", groups: [g.id], createdBy: "owner" });
+    const g = createGroup(db, {
+      project: "alpha",
+      name: "VIP",
+      createdBy: "owner",
+    });
+    createContact(db, {
+      project: "alpha",
+      name: "Alice",
+      groups: [g.id],
+      createdBy: "owner",
+    });
     createContact(db, { project: "alpha", name: "Bob", createdBy: "owner" });
 
     const { contacts: results } = listContacts(db, "alpha", { groupId: g.id });
@@ -170,9 +199,16 @@ describe("listContacts", () => {
   test("supports limit and offset", async () => {
     const { db } = await setup();
     for (let i = 0; i < 5; i++) {
-      createContact(db, { project: "alpha", name: `Contact ${i}`, createdBy: "owner" });
+      createContact(db, {
+        project: "alpha",
+        name: `Contact ${i}`,
+        createdBy: "owner",
+      });
     }
-    const { contacts: page, total } = listContacts(db, "alpha", { limit: 2, offset: 2 });
+    const { contacts: page, total } = listContacts(db, "alpha", {
+      limit: 2,
+      offset: 2,
+    });
     expect(page).toHaveLength(2);
     expect(total).toBe(5);
     db.close();
@@ -196,9 +232,22 @@ describe("updateContact", () => {
 
   test("updates groups", async () => {
     const { db } = await setup();
-    const g1 = createGroup(db, { project: "alpha", name: "A", createdBy: "owner" });
-    const g2 = createGroup(db, { project: "alpha", name: "B", createdBy: "owner" });
-    const c = createContact(db, { project: "alpha", name: "X", groups: [g1.id], createdBy: "owner" });
+    const g1 = createGroup(db, {
+      project: "alpha",
+      name: "A",
+      createdBy: "owner",
+    });
+    const g2 = createGroup(db, {
+      project: "alpha",
+      name: "B",
+      createdBy: "owner",
+    });
+    const c = createContact(db, {
+      project: "alpha",
+      name: "X",
+      groups: [g1.id],
+      createdBy: "owner",
+    });
     expect(c.groups).toEqual([g1.id]);
 
     const updated = updateContact(db, c.id, { groups: [g2.id] });
@@ -208,7 +257,9 @@ describe("updateContact", () => {
 
   test("throws on missing contact", async () => {
     const { db } = await setup();
-    expect(() => updateContact(db, 999, { name: "X" })).toThrow("contact 999 not found");
+    expect(() => updateContact(db, 999, { name: "X" })).toThrow(
+      "contact 999 not found",
+    );
     db.close();
   });
 });
@@ -216,8 +267,17 @@ describe("updateContact", () => {
 describe("deleteContact", () => {
   test("removes contact and group memberships", async () => {
     const { db } = await setup();
-    const g = createGroup(db, { project: "alpha", name: "G", createdBy: "owner" });
-    const c = createContact(db, { project: "alpha", name: "X", groups: [g.id], createdBy: "owner" });
+    const g = createGroup(db, {
+      project: "alpha",
+      name: "G",
+      createdBy: "owner",
+    });
+    const c = createContact(db, {
+      project: "alpha",
+      name: "X",
+      groups: [g.id],
+      createdBy: "owner",
+    });
     deleteContact(db, c.id);
     expect(getContact(db, c.id)).toBeNull();
     const refreshedGroup = getGroup(db, g.id);
@@ -229,11 +289,16 @@ describe("deleteContact", () => {
 describe("bulkCreateContacts", () => {
   test("creates multiple contacts in transaction", async () => {
     const { db } = await setup();
-    const count = bulkCreateContacts(db, "alpha", [
-      { name: "A", emails: ["a@x.com"] },
-      { name: "B", emails: ["b@x.com"] },
-      { name: "C" },
-    ], "owner");
+    const count = bulkCreateContacts(
+      db,
+      "alpha",
+      [
+        { name: "A", emails: ["a@x.com"] },
+        { name: "B", emails: ["b@x.com"] },
+        { name: "C" },
+      ],
+      "owner",
+    );
     expect(count).toBe(3);
     expect(listContacts(db, "alpha").contacts).toHaveLength(3);
     db.close();
@@ -243,7 +308,12 @@ describe("bulkCreateContacts", () => {
 describe("Contact groups", () => {
   test("CRUD operations", async () => {
     const { db } = await setup();
-    const g = createGroup(db, { project: "alpha", name: "Clients", color: "#ff0000", createdBy: "owner" });
+    const g = createGroup(db, {
+      project: "alpha",
+      name: "Clients",
+      color: "#ff0000",
+      createdBy: "owner",
+    });
     expect(g.name).toBe("Clients");
     expect(g.color).toBe("#ff0000");
     expect(g.memberCount).toBe(0);
@@ -262,9 +332,23 @@ describe("Contact groups", () => {
 
   test("member count reflects linked contacts", async () => {
     const { db } = await setup();
-    const g = createGroup(db, { project: "alpha", name: "Team", createdBy: "owner" });
-    createContact(db, { project: "alpha", name: "A", groups: [g.id], createdBy: "owner" });
-    createContact(db, { project: "alpha", name: "B", groups: [g.id], createdBy: "owner" });
+    const g = createGroup(db, {
+      project: "alpha",
+      name: "Team",
+      createdBy: "owner",
+    });
+    createContact(db, {
+      project: "alpha",
+      name: "A",
+      groups: [g.id],
+      createdBy: "owner",
+    });
+    createContact(db, {
+      project: "alpha",
+      name: "B",
+      groups: [g.id],
+      createdBy: "owner",
+    });
 
     const groups = listGroups(db, "alpha");
     expect(groups[0]!.memberCount).toBe(2);
@@ -284,8 +368,23 @@ describe("Contact groups", () => {
 describe("canEditContact", () => {
   test("admin can edit any contact", async () => {
     const { db } = await setup();
-    const c = createContact(db, { project: "alpha", name: "X", createdBy: "other" });
-    const admin: User = { id: "owner", username: "owner", role: "admin", mustChangePassword: false, displayName: null, email: null, createdAt: 0, updatedAt: 0, expandThinkBubbles: false, expandToolBubbles: false };
+    const c = createContact(db, {
+      project: "alpha",
+      name: "X",
+      createdBy: "other",
+    });
+    const admin: User = {
+      id: "owner",
+      username: "owner",
+      role: "admin",
+      mustChangePassword: false,
+      displayName: null,
+      email: null,
+      createdAt: 0,
+      updatedAt: 0,
+      expandThinkBubbles: false,
+      expandToolBubbles: false,
+    };
     const project = { name: "alpha", createdBy: "owner" } as Project;
     expect(canEditContact(admin, c, project)).toBe(true);
     db.close();
@@ -293,8 +392,23 @@ describe("canEditContact", () => {
 
   test("creator can edit own contact", async () => {
     const { db } = await setup();
-    const c = createContact(db, { project: "alpha", name: "X", createdBy: "other" });
-    const user: User = { id: "other", username: "other", role: "user", mustChangePassword: false, displayName: null, email: null, createdAt: 0, updatedAt: 0, expandThinkBubbles: false, expandToolBubbles: false };
+    const c = createContact(db, {
+      project: "alpha",
+      name: "X",
+      createdBy: "other",
+    });
+    const user: User = {
+      id: "other",
+      username: "other",
+      role: "user",
+      mustChangePassword: false,
+      displayName: null,
+      email: null,
+      createdAt: 0,
+      updatedAt: 0,
+      expandThinkBubbles: false,
+      expandToolBubbles: false,
+    };
     const project = { name: "alpha", createdBy: "owner" } as Project;
     expect(canEditContact(user, c, project)).toBe(true);
     db.close();
@@ -302,8 +416,23 @@ describe("canEditContact", () => {
 
   test("non-creator, non-admin cannot edit", async () => {
     const { db } = await setup();
-    const c = createContact(db, { project: "alpha", name: "X", createdBy: "owner" });
-    const user: User = { id: "other", username: "other", role: "user", mustChangePassword: false, displayName: null, email: null, createdAt: 0, updatedAt: 0, expandThinkBubbles: false, expandToolBubbles: false };
+    const c = createContact(db, {
+      project: "alpha",
+      name: "X",
+      createdBy: "owner",
+    });
+    const user: User = {
+      id: "other",
+      username: "other",
+      role: "user",
+      mustChangePassword: false,
+      displayName: null,
+      email: null,
+      createdAt: 0,
+      updatedAt: 0,
+      expandThinkBubbles: false,
+      expandToolBubbles: false,
+    };
     const project = { name: "alpha", createdBy: "owner" } as Project;
     expect(canEditContact(user, c, project)).toBe(false);
     db.close();

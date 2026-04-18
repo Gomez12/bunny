@@ -7,7 +7,11 @@ describe("ToolRegistry", () => {
     r.register(
       "echo",
       "Echo the message back",
-      { type: "object", properties: { message: { type: "string" } }, required: ["message"] },
+      {
+        type: "object",
+        properties: { message: { type: "string" } },
+        required: ["message"],
+      },
       (args) => ({ ok: true, output: String(args["message"]) }),
     );
     return r;
@@ -42,9 +46,14 @@ describe("ToolRegistry", () => {
 
   test("call() catches handler throws", async () => {
     const r = new ToolRegistry();
-    r.register("boom", "throws", { type: "object", properties: {}, required: [] }, () => {
-      throw new Error("kaboom");
-    });
+    r.register(
+      "boom",
+      "throws",
+      { type: "object", properties: {}, required: [] },
+      () => {
+        throw new Error("kaboom");
+      },
+    );
     const result = await r.call("boom", "{}");
     expect(result.ok).toBe(false);
     expect(result.error).toMatch("kaboom");

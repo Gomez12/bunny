@@ -21,9 +21,17 @@ afterEach(() => {
 
 async function seed() {
   const db = await newDb();
-  insertMessage(db, { sessionId: "s1", role: "user", content: "hello about cats" });
+  insertMessage(db, {
+    sessionId: "s1",
+    role: "user",
+    content: "hello about cats",
+  });
   insertMessage(db, { sessionId: "s1", role: "assistant", content: "meow" });
-  insertMessage(db, { sessionId: "s2", role: "user", content: "hello about dogs" });
+  insertMessage(db, {
+    sessionId: "s2",
+    role: "user",
+    content: "hello about dogs",
+  });
   insertMessage(db, { sessionId: "s2", role: "assistant", content: "woof" });
   return db;
 }
@@ -70,7 +78,10 @@ describe("listSessions", () => {
 
   test("per-viewer hiddenFromChat flag + excludeHidden filter", async () => {
     const db = await seed();
-    const alice = await createUser(db, { username: "alice", password: "pw-alice" });
+    const alice = await createUser(db, {
+      username: "alice",
+      password: "pw-alice",
+    });
     const bob = await createUser(db, { username: "bob", password: "pw-bob" });
 
     // Alice hides s1; Bob hides nothing.
@@ -78,11 +89,18 @@ describe("listSessions", () => {
 
     // Alice's view: flag set on s1, both still listed.
     const aliceAll = listSessions(db, { viewerId: alice.id });
-    expect(aliceAll.find((s) => s.sessionId === "s1")!.hiddenFromChat).toBe(true);
-    expect(aliceAll.find((s) => s.sessionId === "s2")!.hiddenFromChat).toBe(false);
+    expect(aliceAll.find((s) => s.sessionId === "s1")!.hiddenFromChat).toBe(
+      true,
+    );
+    expect(aliceAll.find((s) => s.sessionId === "s2")!.hiddenFromChat).toBe(
+      false,
+    );
 
     // Alice's chat view (excludeHidden): s1 dropped.
-    const aliceChat = listSessions(db, { viewerId: alice.id, excludeHidden: true });
+    const aliceChat = listSessions(db, {
+      viewerId: alice.id,
+      excludeHidden: true,
+    });
     expect(aliceChat.map((s) => s.sessionId).sort()).toEqual(["s2"]);
 
     // Bob still sees both, both unhidden — visibility is per-user.
@@ -95,7 +113,10 @@ describe("listSessions", () => {
 
     // Unhide flips it back.
     setSessionHiddenFromChat(db, alice.id, "s1", false);
-    const aliceChatAgain = listSessions(db, { viewerId: alice.id, excludeHidden: true });
+    const aliceChatAgain = listSessions(db, {
+      viewerId: alice.id,
+      excludeHidden: true,
+    });
     expect(aliceChatAgain.map((s) => s.sessionId).sort()).toEqual(["s1", "s2"]);
 
     db.close();

@@ -36,7 +36,10 @@ export function listDirHandler(args: Record<string, unknown>): ToolResult {
           return e;
         }
       });
-    return { ok: true, output: lines.length > 0 ? lines.join("\n") : "(empty directory)" };
+    return {
+      ok: true,
+      output: lines.length > 0 ? lines.join("\n") : "(empty directory)",
+    };
   } catch (e) {
     const msg = errorMessage(e);
     return { ok: false, output: msg, error: msg };
@@ -46,8 +49,15 @@ export function listDirHandler(args: Record<string, unknown>): ToolResult {
 export const LIST_DIR_SCHEMA = {
   type: "object" as const,
   properties: {
-    path: { type: "string", description: "Directory path relative to working directory. Defaults to '.'." },
-    show_hidden: { type: "boolean", description: "Include hidden files (starting with '.'). Default false." },
+    path: {
+      type: "string",
+      description:
+        "Directory path relative to working directory. Defaults to '.'.",
+    },
+    show_hidden: {
+      type: "boolean",
+      description: "Include hidden files (starting with '.'). Default false.",
+    },
   },
   required: [],
 };

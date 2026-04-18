@@ -15,15 +15,30 @@ let db: Database;
 
 const queue: BunnyQueue = { log: async () => {}, close: async () => {} };
 const cfg = {
-  llm: { baseUrl: "", apiKey: "", model: "x", modelReasoning: undefined, profile: undefined },
+  llm: {
+    baseUrl: "",
+    apiKey: "",
+    model: "x",
+    modelReasoning: undefined,
+    profile: undefined,
+  },
   embed: { baseUrl: "", apiKey: "", model: "x", dim: 1536 },
   memory: { indexReasoning: false, recallK: 8, lastN: 10 },
   render: { reasoning: "collapsed" as const, color: undefined },
   queue: { topics: [] },
-  auth: { defaultAdminUsername: "a", defaultAdminPassword: "b", sessionTtlHours: 1 },
+  auth: {
+    defaultAdminUsername: "a",
+    defaultAdminPassword: "b",
+    sessionTtlHours: 1,
+  },
   agent: { systemPrompt: "", defaultProject: "general" },
   ui: { autosaveIntervalMs: 5000 },
-  web: { serpApiKey: "", serpProvider: "serper", serpBaseUrl: "", userAgent: "" },
+  web: {
+    serpApiKey: "",
+    serpProvider: "serper",
+    serpBaseUrl: "",
+    userAgent: "",
+  },
   sessionId: undefined,
 } as unknown as BunnyConfig;
 

@@ -13,7 +13,9 @@ describe("buildSystemMessage with projectAssets", () => {
     const content = msg.content ?? "";
     expect(content).toContain("You are Bunny");
     expect(content).toContain("Talk like a pirate.");
-    expect(content.indexOf("You are Bunny")).toBeLessThan(content.indexOf("Talk like a pirate."));
+    expect(content.indexOf("You are Bunny")).toBeLessThan(
+      content.indexOf("Talk like a pirate."),
+    );
   });
 
   test("replaces base prompt when append=false", () => {

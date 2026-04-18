@@ -61,13 +61,16 @@ const SELECT_COLS = `id, card_id, session_id, agent, triggered_by, trigger_kind,
                      status, started_at, finished_at, final_answer, error`;
 
 export function getRun(db: Database, id: number): CardRun | null {
-  const row = prep(db, `SELECT ${SELECT_COLS} FROM board_card_runs WHERE id = ?`)
-    .get(id) as RunRow | undefined;
+  const row = prep(
+    db,
+    `SELECT ${SELECT_COLS} FROM board_card_runs WHERE id = ?`,
+  ).get(id) as RunRow | undefined;
   return row ? rowToRun(row) : null;
 }
 
 export function listRunsForCard(db: Database, cardId: number): CardRun[] {
-  const rows = prep(db,
+  const rows = prep(
+    db,
     `SELECT ${SELECT_COLS} FROM board_card_runs
        WHERE card_id = ? ORDER BY started_at DESC, id DESC`,
   ).all(cardId) as RunRow[];
@@ -85,39 +88,47 @@ export interface CreateRunOpts {
 
 export function createRun(db: Database, opts: CreateRunOpts): CardRun {
   const now = Date.now();
-  const info = prep(db,
+  const info = prep(
+    db,
     `INSERT INTO board_card_runs(card_id, session_id, agent, triggered_by,
                                    trigger_kind, status, started_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-  )
-    .run(
-      opts.cardId,
-      opts.sessionId,
-      opts.agent,
-      opts.triggeredBy,
-      opts.triggerKind ?? "manual",
-      opts.status ?? "running",
-      now,
-    );
+  ).run(
+    opts.cardId,
+    opts.sessionId,
+    opts.agent,
+    opts.triggeredBy,
+    opts.triggerKind ?? "manual",
+    opts.status ?? "running",
+    now,
+  );
   return getRun(db, Number(info.lastInsertRowid))!;
 }
 
 export function markRunRunning(db: Database, id: number): void {
-  prep(db, `UPDATE board_card_runs SET status = 'running' WHERE id = ?`).run(id);
+  prep(db, `UPDATE board_card_runs SET status = 'running' WHERE id = ?`).run(
+    id,
+  );
 }
 
 export interface MarkRunDoneOpts {
   finalAnswer?: string | null;
 }
 
-export function markRunDone(db: Database, id: number, opts: MarkRunDoneOpts = {}): void {
-  prep(db,
+export function markRunDone(
+  db: Database,
+  id: number,
+  opts: MarkRunDoneOpts = {},
+): void {
+  prep(
+    db,
     `UPDATE board_card_runs SET status = 'done', finished_at = ?, final_answer = ? WHERE id = ?`,
   ).run(Date.now(), opts.finalAnswer ?? null, id);
 }
 
 export function markRunError(db: Database, id: number, error: string): void {
-  prep(db,
+  prep(
+    db,
     `UPDATE board_card_runs SET status = 'error', finished_at = ?, error = ? WHERE id = ?`,
   ).run(Date.now(), error, id);
 }

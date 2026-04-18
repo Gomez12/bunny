@@ -43,7 +43,10 @@ const PROTECTED_ROOTS: ReadonlySet<string> = new Set(WORKSPACE_DEFAULT_SUBDIRS);
  * result escapes the workspace root. The workspace directory itself is
  * created on the fly if missing so callers don't have to pre-seed it.
  */
-export function safeWorkspacePath(project: string, relPath: string): {
+export function safeWorkspacePath(
+  project: string,
+  relPath: string,
+): {
   abs: string;
   root: string;
   rel: string;
@@ -81,7 +84,10 @@ function assertNotProtected(rel: string): void {
   }
 }
 
-export function listWorkspace(project: string, relDir: string): WorkspaceEntry[] {
+export function listWorkspace(
+  project: string,
+  relDir: string,
+): WorkspaceEntry[] {
   const { abs, rel } = safeWorkspacePath(project, relDir);
   if (!existsSync(abs)) {
     if (rel === "") return []; // root still being created
@@ -116,7 +122,10 @@ export function listWorkspace(project: string, relDir: string): WorkspaceEntry[]
   return entries;
 }
 
-export function statWorkspace(project: string, relPath: string): WorkspaceEntry {
+export function statWorkspace(
+  project: string,
+  relPath: string,
+): WorkspaceEntry {
   const { abs, rel } = safeWorkspacePath(project, relPath);
   if (!existsSync(abs)) throw new Error(`not found: ${rel}`);
   const s = statSync(abs);
@@ -163,7 +172,8 @@ export function readWorkspaceFile(
     buf = buf.subarray(0, maxBytes);
     truncated = true;
   }
-  const content = encoding === "base64" ? buf.toString("base64") : buf.toString("utf8");
+  const content =
+    encoding === "base64" ? buf.toString("base64") : buf.toString("utf8");
 
   const result: ReadResult = { path: rel, encoding, content, size: totalBytes };
   if (truncated) {
@@ -198,7 +208,10 @@ export function writeWorkspaceFile(
   return { path: rel, size: buf.byteLength };
 }
 
-export function mkdirWorkspace(project: string, relPath: string): WorkspaceEntry {
+export function mkdirWorkspace(
+  project: string,
+  relPath: string,
+): WorkspaceEntry {
   const { abs, rel } = safeWorkspacePath(project, relPath);
   if (rel === "") throw new Error("target path is empty");
   mkdirSync(abs, { recursive: true });
@@ -232,7 +245,10 @@ export function moveWorkspaceEntry(
  * Resolve a path for streaming downloads with a final realpath check so a
  * symlinked entry pointing outside the workspace can't be followed.
  */
-export function resolveForDownload(project: string, relPath: string): {
+export function resolveForDownload(
+  project: string,
+  relPath: string,
+): {
   abs: string;
   rel: string;
   size: number;

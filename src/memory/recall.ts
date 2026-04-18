@@ -47,7 +47,9 @@ export async function hybridRecall(
 
   // Run BM25 and vector searches in parallel.
   const [bm25Results, embedding] = await Promise.all([
-    Promise.resolve(searchBM25(db, query, fetchK, sessionId, project, ownAuthor)),
+    Promise.resolve(
+      searchBM25(db, query, fetchK, sessionId, project, ownAuthor),
+    ),
     embed(embedCfg, query),
   ]);
   const vectorResults = searchVector(db, embedding, fetchK, project, ownAuthor);
@@ -77,19 +79,25 @@ export async function hybridRecall(
   // Resolve message content (could query DB by IDs, but using what we already have).
   const bm25Map = new Map(bm25Results.map((r) => [r.messageId, r.content]));
   // For vector-only hits we need to fetch the content.
-  const missingIds = sorted
-    .map(([id]) => id)
-    .filter((id) => !bm25Map.has(id));
+  const missingIds = sorted.map(([id]) => id).filter((id) => !bm25Map.has(id));
 
   // Batch fetch missing content.
   const contentMap = new Map<number, string | null>(bm25Map);
-  const sessionMap = new Map<number, string>(bm25Results.map((r) => [r.messageId, r.sessionId]));
+  const sessionMap = new Map<number, string>(
+    bm25Results.map((r) => [r.messageId, r.sessionId]),
+  );
 
   if (missingIds.length > 0) {
     const placeholders = missingIds.map(() => "?").join(", ");
     const rows = db
-      .prepare(`SELECT id, content, session_id FROM messages WHERE id IN (${placeholders})`)
-      .all(...missingIds) as { id: number; content: string | null; session_id: string }[];
+      .prepare(
+        `SELECT id, content, session_id FROM messages WHERE id IN (${placeholders})`,
+      )
+      .all(...missingIds) as {
+      id: number;
+      content: string | null;
+      session_id: string;
+    }[];
     for (const row of rows) {
       contentMap.set(row.id, row.content);
       sessionMap.set(row.id, row.session_id);

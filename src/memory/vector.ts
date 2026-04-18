@@ -50,7 +50,9 @@ export function searchVector(
        ORDER BY distance`,
     ).all(queryBlob, fetchK) as Array<{ message_id: number; distance: number }>;
     if (!needsPostFilter || rows.length === 0) {
-      return rows.slice(0, k).map((r) => ({ messageId: r.message_id, distance: r.distance }));
+      return rows
+        .slice(0, k)
+        .map((r) => ({ messageId: r.message_id, distance: r.distance }));
     }
     const ids = rows.map((r) => r.message_id);
     const placeholders = ids.map(() => "?").join(",");
@@ -79,7 +81,8 @@ export function searchVector(
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     // Silently return empty on "no such module" (sqlite-vec absent) or empty table.
-    if (msg.includes("no such module") || msg.includes("no such table")) return [];
+    if (msg.includes("no such module") || msg.includes("no such table"))
+      return [];
     throw e;
   }
 }
@@ -87,13 +90,17 @@ export function searchVector(
 /**
  * Insert or replace a message's embedding.
  */
-export function upsertEmbedding(db: Database, messageId: number, embedding: number[]): void {
+export function upsertEmbedding(
+  db: Database,
+  messageId: number,
+  embedding: number[],
+): void {
   const blob = float32ArrayToBlob(embedding);
   try {
-    prep(db, `INSERT OR REPLACE INTO embeddings(message_id, embedding) VALUES (?, ?)`).run(
-      messageId,
-      blob,
-    );
+    prep(
+      db,
+      `INSERT OR REPLACE INTO embeddings(message_id, embedding) VALUES (?, ?)`,
+    ).run(messageId, blob);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (msg.includes("no such module") || msg.includes("no such table")) return;

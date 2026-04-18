@@ -27,7 +27,10 @@ interface RawChunk {
 }
 
 /** Decode Uint8Array → lines, accumulating across chunk boundaries. */
-function* splitLines(buf: string, incoming: string): Generator<[string, string]> {
+function* splitLines(
+  buf: string,
+  incoming: string,
+): Generator<[string, string]> {
   const combined = buf + incoming;
   const lines = combined.split("\n");
   // Last element may be incomplete — return it as new buffer.
@@ -93,12 +96,20 @@ export async function* parseStream(
           // Reasoning (provider-normalised)
           const reasoningText = profile.extractReasoning(delta);
           if (reasoningText) {
-            yield { channel: "reasoning", index: choiceIndex, text: reasoningText };
+            yield {
+              channel: "reasoning",
+              index: choiceIndex,
+              text: reasoningText,
+            };
           }
 
           // Content
           if (delta.content) {
-            yield { channel: "content", index: choiceIndex, text: delta.content };
+            yield {
+              channel: "content",
+              index: choiceIndex,
+              text: delta.content,
+            };
           }
 
           // Tool calls

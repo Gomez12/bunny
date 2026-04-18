@@ -22,7 +22,8 @@ export const ACTIVATE_SKILL_SCHEMA: JsonSchemaObject = {
   properties: {
     name: {
       type: "string",
-      description: "Skill name. Must be one of the available skills listed in the system prompt.",
+      description:
+        "Skill name. Must be one of the available skills listed in the system prompt.",
     },
   },
   required: ["name"],
@@ -30,7 +31,10 @@ export const ACTIVATE_SKILL_SCHEMA: JsonSchemaObject = {
 
 export interface ActivateSkillContext {
   available: readonly string[];
-  loadInstructions: (name: string) => { instructions: string; resources: string[] };
+  loadInstructions: (name: string) => {
+    instructions: string;
+    resources: string[];
+  };
 }
 
 export function makeActivateSkillTool(ctx: ActivateSkillContext): {
@@ -50,7 +54,9 @@ export function makeActivateSkillTool(ctx: ActivateSkillContext): {
     try {
       const { instructions, resources } = ctx.loadInstructions(name);
       if (!instructions) {
-        return errorResult(`activate_skill: skill '${name}' has no instructions`);
+        return errorResult(
+          `activate_skill: skill '${name}' has no instructions`,
+        );
       }
       let output = `<skill_content name="${name}">\n${instructions}\n</skill_content>`;
       if (resources.length > 0) {

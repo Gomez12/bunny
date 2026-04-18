@@ -28,7 +28,12 @@ describe("getRecentTurns", () => {
   test("returns user + assistant content in chronological order", () => {
     const s = "s1";
     insertMessage(db, { sessionId: s, role: "user", content: "hi" });
-    insertMessage(db, { sessionId: s, role: "assistant", channel: "reasoning", content: "thinking..." });
+    insertMessage(db, {
+      sessionId: s,
+      role: "assistant",
+      channel: "reasoning",
+      content: "thinking...",
+    });
     insertMessage(db, { sessionId: s, role: "assistant", content: "hello" });
     insertMessage(db, { sessionId: s, role: "user", content: "how are you" });
 
@@ -58,11 +63,17 @@ describe("getRecentTurns", () => {
       content: "README.md",
       toolCallId: "c1",
     });
-    insertMessage(db, { sessionId: s, role: "assistant", content: "found README" });
+    insertMessage(db, {
+      sessionId: s,
+      role: "assistant",
+      content: "found README",
+    });
 
     const turns = getRecentTurns(db, s, 10);
     expect(turns).toHaveLength(2);
-    expect(turns.every((t) => t.role === "user" || t.role === "assistant")).toBe(true);
+    expect(
+      turns.every((t) => t.role === "user" || t.role === "assistant"),
+    ).toBe(true);
   });
 
   test("honours the limit and keeps the most recent slice", () => {

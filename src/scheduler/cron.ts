@@ -40,9 +40,17 @@ export interface ParsedCron {
 export function parseCron(expr: string): ParsedCron {
   const parts = expr.trim().split(/\s+/);
   if (parts.length !== 5) {
-    throw new Error(`cron expression must have 5 fields, got ${parts.length}: '${expr}'`);
+    throw new Error(
+      `cron expression must have 5 fields, got ${parts.length}: '${expr}'`,
+    );
   }
-  const [mn, hr, dm, mo, dw] = parts as [string, string, string, string, string];
+  const [mn, hr, dm, mo, dw] = parts as [
+    string,
+    string,
+    string,
+    string,
+    string,
+  ];
   return {
     minute: parseField("minute", mn),
     hour: parseField("hour", hr),

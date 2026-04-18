@@ -8,7 +8,11 @@ import { prep } from "./prepared.ts";
 import { invalidateSessionOwners } from "./sessions.ts";
 
 export type MessageRole = "system" | "user" | "assistant" | "tool";
-export type MessageChannel = "content" | "reasoning" | "tool_call" | "tool_result";
+export type MessageChannel =
+  | "content"
+  | "reasoning"
+  | "tool_call"
+  | "tool_result";
 
 export interface StoredMessage {
   id: number;
@@ -148,7 +152,10 @@ export function getRecentTurns(
   });
 }
 
-export function getMessagesBySession(db: Database, sessionId: string): StoredMessage[] {
+export function getMessagesBySession(
+  db: Database,
+  sessionId: string,
+): StoredMessage[] {
   const rows = db
     .prepare(
       `SELECT m.id, m.session_id, m.ts, m.role, m.channel, m.content, m.tool_call_id,

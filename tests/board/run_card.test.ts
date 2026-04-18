@@ -16,10 +16,18 @@ import { createBunnyQueue } from "../../src/queue/bunqueue.ts";
 import { ToolRegistry } from "../../src/tools/registry.ts";
 import { createProject } from "../../src/memory/projects.ts";
 import { createAgent, linkAgentToProject } from "../../src/memory/agents.ts";
-import { ensureAgentDir, writeAgentAssets } from "../../src/memory/agent_assets.ts";
+import {
+  ensureAgentDir,
+  writeAgentAssets,
+} from "../../src/memory/agent_assets.ts";
 import { listSwimlanes } from "../../src/memory/board_swimlanes.ts";
 import { createCard } from "../../src/memory/board_cards.ts";
-import { runCard, awaitRunCompletion, getRunFanout, subscribeToRun } from "../../src/board/run_card.ts";
+import {
+  runCard,
+  awaitRunCompletion,
+  getRunFanout,
+  subscribeToRun,
+} from "../../src/board/run_card.ts";
 import type { BunnyConfig } from "../../src/config.ts";
 import type { SseSink } from "../../src/agent/render_sse.ts";
 
@@ -32,7 +40,10 @@ let originalCwd: string;
 let tmp: string;
 
 function buildSse(chunks: unknown[]): string {
-  return chunks.map((c) => `data: ${JSON.stringify(c)}\n\n`).join("") + "data: [DONE]\n\n";
+  return (
+    chunks.map((c) => `data: ${JSON.stringify(c)}\n\n`).join("") +
+    "data: [DONE]\n\n"
+  );
 }
 
 beforeAll(() => {
@@ -44,11 +55,26 @@ beforeAll(() => {
     port: 0,
     fetch() {
       const body = buildSse([
-        { choices: [{ index: 0, delta: { content: "Plan: " }, finish_reason: null }] },
-        { choices: [{ index: 0, delta: { content: "do the thing." }, finish_reason: "stop" }] },
+        {
+          choices: [
+            { index: 0, delta: { content: "Plan: " }, finish_reason: null },
+          ],
+        },
+        {
+          choices: [
+            {
+              index: 0,
+              delta: { content: "do the thing." },
+              finish_reason: "stop",
+            },
+          ],
+        },
       ]);
       return new Response(body, {
-        headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+        },
       });
     },
   });
@@ -63,20 +89,39 @@ afterAll(() => {
 
 function makeCfg(): BunnyConfig {
   return {
-    llm: { baseUrl, apiKey: "", model: "test", modelReasoning: undefined, profile: "openai" },
+    llm: {
+      baseUrl,
+      apiKey: "",
+      model: "test",
+      modelReasoning: undefined,
+      profile: "openai",
+    },
     embed: { baseUrl, apiKey: "", model: "test-embed", dim: 4 },
     memory: { indexReasoning: false, recallK: 4, lastN: 10 },
     render: { reasoning: "hidden", color: false },
     queue: { topics: [] },
-    auth: { defaultAdminUsername: "admin", defaultAdminPassword: "x", sessionTtlHours: 1 },
+    auth: {
+      defaultAdminUsername: "admin",
+      defaultAdminPassword: "x",
+      sessionTtlHours: 1,
+    },
     agent: { systemPrompt: "You are a tester.", defaultProject: "alpha" },
     ui: { autosaveIntervalMs: 5000 },
-    web: { serpApiKey: "", serpProvider: "serper", serpBaseUrl: "", userAgent: "" },
+    web: {
+      serpApiKey: "",
+      serpProvider: "serper",
+      serpBaseUrl: "",
+      userAgent: "",
+    },
     sessionId: undefined,
   };
 }
 
-async function setup(): Promise<{ db: Database; cfg: BunnyConfig; cardId: number }> {
+async function setup(): Promise<{
+  db: Database;
+  cfg: BunnyConfig;
+  cardId: number;
+}> {
   const db = await openDb(join(tmp, `${crypto.randomUUID()}.sqlite`), 4);
   // Seed user for the createdBy FK.
   const now = Date.now();
@@ -201,7 +246,14 @@ describe("runCard", () => {
     const queue = createBunnyQueue(db);
     const tools = new ToolRegistry();
 
-    const { run } = await runCard({ db, queue, cfg, tools, cardId, triggeredBy: "u1" });
+    const { run } = await runCard({
+      db,
+      queue,
+      cfg,
+      tools,
+      cardId,
+      triggeredBy: "u1",
+    });
     await awaitRunCompletion(db, run.id);
 
     const fan = getRunFanout(run.id);

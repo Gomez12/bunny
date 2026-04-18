@@ -1,8 +1,17 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ensureProjectDir, workspaceDir } from "../../src/memory/project_assets.ts";
+import {
+  ensureProjectDir,
+  workspaceDir,
+} from "../../src/memory/project_assets.ts";
 import {
   deleteWorkspaceEntry,
   listWorkspace,
@@ -36,7 +45,12 @@ describe("workspace fs", () => {
 
   test("write + read round-trip (utf8)", () => {
     ensureProjectDir("alpha");
-    const w = writeWorkspaceFile("alpha", "input/note.md", "hello world", "utf8");
+    const w = writeWorkspaceFile(
+      "alpha",
+      "input/note.md",
+      "hello world",
+      "utf8",
+    );
     expect(w.path).toBe("input/note.md");
     const r = readWorkspaceFile("alpha", "input/note.md");
     expect(r.content).toBe("hello world");
@@ -98,7 +112,9 @@ describe("workspace fs", () => {
 
   test("move refuses to rename protected roots", () => {
     ensureProjectDir("alpha");
-    expect(() => moveWorkspaceEntry("alpha", "input", "renamed")).toThrow(/protected/);
+    expect(() => moveWorkspaceEntry("alpha", "input", "renamed")).toThrow(
+      /protected/,
+    );
   });
 
   test("move renames files and creates missing parents", () => {
@@ -126,6 +142,8 @@ describe("workspace fs", () => {
     writeFileSync(join(workspaceDir("alpha"), "manual.txt"), "hand-placed");
     const e = listWorkspace("alpha", "").find((x) => x.name === "manual.txt");
     expect(e).toBeDefined();
-    expect(readFileSync(join(workspaceDir("alpha"), "manual.txt"), "utf8")).toBe("hand-placed");
+    expect(
+      readFileSync(join(workspaceDir("alpha"), "manual.txt"), "utf8"),
+    ).toBe("hand-placed");
   });
 });

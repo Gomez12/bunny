@@ -51,11 +51,14 @@ export function queryEvents(
     params.push(opts.topic);
   }
 
-  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const where =
+    conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
   const limit = opts.limit ?? 100;
 
   const rows = db
-    .prepare(`SELECT topic, kind, session_id, user_id, payload_json, duration_ms, error FROM events ${where} ORDER BY ts DESC LIMIT ?`)
+    .prepare(
+      `SELECT topic, kind, session_id, user_id, payload_json, duration_ms, error FROM events ${where} ORDER BY ts DESC LIMIT ?`,
+    )
     .all(...params, limit) as Array<{
     topic: string;
     kind: string;

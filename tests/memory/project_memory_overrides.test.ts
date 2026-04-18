@@ -51,7 +51,11 @@ describe("project memory overrides", () => {
 
   test("writeProjectSystemPrompt without memory arg leaves existing overrides alone", () => {
     ensureProjectDir("demo");
-    writeProjectSystemPrompt("demo", { prompt: "v1", append: true }, { lastN: 15, recallK: 6 });
+    writeProjectSystemPrompt(
+      "demo",
+      { prompt: "v1", append: true },
+      { lastN: 15, recallK: 6 },
+    );
     writeProjectSystemPrompt("demo", { prompt: "v2", append: true });
     const assets = loadProjectAssets("demo");
     expect(assets.systemPrompt.prompt.trim()).toBe("v2");
@@ -62,15 +66,25 @@ describe("project memory overrides", () => {
     ensureProjectDir("demo");
     const file = join(projectDir("demo"), "systemprompt.toml");
     // Hand-craft a TOML with garbage values so we exercise the parser's guards.
-    writeFileSync(file, `append = true\nlast_n = -5\nrecall_k = "oops"\nprompt = """\nhi\n"""\n`);
+    writeFileSync(
+      file,
+      `append = true\nlast_n = -5\nrecall_k = "oops"\nprompt = """\nhi\n"""\n`,
+    );
     const assets = loadProjectAssets("demo");
     expect(assets.memory).toEqual({ lastN: null, recallK: null });
   });
 
   test("rendered TOML contains the overrides as real keys, not commented hints", () => {
     ensureProjectDir("demo");
-    writeProjectSystemPrompt("demo", { prompt: "", append: true }, { lastN: 12, recallK: null });
-    const raw = readFileSync(join(projectDir("demo"), "systemprompt.toml"), "utf8");
+    writeProjectSystemPrompt(
+      "demo",
+      { prompt: "", append: true },
+      { lastN: 12, recallK: null },
+    );
+    const raw = readFileSync(
+      join(projectDir("demo"), "systemprompt.toml"),
+      "utf8",
+    );
     expect(raw).toMatch(/^last_n = 12$/m);
     // recallK stays null so only the hint comment (no live key) should be present.
     expect(raw).not.toMatch(/^recall_k = /m);

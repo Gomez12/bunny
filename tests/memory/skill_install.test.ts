@@ -3,7 +3,9 @@ import { parseGitHubUrl } from "../../src/memory/skill_install.ts";
 
 describe("parseGitHubUrl", () => {
   test("parses tree URL with branch and path", () => {
-    const result = parseGitHubUrl("https://github.com/anthropics/skills/tree/main/skills/frontend-design");
+    const result = parseGitHubUrl(
+      "https://github.com/anthropics/skills/tree/main/skills/frontend-design",
+    );
     expect(result).toEqual({
       owner: "anthropics",
       repo: "skills",
@@ -13,7 +15,9 @@ describe("parseGitHubUrl", () => {
   });
 
   test("parses tree URL with nested path", () => {
-    const result = parseGitHubUrl("https://github.com/org/repo/tree/develop/deep/nested/skill");
+    const result = parseGitHubUrl(
+      "https://github.com/org/repo/tree/develop/deep/nested/skill",
+    );
     expect(result).toEqual({
       owner: "org",
       repo: "repo",
@@ -33,7 +37,9 @@ describe("parseGitHubUrl", () => {
   });
 
   test("parses blob URL", () => {
-    const result = parseGitHubUrl("https://github.com/org/repo/blob/main/skills/test");
+    const result = parseGitHubUrl(
+      "https://github.com/org/repo/blob/main/skills/test",
+    );
     expect(result).toEqual({
       owner: "org",
       repo: "repo",
@@ -43,12 +49,16 @@ describe("parseGitHubUrl", () => {
   });
 
   test("strips trailing slash", () => {
-    const result = parseGitHubUrl("https://github.com/owner/repo/tree/main/skill/");
+    const result = parseGitHubUrl(
+      "https://github.com/owner/repo/tree/main/skill/",
+    );
     expect(result.path).toBe("skill");
   });
 
   test("throws on non-GitHub URL", () => {
-    expect(() => parseGitHubUrl("https://gitlab.com/owner/repo")).toThrow("not a GitHub URL");
+    expect(() => parseGitHubUrl("https://gitlab.com/owner/repo")).toThrow(
+      "not a GitHub URL",
+    );
   });
 
   test("throws on invalid URL", () => {
@@ -56,6 +66,8 @@ describe("parseGitHubUrl", () => {
   });
 
   test("throws on URL without owner/repo", () => {
-    expect(() => parseGitHubUrl("https://github.com/only-owner")).toThrow("cannot extract");
+    expect(() => parseGitHubUrl("https://github.com/only-owner")).toThrow(
+      "cannot extract",
+    );
   });
 });

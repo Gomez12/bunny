@@ -17,13 +17,25 @@ export function editFileHandler(args: Record<string, unknown>): ToolResult {
   const newString = args["new_string"];
 
   if (typeof rawPath !== "string" || !rawPath) {
-    return { ok: false, output: 'edit_file requires a "path" string argument', error: "missing path" };
+    return {
+      ok: false,
+      output: 'edit_file requires a "path" string argument',
+      error: "missing path",
+    };
   }
   if (typeof oldString !== "string") {
-    return { ok: false, output: 'edit_file requires an "old_string" string argument', error: "missing old_string" };
+    return {
+      ok: false,
+      output: 'edit_file requires an "old_string" string argument',
+      error: "missing old_string",
+    };
   }
   if (typeof newString !== "string") {
-    return { ok: false, output: 'edit_file requires a "new_string" string argument', error: "missing new_string" };
+    return {
+      ok: false,
+      output: 'edit_file requires a "new_string" string argument',
+      error: "missing new_string",
+    };
   }
 
   let abs: string;
@@ -39,7 +51,11 @@ export function editFileHandler(args: Record<string, unknown>): ToolResult {
     content = readFileSync(abs, "utf8");
   } catch (e) {
     const msg = errorMessage(e);
-    return { ok: false, output: `Could not read ${rawPath}: ${msg}`, error: msg };
+    return {
+      ok: false,
+      output: `Could not read ${rawPath}: ${msg}`,
+      error: msg,
+    };
   }
 
   const count = content.split(oldString).length - 1;
@@ -64,15 +80,26 @@ export function editFileHandler(args: Record<string, unknown>): ToolResult {
     return { ok: true, output: `Successfully edited ${rawPath}` };
   } catch (e) {
     const msg = errorMessage(e);
-    return { ok: false, output: `Could not write ${rawPath}: ${msg}`, error: msg };
+    return {
+      ok: false,
+      output: `Could not write ${rawPath}: ${msg}`,
+      error: msg,
+    };
   }
 }
 
 export const EDIT_FILE_SCHEMA = {
   type: "object" as const,
   properties: {
-    path: { type: "string", description: "Path to the file to edit, relative to working directory." },
-    old_string: { type: "string", description: "Exact string to replace. Must appear exactly once in the file." },
+    path: {
+      type: "string",
+      description: "Path to the file to edit, relative to working directory.",
+    },
+    old_string: {
+      type: "string",
+      description:
+        "Exact string to replace. Must appear exactly once in the file.",
+    },
     new_string: { type: "string", description: "Replacement string." },
   },
   required: ["path", "old_string", "new_string"],

@@ -60,7 +60,10 @@ describe("agent registry", () => {
     expect(ada.contextScope).toBe("own");
     expect(ada.knowsOtherAgents).toBe(true);
 
-    const updated = updateAgent(db, "ada", { description: "top researcher", contextScope: "full" });
+    const updated = updateAgent(db, "ada", {
+      description: "top researcher",
+      contextScope: "full",
+    });
     expect(updated.description).toBe("top researcher");
     expect(updated.contextScope).toBe("full");
 
@@ -89,8 +92,14 @@ describe("project_agents link table", () => {
     linkAgentToProject(db, "alpha", "ada");
     linkAgentToProject(db, "beta", "ada");
 
-    expect(listAgentsForProject(db, "alpha").map((a) => a.name).sort()).toEqual(["ada", "bob"]);
-    expect(listAgentsForProject(db, "beta").map((a) => a.name)).toEqual(["ada"]);
+    expect(
+      listAgentsForProject(db, "alpha")
+        .map((a) => a.name)
+        .sort(),
+    ).toEqual(["ada", "bob"]);
+    expect(listAgentsForProject(db, "beta").map((a) => a.name)).toEqual([
+      "ada",
+    ]);
 
     expect(isAgentLinkedToProject(db, "alpha", "bob")).toBe(true);
     expect(isAgentLinkedToProject(db, "beta", "bob")).toBe(false);
@@ -98,7 +107,9 @@ describe("project_agents link table", () => {
     expect(listProjectsForAgent(db, "ada").sort()).toEqual(["alpha", "beta"]);
 
     unlinkAgentFromProject(db, "alpha", "bob");
-    expect(listAgentsForProject(db, "alpha").map((a) => a.name)).toEqual(["ada"]);
+    expect(listAgentsForProject(db, "alpha").map((a) => a.name)).toEqual([
+      "ada",
+    ]);
     db.close();
   });
 

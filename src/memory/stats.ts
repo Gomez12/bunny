@@ -41,12 +41,18 @@ export interface DashboardData {
   };
 }
 
-function userClause(userId: string | undefined, prefix = "AND"): { sql: string; params: (string | number)[] } {
+function userClause(
+  userId: string | undefined,
+  prefix = "AND",
+): { sql: string; params: (string | number)[] } {
   if (!userId) return { sql: "", params: [] };
   return { sql: `${prefix} user_id = ?`, params: [userId] };
 }
 
-export function getDashboardStats(db: Database, p: DashboardParams): DashboardData {
+export function getDashboardStats(
+  db: Database,
+  p: DashboardParams,
+): DashboardData {
   const { fromTs, bucketMs, userId } = p;
   const uc = userClause(userId);
 
@@ -79,7 +85,10 @@ export function getDashboardStats(db: Database, p: DashboardParams): DashboardDa
        ${uc.sql}
        GROUP BY bucket ORDER BY bucket`,
     )
-    .all(bucketMs, bucketMs, fromTs, ...uc.params) as Array<{ bucket: number; count: number }>;
+    .all(bucketMs, bucketMs, fromTs, ...uc.params) as Array<{
+    bucket: number;
+    count: number;
+  }>;
 
   const tokensOverTime = db
     .prepare(
@@ -105,7 +114,10 @@ export function getDashboardStats(db: Database, p: DashboardParams): DashboardDa
        ${uc.sql}
        GROUP BY bucket ORDER BY bucket`,
     )
-    .all(bucketMs, bucketMs, fromTs, ...uc.params) as Array<{ bucket: number; avg_ms: number }>;
+    .all(bucketMs, bucketMs, fromTs, ...uc.params) as Array<{
+    bucket: number;
+    avg_ms: number;
+  }>;
 
   const toolUsage = db
     .prepare(
@@ -195,7 +207,12 @@ export function getDashboardStats(db: Database, p: DashboardParams): DashboardDa
          MIN(CASE WHEN enabled = 1 THEN next_run_at END) AS next_due
        FROM scheduled_tasks`,
     )
-    .get() as { total: number; enabled: number; errored: number; next_due: number | null };
+    .get() as {
+    total: number;
+    enabled: number;
+    errored: number;
+    next_due: number | null;
+  };
 
   return {
     kpi: {
@@ -205,13 +222,19 @@ export function getDashboardStats(db: Database, p: DashboardParams): DashboardDa
       totalCompletionTokens: kpiRow.total_completion_tokens,
       avgResponseMs: kpiRow.avg_response_ms,
     },
-    activityOverTime: activityOverTime.map((r) => ({ ts: r.bucket, count: r.count })),
+    activityOverTime: activityOverTime.map((r) => ({
+      ts: r.bucket,
+      count: r.count,
+    })),
     tokensOverTime: tokensOverTime.map((r) => ({
       ts: r.bucket,
       prompt: r.prompt,
       completion: r.completion,
     })),
-    responseTimeOverTime: responseTimeOverTime.map((r) => ({ ts: r.bucket, avgMs: r.avg_ms })),
+    responseTimeOverTime: responseTimeOverTime.map((r) => ({
+      ts: r.bucket,
+      avgMs: r.avg_ms,
+    })),
     toolUsage,
     agentActivity,
     projectActivity,

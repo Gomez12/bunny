@@ -19,7 +19,9 @@ export interface ToolResult {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type ToolHandler = (args: Record<string, any>) => Promise<ToolResult> | ToolResult;
+export type ToolHandler = (
+  args: Record<string, any>,
+) => Promise<ToolResult> | ToolResult;
 
 export interface ToolDescriptor {
   name: string;
@@ -34,14 +36,20 @@ export interface RegisteredTool {
 }
 
 export function toolOk(value: unknown): ToolResult {
-  return { ok: true, output: typeof value === "string" ? value : JSON.stringify(value) };
+  return {
+    ok: true,
+    output: typeof value === "string" ? value : JSON.stringify(value),
+  };
 }
 
 export function toolErr(msg: string): ToolResult {
   return { ok: false, output: msg, error: msg };
 }
 
-export function getString(args: Record<string, unknown>, key: string): string | undefined {
+export function getString(
+  args: Record<string, unknown>,
+  key: string,
+): string | undefined {
   const v = args[key];
   return typeof v === "string" && v.length > 0 ? v : undefined;
 }
@@ -50,7 +58,12 @@ export class ToolRegistry {
   private readonly tools = new Map<string, RegisteredTool>();
 
   /** Register a tool. Overwrites any previous registration with the same name. */
-  register(name: string, description: string, parameters: JsonSchemaObject, handler: ToolHandler): void {
+  register(
+    name: string,
+    description: string,
+    parameters: JsonSchemaObject,
+    handler: ToolHandler,
+  ): void {
     this.tools.set(name, {
       schema: { type: "function", function: { name, description, parameters } },
       handler,
@@ -82,14 +95,22 @@ export class ToolRegistry {
   async call(name: string, rawArgs: string): Promise<ToolResult> {
     const tool = this.tools.get(name);
     if (!tool) {
-      return { ok: false, output: `Unknown tool: ${name}`, error: `Unknown tool: ${name}` };
+      return {
+        ok: false,
+        output: `Unknown tool: ${name}`,
+        error: `Unknown tool: ${name}`,
+      };
     }
 
     let args: Record<string, unknown>;
     try {
       args = JSON.parse(rawArgs) as Record<string, unknown>;
     } catch {
-      return { ok: false, output: `Invalid JSON arguments for ${name}`, error: "JSON parse error" };
+      return {
+        ok: false,
+        output: `Invalid JSON arguments for ${name}`,
+        error: "JSON parse error",
+      };
     }
 
     try {
@@ -115,7 +136,9 @@ export class ToolRegistry {
     extras: ToolDescriptor[] = [],
   ): ToolRegistry {
     const next = new ToolRegistry();
-    const source = filter ? filter.filter((n) => this.tools.has(n)) : [...this.tools.keys()];
+    const source = filter
+      ? filter.filter((n) => this.tools.has(n))
+      : [...this.tools.keys()];
     for (const name of source) {
       const tool = this.tools.get(name)!;
       next.tools.set(name, tool);

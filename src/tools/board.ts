@@ -62,7 +62,10 @@ export function makeBoardTools(ctx: BoardToolContext): ToolDescriptor[] {
   ];
 }
 
-function getNumber(args: Record<string, unknown>, key: string): number | undefined {
+function getNumber(
+  args: Record<string, unknown>,
+  key: string,
+): number | undefined {
   const v = args[key];
   return typeof v === "number" && Number.isFinite(v) ? v : undefined;
 }
@@ -94,14 +97,19 @@ function resolveLane(
   if (name) {
     const lower = name.toLowerCase();
     const found = lanes.find((l) => l.name.toLowerCase() === lower);
-    return found ?? {
-      error: `lane '${name}' not found. Available: ${lanes.map((l) => l.name).join(", ")}`,
-    };
+    return (
+      found ?? {
+        error: `lane '${name}' not found. Available: ${lanes.map((l) => l.name).join(", ")}`,
+      }
+    );
   }
   return { error: `provide either '${key}' (name) or '${key}_id'` };
 }
 
-function summariseCard(c: Card, lanesById: Map<number, string>): Record<string, unknown> {
+function summariseCard(
+  c: Card,
+  lanesById: Map<number, string>,
+): Record<string, unknown> {
   return {
     id: c.id,
     title: c.title,
@@ -131,7 +139,8 @@ function boardListTool(ctx: BoardToolContext): ToolDescriptor {
       properties: {
         include_archived: {
           type: "boolean",
-          description: "Include archived cards in the result. Defaults to false.",
+          description:
+            "Include archived cards in the result. Defaults to false.",
         },
         lane: {
           type: "string",
@@ -154,7 +163,11 @@ function boardListTool(ctx: BoardToolContext): ToolDescriptor {
       const lanesById = laneNameMap(lanes);
       return toolOk({
         project: ctx.project,
-        swimlanes: lanes.map((l) => ({ id: l.id, name: l.name, position: l.position })),
+        swimlanes: lanes.map((l) => ({
+          id: l.id,
+          name: l.name,
+          position: l.position,
+        })),
         cards: cards.map((c) => summariseCard(c, lanesById)),
       });
     },
@@ -164,7 +177,8 @@ function boardListTool(ctx: BoardToolContext): ToolDescriptor {
 function boardGetCardTool(ctx: BoardToolContext): ToolDescriptor {
   return {
     name: "board_get_card",
-    description: "Fetch one card by id, including full description and assignee.",
+    description:
+      "Fetch one card by id, including full description and assignee.",
     parameters: {
       type: "object",
       properties: { card_id: { type: "number", description: "Card id." } },
@@ -190,13 +204,26 @@ function boardCreateCardTool(ctx: BoardToolContext): ToolDescriptor {
     parameters: {
       type: "object",
       properties: {
-        title: { type: "string", description: "Card title (required, non-empty)." },
-        description: { type: "string", description: "Card description / body. Optional." },
-        lane: { type: "string", description: "Swimlane name (case-insensitive)." },
-        lane_id: { type: "number", description: "Swimlane numeric id (alternative to 'lane')." },
+        title: {
+          type: "string",
+          description: "Card title (required, non-empty).",
+        },
+        description: {
+          type: "string",
+          description: "Card description / body. Optional.",
+        },
+        lane: {
+          type: "string",
+          description: "Swimlane name (case-insensitive).",
+        },
+        lane_id: {
+          type: "number",
+          description: "Swimlane numeric id (alternative to 'lane').",
+        },
         assignee_agent: {
           type: "string",
-          description: "Optional agent name to assign the card to. Must be linked to this project.",
+          description:
+            "Optional agent name to assign the card to. Must be linked to this project.",
         },
       },
       required: ["title"],
@@ -208,8 +235,13 @@ function boardCreateCardTool(ctx: BoardToolContext): ToolDescriptor {
       const lane = resolveLane(ctx, args, lanes);
       if ("error" in lane) return toolErr(lane.error);
       const assigneeAgent = getString(args, "assignee_agent");
-      if (assigneeAgent && !isAgentLinkedToProject(ctx.db, ctx.project, assigneeAgent)) {
-        return toolErr(`agent '${assigneeAgent}' is not linked to project '${ctx.project}'`);
+      if (
+        assigneeAgent &&
+        !isAgentLinkedToProject(ctx.db, ctx.project, assigneeAgent)
+      ) {
+        return toolErr(
+          `agent '${assigneeAgent}' is not linked to project '${ctx.project}'`,
+        );
       }
       try {
         const card = createCard(ctx.db, {
@@ -254,21 +286,29 @@ function boardUpdateCardTool(ctx: BoardToolContext): ToolDescriptor {
       if (!card) return toolErr(`card ${id} not found in this project`);
       const patch: Parameters<typeof updateCard>[2] = {};
       if (typeof args["title"] === "string") patch.title = args["title"];
-      if (typeof args["description"] === "string") patch.description = args["description"];
+      if (typeof args["description"] === "string")
+        patch.description = args["description"];
       if (typeof args["assignee_agent"] === "string") {
         const v = (args["assignee_agent"] as string).trim();
         if (v === "") {
           patch.assigneeAgent = null;
         } else {
           if (!isAgentLinkedToProject(ctx.db, ctx.project, v)) {
-            return toolErr(`agent '${v}' is not linked to project '${ctx.project}'`);
+            return toolErr(
+              `agent '${v}' is not linked to project '${ctx.project}'`,
+            );
           }
           patch.assigneeAgent = v;
         }
       }
       try {
         const updated = updateCard(ctx.db, id, patch);
-        return toolOk(summariseCard(updated, laneNameMap(listSwimlanes(ctx.db, ctx.project))));
+        return toolOk(
+          summariseCard(
+            updated,
+            laneNameMap(listSwimlanes(ctx.db, ctx.project)),
+          ),
+        );
       } catch (e) {
         return toolErr(errorMessage(e));
       }
@@ -279,13 +319,17 @@ function boardUpdateCardTool(ctx: BoardToolContext): ToolDescriptor {
 function boardMoveCardTool(ctx: BoardToolContext): ToolDescriptor {
   return {
     name: "board_move_card",
-    description: "Move a card to another swimlane (e.g. from 'Todo' to 'Doing').",
+    description:
+      "Move a card to another swimlane (e.g. from 'Todo' to 'Doing').",
     parameters: {
       type: "object",
       properties: {
         card_id: { type: "number", description: "Card id." },
         lane: { type: "string", description: "Target swimlane name." },
-        lane_id: { type: "number", description: "Target swimlane id (alternative to 'lane')." },
+        lane_id: {
+          type: "number",
+          description: "Target swimlane id (alternative to 'lane').",
+        },
       },
       required: ["card_id"],
     },
@@ -310,7 +354,8 @@ function boardMoveCardTool(ctx: BoardToolContext): ToolDescriptor {
 function boardArchiveCardTool(ctx: BoardToolContext): ToolDescriptor {
   return {
     name: "board_archive_card",
-    description: "Soft-archive a card. The card stays in the database but no longer appears on the board.",
+    description:
+      "Soft-archive a card. The card stays in the database but no longer appears on the board.",
     parameters: {
       type: "object",
       properties: { card_id: { type: "number", description: "Card id." } },

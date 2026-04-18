@@ -61,7 +61,9 @@ export function listSessions(
     params.push(...sessionFilter);
   }
   if (opts.userId) {
-    clauses.push(`m.session_id IN (SELECT DISTINCT session_id FROM messages WHERE user_id = ?)`);
+    clauses.push(
+      `m.session_id IN (SELECT DISTINCT session_id FROM messages WHERE user_id = ?)`,
+    );
     params.push(opts.userId);
   }
   if (opts.project) {
@@ -83,7 +85,9 @@ export function listSessions(
   const visibilityJoin = opts.viewerId
     ? "LEFT JOIN session_visibility sv ON sv.session_id = agg.session_id AND sv.user_id = ?"
     : "";
-  const visibilitySelect = opts.viewerId ? "COALESCE(sv.hidden_from_chat, 0) AS hidden" : "0 AS hidden";
+  const visibilitySelect = opts.viewerId
+    ? "COALESCE(sv.hidden_from_chat, 0) AS hidden"
+    : "0 AS hidden";
   const aggWhere = where.replace(/\bm\./g, "");
 
   const sql = `
@@ -132,7 +136,9 @@ export function listSessions(
     ${visibilityJoin}
     ORDER BY agg.last_ts DESC
   `;
-  const stmtParams = opts.viewerId ? [...params, limit, opts.viewerId] : [...params, limit];
+  const stmtParams = opts.viewerId
+    ? [...params, limit, opts.viewerId]
+    : [...params, limit];
   const rows = prep(db, sql).all(...stmtParams) as Array<{
     session_id: string;
     first_ts: number;
@@ -167,9 +173,14 @@ export function listSessions(
  */
 /** In-process ACL cache for session owners (see getSessionOwners). */
 const OWNERS_TTL_MS = 60_000;
-const ownersCache = new WeakMap<Database, Map<string, { at: number; owners: string[] }>>();
+const ownersCache = new WeakMap<
+  Database,
+  Map<string, { at: number; owners: string[] }>
+>();
 
-function ownersCacheFor(db: Database): Map<string, { at: number; owners: string[] }> {
+function ownersCacheFor(
+  db: Database,
+): Map<string, { at: number; owners: string[] }> {
   let m = ownersCache.get(db);
   if (!m) {
     m = new Map();

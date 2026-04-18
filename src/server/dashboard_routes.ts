@@ -31,6 +31,10 @@ export function handleDashboardRoute(
   const fromTs = range.offsetMs === 0 ? 0 : now - range.offsetMs;
   const userId = user.role !== "admin" ? user.id : undefined;
 
-  const data = getDashboardStats(ctx.db, { fromTs, bucketMs: range.bucketMs, userId });
+  const data = getDashboardStats(ctx.db, {
+    fromTs,
+    bucketMs: range.bucketMs,
+    userId,
+  });
   return json(data);
 }

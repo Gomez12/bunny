@@ -6,7 +6,13 @@
  * and a markdown body containing the skill instructions.
  */
 
-import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync } from "node:fs";
+import {
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  statSync,
+  readdirSync,
+} from "node:fs";
 import { join, relative } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { paths } from "../paths.ts";
@@ -116,11 +122,18 @@ export function parseFrontmatter(
   }
   const frontmatter: SkillFrontmatter = {
     name: typeof parsed["name"] === "string" ? parsed["name"] : fallbackName,
-    description: typeof parsed["description"] === "string" ? parsed["description"] : "",
-    license: typeof parsed["license"] === "string" ? parsed["license"] : undefined,
-    compatibility: typeof parsed["compatibility"] === "string" ? parsed["compatibility"] : undefined,
+    description:
+      typeof parsed["description"] === "string" ? parsed["description"] : "",
+    license:
+      typeof parsed["license"] === "string" ? parsed["license"] : undefined,
+    compatibility:
+      typeof parsed["compatibility"] === "string"
+        ? parsed["compatibility"]
+        : undefined,
     metadata:
-      parsed["metadata"] && typeof parsed["metadata"] === "object" && !Array.isArray(parsed["metadata"])
+      parsed["metadata"] &&
+      typeof parsed["metadata"] === "object" &&
+      !Array.isArray(parsed["metadata"])
         ? (parsed["metadata"] as Record<string, string>)
         : undefined,
     allowedTools:

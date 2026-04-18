@@ -7,9 +7,15 @@
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
-const LEVEL_NUM: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3 };
+const LEVEL_NUM: Record<LogLevel, number> = {
+  debug: 0,
+  info: 1,
+  warn: 2,
+  error: 3,
+};
 
-let _minLevel: LogLevel = (process.env["LOG_LEVEL"] as LogLevel | undefined) ?? "info";
+let _minLevel: LogLevel =
+  (process.env["LOG_LEVEL"] as LogLevel | undefined) ?? "info";
 
 export function setLogLevel(level: LogLevel): void {
   _minLevel = level;
@@ -17,7 +23,12 @@ export function setLogLevel(level: LogLevel): void {
 
 function emit(level: LogLevel, msg: string, data?: unknown): void {
   if (LEVEL_NUM[level] < LEVEL_NUM[_minLevel]) return;
-  const line = JSON.stringify({ ts: Date.now(), level, msg, ...(data ? { data } : {}) });
+  const line = JSON.stringify({
+    ts: Date.now(),
+    level,
+    msg,
+    ...(data ? { data } : {}),
+  });
   process.stderr.write(line + "\n");
 }
 

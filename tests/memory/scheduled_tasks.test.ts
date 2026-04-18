@@ -56,8 +56,20 @@ describe("scheduled_tasks", () => {
 
   test("claimDueTasks only picks enabled + due rows and bumps next_run_at", () => {
     const now = 10_000;
-    createTask(db, { kind: "system", handler: "a", name: "a", cronExpr: "* * * * *", nextRunAt: 5_000 });
-    createTask(db, { kind: "user", handler: "b", name: "b", cronExpr: "* * * * *", nextRunAt: 20_000 });
+    createTask(db, {
+      kind: "system",
+      handler: "a",
+      name: "a",
+      cronExpr: "* * * * *",
+      nextRunAt: 5_000,
+    });
+    createTask(db, {
+      kind: "user",
+      handler: "b",
+      name: "b",
+      cronExpr: "* * * * *",
+      nextRunAt: 20_000,
+    });
     const disabled = createTask(db, {
       kind: "user",
       handler: "c",
@@ -84,7 +96,11 @@ describe("scheduled_tasks", () => {
       cronExpr: "* * * * *",
       nextRunAt: 0,
     });
-    setTaskResult(db, t.id, { status: "error", error: "boom", nextRunAt: 99_000 });
+    setTaskResult(db, t.id, {
+      status: "error",
+      error: "boom",
+      nextRunAt: 99_000,
+    });
     const after = getTask(db, t.id)!;
     expect(after.lastStatus).toBe("error");
     expect(after.lastError).toBe("boom");

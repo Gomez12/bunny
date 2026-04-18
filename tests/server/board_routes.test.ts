@@ -19,15 +19,30 @@ let ctx: RouteCtx;
 let adminCookie: string;
 
 const cfg: BunnyConfig = {
-  llm: { baseUrl: "", apiKey: "", model: "x", modelReasoning: undefined, profile: undefined },
+  llm: {
+    baseUrl: "",
+    apiKey: "",
+    model: "x",
+    modelReasoning: undefined,
+    profile: undefined,
+  },
   embed: { baseUrl: "", apiKey: "", model: "x", dim: 1536 },
   memory: { indexReasoning: false, recallK: 8, lastN: 10 },
   render: { reasoning: "collapsed", color: undefined },
   queue: { topics: [] },
-  auth: { defaultAdminUsername: "admin", defaultAdminPassword: "pw-initial", sessionTtlHours: 1 },
+  auth: {
+    defaultAdminUsername: "admin",
+    defaultAdminPassword: "pw-initial",
+    sessionTtlHours: 1,
+  },
   agent: { systemPrompt: "You are Bunny.", defaultProject: "general" },
   ui: { autosaveIntervalMs: 5000 },
-  web: { serpApiKey: "", serpProvider: "serper", serpBaseUrl: "", userAgent: "" },
+  web: {
+    serpApiKey: "",
+    serpProvider: "serper",
+    serpBaseUrl: "",
+    userAgent: "",
+  },
   sessionId: undefined,
 };
 
@@ -38,7 +53,10 @@ beforeEach(async () => {
   ctx = {
     db,
     cfg,
-    queue: { log: () => {}, close: async () => {} } as unknown as RouteCtx["queue"],
+    queue: {
+      log: () => {},
+      close: async () => {},
+    } as unknown as RouteCtx["queue"],
     scheduler: {
       stop: () => {},
       tick: async () => {},
@@ -60,7 +78,11 @@ afterEach(() => {
   if (tmp) rmSync(tmp, { recursive: true, force: true });
 });
 
-async function req(method: string, path: string, opts: { body?: unknown; cookie?: string } = {}) {
+async function req(
+  method: string,
+  path: string,
+  opts: { body?: unknown; cookie?: string } = {},
+) {
   const headers: Record<string, string> = {};
   if (opts.body) headers["Content-Type"] = "application/json";
   if (opts.cookie) headers["Cookie"] = opts.cookie;
@@ -71,12 +93,16 @@ async function req(method: string, path: string, opts: { body?: unknown; cookie?
   });
   const res = await handleApi(r, new URL(r.url), ctx);
   const ct = res.headers.get("content-type") ?? "";
-  const body = ct.includes("application/json") ? await res.json() : await res.text();
+  const body = ct.includes("application/json")
+    ? await res.json()
+    : await res.text();
   return { res, body };
 }
 
 async function login(username: string, password: string): Promise<string> {
-  const res = await req("POST", "/api/auth/login", { body: { username, password } });
+  const res = await req("POST", "/api/auth/login", {
+    body: { username, password },
+  });
   const setCookie = res.res.headers.get("set-cookie") ?? "";
   const match = setCookie.match(/bunny_session=([^;]+)/);
   if (!match) throw new Error("no cookie returned");
@@ -87,10 +113,21 @@ describe("GET /api/projects/:p/board", () => {
   test("returns swimlanes + cards for a public project", async () => {
     createProject(db, { name: "alpha" });
     const lane = listSwimlanes(db, "alpha")[0]!;
-    createCard(db, { project: "alpha", swimlaneId: lane.id, title: "first", createdBy: "anyone" });
-    const { res, body } = await req("GET", "/api/projects/alpha/board", { cookie: adminCookie });
+    createCard(db, {
+      project: "alpha",
+      swimlaneId: lane.id,
+      title: "first",
+      createdBy: "anyone",
+    });
+    const { res, body } = await req("GET", "/api/projects/alpha/board", {
+      cookie: adminCookie,
+    });
     expect(res.status).toBe(200);
-    const dto = body as { project: string; swimlanes: unknown[]; cards: unknown[] };
+    const dto = body as {
+      project: string;
+      swimlanes: unknown[];
+      cards: unknown[];
+    };
     expect(dto.project).toBe("alpha");
     expect(dto.swimlanes.length).toBe(3);
     expect(dto.cards.length).toBe(1);
@@ -106,7 +143,9 @@ describe("GET /api/projects/:p/board", () => {
       [now, now],
     );
     expect(listSwimlanes(db, "legacy")).toHaveLength(0);
-    const { res, body } = await req("GET", "/api/projects/legacy/board", { cookie: adminCookie });
+    const { res, body } = await req("GET", "/api/projects/legacy/board", {
+      cookie: adminCookie,
+    });
     expect(res.status).toBe(200);
     expect((body as { swimlanes: unknown[] }).swimlanes).toHaveLength(3);
     // Persisted to DB.
@@ -114,7 +153,9 @@ describe("GET /api/projects/:p/board", () => {
   });
 
   test("404 for unknown project", async () => {
-    const { res } = await req("GET", "/api/projects/missing/board", { cookie: adminCookie });
+    const { res } = await req("GET", "/api/projects/missing/board", {
+      cookie: adminCookie,
+    });
     expect(res.status).toBe(404);
   });
 
@@ -122,7 +163,9 @@ describe("GET /api/projects/:p/board", () => {
     await createUser(db, { username: "bob", password: "pw-bob" });
     const bobCookie = await login("bob", "pw-bob");
     createProject(db, { name: "secret", visibility: "private" });
-    const { res } = await req("GET", "/api/projects/secret/board", { cookie: bobCookie });
+    const { res } = await req("GET", "/api/projects/secret/board", {
+      cookie: bobCookie,
+    });
     expect(res.status).toBe(403);
   });
 
@@ -150,7 +193,9 @@ describe("GET /api/cards/:id", () => {
       triggeredBy: "u1",
     });
     markRunDone(db, run.id, { finalAnswer: "done" });
-    const { res, body } = await req("GET", `/api/cards/${card.id}`, { cookie: adminCookie });
+    const { res, body } = await req("GET", `/api/cards/${card.id}`, {
+      cookie: adminCookie,
+    });
     expect(res.status).toBe(200);
     const dto = body as {
       card: { title: string };
@@ -163,7 +208,9 @@ describe("GET /api/cards/:id", () => {
   });
 
   test("404 for unknown card", async () => {
-    const { res } = await req("GET", "/api/cards/9999", { cookie: adminCookie });
+    const { res } = await req("GET", "/api/cards/9999", {
+      cookie: adminCookie,
+    });
     expect(res.status).toBe(404);
   });
 });
@@ -176,7 +223,9 @@ describe("POST /api/projects/:p/swimlanes", () => {
       body: { name: "Review" },
     });
     expect(res.status).toBe(201);
-    expect((body as { swimlane: { name: string } }).swimlane.name).toBe("Review");
+    expect((body as { swimlane: { name: string } }).swimlane.name).toBe(
+      "Review",
+    );
   });
 
   test("non-owner gets 403", async () => {
@@ -209,7 +258,9 @@ describe("PATCH /api/swimlanes/:id", () => {
       body: { name: "Backlog" },
     });
     expect(res.status).toBe(200);
-    expect((body as { swimlane: { name: string } }).swimlane.name).toBe("Backlog");
+    expect((body as { swimlane: { name: string } }).swimlane.name).toBe(
+      "Backlog",
+    );
   });
 });
 
@@ -217,15 +268,24 @@ describe("DELETE /api/swimlanes/:id", () => {
   test("refuses lane with active cards", async () => {
     createProject(db, { name: "alpha" });
     const lane = listSwimlanes(db, "alpha")[0]!;
-    createCard(db, { project: "alpha", swimlaneId: lane.id, title: "x", createdBy: "u1" });
-    const { res } = await req("DELETE", `/api/swimlanes/${lane.id}`, { cookie: adminCookie });
+    createCard(db, {
+      project: "alpha",
+      swimlaneId: lane.id,
+      title: "x",
+      createdBy: "u1",
+    });
+    const { res } = await req("DELETE", `/api/swimlanes/${lane.id}`, {
+      cookie: adminCookie,
+    });
     expect(res.status).toBe(400);
   });
 
   test("deletes empty lane", async () => {
     createProject(db, { name: "alpha" });
     const lane = listSwimlanes(db, "alpha")[2]!; // Done is empty
-    const { res } = await req("DELETE", `/api/swimlanes/${lane.id}`, { cookie: adminCookie });
+    const { res } = await req("DELETE", `/api/swimlanes/${lane.id}`, {
+      cookie: adminCookie,
+    });
     expect(res.status).toBe(200);
   });
 });
@@ -329,7 +389,9 @@ describe("POST /api/cards/:id/move", () => {
       body: { swimlaneId: doing!.id },
     });
     expect(res.status).toBe(200);
-    expect((body as { card: { swimlaneId: number } }).card.swimlaneId).toBe(doing!.id);
+    expect((body as { card: { swimlaneId: number } }).card.swimlaneId).toBe(
+      doing!.id,
+    );
   });
 });
 
@@ -343,9 +405,13 @@ describe("DELETE /api/cards/:id (archive)", () => {
       title: "x",
       createdBy: "u1",
     });
-    const { res } = await req("DELETE", `/api/cards/${card.id}`, { cookie: adminCookie });
+    const { res } = await req("DELETE", `/api/cards/${card.id}`, {
+      cookie: adminCookie,
+    });
     expect(res.status).toBe(200);
-    const board = await req("GET", "/api/projects/alpha/board", { cookie: adminCookie });
+    const board = await req("GET", "/api/projects/alpha/board", {
+      cookie: adminCookie,
+    });
     expect((board.body as { cards: unknown[] }).cards).toHaveLength(0);
   });
 });
@@ -361,10 +427,22 @@ describe("GET /api/cards/:id/runs", () => {
       assigneeAgent: "a",
       createdBy: "u1",
     });
-    const r1 = createRun(db, { cardId: card.id, sessionId: "s1", agent: "a", triggeredBy: "u1" });
+    const r1 = createRun(db, {
+      cardId: card.id,
+      sessionId: "s1",
+      agent: "a",
+      triggeredBy: "u1",
+    });
     await Bun.sleep(2);
-    const r2 = createRun(db, { cardId: card.id, sessionId: "s2", agent: "a", triggeredBy: "u1" });
-    const { res, body } = await req("GET", `/api/cards/${card.id}/runs`, { cookie: adminCookie });
+    const r2 = createRun(db, {
+      cardId: card.id,
+      sessionId: "s2",
+      agent: "a",
+      triggeredBy: "u1",
+    });
+    const { res, body } = await req("GET", `/api/cards/${card.id}/runs`, {
+      cookie: adminCookie,
+    });
     expect(res.status).toBe(200);
     const dto = body as { runs: { id: number }[] };
     expect(dto.runs.map((r) => r.id)).toEqual([r2.id, r1.id]);

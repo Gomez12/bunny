@@ -18,7 +18,11 @@ import {
 import { setSessionHiddenFromChat } from "../memory/session_visibility.ts";
 import { insertMessage } from "../memory/messages.ts";
 import { runAgent } from "../agent/loop.ts";
-import { createSseRenderer, controllerSink, finishSse } from "../agent/render_sse.ts";
+import {
+  createSseRenderer,
+  controllerSink,
+  finishSse,
+} from "../agent/render_sse.ts";
 import { registry as toolsRegistry } from "../tools/index.ts";
 
 export interface WhiteboardRouteCtx {
@@ -67,7 +71,11 @@ export async function handleWhiteboardRoute(
 
 // ── Handlers ──────────────────────────────────────────────────────────────
 
-function handleList(ctx: WhiteboardRouteCtx, user: User, rawProject: string): Response {
+function handleList(
+  ctx: WhiteboardRouteCtx,
+  user: User,
+  rawProject: string,
+): Response {
   let project: string;
   try {
     project = validateProjectName(rawProject);
@@ -161,7 +169,11 @@ async function handlePatch(
   }
 }
 
-function handleDelete(ctx: WhiteboardRouteCtx, user: User, id: number): Response {
+function handleDelete(
+  ctx: WhiteboardRouteCtx,
+  user: User,
+  id: number,
+): Response {
   const wb = getWhiteboard(ctx.db, id);
   if (!wb) return json({ error: "not found" }, 404);
   const p = getProject(ctx.db, wb.project);
@@ -290,7 +302,10 @@ async function handleEdit(
   if (!body.elementsJson) return json({ error: "missing elementsJson" }, 400);
 
   const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024;
-  if (body.screenshotDataUrl && body.screenshotDataUrl.length > MAX_SCREENSHOT_BYTES) {
+  if (
+    body.screenshotDataUrl &&
+    body.screenshotDataUrl.length > MAX_SCREENSHOT_BYTES
+  ) {
     return json({ error: "screenshot exceeds size limit" }, 413);
   }
 
@@ -299,7 +314,13 @@ async function handleEdit(
   const userPrompt = `Current Excalidraw elements JSON:\n\`\`\`json\n${body.elementsJson}\n\`\`\`\n\nInstruction: ${prompt}`;
 
   const attachments = body.screenshotDataUrl
-    ? [{ kind: "image" as const, mime: "image/png", dataUrl: body.screenshotDataUrl }]
+    ? [
+        {
+          kind: "image" as const,
+          mime: "image/png",
+          dataUrl: body.screenshotDataUrl,
+        },
+      ]
     : [];
 
   setSessionHiddenFromChat(ctx.db, user.id, sessionId, true);
@@ -388,7 +409,13 @@ async function handleAsk(
   const sessionId = randomUUID();
 
   const attachments = body.screenshotDataUrl
-    ? [{ kind: "image" as const, mime: "image/png", dataUrl: body.screenshotDataUrl }]
+    ? [
+        {
+          kind: "image" as const,
+          mime: "image/png",
+          dataUrl: body.screenshotDataUrl,
+        },
+      ]
     : [];
 
   const fullPrompt = `[Whiteboard: "${wb.name}"]\n\n${prompt}`;
@@ -412,4 +439,3 @@ async function handleAsk(
 
   return json({ sessionId, project: wb.project });
 }
-

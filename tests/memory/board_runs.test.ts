@@ -56,7 +56,12 @@ test("createRun defaults to status='running' + trigger_kind='manual'", async () 
 
 test("markRunDone mirrors finalAnswer + sets finished_at", async () => {
   const { db, cardId } = await setupCard();
-  const run = createRun(db, { cardId, sessionId: "s1", agent: "researcher", triggeredBy: "u1" });
+  const run = createRun(db, {
+    cardId,
+    sessionId: "s1",
+    agent: "researcher",
+    triggeredBy: "u1",
+  });
   markRunDone(db, run.id, { finalAnswer: "all clear" });
   const reloaded = getRun(db, run.id)!;
   expect(reloaded.status).toBe("done");
@@ -67,7 +72,12 @@ test("markRunDone mirrors finalAnswer + sets finished_at", async () => {
 
 test("markRunError captures error string", async () => {
   const { db, cardId } = await setupCard();
-  const run = createRun(db, { cardId, sessionId: "s1", agent: "researcher", triggeredBy: "u1" });
+  const run = createRun(db, {
+    cardId,
+    sessionId: "s1",
+    agent: "researcher",
+    triggeredBy: "u1",
+  });
   markRunError(db, run.id, "boom");
   const reloaded = getRun(db, run.id)!;
   expect(reloaded.status).toBe("error");
@@ -91,9 +101,19 @@ test("markRunRunning is a no-op transition (idempotent)", async () => {
 
 test("listRunsForCard sorts newest first", async () => {
   const { db, cardId } = await setupCard();
-  const r1 = createRun(db, { cardId, sessionId: "s1", agent: "researcher", triggeredBy: "u1" });
+  const r1 = createRun(db, {
+    cardId,
+    sessionId: "s1",
+    agent: "researcher",
+    triggeredBy: "u1",
+  });
   await Bun.sleep(2);
-  const r2 = createRun(db, { cardId, sessionId: "s2", agent: "researcher", triggeredBy: "u1" });
+  const r2 = createRun(db, {
+    cardId,
+    sessionId: "s2",
+    agent: "researcher",
+    triggeredBy: "u1",
+  });
   const runs = listRunsForCard(db, cardId);
   expect(runs.map((r) => r.id)).toEqual([r2.id, r1.id]);
   db.close();

@@ -17,7 +17,12 @@ import { paths } from "./paths.ts";
 export type ReasoningRenderMode = "collapsed" | "inline" | "hidden";
 
 /** Provider profile — controls SSE parsing + reasoning roundtrip behaviour. */
-export type LlmProfile = "openai" | "deepseek" | "openrouter" | "ollama" | "anthropic-compat";
+export type LlmProfile =
+  | "openai"
+  | "deepseek"
+  | "openrouter"
+  | "ollama"
+  | "anthropic-compat";
 
 export interface LlmConfig {
   baseUrl: string;
@@ -103,15 +108,33 @@ export interface BunnyConfig {
 // Internals
 
 interface TomlShape {
-  llm?: Partial<{ base_url: string; model: string; model_reasoning: string; profile: string }>;
+  llm?: Partial<{
+    base_url: string;
+    model: string;
+    model_reasoning: string;
+    profile: string;
+  }>;
   embed?: Partial<{ base_url: string; model: string; dim: number }>;
-  memory?: Partial<{ index_reasoning: boolean; recall_k: number; last_n: number }>;
+  memory?: Partial<{
+    index_reasoning: boolean;
+    recall_k: number;
+    last_n: number;
+  }>;
   render?: Partial<{ reasoning: string; color: boolean }>;
   queue?: Partial<{ topics: string[] }>;
-  auth?: Partial<{ default_admin_username: string; default_admin_password: string; session_ttl_hours: number }>;
+  auth?: Partial<{
+    default_admin_username: string;
+    default_admin_password: string;
+    session_ttl_hours: number;
+  }>;
   agent?: Partial<{ system_prompt: string; default_project: string }>;
   ui?: Partial<{ autosave_interval_ms: number }>;
-  web?: Partial<{ serp_api_key: string; serp_provider: string; serp_base_url: string; user_agent: string }>;
+  web?: Partial<{
+    serp_api_key: string;
+    serp_provider: string;
+    serp_base_url: string;
+    user_agent: string;
+  }>;
 }
 
 const DEFAULTS = {
@@ -129,7 +152,10 @@ const DEFAULTS = {
     dim: 1536,
   },
   memory: { indexReasoning: false, recallK: 8, lastN: 10 },
-  render: { reasoning: "collapsed" as ReasoningRenderMode, color: undefined as boolean | undefined },
+  render: {
+    reasoning: "collapsed" as ReasoningRenderMode,
+    color: undefined as boolean | undefined,
+  },
   queue: { topics: ["llm", "tool", "memory"] as readonly string[] },
   auth: {
     defaultAdminUsername: "admin",
@@ -155,17 +181,33 @@ When you are done, reply with your final answer without making any more tool cal
   },
 } as const;
 
-const VALID_PROFILES: readonly LlmProfile[] = ["openai", "deepseek", "openrouter", "ollama", "anthropic-compat"];
-const VALID_REASONING: readonly ReasoningRenderMode[] = ["collapsed", "inline", "hidden"];
+const VALID_PROFILES: readonly LlmProfile[] = [
+  "openai",
+  "deepseek",
+  "openrouter",
+  "ollama",
+  "anthropic-compat",
+];
+const VALID_REASONING: readonly ReasoningRenderMode[] = [
+  "collapsed",
+  "inline",
+  "hidden",
+];
 
 function parseProfile(raw: string | undefined): LlmProfile | undefined {
   if (!raw) return undefined;
-  return (VALID_PROFILES as readonly string[]).includes(raw) ? (raw as LlmProfile) : undefined;
+  return (VALID_PROFILES as readonly string[]).includes(raw)
+    ? (raw as LlmProfile)
+    : undefined;
 }
 
-function parseReasoningMode(raw: string | undefined): ReasoningRenderMode | undefined {
+function parseReasoningMode(
+  raw: string | undefined,
+): ReasoningRenderMode | undefined {
   if (!raw) return undefined;
-  return (VALID_REASONING as readonly string[]).includes(raw) ? (raw as ReasoningRenderMode) : undefined;
+  return (VALID_REASONING as readonly string[]).includes(raw)
+    ? (raw as ReasoningRenderMode)
+    : undefined;
 }
 
 function loadToml(file: string): TomlShape {
@@ -175,7 +217,8 @@ function loadToml(file: string): TomlShape {
   // we want file-path resolution at runtime from cwd, so parse the text.
   // Bun exposes Bun.TOML.parse since 1.1; fall back to a throw if absent so
   // we notice early instead of silently ignoring config.
-  const parser = (Bun as unknown as { TOML?: { parse(src: string): unknown } }).TOML;
+  const parser = (Bun as unknown as { TOML?: { parse(src: string): unknown } })
+    .TOML;
   if (!parser) throw new Error("Bun.TOML not available — require Bun ≥ 1.1");
   return parser.parse(raw) as TomlShape;
 }
@@ -189,7 +232,9 @@ function loadToml(file: string): TomlShape {
  * Pure-ish: reads `process.env` and (if present) `./bunny.config.toml`.
  * Pass explicit overrides to make this deterministic in tests.
  */
-export function loadConfig(opts: { env?: NodeJS.ProcessEnv; cwd?: string } = {}): BunnyConfig {
+export function loadConfig(
+  opts: { env?: NodeJS.ProcessEnv; cwd?: string } = {},
+): BunnyConfig {
   const env = opts.env ?? process.env;
   const cwd = opts.cwd ?? process.cwd();
   const toml = loadToml(paths.configFile(cwd));
@@ -203,20 +248,23 @@ export function loadConfig(opts: { env?: NodeJS.ProcessEnv; cwd?: string } = {})
   };
 
   const embed: EmbedConfig = {
-    baseUrl: env["EMBED_BASE_URL"] ?? toml.embed?.base_url ?? DEFAULTS.embed.baseUrl,
+    baseUrl:
+      env["EMBED_BASE_URL"] ?? toml.embed?.base_url ?? DEFAULTS.embed.baseUrl,
     apiKey: env["EMBED_API_KEY"] ?? env["LLM_API_KEY"] ?? "",
     model: env["EMBED_MODEL"] ?? toml.embed?.model ?? DEFAULTS.embed.model,
     dim: Number(env["EMBED_DIM"] ?? toml.embed?.dim ?? DEFAULTS.embed.dim),
   };
 
   const memory: MemoryConfig = {
-    indexReasoning: toml.memory?.index_reasoning ?? DEFAULTS.memory.indexReasoning,
+    indexReasoning:
+      toml.memory?.index_reasoning ?? DEFAULTS.memory.indexReasoning,
     recallK: toml.memory?.recall_k ?? DEFAULTS.memory.recallK,
     lastN: toml.memory?.last_n ?? DEFAULTS.memory.lastN,
   };
 
   const render: RenderConfig = {
-    reasoning: parseReasoningMode(toml.render?.reasoning) ?? DEFAULTS.render.reasoning,
+    reasoning:
+      parseReasoningMode(toml.render?.reasoning) ?? DEFAULTS.render.reasoning,
     color: toml.render?.color,
   };
 
@@ -234,13 +282,17 @@ export function loadConfig(opts: { env?: NodeJS.ProcessEnv; cwd?: string } = {})
       toml.auth?.default_admin_password ??
       DEFAULTS.auth.defaultAdminPassword,
     sessionTtlHours: Number(
-      env["BUNNY_SESSION_TTL_HOURS"] ?? toml.auth?.session_ttl_hours ?? DEFAULTS.auth.sessionTtlHours,
+      env["BUNNY_SESSION_TTL_HOURS"] ??
+        toml.auth?.session_ttl_hours ??
+        DEFAULTS.auth.sessionTtlHours,
     ),
   };
 
   const agent: AgentConfig = {
     systemPrompt:
-      env["BUNNY_SYSTEM_PROMPT"] ?? toml.agent?.system_prompt ?? DEFAULTS.agent.systemPrompt,
+      env["BUNNY_SYSTEM_PROMPT"] ??
+      toml.agent?.system_prompt ??
+      DEFAULTS.agent.systemPrompt,
     defaultProject:
       env["BUNNY_DEFAULT_PROJECT"] ??
       toml.agent?.default_project ??
@@ -248,11 +300,14 @@ export function loadConfig(opts: { env?: NodeJS.ProcessEnv; cwd?: string } = {})
   };
 
   const ui: UiConfig = {
-    autosaveIntervalMs: Number(toml.ui?.autosave_interval_ms ?? DEFAULTS.ui.autosaveIntervalMs),
+    autosaveIntervalMs: Number(
+      toml.ui?.autosave_interval_ms ?? DEFAULTS.ui.autosaveIntervalMs,
+    ),
   };
 
   const web: WebConfig = {
-    serpApiKey: env["SERP_API_KEY"] ?? toml.web?.serp_api_key ?? DEFAULTS.web.serpApiKey,
+    serpApiKey:
+      env["SERP_API_KEY"] ?? toml.web?.serp_api_key ?? DEFAULTS.web.serpApiKey,
     serpProvider: toml.web?.serp_provider ?? DEFAULTS.web.serpProvider,
     serpBaseUrl: toml.web?.serp_base_url ?? DEFAULTS.web.serpBaseUrl,
     userAgent: toml.web?.user_agent ?? DEFAULTS.web.userAgent,

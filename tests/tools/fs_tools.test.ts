@@ -77,7 +77,11 @@ describe("list_dir", () => {
 describe("edit_file", () => {
   test("replaces a unique string", () => {
     writeFileSync(join(tmp, "edit.txt"), "hello world\n");
-    const r = editFileHandler({ path: "edit.txt", old_string: "hello", new_string: "goodbye" });
+    const r = editFileHandler({
+      path: "edit.txt",
+      old_string: "hello",
+      new_string: "goodbye",
+    });
     expect(r.ok).toBe(true);
     const after = readFileHandler({ path: "edit.txt" });
     expect(after.output).toContain("goodbye world");
@@ -85,20 +89,32 @@ describe("edit_file", () => {
 
   test("rejects when old_string not found", () => {
     writeFileSync(join(tmp, "edit2.txt"), "aaa\n");
-    const r = editFileHandler({ path: "edit2.txt", old_string: "zzz", new_string: "x" });
+    const r = editFileHandler({
+      path: "edit2.txt",
+      old_string: "zzz",
+      new_string: "x",
+    });
     expect(r.ok).toBe(false);
     expect(r.error).toMatch(/not found/i);
   });
 
   test("rejects when old_string appears more than once", () => {
     writeFileSync(join(tmp, "edit3.txt"), "foo foo foo");
-    const r = editFileHandler({ path: "edit3.txt", old_string: "foo", new_string: "bar" });
+    const r = editFileHandler({
+      path: "edit3.txt",
+      old_string: "foo",
+      new_string: "bar",
+    });
     expect(r.ok).toBe(false);
     expect(r.error).toMatch(/not unique/i);
   });
 
   test("rejects path traversal", () => {
-    const r = editFileHandler({ path: "../../x.txt", old_string: "a", new_string: "b" });
+    const r = editFileHandler({
+      path: "../../x.txt",
+      old_string: "a",
+      new_string: "b",
+    });
     expect(r.ok).toBe(false);
   });
 });

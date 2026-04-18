@@ -93,7 +93,11 @@ function handleList(ctx: ScheduledTaskRouteCtx, user: User): Response {
   return json({ tasks: [...system, ...users] });
 }
 
-function handleGet(ctx: ScheduledTaskRouteCtx, user: User, id: string): Response {
+function handleGet(
+  ctx: ScheduledTaskRouteCtx,
+  user: User,
+  id: string,
+): Response {
   const task = getTask(ctx.db, id);
   if (!task) return json({ error: "not found" }, 404);
   if (!canSee(user, task)) return json({ error: "forbidden" }, 403);
@@ -160,7 +164,19 @@ async function handleCreate(
       ownerUserId,
       nextRunAt: computeNextRun(cronExpr, now),
     });
-    void ctx.queue.log({ topic: "task", kind: "create", userId: user.id, data: { id: task.id, name, handler, taskKind: kind, cronExpr, enabled: body.enabled !== false } });
+    void ctx.queue.log({
+      topic: "task",
+      kind: "create",
+      userId: user.id,
+      data: {
+        id: task.id,
+        name,
+        handler,
+        taskKind: kind,
+        cronExpr,
+        enabled: body.enabled !== false,
+      },
+    });
     return json({ task: task }, 201);
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -195,7 +211,9 @@ async function handlePatch(
   }
   try {
     const nextRunAt =
-      body.cronExpr !== undefined ? computeNextRun(body.cronExpr, Date.now()) : undefined;
+      body.cronExpr !== undefined
+        ? computeNextRun(body.cronExpr, Date.now())
+        : undefined;
     const updated = updateTask(ctx.db, id, {
       name: body.name,
       description: body.description,
@@ -204,21 +222,37 @@ async function handlePatch(
       enabled: body.enabled,
       nextRunAt,
     });
-    const changed = Object.keys(body).filter((k) => (body as Record<string, unknown>)[k] !== undefined);
-    void ctx.queue.log({ topic: "task", kind: "update", userId: user.id, data: { id, changed } });
+    const changed = Object.keys(body).filter(
+      (k) => (body as Record<string, unknown>)[k] !== undefined,
+    );
+    void ctx.queue.log({
+      topic: "task",
+      kind: "update",
+      userId: user.id,
+      data: { id, changed },
+    });
     return json({ task: updated });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
   }
 }
 
-function handleDelete(ctx: ScheduledTaskRouteCtx, user: User, id: string): Response {
+function handleDelete(
+  ctx: ScheduledTaskRouteCtx,
+  user: User,
+  id: string,
+): Response {
   const task = getTask(ctx.db, id);
   if (!task) return json({ error: "not found" }, 404);
   if (!canEdit(user, task)) return json({ error: "forbidden" }, 403);
   try {
     deleteTask(ctx.db, id);
-    void ctx.queue.log({ topic: "task", kind: "delete", userId: user.id, data: { id } });
+    void ctx.queue.log({
+      topic: "task",
+      kind: "delete",
+      userId: user.id,
+      data: { id },
+    });
     return json({ ok: true });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -235,7 +269,12 @@ async function handleRunNow(
   if (!canEdit(user, task)) return json({ error: "forbidden" }, 403);
   try {
     await ctx.scheduler.runTask(id);
-    void ctx.queue.log({ topic: "task", kind: "run-now", userId: user.id, data: { id } });
+    void ctx.queue.log({
+      topic: "task",
+      kind: "run-now",
+      userId: user.id,
+      data: { id },
+    });
     const refreshed = getTask(ctx.db, id);
     return json({ task: refreshed });
   } catch (e) {

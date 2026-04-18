@@ -35,7 +35,9 @@ export interface WorkspaceToolContext {
 const MAX_UTF8_BYTES = 64 * 1024;
 const MAX_BASE64_BYTES = 5 * 1024 * 1024;
 
-export function makeWorkspaceTools(ctx: WorkspaceToolContext): ToolDescriptor[] {
+export function makeWorkspaceTools(
+  ctx: WorkspaceToolContext,
+): ToolDescriptor[] {
   return [listTool(ctx), readTool(ctx), writeTool(ctx)];
 }
 
@@ -56,7 +58,10 @@ function listTool(ctx: WorkspaceToolContext): ToolDescriptor {
     },
     handler: (args) => {
       try {
-        const entries = listWorkspace(ctx.project, getString(args, "path") ?? "");
+        const entries = listWorkspace(
+          ctx.project,
+          getString(args, "path") ?? "",
+        );
         return toolOk({ path: getString(args, "path") ?? "", entries });
       } catch (e) {
         return toolErr(errorMessage(e));

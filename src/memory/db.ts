@@ -15,7 +15,9 @@ import { errorMessage } from "../util/error.ts";
 import schemaSql from "./schema.sql" with { type: "text" };
 
 // sqlite-vec is loaded lazily on first DB open to avoid blocking module init.
-let sqliteVecLoad: ((db: { loadExtension(f: string, e?: string): void }) => void) | undefined;
+let sqliteVecLoad:
+  | ((db: { loadExtension(f: string, e?: string): void }) => void)
+  | undefined;
 let sqliteVecAttempted = false;
 
 async function ensureSqliteVec(): Promise<void> {
@@ -49,7 +51,10 @@ export async function getDb(opts: DbOptions = {}): Promise<Database> {
 }
 
 /** Open a database at `dbPath`, applying schema and loading extensions. */
-export async function openDb(dbPath: string, embedDim = 1536): Promise<Database> {
+export async function openDb(
+  dbPath: string,
+  embedDim = 1536,
+): Promise<Database> {
   await ensureSqliteVec();
 
   const dir = dirname(dbPath);
@@ -69,7 +74,10 @@ export async function openDb(dbPath: string, embedDim = 1536): Promise<Database>
     try {
       sqliteVecLoad(db);
     } catch (e) {
-      console.warn("[bunny/db] Could not load sqlite-vec extension:", errorMessage(e));
+      console.warn(
+        "[bunny/db] Could not load sqlite-vec extension:",
+        errorMessage(e),
+      );
     }
   }
 
@@ -101,21 +109,39 @@ function migrateColumns(db: Database): void {
   addColumn("ALTER TABLE messages ADD COLUMN author TEXT");
   addColumn("ALTER TABLE messages ADD COLUMN attachments TEXT");
   addColumn("ALTER TABLE events ADD COLUMN user_id TEXT");
-  addColumn("ALTER TABLE board_swimlanes ADD COLUMN auto_run INTEGER NOT NULL DEFAULT 0");
-  addColumn("ALTER TABLE board_cards ADD COLUMN auto_run INTEGER NOT NULL DEFAULT 0");
-  addColumn("ALTER TABLE board_swimlanes ADD COLUMN default_assignee_user_id TEXT");
-  addColumn("ALTER TABLE board_swimlanes ADD COLUMN default_assignee_agent TEXT");
+  addColumn(
+    "ALTER TABLE board_swimlanes ADD COLUMN auto_run INTEGER NOT NULL DEFAULT 0",
+  );
+  addColumn(
+    "ALTER TABLE board_cards ADD COLUMN auto_run INTEGER NOT NULL DEFAULT 0",
+  );
+  addColumn(
+    "ALTER TABLE board_swimlanes ADD COLUMN default_assignee_user_id TEXT",
+  );
+  addColumn(
+    "ALTER TABLE board_swimlanes ADD COLUMN default_assignee_agent TEXT",
+  );
   addColumn("ALTER TABLE board_swimlanes ADD COLUMN next_swimlane_id INTEGER");
   addColumn("ALTER TABLE board_swimlanes ADD COLUMN color TEXT");
   addColumn("ALTER TABLE board_swimlanes ADD COLUMN lane_group TEXT");
   addColumn("ALTER TABLE board_cards ADD COLUMN estimate_hours REAL");
   addColumn("ALTER TABLE board_cards ADD COLUMN percent_done INTEGER");
-  addColumn("ALTER TABLE users ADD COLUMN expand_think_bubbles INTEGER NOT NULL DEFAULT 0");
-  addColumn("ALTER TABLE users ADD COLUMN expand_tool_bubbles INTEGER NOT NULL DEFAULT 0");
-  addColumn("ALTER TABLE documents ADD COLUMN is_template INTEGER NOT NULL DEFAULT 0");
+  addColumn(
+    "ALTER TABLE users ADD COLUMN expand_think_bubbles INTEGER NOT NULL DEFAULT 0",
+  );
+  addColumn(
+    "ALTER TABLE users ADD COLUMN expand_tool_bubbles INTEGER NOT NULL DEFAULT 0",
+  );
+  addColumn(
+    "ALTER TABLE documents ADD COLUMN is_template INTEGER NOT NULL DEFAULT 0",
+  );
   db.run("CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_id)");
-  db.run("CREATE INDEX IF NOT EXISTS idx_messages_session_user ON messages(session_id, user_id)");
-  db.run("CREATE INDEX IF NOT EXISTS idx_messages_project ON messages(project, ts)");
+  db.run(
+    "CREATE INDEX IF NOT EXISTS idx_messages_session_user ON messages(session_id, user_id)",
+  );
+  db.run(
+    "CREATE INDEX IF NOT EXISTS idx_messages_project ON messages(project, ts)",
+  );
   db.run("CREATE INDEX IF NOT EXISTS idx_messages_author ON messages(author)");
   // Covers the per-session first-user-row lookup used by listSessions.
   db.run(
@@ -124,7 +150,9 @@ function migrateColumns(db: Database): void {
   db.run("CREATE INDEX IF NOT EXISTS idx_messages_ts ON messages(ts)");
   db.run("CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts)");
 
-  db.run("CREATE INDEX IF NOT EXISTS idx_cards_swimlane ON board_cards(swimlane_id)");
+  db.run(
+    "CREATE INDEX IF NOT EXISTS idx_cards_swimlane ON board_cards(swimlane_id)",
+  );
   db.run(
     "CREATE INDEX IF NOT EXISTS idx_card_runs_status_card ON board_card_runs(status, card_id)",
   );
@@ -159,7 +187,8 @@ function applySchema(db: Database, embedDim: number): void {
       // Skip expected errors when running the declarative schema against an
       // already-migrated DB: tables/indexes already exist, or a statement
       // references a column that only gets added later by migrateColumns.
-      if (!msg.includes("already exists") && !msg.includes("no such column")) throw e;
+      if (!msg.includes("already exists") && !msg.includes("no such column"))
+        throw e;
     }
   }
 
@@ -172,7 +201,8 @@ function applySchema(db: Database, embedDim: number): void {
   } catch (e) {
     const msg = errorMessage(e);
     // Not fatal if sqlite-vec is absent.
-    if (!msg.includes("no such module") && !msg.includes("already exists")) throw e;
+    if (!msg.includes("no such module") && !msg.includes("already exists"))
+      throw e;
   }
 }
 

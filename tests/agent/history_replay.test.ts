@@ -14,7 +14,10 @@ import { createBunnyQueue } from "../../src/queue/bunqueue.ts";
 import { createRenderer } from "../../src/agent/render.ts";
 import { runAgent } from "../../src/agent/loop.ts";
 import { ToolRegistry } from "../../src/tools/registry.ts";
-import { ensureProjectDir, writeProjectSystemPrompt } from "../../src/memory/project_assets.ts";
+import {
+  ensureProjectDir,
+  writeProjectSystemPrompt,
+} from "../../src/memory/project_assets.ts";
 import type { LlmConfig, EmbedConfig, MemoryConfig } from "../../src/config.ts";
 
 interface CapturedBody {
@@ -60,7 +63,13 @@ afterAll(() => {
 });
 
 function makeLlmCfg(): LlmConfig {
-  return { baseUrl, apiKey: "", model: "test", modelReasoning: undefined, profile: "openai" };
+  return {
+    baseUrl,
+    apiKey: "",
+    model: "test",
+    modelReasoning: undefined,
+    profile: "openai",
+  };
 }
 function makeEmbedCfg(): EmbedConfig {
   return { baseUrl, apiKey: "", model: "x", dim: 4 };
@@ -70,9 +79,17 @@ describe("agent loop — verbatim history replay", () => {
   test("second turn payload contains the first turn's user+assistant messages", async () => {
     const db = await openDb(join(tmp, "history.sqlite"), 4);
     const queue = createBunnyQueue(db);
-    const renderer = createRenderer({ reasoningMode: "hidden", forceColor: false, out: { write: () => {} } });
+    const renderer = createRenderer({
+      reasoningMode: "hidden",
+      forceColor: false,
+      out: { write: () => {} },
+    });
     const tools = new ToolRegistry();
-    const memCfg: MemoryConfig = { indexReasoning: false, recallK: 4, lastN: 10 };
+    const memCfg: MemoryConfig = {
+      indexReasoning: false,
+      recallK: 4,
+      lastN: 10,
+    };
 
     const sessionId = "hist-1";
     captured.length = 0;
@@ -109,10 +126,17 @@ describe("agent loop — verbatim history replay", () => {
 
     // Second call: system + (user + assistant from turn 1) + new user.
     const secondMsgs = captured[1]!.messages;
-    expect(secondMsgs.map((m) => m.role)).toEqual(["system", "user", "assistant", "user"]);
+    expect(secondMsgs.map((m) => m.role)).toEqual([
+      "system",
+      "user",
+      "assistant",
+      "user",
+    ]);
     expect(secondMsgs[1]!.content).toBe("waar ligt amsterdam");
     expect(secondMsgs[2]!.content).toBe("reply-1");
-    expect(secondMsgs[3]!.content).toBe("weet je dat zeker, ligt het niet in belgie");
+    expect(secondMsgs[3]!.content).toBe(
+      "weet je dat zeker, ligt het niet in belgie",
+    );
 
     await queue.close();
     db.close();
@@ -121,10 +145,18 @@ describe("agent loop — verbatim history replay", () => {
   test("project-level lastN override wins over the global memory config", async () => {
     const db = await openDb(join(tmp, "history_proj.sqlite"), 4);
     const queue = createBunnyQueue(db);
-    const renderer = createRenderer({ reasoningMode: "hidden", forceColor: false, out: { write: () => {} } });
+    const renderer = createRenderer({
+      reasoningMode: "hidden",
+      forceColor: false,
+      out: { write: () => {} },
+    });
     const tools = new ToolRegistry();
     // Global says replay 10 turns — the project cap should drop that to 0.
-    const memCfg: MemoryConfig = { indexReasoning: false, recallK: 4, lastN: 10 };
+    const memCfg: MemoryConfig = {
+      indexReasoning: false,
+      recallK: 4,
+      lastN: 10,
+    };
 
     ensureProjectDir("histtest");
     writeProjectSystemPrompt(
@@ -162,7 +194,10 @@ describe("agent loop — verbatim history replay", () => {
     });
 
     // Despite global lastN=10 the project override (0) wipes out verbatim replay.
-    expect(captured[1]!.messages.map((m) => m.role)).toEqual(["system", "user"]);
+    expect(captured[1]!.messages.map((m) => m.role)).toEqual([
+      "system",
+      "user",
+    ]);
 
     await queue.close();
     db.close();
@@ -171,9 +206,17 @@ describe("agent loop — verbatim history replay", () => {
   test("lastN = 0 disables verbatim replay (recall-only)", async () => {
     const db = await openDb(join(tmp, "history2.sqlite"), 4);
     const queue = createBunnyQueue(db);
-    const renderer = createRenderer({ reasoningMode: "hidden", forceColor: false, out: { write: () => {} } });
+    const renderer = createRenderer({
+      reasoningMode: "hidden",
+      forceColor: false,
+      out: { write: () => {} },
+    });
     const tools = new ToolRegistry();
-    const memCfg: MemoryConfig = { indexReasoning: false, recallK: 4, lastN: 0 };
+    const memCfg: MemoryConfig = {
+      indexReasoning: false,
+      recallK: 4,
+      lastN: 0,
+    };
 
     const sessionId = "hist-2";
     captured.length = 0;

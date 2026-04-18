@@ -39,9 +39,21 @@ const mockEmbedCfg: EmbedConfig = {
 describe("searchBM25", () => {
   test("returns results ranked by relevance", async () => {
     const db = await setup();
-    insertMessage(db, { sessionId: "s1", role: "user", content: "how to install bun runtime" });
-    insertMessage(db, { sessionId: "s1", role: "assistant", content: "bun is a fast javascript runtime" });
-    insertMessage(db, { sessionId: "s1", role: "user", content: "what is typescript?" });
+    insertMessage(db, {
+      sessionId: "s1",
+      role: "user",
+      content: "how to install bun runtime",
+    });
+    insertMessage(db, {
+      sessionId: "s1",
+      role: "assistant",
+      content: "bun is a fast javascript runtime",
+    });
+    insertMessage(db, {
+      sessionId: "s1",
+      role: "user",
+      content: "what is typescript?",
+    });
 
     const results = searchBM25(db, "bun runtime", 5);
     expect(results.length).toBeGreaterThanOrEqual(1);
@@ -53,8 +65,16 @@ describe("searchBM25", () => {
 
   test("session filter restricts results", async () => {
     const db = await setup();
-    insertMessage(db, { sessionId: "a", role: "user", content: "alpha bun runtime" });
-    insertMessage(db, { sessionId: "b", role: "user", content: "beta bun runtime" });
+    insertMessage(db, {
+      sessionId: "a",
+      role: "user",
+      content: "alpha bun runtime",
+    });
+    insertMessage(db, {
+      sessionId: "b",
+      role: "user",
+      content: "beta bun runtime",
+    });
 
     const results = searchBM25(db, "bun", 10, "a");
     expect(results.every((r) => r.sessionId === "a")).toBe(true);
@@ -65,9 +85,21 @@ describe("searchBM25", () => {
 describe("hybridRecall", () => {
   test("returns messages relevant to the query (BM25 path since no vectors)", async () => {
     const db = await setup();
-    insertMessage(db, { sessionId: "s1", role: "user", content: "I love using bun for TypeScript" });
-    insertMessage(db, { sessionId: "s1", role: "user", content: "python is also great" });
-    insertMessage(db, { sessionId: "s1", role: "user", content: "bun test is really fast" });
+    insertMessage(db, {
+      sessionId: "s1",
+      role: "user",
+      content: "I love using bun for TypeScript",
+    });
+    insertMessage(db, {
+      sessionId: "s1",
+      role: "user",
+      content: "python is also great",
+    });
+    insertMessage(db, {
+      sessionId: "s1",
+      role: "user",
+      content: "bun test is really fast",
+    });
 
     const results = await hybridRecall(db, mockEmbedCfg, "bun TypeScript", 5);
     expect(results.length).toBeGreaterThanOrEqual(1);
@@ -85,7 +117,11 @@ describe("hybridRecall", () => {
 
   test("rrfScore is positive", async () => {
     const db = await setup();
-    insertMessage(db, { sessionId: "s1", role: "user", content: "bunny is the best agent" });
+    insertMessage(db, {
+      sessionId: "s1",
+      role: "user",
+      content: "bunny is the best agent",
+    });
     const results = await hybridRecall(db, mockEmbedCfg, "bunny agent", 5);
     for (const r of results) {
       expect(r.rrfScore).toBeGreaterThan(0);

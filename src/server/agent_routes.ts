@@ -83,7 +83,9 @@ export async function handleAgentRoute(
   if (pathname === "/api/agents" && req.method === "GET") {
     const agents = listAgents(ctx.db).filter((a) => canSeeAgent(a, user));
     const projectMap = mapProjectsByAgent(ctx.db);
-    return json({ agents: agents.map((a) => toAgentDto(a, projectMap.get(a.name) ?? [])) });
+    return json({
+      agents: agents.map((a) => toAgentDto(a, projectMap.get(a.name) ?? [])),
+    });
   }
 
   if (pathname === "/api/agents" && req.method === "POST") {
@@ -99,19 +101,26 @@ export async function handleAgentRoute(
   }
 
   // /api/projects/:project/agents (list + link)
-  const projectAgentsMatch = pathname.match(/^\/api\/projects\/([^/]+)\/agents$/);
+  const projectAgentsMatch = pathname.match(
+    /^\/api\/projects\/([^/]+)\/agents$/,
+  );
   if (projectAgentsMatch) {
     const rawProject = decodeURIComponent(projectAgentsMatch[1]!);
-    if (req.method === "GET") return handleListProjectAgents(ctx, user, rawProject);
-    if (req.method === "POST") return handleLinkAgent(req, ctx, user, rawProject);
+    if (req.method === "GET")
+      return handleListProjectAgents(ctx, user, rawProject);
+    if (req.method === "POST")
+      return handleLinkAgent(req, ctx, user, rawProject);
   }
 
   // /api/projects/:project/agents/:agent (unlink)
-  const linkMatch = pathname.match(/^\/api\/projects\/([^/]+)\/agents\/([^/]+)$/);
+  const linkMatch = pathname.match(
+    /^\/api\/projects\/([^/]+)\/agents\/([^/]+)$/,
+  );
   if (linkMatch) {
     const rawProject = decodeURIComponent(linkMatch[1]!);
     const rawAgent = decodeURIComponent(linkMatch[2]!);
-    if (req.method === "DELETE") return handleUnlinkAgent(ctx, user, rawProject, rawAgent);
+    if (req.method === "DELETE")
+      return handleUnlinkAgent(ctx, user, rawProject, rawAgent);
   }
 
   return null;
@@ -196,7 +205,11 @@ interface AgentBody {
   recallK?: number | null;
 }
 
-async function handleCreateAgent(req: Request, ctx: AgentRouteCtx, user: User): Promise<Response> {
+async function handleCreateAgent(
+  req: Request,
+  ctx: AgentRouteCtx,
+  user: User,
+): Promise<Response> {
   let body: AgentBody;
   try {
     body = (await req.json()) as AgentBody;
@@ -205,7 +218,8 @@ async function handleCreateAgent(req: Request, ctx: AgentRouteCtx, user: User): 
   }
   try {
     const name = validateAgentName(body.name ?? "");
-    if (getAgent(ctx.db, name)) return json({ error: `agent '${name}' already exists` }, 409);
+    if (getAgent(ctx.db, name))
+      return json({ error: `agent '${name}' already exists` }, 409);
     const created = createAgent(ctx.db, {
       name,
       description: body.description ?? "",
@@ -217,7 +231,10 @@ async function handleCreateAgent(req: Request, ctx: AgentRouteCtx, user: User): 
     });
     ensureAgentDir(name);
     writeAgentAssets(name, {
-      systemPrompt: { prompt: body.systemPrompt ?? "", append: body.appendMode === true },
+      systemPrompt: {
+        prompt: body.systemPrompt ?? "",
+        append: body.appendMode === true,
+      },
       memory: {
         lastN: parseMemoryOverride(body.lastN),
         recallK: parseMemoryOverride(body.recallK),
@@ -234,15 +251,28 @@ async function handleCreateAgent(req: Request, ctx: AgentRouteCtx, user: User): 
       topic: "agent",
       kind: "create",
       userId: user.id,
-      data: { name, visibility: body.visibility ?? "private", description: body.description ?? "", isSubagent: body.isSubagent === true, contextScope: body.contextScope ?? "full" },
+      data: {
+        name,
+        visibility: body.visibility ?? "private",
+        description: body.description ?? "",
+        isSubagent: body.isSubagent === true,
+        contextScope: body.contextScope ?? "full",
+      },
     });
-    return json({ agent: toAgentDto(created, listProjectsForAgent(ctx.db, name)) }, 201);
+    return json(
+      { agent: toAgentDto(created, listProjectsForAgent(ctx.db, name)) },
+      201,
+    );
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
   }
 }
 
-function handleGetAgent(ctx: AgentRouteCtx, user: User, name: string): Response {
+function handleGetAgent(
+  ctx: AgentRouteCtx,
+  user: User,
+  name: string,
+): Response {
   const a = getAgent(ctx.db, name);
   if (!a) return json({ error: "not found" }, 404);
   if (!canSeeAgent(a, user)) return json({ error: "forbidden" }, 403);
@@ -272,8 +302,10 @@ async function handlePatchAgent(
       knowsOtherAgents: body.knowsOtherAgents,
       contextScope: body.contextScope,
     });
-    const touchesPrompt = body.systemPrompt !== undefined || body.appendMode !== undefined;
-    const touchesMemory = body.lastN !== undefined || body.recallK !== undefined;
+    const touchesPrompt =
+      body.systemPrompt !== undefined || body.appendMode !== undefined;
+    const touchesMemory =
+      body.lastN !== undefined || body.recallK !== undefined;
     const touchesTools = body.tools !== undefined;
     const touchesSubs = body.allowedSubagents !== undefined;
     if (touchesPrompt || touchesMemory || touchesTools || touchesSubs) {
@@ -282,39 +314,71 @@ async function handlePatchAgent(
       if (body.appendMode !== undefined) sp.append = body.appendMode;
       const memory = touchesMemory
         ? {
-            ...(body.lastN !== undefined ? { lastN: parseMemoryOverride(body.lastN) } : {}),
-            ...(body.recallK !== undefined ? { recallK: parseMemoryOverride(body.recallK) } : {}),
+            ...(body.lastN !== undefined
+              ? { lastN: parseMemoryOverride(body.lastN) }
+              : {}),
+            ...(body.recallK !== undefined
+              ? { recallK: parseMemoryOverride(body.recallK) }
+              : {}),
           }
         : undefined;
       writeAgentAssets(name, {
         systemPrompt: sp,
         memory,
-        tools: touchesTools ? (body.tools === null ? null : sanitiseToolList(body.tools)) : undefined,
-        allowedSubagents: touchesSubs ? sanitiseNameList(body.allowedSubagents) : undefined,
+        tools: touchesTools
+          ? body.tools === null
+            ? null
+            : sanitiseToolList(body.tools)
+          : undefined,
+        allowedSubagents: touchesSubs
+          ? sanitiseNameList(body.allowedSubagents)
+          : undefined,
       });
     }
-    const changed = Object.keys(body).filter((k) => (body as Record<string, unknown>)[k] !== undefined);
-    void ctx.queue.log({ topic: "agent", kind: "update", userId: user.id, data: { name, changed } });
-    return json({ agent: toAgentDto(updated, listProjectsForAgent(ctx.db, name)) });
+    const changed = Object.keys(body).filter(
+      (k) => (body as Record<string, unknown>)[k] !== undefined,
+    );
+    void ctx.queue.log({
+      topic: "agent",
+      kind: "update",
+      userId: user.id,
+      data: { name, changed },
+    });
+    return json({
+      agent: toAgentDto(updated, listProjectsForAgent(ctx.db, name)),
+    });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
   }
 }
 
-function handleDeleteAgent(ctx: AgentRouteCtx, user: User, name: string): Response {
+function handleDeleteAgent(
+  ctx: AgentRouteCtx,
+  user: User,
+  name: string,
+): Response {
   const a = getAgent(ctx.db, name);
   if (!a) return json({ error: "not found" }, 404);
   if (!canEditAgent(a, user)) return json({ error: "forbidden" }, 403);
   try {
     deleteAgent(ctx.db, name);
-    void ctx.queue.log({ topic: "agent", kind: "delete", userId: user.id, data: { name } });
+    void ctx.queue.log({
+      topic: "agent",
+      kind: "delete",
+      userId: user.id,
+      data: { name },
+    });
     return json({ ok: true });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
   }
 }
 
-function handleListProjectAgents(ctx: AgentRouteCtx, user: User, rawProject: string): Response {
+function handleListProjectAgents(
+  ctx: AgentRouteCtx,
+  user: User,
+  rawProject: string,
+): Response {
   let project: string;
   try {
     project = validateProjectName(rawProject);
@@ -323,12 +387,20 @@ function handleListProjectAgents(ctx: AgentRouteCtx, user: User, rawProject: str
   }
   const p = getProject(ctx.db, project);
   if (!p) return json({ error: "project not found" }, 404);
-  if (p.visibility === "private" && user.role !== "admin" && p.createdBy !== user.id) {
+  if (
+    p.visibility === "private" &&
+    user.role !== "admin" &&
+    p.createdBy !== user.id
+  ) {
     return json({ error: "forbidden" }, 403);
   }
-  const agents = listAgentsForProject(ctx.db, project).filter((a) => canSeeAgent(a, user));
+  const agents = listAgentsForProject(ctx.db, project).filter((a) =>
+    canSeeAgent(a, user),
+  );
   const projectMap = mapProjectsByAgent(ctx.db);
-  return json({ agents: agents.map((a) => toAgentDto(a, projectMap.get(a.name) ?? [])) });
+  return json({
+    agents: agents.map((a) => toAgentDto(a, projectMap.get(a.name) ?? [])),
+  });
 }
 
 async function handleLinkAgent(
@@ -356,9 +428,15 @@ async function handleLinkAgent(
   }
   try {
     const agent = validateAgentName(body.agent ?? "");
-    if (!getAgent(ctx.db, agent)) return json({ error: "agent not found" }, 404);
+    if (!getAgent(ctx.db, agent))
+      return json({ error: "agent not found" }, 404);
     linkAgentToProject(ctx.db, project, agent);
-    void ctx.queue.log({ topic: "agent", kind: "link", userId: user.id, data: { project, agent } });
+    void ctx.queue.log({
+      topic: "agent",
+      kind: "link",
+      userId: user.id,
+      data: { project, agent },
+    });
     return json({ ok: true });
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -385,7 +463,12 @@ function handleUnlinkAgent(
     return json({ error: "forbidden" }, 403);
   }
   unlinkAgentFromProject(ctx.db, project, agent);
-  void ctx.queue.log({ topic: "agent", kind: "unlink", userId: user.id, data: { project, agent } });
+  void ctx.queue.log({
+    topic: "agent",
+    kind: "unlink",
+    userId: user.id,
+    data: { project, agent },
+  });
   return json({ ok: true });
 }
 

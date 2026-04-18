@@ -45,7 +45,12 @@ describe("createCard", () => {
   test("requires non-empty title", async () => {
     const { db, todo } = await setup();
     expect(() =>
-      createCard(db, { project: "alpha", swimlaneId: todo.id, title: "  ", createdBy: "u1" }),
+      createCard(db, {
+        project: "alpha",
+        swimlaneId: todo.id,
+        title: "  ",
+        createdBy: "u1",
+      }),
     ).toThrow();
     db.close();
   });
@@ -67,8 +72,18 @@ describe("createCard", () => {
 
   test("appends with sparse positions per lane", async () => {
     const { db, todo } = await setup();
-    const a = createCard(db, { project: "alpha", swimlaneId: todo.id, title: "a", createdBy: "u1" });
-    const b = createCard(db, { project: "alpha", swimlaneId: todo.id, title: "b", createdBy: "u1" });
+    const a = createCard(db, {
+      project: "alpha",
+      swimlaneId: todo.id,
+      title: "a",
+      createdBy: "u1",
+    });
+    const b = createCard(db, {
+      project: "alpha",
+      swimlaneId: todo.id,
+      title: "b",
+      createdBy: "u1",
+    });
     expect(b.position).toBeGreaterThan(a.position);
     expect(b.position - a.position).toBe(100);
     db.close();
@@ -78,8 +93,18 @@ describe("createCard", () => {
 describe("listCards", () => {
   test("excludes archived by default", async () => {
     const { db, todo } = await setup();
-    const c = createCard(db, { project: "alpha", swimlaneId: todo.id, title: "live", createdBy: "u1" });
-    const d = createCard(db, { project: "alpha", swimlaneId: todo.id, title: "dead", createdBy: "u1" });
+    const c = createCard(db, {
+      project: "alpha",
+      swimlaneId: todo.id,
+      title: "live",
+      createdBy: "u1",
+    });
+    const d = createCard(db, {
+      project: "alpha",
+      swimlaneId: todo.id,
+      title: "dead",
+      createdBy: "u1",
+    });
     archiveCard(db, d.id);
     expect(listCards(db, "alpha").map((x) => x.id)).toEqual([c.id]);
     expect(listCards(db, "alpha", { includeArchived: true })).toHaveLength(2);
@@ -90,8 +115,18 @@ describe("listCards", () => {
     const { db, todo } = await setup();
     createProject(db, { name: "beta" });
     const otherLane = listSwimlanes(db, "beta")[0]!;
-    createCard(db, { project: "alpha", swimlaneId: todo.id, title: "in alpha", createdBy: "u1" });
-    createCard(db, { project: "beta", swimlaneId: otherLane.id, title: "in beta", createdBy: "u1" });
+    createCard(db, {
+      project: "alpha",
+      swimlaneId: todo.id,
+      title: "in alpha",
+      createdBy: "u1",
+    });
+    createCard(db, {
+      project: "beta",
+      swimlaneId: otherLane.id,
+      title: "in beta",
+      createdBy: "u1",
+    });
     expect(listCards(db, "alpha").map((c) => c.title)).toEqual(["in alpha"]);
     expect(listCards(db, "beta").map((c) => c.title)).toEqual(["in beta"]);
     db.close();
@@ -122,7 +157,9 @@ describe("updateCard", () => {
       assigneeUserId: "u1",
       createdBy: "u1",
     });
-    expect(() => updateCard(db, c.id, { assigneeAgent: "researcher" })).toThrow();
+    expect(() =>
+      updateCard(db, c.id, { assigneeAgent: "researcher" }),
+    ).toThrow();
     db.close();
   });
 
@@ -141,7 +178,10 @@ describe("updateCard", () => {
     const updated = updateCard(db, c.id, { percentDone: 80 });
     expect(updated.percentDone).toBe(80);
     expect(updated.estimateHours).toBe(4.5);
-    const cleared = updateCard(db, c.id, { estimateHours: null, percentDone: null });
+    const cleared = updateCard(db, c.id, {
+      estimateHours: null,
+      percentDone: null,
+    });
     expect(cleared.estimateHours).toBeNull();
     expect(cleared.percentDone).toBeNull();
     db.close();
@@ -151,7 +191,12 @@ describe("updateCard", () => {
 describe("moveCard", () => {
   test("moves to bottom of new lane when no neighbours given", async () => {
     const { db, todo, doing } = await setup();
-    const a = createCard(db, { project: "alpha", swimlaneId: todo.id, title: "a", createdBy: "u1" });
+    const a = createCard(db, {
+      project: "alpha",
+      swimlaneId: todo.id,
+      title: "a",
+      createdBy: "u1",
+    });
     const moved = moveCard(db, a.id, { swimlaneId: doing.id });
     expect(moved.swimlaneId).toBe(doing.id);
     expect(moved.position).toBe(100);
@@ -160,11 +205,30 @@ describe("moveCard", () => {
 
   test("midpoint between two neighbours", async () => {
     const { db, todo } = await setup();
-    const a = createCard(db, { project: "alpha", swimlaneId: todo.id, title: "a", createdBy: "u1" });
-    const b = createCard(db, { project: "alpha", swimlaneId: todo.id, title: "b", createdBy: "u1" });
-    const c = createCard(db, { project: "alpha", swimlaneId: todo.id, title: "c", createdBy: "u1" });
+    const a = createCard(db, {
+      project: "alpha",
+      swimlaneId: todo.id,
+      title: "a",
+      createdBy: "u1",
+    });
+    const b = createCard(db, {
+      project: "alpha",
+      swimlaneId: todo.id,
+      title: "b",
+      createdBy: "u1",
+    });
+    const c = createCard(db, {
+      project: "alpha",
+      swimlaneId: todo.id,
+      title: "c",
+      createdBy: "u1",
+    });
     // Move c between a and b.
-    const moved = moveCard(db, c.id, { swimlaneId: todo.id, beforeCardId: a.id, afterCardId: b.id });
+    const moved = moveCard(db, c.id, {
+      swimlaneId: todo.id,
+      beforeCardId: a.id,
+      afterCardId: b.id,
+    });
     expect(moved.position).toBeGreaterThan(a.position);
     expect(moved.position).toBeLessThan(b.position);
     db.close();
@@ -172,9 +236,22 @@ describe("moveCard", () => {
 
   test("place at top using only beforeCardId", async () => {
     const { db, todo } = await setup();
-    const a = createCard(db, { project: "alpha", swimlaneId: todo.id, title: "a", createdBy: "u1" });
-    const b = createCard(db, { project: "alpha", swimlaneId: todo.id, title: "b", createdBy: "u1" });
-    const moved = moveCard(db, b.id, { swimlaneId: todo.id, beforeCardId: a.id });
+    const a = createCard(db, {
+      project: "alpha",
+      swimlaneId: todo.id,
+      title: "a",
+      createdBy: "u1",
+    });
+    const b = createCard(db, {
+      project: "alpha",
+      swimlaneId: todo.id,
+      title: "b",
+      createdBy: "u1",
+    });
+    const moved = moveCard(db, b.id, {
+      swimlaneId: todo.id,
+      beforeCardId: a.id,
+    });
     expect(moved.position).toBeLessThan(a.position);
     db.close();
   });
@@ -183,7 +260,12 @@ describe("moveCard", () => {
 describe("canEditCard", () => {
   test("admin always passes", async () => {
     const { db, todo } = await setup();
-    const c = createCard(db, { project: "alpha", swimlaneId: todo.id, title: "x", createdBy: "u2" });
+    const c = createCard(db, {
+      project: "alpha",
+      swimlaneId: todo.id,
+      title: "x",
+      createdBy: "u2",
+    });
     const project = getProject(db, "alpha")!;
     const admin: User = baseUser({ id: "anyone", role: "admin" });
     expect(canEditCard(admin, getCard(db, c.id)!, project)).toBe(true);
@@ -192,18 +274,34 @@ describe("canEditCard", () => {
 
   test("owner of project passes", async () => {
     const { db, todo } = await setup();
-    const c = createCard(db, { project: "alpha", swimlaneId: todo.id, title: "x", createdBy: "u2" });
+    const c = createCard(db, {
+      project: "alpha",
+      swimlaneId: todo.id,
+      title: "x",
+      createdBy: "u2",
+    });
     const project = getProject(db, "alpha")!;
-    expect(canEditCard(baseUser({ id: "owner" }), getCard(db, c.id)!, project)).toBe(true);
+    expect(
+      canEditCard(baseUser({ id: "owner" }), getCard(db, c.id)!, project),
+    ).toBe(true);
     db.close();
   });
 
   test("creator passes; random user does not", async () => {
     const { db, todo } = await setup();
-    const c = createCard(db, { project: "alpha", swimlaneId: todo.id, title: "x", createdBy: "u2" });
+    const c = createCard(db, {
+      project: "alpha",
+      swimlaneId: todo.id,
+      title: "x",
+      createdBy: "u2",
+    });
     const project = getProject(db, "alpha")!;
-    expect(canEditCard(baseUser({ id: "u2" }), getCard(db, c.id)!, project)).toBe(true);
-    expect(canEditCard(baseUser({ id: "u3" }), getCard(db, c.id)!, project)).toBe(false);
+    expect(
+      canEditCard(baseUser({ id: "u2" }), getCard(db, c.id)!, project),
+    ).toBe(true);
+    expect(
+      canEditCard(baseUser({ id: "u3" }), getCard(db, c.id)!, project),
+    ).toBe(false);
     db.close();
   });
 
@@ -217,7 +315,9 @@ describe("canEditCard", () => {
       createdBy: "u2",
     });
     const project = getProject(db, "alpha")!;
-    expect(canEditCard(baseUser({ id: "u4" }), getCard(db, c.id)!, project)).toBe(true);
+    expect(
+      canEditCard(baseUser({ id: "u4" }), getCard(db, c.id)!, project),
+    ).toBe(true);
     db.close();
   });
 });

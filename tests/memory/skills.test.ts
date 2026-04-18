@@ -46,7 +46,10 @@ describe("validateSkillName", () => {
 describe("skill registry", () => {
   test("create + list + update + delete", async () => {
     const db = await newDb();
-    createSkill(db, { name: "pdf-processing", description: "Extract PDF text" });
+    createSkill(db, {
+      name: "pdf-processing",
+      description: "Extract PDF text",
+    });
     createSkill(db, {
       name: "code-review",
       description: "Review code",
@@ -55,13 +58,18 @@ describe("skill registry", () => {
       sourceRef: "abc123",
     });
     const list = listSkills(db);
-    expect(list.map((s) => s.name).sort()).toEqual(["code-review", "pdf-processing"]);
+    expect(list.map((s) => s.name).sort()).toEqual([
+      "code-review",
+      "pdf-processing",
+    ]);
     const cr = getSkill(db, "code-review")!;
     expect(cr.visibility).toBe("public");
     expect(cr.sourceUrl).toBe("https://github.com/example/skills");
     expect(cr.sourceRef).toBe("abc123");
 
-    const updated = updateSkill(db, "code-review", { description: "Advanced code review" });
+    const updated = updateSkill(db, "code-review", {
+      description: "Advanced code review",
+    });
     expect(updated.description).toBe("Advanced code review");
 
     deleteSkill(db, "pdf-processing");
@@ -95,19 +103,27 @@ describe("project_skills link table", () => {
     linkSkillToProject(db, "alpha", "code-review");
     linkSkillToProject(db, "beta", "code-review");
 
-    expect(listSkillsForProject(db, "alpha").map((s) => s.name).sort()).toEqual([
+    expect(
+      listSkillsForProject(db, "alpha")
+        .map((s) => s.name)
+        .sort(),
+    ).toEqual(["code-review", "pdf-processing"]);
+    expect(listSkillsForProject(db, "beta").map((s) => s.name)).toEqual([
       "code-review",
-      "pdf-processing",
     ]);
-    expect(listSkillsForProject(db, "beta").map((s) => s.name)).toEqual(["code-review"]);
 
     expect(isSkillLinkedToProject(db, "alpha", "pdf-processing")).toBe(true);
     expect(isSkillLinkedToProject(db, "beta", "pdf-processing")).toBe(false);
 
-    expect(listProjectsForSkill(db, "code-review").sort()).toEqual(["alpha", "beta"]);
+    expect(listProjectsForSkill(db, "code-review").sort()).toEqual([
+      "alpha",
+      "beta",
+    ]);
 
     unlinkSkillFromProject(db, "alpha", "pdf-processing");
-    expect(listSkillsForProject(db, "alpha").map((s) => s.name)).toEqual(["code-review"]);
+    expect(listSkillsForProject(db, "alpha").map((s) => s.name)).toEqual([
+      "code-review",
+    ]);
     db.close();
   });
 

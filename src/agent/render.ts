@@ -112,7 +112,11 @@ export function createRenderer(opts: RendererOptions): Renderer {
     if (reasoningBlockOpen) return;
     reasoningBlockOpen = true;
     if (mode === "collapsed" || mode === "inline") {
-      out.write("\n" + fmt.grey(color ? "╭─ thinking ─────────────────────" : "[thinking]") + "\n");
+      out.write(
+        "\n" +
+          fmt.grey(color ? "╭─ thinking ─────────────────────" : "[thinking]") +
+          "\n",
+      );
     }
   }
 
@@ -120,7 +124,10 @@ export function createRenderer(opts: RendererOptions): Renderer {
     if (!reasoningBlockOpen) return;
     reasoningBlockOpen = false;
     if (mode === "collapsed") {
-      out.write(fmt.grey(color ? "╰─────────────────────────────────" : "[/thinking]") + "\n\n");
+      out.write(
+        fmt.grey(color ? "╰─────────────────────────────────" : "[/thinking]") +
+          "\n\n",
+      );
     }
   }
 
@@ -152,7 +159,9 @@ export function createRenderer(opts: RendererOptions): Renderer {
       }
       case "tool_call": {
         if (delta.name) {
-          out.write("\n" + fmt.cyan(`⚙ ${delta.name}(`) + fmt.dim(delta.argsDelta));
+          out.write(
+            "\n" + fmt.cyan(`⚙ ${delta.name}(`) + fmt.dim(delta.argsDelta),
+          );
         } else {
           out.write(fmt.dim(delta.argsDelta));
         }

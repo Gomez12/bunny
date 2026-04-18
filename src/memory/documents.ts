@@ -55,11 +55,14 @@ export function listDocuments(
   project: string,
   opts?: { isTemplate?: boolean },
 ): DocumentSummary[] {
-  const templateFilter = opts?.isTemplate !== undefined ? opts.isTemplate ? 1 : 0 : undefined;
-  const sql = templateFilter !== undefined
-    ? `SELECT ${SUMMARY_COLS} FROM documents WHERE project = ? AND is_template = ? ORDER BY updated_at DESC`
-    : `SELECT ${SUMMARY_COLS} FROM documents WHERE project = ? AND is_template = 0 ORDER BY updated_at DESC`;
-  const params = templateFilter !== undefined ? [project, templateFilter] : [project];
+  const templateFilter =
+    opts?.isTemplate !== undefined ? (opts.isTemplate ? 1 : 0) : undefined;
+  const sql =
+    templateFilter !== undefined
+      ? `SELECT ${SUMMARY_COLS} FROM documents WHERE project = ? AND is_template = ? ORDER BY updated_at DESC`
+      : `SELECT ${SUMMARY_COLS} FROM documents WHERE project = ? AND is_template = 0 ORDER BY updated_at DESC`;
+  const params =
+    templateFilter !== undefined ? [project, templateFilter] : [project];
   const rows = db.prepare(sql).all(...params) as Pick<
     DocumentRow,
     "id" | "name" | "thumbnail" | "is_template" | "created_at" | "updated_at"
@@ -90,7 +93,10 @@ export interface CreateDocumentOpts {
   createdBy: string;
 }
 
-export function createDocument(db: Database, opts: CreateDocumentOpts): Document {
+export function createDocument(
+  db: Database,
+  opts: CreateDocumentOpts,
+): Document {
   const name = opts.name.trim();
   if (!name) throw new Error("document name is required");
   const now = Date.now();
@@ -119,14 +125,19 @@ export interface UpdateDocumentPatch {
   thumbnail?: string | null;
 }
 
-export function updateDocument(db: Database, id: number, patch: UpdateDocumentPatch): Document {
+export function updateDocument(
+  db: Database,
+  id: number,
+  patch: UpdateDocumentPatch,
+): Document {
   const existing = getDocument(db, id);
   if (!existing) throw new Error(`document ${id} not found`);
 
   const name = patch.name === undefined ? existing.name : patch.name.trim();
   if (!name) throw new Error("document name is required");
   const contentMd = patch.contentMd ?? existing.contentMd;
-  const thumbnail = patch.thumbnail === undefined ? existing.thumbnail : patch.thumbnail;
+  const thumbnail =
+    patch.thumbnail === undefined ? existing.thumbnail : patch.thumbnail;
 
   db.prepare(
     `UPDATE documents
@@ -140,14 +151,22 @@ export function deleteDocument(db: Database, id: number): void {
   db.prepare(`DELETE FROM documents WHERE id = ?`).run(id);
 }
 
-export function canEditDocument(user: User, doc: Document, project: Project): boolean {
+export function canEditDocument(
+  user: User,
+  doc: Document,
+  project: Project,
+): boolean {
   if (user.role === "admin") return true;
   if (project.createdBy && project.createdBy === user.id) return true;
   if (doc.createdBy === user.id) return true;
   return false;
 }
 
-export function saveAsTemplate(db: Database, docId: number, createdBy: string): Document {
+export function saveAsTemplate(
+  db: Database,
+  docId: number,
+  createdBy: string,
+): Document {
   const source = getDocument(db, docId);
   if (!source) throw new Error(`document ${docId} not found`);
   const baseName = source.name.replace(/^\[Template\]\s*/, "");

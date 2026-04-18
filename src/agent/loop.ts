@@ -19,7 +19,13 @@
  * `call_agent` tool when the agent has `allowed_subagents`.
  */
 
-import type { LlmConfig, EmbedConfig, MemoryConfig, AgentConfig, WebConfig } from "../config.ts";
+import type {
+  LlmConfig,
+  EmbedConfig,
+  MemoryConfig,
+  AgentConfig,
+  WebConfig,
+} from "../config.ts";
 import type { ChatAttachment, ChatMessage } from "../llm/types.ts";
 import type { ToolRegistry, ToolDescriptor } from "../tools/registry.ts";
 import type { Database } from "bun:sqlite";
@@ -42,18 +48,38 @@ import {
   listAgentsForProject,
 } from "../memory/agents.ts";
 import { loadAgentAssets } from "../memory/agent_assets.ts";
-import { makeCallAgentTool, CALL_AGENT_TOOL_NAME } from "../tools/call_agent.ts";
-import { makeBoardTools, BOARD_TOOL_NAMES, type BoardToolContext } from "../tools/board.ts";
-import { makeWorkspaceTools, WORKSPACE_TOOL_NAMES } from "../tools/workspace.ts";
+import {
+  makeCallAgentTool,
+  CALL_AGENT_TOOL_NAME,
+} from "../tools/call_agent.ts";
+import {
+  makeBoardTools,
+  BOARD_TOOL_NAMES,
+  type BoardToolContext,
+} from "../tools/board.ts";
+import {
+  makeWorkspaceTools,
+  WORKSPACE_TOOL_NAMES,
+} from "../tools/workspace.ts";
 import { makeWebTools, WEB_TOOL_NAMES } from "../tools/web.ts";
-import { makeActivateSkillTool, ACTIVATE_SKILL_TOOL_NAME } from "../tools/activate_skill.ts";
+import {
+  makeActivateSkillTool,
+  ACTIVATE_SKILL_TOOL_NAME,
+} from "../tools/activate_skill.ts";
 import { listSkillsForProject } from "../memory/skills.ts";
-import { buildSkillCatalog, loadSkillAssets, listSkillResources } from "../memory/skill_assets.ts";
+import {
+  buildSkillCatalog,
+  loadSkillAssets,
+  listSkillResources,
+} from "../memory/skill_assets.ts";
 
 const MAX_TOOL_ITERATIONS = 20;
 
 const SKILL_CATALOG_TTL_MS = 30_000;
-const skillCatalogCache = new Map<string, { catalog: ReturnType<typeof buildSkillCatalog>; ts: number }>();
+const skillCatalogCache = new Map<
+  string,
+  { catalog: ReturnType<typeof buildSkillCatalog>; ts: number }
+>();
 
 // Tool names whose handlers live on per-run closures, not the singleton.
 // Scrubbed from the agent's static whitelist before `subset()` so they don't
@@ -101,7 +127,20 @@ export interface RunAgentOptions {
 
 /** Run one user turn through the agent loop. Returns the final assistant response. */
 export async function runAgent(opts: RunAgentOptions): Promise<string> {
-  const { prompt, attachments, sessionId, userId, llmCfg, embedCfg, memoryCfg, agentCfg, tools, db, queue, renderer } = opts;
+  const {
+    prompt,
+    attachments,
+    sessionId,
+    userId,
+    llmCfg,
+    embedCfg,
+    memoryCfg,
+    agentCfg,
+    tools,
+    db,
+    queue,
+    renderer,
+  } = opts;
   const project = opts.project ?? agentCfg?.defaultProject ?? DEFAULT_PROJECT;
   const callDepth = opts.callDepth ?? 0;
 
@@ -120,7 +159,9 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
     throw new Error(`agent '${agentName}' does not exist`);
   }
   if (agentName && !isAgentLinkedToProject(db, project, agentName)) {
-    throw new Error(`agent '${agentName}' is not available in project '${project}'`);
+    throw new Error(
+      `agent '${agentName}' is not available in project '${project}'`,
+    );
   }
   const agentAssets = agentName ? loadAgentAssets(agentName) : undefined;
 
@@ -128,7 +169,9 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
   const effectiveLastN =
     agentAssets?.memory.lastN ?? projectAssets.memory.lastN ?? memoryCfg.lastN;
   const effectiveRecallK =
-    agentAssets?.memory.recallK ?? projectAssets.memory.recallK ?? memoryCfg.recallK;
+    agentAssets?.memory.recallK ??
+    projectAssets.memory.recallK ??
+    memoryCfg.recallK;
 
   // Context scoping: an agent in "own" mode only sees its own prior assistant
   // rows (+ user turns). Default assistant and "full" agents see everything.
@@ -162,7 +205,8 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
   let skillCatalog: ReturnType<typeof buildSkillCatalog> | undefined;
   let projectSkills: { name: string }[];
   if (cachedSkills && now - cachedSkills.ts < SKILL_CATALOG_TTL_MS) {
-    skillCatalog = cachedSkills.catalog.length > 0 ? cachedSkills.catalog : undefined;
+    skillCatalog =
+      cachedSkills.catalog.length > 0 ? cachedSkills.catalog : undefined;
     projectSkills = cachedSkills.catalog;
   } else {
     const skills = listSkillsForProject(db, project);
@@ -198,16 +242,24 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
     author: null,
   });
   void indexMessage(db, embedCfg, userMsgId, prompt);
-  void queue.log({ topic: "memory", kind: "index", sessionId, userId, data: { role: "user", agent: agentName } });
+  void queue.log({
+    topic: "memory",
+    kind: "index",
+    sessionId,
+    userId,
+    data: { role: "user", agent: agentName },
+  });
 
   const userMessage: ChatMessage = { role: "user", content: prompt };
-  if (attachments && attachments.length > 0) userMessage.attachments = attachments;
+  if (attachments && attachments.length > 0)
+    userMessage.attachments = attachments;
 
   const messages: ChatMessage[] = [
     systemMsg,
     ...recentTurns.map((t) => {
       const m: ChatMessage = { role: t.role, content: t.content };
-      if (t.attachments && t.attachments.length > 0) m.attachments = t.attachments;
+      if (t.attachments && t.attachments.length > 0)
+        m.attachments = t.attachments;
       return m;
     }),
     userMessage,
@@ -278,8 +330,11 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
         agent: agentName,
         promptTokens: llmRes.usage?.promptTokens,
         completionTokens: llmRes.usage?.completionTokens,
-        toolCalls: llmRes.message.tool_calls?.map((tc) => tc.function.name) ?? [],
-        contentPreview: assistantContent ? truncate(assistantContent, 2048) : undefined,
+        toolCalls:
+          llmRes.message.tool_calls?.map((tc) => tc.function.name) ?? [],
+        contentPreview: assistantContent
+          ? truncate(assistantContent, 2048)
+          : undefined,
       },
       durationMs,
     });
@@ -342,16 +397,28 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
           kind: "call",
           sessionId,
           userId,
-          data: { name: tc.function.name, agent: agentName, args: truncate(tc.function.arguments, 2048) },
+          data: {
+            name: tc.function.name,
+            agent: agentName,
+            args: truncate(tc.function.arguments, 2048),
+          },
         });
         const t1 = Date.now();
-        const result = await runTools.call(tc.function.name, tc.function.arguments);
+        const result = await runTools.call(
+          tc.function.name,
+          tc.function.arguments,
+        );
         void queue.log({
           topic: "tool",
           kind: "result",
           sessionId,
           userId,
-          data: { name: tc.function.name, ok: result.ok, agent: agentName, output: truncate(result.output, 2048) },
+          data: {
+            name: tc.function.name,
+            ok: result.ok,
+            agent: agentName,
+            output: truncate(result.output, 2048),
+          },
           durationMs: Date.now() - t1,
           error: result.ok ? undefined : result.error,
         });
@@ -361,7 +428,11 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
 
     for (const { tc, result } of toolResults) {
       renderer.onToolResult(tc.function.name, result);
-      messages.push({ role: "tool", content: result.output, tool_call_id: tc.id });
+      messages.push({
+        role: "tool",
+        content: result.output,
+        tool_call_id: tc.id,
+      });
       insertMessage(db, {
         sessionId,
         userId,
@@ -383,7 +454,9 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
 
 interface BuildRunRegistryOpts {
   baseTools: ToolRegistry;
-  agentAssets: { tools: string[] | undefined; allowedSubagents: string[] } | undefined;
+  agentAssets:
+    | { tools: string[] | undefined; allowedSubagents: string[] }
+    | undefined;
   callDepth: number;
   boardCtx: BoardToolContext;
   skillNames: string[];
@@ -423,7 +496,10 @@ function buildRunRegistry(opts: BuildRunRegistryOpts): ToolRegistry {
     );
   }
 
-  if (opts.skillNames.length > 0 && (!whitelist || whitelist.includes(ACTIVATE_SKILL_TOOL_NAME))) {
+  if (
+    opts.skillNames.length > 0 &&
+    (!whitelist || whitelist.includes(ACTIVATE_SKILL_TOOL_NAME))
+  ) {
     extras.push(
       makeActivateSkillTool({
         available: opts.skillNames,
@@ -436,7 +512,9 @@ function buildRunRegistry(opts: BuildRunRegistryOpts): ToolRegistry {
     );
   }
 
-  const filtered = whitelist ? whitelist.filter((n) => !DYNAMIC_TOOL_NAMES.has(n)) : undefined;
+  const filtered = whitelist
+    ? whitelist.filter((n) => !DYNAMIC_TOOL_NAMES.has(n))
+    : undefined;
   return baseTools.subset(filtered, extras);
 }
 

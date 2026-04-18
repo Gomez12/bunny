@@ -3,7 +3,10 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ensureProjectDir } from "../../src/memory/project_assets.ts";
-import { makeWorkspaceTools, WORKSPACE_TOOL_NAMES } from "../../src/tools/workspace.ts";
+import {
+  makeWorkspaceTools,
+  WORKSPACE_TOOL_NAMES,
+} from "../../src/tools/workspace.ts";
 
 let tmp: string;
 const ORIGINAL_HOME = process.env["BUNNY_HOME"];
@@ -56,7 +59,10 @@ describe("workspace tools", () => {
     const big = "a".repeat(70_000);
     await write.handler({ path: "big.txt", content: big });
     const r = await read.handler({ path: "big.txt" });
-    const p = JSON.parse(r.output) as { truncated?: boolean; returnedBytes?: number };
+    const p = JSON.parse(r.output) as {
+      truncated?: boolean;
+      returnedBytes?: number;
+    };
     expect(p.truncated).toBe(true);
     expect(p.returnedBytes).toBe(64 * 1024);
   });
@@ -77,7 +83,11 @@ describe("workspace tools", () => {
   test("base64 encoding preserves binary bytes", async () => {
     const { write, read } = tools();
     const bytes = Buffer.from([0, 10, 255, 128]).toString("base64");
-    await write.handler({ path: "bin.dat", content: bytes, encoding: "base64" });
+    await write.handler({
+      path: "bin.dat",
+      content: bytes,
+      encoding: "base64",
+    });
     const r = await read.handler({ path: "bin.dat", encoding: "base64" });
     const p = JSON.parse(r.output) as { content: string };
     expect(p.content).toBe(bytes);

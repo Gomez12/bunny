@@ -113,7 +113,11 @@ export interface UsageDelta {
   totalTokens: number;
 }
 
-export type StreamDelta = ContentDelta | ReasoningDelta | ToolCallDelta | UsageDelta;
+export type StreamDelta =
+  | ContentDelta
+  | ReasoningDelta
+  | ToolCallDelta
+  | UsageDelta;
 
 /** Final accumulated result after the stream closes. */
 export interface LlmResponse {

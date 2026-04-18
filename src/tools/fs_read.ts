@@ -15,7 +15,11 @@ const MAX_BYTES = 200_000; // ~200 KB — reasonable LLM context budget
 export function readFileHandler(args: Record<string, unknown>): ToolResult {
   const rawPath = args["path"];
   if (typeof rawPath !== "string" || !rawPath) {
-    return { ok: false, output: 'read_file requires a "path" string argument', error: "missing path" };
+    return {
+      ok: false,
+      output: 'read_file requires a "path" string argument',
+      error: "missing path",
+    };
   }
 
   let abs: string;
@@ -32,7 +36,9 @@ export function readFileHandler(args: Record<string, unknown>): ToolResult {
       const preview = buf.slice(0, MAX_BYTES).toString("utf8");
       return {
         ok: true,
-        output: preview + `\n\n[truncated: file is ${buf.length} bytes, showing first ${MAX_BYTES}]`,
+        output:
+          preview +
+          `\n\n[truncated: file is ${buf.length} bytes, showing first ${MAX_BYTES}]`,
       };
     }
     return { ok: true, output: buf.toString("utf8") };
@@ -45,7 +51,10 @@ export function readFileHandler(args: Record<string, unknown>): ToolResult {
 export const READ_FILE_SCHEMA = {
   type: "object" as const,
   properties: {
-    path: { type: "string", description: "Path to the file, relative to the working directory." },
+    path: {
+      type: "string",
+      description: "Path to the file, relative to the working directory.",
+    },
   },
   required: ["path"],
 };

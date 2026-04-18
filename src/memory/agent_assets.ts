@@ -7,7 +7,13 @@
  * is the source of truth for prompt content and tuning.
  */
 
-import { mkdirSync, writeFileSync, readFileSync, existsSync, statSync } from "node:fs";
+import {
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  existsSync,
+  statSync,
+} from "node:fs";
 import { join } from "node:path";
 import { paths } from "../paths.ts";
 import { validateAgentName } from "./agents.ts";
@@ -55,7 +61,10 @@ export function agentDir(name: string): string {
 }
 
 /** Create the on-disk agent directory (and a stub config.toml) if missing. */
-export function ensureAgentDir(name: string, initial?: AgentOverridesPatch): string {
+export function ensureAgentDir(
+  name: string,
+  initial?: AgentOverridesPatch,
+): string {
   const dir = agentDir(name);
   mkdirSync(dir, { recursive: true });
   const file = join(dir, CONFIG_FILE);
@@ -75,17 +84,30 @@ export function ensureAgentDir(name: string, initial?: AgentOverridesPatch): str
 }
 
 /** Overwrite the config.toml file for an agent. Creates the directory if needed. */
-export function writeAgentAssets(name: string, patch: AgentOverridesPatch): void {
+export function writeAgentAssets(
+  name: string,
+  patch: AgentOverridesPatch,
+): void {
   const dir = agentDir(name);
   mkdirSync(dir, { recursive: true });
   const current = loadAgentAssets(name);
   const sp = { ...current.systemPrompt, ...(patch.systemPrompt ?? {}) };
   const memory =
-    patch.memory === undefined ? current.memory : { ...current.memory, ...patch.memory };
+    patch.memory === undefined
+      ? current.memory
+      : { ...current.memory, ...patch.memory };
   const tools =
-    patch.tools === undefined ? current.tools : patch.tools === null ? undefined : [...patch.tools];
+    patch.tools === undefined
+      ? current.tools
+      : patch.tools === null
+        ? undefined
+        : [...patch.tools];
   const allowedSubagents = patch.allowedSubagents ?? current.allowedSubagents;
-  writeFileSync(join(dir, CONFIG_FILE), renderConfigToml(sp, memory, tools, allowedSubagents), "utf8");
+  writeFileSync(
+    join(dir, CONFIG_FILE),
+    renderConfigToml(sp, memory, tools, allowedSubagents),
+    "utf8",
+  );
 }
 
 /** mtime-keyed cache so runAgent doesn't re-read + re-parse on every turn. */
@@ -146,7 +168,10 @@ export function loadAgentAssets(name: string): AgentAssets {
 function parseStringList(raw: unknown): string[] | undefined {
   if (raw === undefined || raw === null) return undefined;
   if (!Array.isArray(raw)) return undefined;
-  return raw.filter((x): x is string => typeof x === "string").map((s) => s.trim()).filter(Boolean);
+  return raw
+    .filter((x): x is string => typeof x === "string")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 function renderConfigToml(
@@ -159,8 +184,10 @@ function renderConfigToml(
   const escapedPrompt = sp.prompt.replace(/"""/g, '\\"\\"\\"');
 
   const memoryLines: string[] = [];
-  if (typeof memory.lastN === "number") memoryLines.push(`last_n = ${Math.floor(memory.lastN)}`);
-  if (typeof memory.recallK === "number") memoryLines.push(`recall_k = ${Math.floor(memory.recallK)}`);
+  if (typeof memory.lastN === "number")
+    memoryLines.push(`last_n = ${Math.floor(memory.lastN)}`);
+  if (typeof memory.recallK === "number")
+    memoryLines.push(`recall_k = ${Math.floor(memory.recallK)}`);
   const memoryBlock = memoryLines.length
     ? `\n# Per-agent memory overrides — omit a line to inherit project / global value.\n${memoryLines.join("\n")}\n`
     : `\n# Optional per-agent memory overrides — inherit project/global by default.\n# last_n   = 10\n# recall_k = 8\n`;

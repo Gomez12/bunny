@@ -19,9 +19,18 @@ import type { BunnyConfig } from "../config.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
 import type { ToolRegistry } from "../tools/registry.ts";
 import { runAgent } from "../agent/loop.ts";
-import { createSseRenderer, finishSse, type SseSink } from "../agent/render_sse.ts";
+import {
+  createSseRenderer,
+  finishSse,
+  type SseSink,
+} from "../agent/render_sse.ts";
 import { errorMessage } from "../util/error.ts";
-import { clearAutoRun, getCard, moveCard, updateCard } from "../memory/board_cards.ts";
+import {
+  clearAutoRun,
+  getCard,
+  moveCard,
+  updateCard,
+} from "../memory/board_cards.ts";
 import { getSwimlane } from "../memory/board_swimlanes.ts";
 import { isAgentLinkedToProject } from "../memory/agents.ts";
 import {
@@ -132,9 +141,12 @@ export async function runCard(opts: RunCardOpts): Promise<RunCardResult> {
   if (!card) throw new Error(`card ${opts.cardId} not found`);
 
   const agentName = opts.agent ?? card.assigneeAgent;
-  if (!agentName) throw new Error("card has no agent assigned and no agent override given");
+  if (!agentName)
+    throw new Error("card has no agent assigned and no agent override given");
   if (!isAgentLinkedToProject(opts.db, card.project, agentName)) {
-    throw new Error(`agent '${agentName}' is not available in project '${card.project}'`);
+    throw new Error(
+      `agent '${agentName}' is not available in project '${card.project}'`,
+    );
   }
 
   // Prevent scheduler re-queue while a run is pending.
@@ -166,7 +178,8 @@ export async function runCard(opts: RunCardOpts): Promise<RunCardResult> {
   });
 
   const renderer = createSseRenderer(sink, { author: agentName });
-  const prompt = card.title + (card.description ? `\n\n${card.description}` : "");
+  const prompt =
+    card.title + (card.description ? `\n\n${card.description}` : "");
 
   // Detached: caller gets `RunCardResult` immediately; the agent runs in the
   // background and streams into the fanout.
@@ -217,7 +230,11 @@ export async function runCard(opts: RunCardOpts): Promise<RunCardResult> {
 }
 
 /** Test/diagnostic helper: wait until a run leaves the running state. */
-export async function awaitRunCompletion(db: Database, runId: number, timeoutMs = 10_000): Promise<CardRun> {
+export async function awaitRunCompletion(
+  db: Database,
+  runId: number,
+  timeoutMs = 10_000,
+): Promise<CardRun> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     const run = getRun(db, runId);

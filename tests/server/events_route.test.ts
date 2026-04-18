@@ -14,15 +14,30 @@ let db: Database;
 let ctx: RouteCtx;
 
 const cfg: BunnyConfig = {
-  llm: { baseUrl: "", apiKey: "", model: "x", modelReasoning: undefined, profile: undefined },
+  llm: {
+    baseUrl: "",
+    apiKey: "",
+    model: "x",
+    modelReasoning: undefined,
+    profile: undefined,
+  },
   embed: { baseUrl: "", apiKey: "", model: "x", dim: 1536 },
   memory: { indexReasoning: false, recallK: 8, lastN: 10 },
   render: { reasoning: "collapsed", color: undefined },
   queue: { topics: [] },
-  auth: { defaultAdminUsername: "admin", defaultAdminPassword: "pw-initial", sessionTtlHours: 1 },
+  auth: {
+    defaultAdminUsername: "admin",
+    defaultAdminPassword: "pw-initial",
+    sessionTtlHours: 1,
+  },
   agent: { systemPrompt: "You are Bunny.", defaultProject: "general" },
   ui: { autosaveIntervalMs: 5000 },
-  web: { serpApiKey: "", serpProvider: "serper", serpBaseUrl: "", userAgent: "" },
+  web: {
+    serpApiKey: "",
+    serpProvider: "serper",
+    serpBaseUrl: "",
+    userAgent: "",
+  },
   sessionId: undefined,
 };
 
@@ -33,7 +48,10 @@ beforeEach(async () => {
   ctx = {
     db,
     cfg,
-    queue: { log: () => {}, close: async () => {} } as unknown as RouteCtx["queue"],
+    queue: {
+      log: () => {},
+      close: async () => {},
+    } as unknown as RouteCtx["queue"],
     scheduler: {
       stop: () => {},
       tick: async () => {},
@@ -125,7 +143,9 @@ describe("events routes", () => {
 
   test("admin filter topic + date range", async () => {
     const cookie = await login("admin", "pw-initial");
-    const r = await req("GET", "/api/events?topic=llm&from=500&to=1500", { cookie });
+    const r = await req("GET", "/api/events?topic=llm&from=500&to=1500", {
+      cookie,
+    });
     expect(r.body.total).toBe(1);
     expect((r.body.items as Array<{ topic: string }>)[0]!.topic).toBe("llm");
   });

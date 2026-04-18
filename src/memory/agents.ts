@@ -115,20 +115,39 @@ export interface UpdateAgentPatch {
   contextScope?: AgentContextScope;
 }
 
-export function updateAgent(db: Database, name: string, patch: UpdateAgentPatch): Agent {
+export function updateAgent(
+  db: Database,
+  name: string,
+  patch: UpdateAgentPatch,
+): Agent {
   const existing = getAgent(db, name);
   if (!existing) throw new Error(`agent '${name}' not found`);
-  const description = patch.description === undefined ? existing.description : (patch.description ?? "");
+  const description =
+    patch.description === undefined
+      ? existing.description
+      : (patch.description ?? "");
   const visibility = patch.visibility ?? existing.visibility;
-  const isSubagent = patch.isSubagent === undefined ? existing.isSubagent : patch.isSubagent;
-  const knowsOther = patch.knowsOtherAgents === undefined ? existing.knowsOtherAgents : patch.knowsOtherAgents;
+  const isSubagent =
+    patch.isSubagent === undefined ? existing.isSubagent : patch.isSubagent;
+  const knowsOther =
+    patch.knowsOtherAgents === undefined
+      ? existing.knowsOtherAgents
+      : patch.knowsOtherAgents;
   const contextScope = patch.contextScope ?? existing.contextScope;
   db.prepare(
     `UPDATE agents
      SET description = ?, visibility = ?, is_subagent = ?, knows_other_agents = ?,
          context_scope = ?, updated_at = ?
      WHERE name = ?`,
-  ).run(description, visibility, isSubagent ? 1 : 0, knowsOther ? 1 : 0, contextScope, Date.now(), name);
+  ).run(
+    description,
+    visibility,
+    isSubagent ? 1 : 0,
+    knowsOther ? 1 : 0,
+    contextScope,
+    Date.now(),
+    name,
+  );
   return getAgent(db, name)!;
 }
 
@@ -140,20 +159,33 @@ export function deleteAgent(db: Database, name: string): void {
 
 // ── Project ↔ Agent links ──────────────────────────────────────────────────
 
-export function linkAgentToProject(db: Database, project: string, agent: string): void {
+export function linkAgentToProject(
+  db: Database,
+  project: string,
+  agent: string,
+): void {
   db.prepare(
     `INSERT OR IGNORE INTO project_agents(project, agent) VALUES (?, ?)`,
   ).run(project, agent);
 }
 
-export function unlinkAgentFromProject(db: Database, project: string, agent: string): void {
-  db.prepare(`DELETE FROM project_agents WHERE project = ? AND agent = ?`).run(project, agent);
+export function unlinkAgentFromProject(
+  db: Database,
+  project: string,
+  agent: string,
+): void {
+  db.prepare(`DELETE FROM project_agents WHERE project = ? AND agent = ?`).run(
+    project,
+    agent,
+  );
 }
 
 export function listAgentsForProject(db: Database, project: string): Agent[] {
   const rows = db
     .prepare(
-      `SELECT ${SELECT_COLUMNS.split(",").map((c) => "a." + c.trim()).join(", ")}
+      `SELECT ${SELECT_COLUMNS.split(",")
+        .map((c) => "a." + c.trim())
+        .join(", ")}
        FROM project_agents pa
        JOIN agents a ON a.name = pa.agent
        WHERE pa.project = ?
@@ -166,7 +198,9 @@ export function listAgentsForProject(db: Database, project: string): Agent[] {
 /** Projects this agent is linked to. */
 export function listProjectsForAgent(db: Database, agent: string): string[] {
   const rows = db
-    .prepare(`SELECT project FROM project_agents WHERE agent = ? ORDER BY project ASC`)
+    .prepare(
+      `SELECT project FROM project_agents WHERE agent = ? ORDER BY project ASC`,
+    )
     .all(agent) as Array<{ project: string }>;
   return rows.map((r) => r.project);
 }
@@ -179,7 +213,9 @@ export function listProjectsForAgent(db: Database, agent: string): string[] {
  */
 export function mapProjectsByAgent(db: Database): Map<string, string[]> {
   const rows = db
-    .prepare(`SELECT agent, project FROM project_agents ORDER BY agent ASC, project ASC`)
+    .prepare(
+      `SELECT agent, project FROM project_agents ORDER BY agent ASC, project ASC`,
+    )
     .all() as Array<{ agent: string; project: string }>;
   const out = new Map<string, string[]>();
   for (const { agent, project } of rows) {
@@ -190,9 +226,15 @@ export function mapProjectsByAgent(db: Database): Map<string, string[]> {
   return out;
 }
 
-export function isAgentLinkedToProject(db: Database, project: string, agent: string): boolean {
+export function isAgentLinkedToProject(
+  db: Database,
+  project: string,
+  agent: string,
+): boolean {
   const row = db
-    .prepare(`SELECT 1 AS ok FROM project_agents WHERE project = ? AND agent = ? LIMIT 1`)
+    .prepare(
+      `SELECT 1 AS ok FROM project_agents WHERE project = ? AND agent = ? LIMIT 1`,
+    )
     .get(project, agent) as { ok: number } | undefined;
   return !!row;
 }

@@ -9,7 +9,10 @@ import { chat, chatSync, LlmError } from "../../src/llm/adapter.ts";
 
 /** Encode a sequence of SSE data lines, then [DONE]. */
 function buildSseBody(chunks: unknown[]): string {
-  return chunks.map((c) => `data: ${JSON.stringify(c)}\n\n`).join("") + "data: [DONE]\n\n";
+  return (
+    chunks.map((c) => `data: ${JSON.stringify(c)}\n\n`).join("") +
+    "data: [DONE]\n\n"
+  );
 }
 
 function makeChunk(opts: {
@@ -20,7 +23,11 @@ function makeChunk(opts: {
   toolCallId?: string;
   toolCallName?: string;
   toolCallArgs?: string;
-  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
 }) {
   const delta: Record<string, unknown> = {};
   if (opts.content) delta["content"] = opts.content;
@@ -30,7 +37,15 @@ function makeChunk(opts: {
       {
         index: opts.toolCallIndex,
         ...(opts.toolCallId ? { id: opts.toolCallId } : {}),
-        ...(opts.toolCallName ? { type: "function", function: { name: opts.toolCallName, arguments: opts.toolCallArgs ?? "" } } : { function: { arguments: opts.toolCallArgs ?? "" } }),
+        ...(opts.toolCallName
+          ? {
+              type: "function",
+              function: {
+                name: opts.toolCallName,
+                arguments: opts.toolCallArgs ?? "",
+              },
+            }
+          : { function: { arguments: opts.toolCallArgs ?? "" } }),
       },
     ];
   }
@@ -48,7 +63,8 @@ let server: Server;
 let baseUrl: string;
 
 type MockHandler = (req: Request) => Response;
-let currentHandler: MockHandler = () => new Response("not configured", { status: 500 });
+let currentHandler: MockHandler = () =>
+  new Response("not configured", { status: 500 });
 
 beforeAll(() => {
   server = Bun.serve({
@@ -95,7 +111,9 @@ describe("chatSync — content only", () => {
       makeChunk({ content: "Hello " }),
       makeChunk({ content: "world!" }),
     ]);
-    const res = await chatSync(cfg(), { messages: [{ role: "user", content: "hi" }] });
+    const res = await chatSync(cfg(), {
+      messages: [{ role: "user", content: "hi" }],
+    });
     expect(res.message.content).toBe("Hello world!");
     expect(res.message.role).toBe("assistant");
     expect(res.message.tool_calls).toBeUndefined();
@@ -109,7 +127,9 @@ describe("chatSync — reasoning", () => {
       makeChunk({ reasoning: " Done." }),
       makeChunk({ content: "42" }),
     ]);
-    const res = await chatSync(cfg(), { messages: [{ role: "user", content: "what is 6*7?" }] });
+    const res = await chatSync(cfg(), {
+      messages: [{ role: "user", content: "what is 6*7?" }],
+    });
     expect(res.message.reasoning).toBe("Let me think... Done.");
     expect(res.message.content).toBe("42");
   });
@@ -119,7 +139,9 @@ describe("chatSync — reasoning", () => {
       makeChunk({ reasoning: "Reasoning here" }),
       makeChunk({ content: "Answer" }),
     ]);
-    const res = await chatSync(cfg({ profile: "deepseek" }), { messages: [{ role: "user", content: "?" }] });
+    const res = await chatSync(cfg({ profile: "deepseek" }), {
+      messages: [{ role: "user", content: "?" }],
+    });
     expect(res.message.reasoning).toBe("Reasoning here");
     expect(res.message.content).toBe("Answer");
   });
@@ -129,7 +151,9 @@ describe("chatSync — reasoning", () => {
       makeChunk({ reasoning: "internal" }),
       makeChunk({ content: "Reply" }),
     ]);
-    const res = await chatSync(cfg({ profile: "ollama" }), { messages: [{ role: "user", content: "?" }] });
+    const res = await chatSync(cfg({ profile: "ollama" }), {
+      messages: [{ role: "user", content: "?" }],
+    });
     expect(res.message.reasoning).toBeUndefined();
     expect(res.message.content).toBe("Reply");
   });
@@ -137,7 +161,9 @@ describe("chatSync — reasoning", () => {
   test("anthropic-compat profile extracts thinking field", async () => {
     // For anthropic-compat the delta field is `thinking`, not `reasoning_content`
     const anthropicChunk = {
-      choices: [{ index: 0, delta: { thinking: "deep thought" }, finish_reason: null }],
+      choices: [
+        { index: 0, delta: { thinking: "deep thought" }, finish_reason: null },
+      ],
     };
     const contentChunk = makeChunk({ content: "Result" });
     currentHandler = sseHandler([anthropicChunk, contentChunk]);
@@ -151,10 +177,17 @@ describe("chatSync — reasoning", () => {
 describe("chatSync — tool calls", () => {
   test("accumulates tool_call deltas into tool_calls array", async () => {
     currentHandler = sseHandler([
-      makeChunk({ toolCallIndex: 0, toolCallId: "call_1", toolCallName: "read_file", toolCallArgs: '{"path":' }),
+      makeChunk({
+        toolCallIndex: 0,
+        toolCallId: "call_1",
+        toolCallName: "read_file",
+        toolCallArgs: '{"path":',
+      }),
       makeChunk({ toolCallIndex: 0, toolCallArgs: '"src/index.ts"}' }),
     ]);
-    const res = await chatSync(cfg(), { messages: [{ role: "user", content: "read index" }] });
+    const res = await chatSync(cfg(), {
+      messages: [{ role: "user", content: "read index" }],
+    });
     expect(res.message.tool_calls).toHaveLength(1);
     const tc = res.message.tool_calls![0]!;
     expect(tc.function.name).toBe("read_file");
@@ -165,9 +198,14 @@ describe("chatSync — tool calls", () => {
 describe("chatSync — usage", () => {
   test("captures token usage when provided", async () => {
     currentHandler = sseHandler([
-      makeChunk({ content: "hi", usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 } }),
+      makeChunk({
+        content: "hi",
+        usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+      }),
     ]);
-    const res = await chatSync(cfg(), { messages: [{ role: "user", content: "hello" }] });
+    const res = await chatSync(cfg(), {
+      messages: [{ role: "user", content: "hello" }],
+    });
     expect(res.usage?.totalTokens).toBe(15);
   });
 });
@@ -178,7 +216,9 @@ describe("chat — streaming deltas", () => {
       makeChunk({ reasoning: "think" }),
       makeChunk({ content: "answer" }),
     ]);
-    const { deltas } = await chat(cfg(), { messages: [{ role: "user", content: "?" }] });
+    const { deltas } = await chat(cfg(), {
+      messages: [{ role: "user", content: "?" }],
+    });
     const collected: string[] = [];
     for await (const d of deltas) {
       collected.push(d.channel);
@@ -190,18 +230,23 @@ describe("chat — streaming deltas", () => {
 describe("error handling", () => {
   test("throws LlmError on non-200 response", async () => {
     currentHandler = () => new Response("Unauthorized", { status: 401 });
-    await expect(chatSync(cfg(), { messages: [{ role: "user", content: "?" }] })).rejects.toBeInstanceOf(LlmError);
+    await expect(
+      chatSync(cfg(), { messages: [{ role: "user", content: "?" }] }),
+    ).rejects.toBeInstanceOf(LlmError);
   });
 });
 
 describe("profile detection", () => {
   test("detect openai from api.openai.com URL", async () => {
     // We only test profile auto-detection from URL; no actual request needed.
-    const { getProfile, detectProfile } = await import("../../src/llm/profiles.ts");
+    const { getProfile, detectProfile } =
+      await import("../../src/llm/profiles.ts");
     expect(detectProfile("https://api.openai.com/v1")).toBe("openai");
     expect(detectProfile("https://openrouter.ai/api/v1")).toBe("openrouter");
     expect(detectProfile("https://api.deepseek.com/v1")).toBe("deepseek");
     expect(detectProfile("http://localhost:11434/v1")).toBe("ollama");
-    expect(getProfile(undefined, "https://api.openai.com/v1").id).toBe("openai");
+    expect(getProfile(undefined, "https://api.openai.com/v1").id).toBe(
+      "openai",
+    );
   });
 });

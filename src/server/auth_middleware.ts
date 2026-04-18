@@ -34,7 +34,10 @@ export function getSessionToken(req: Request): string | null {
   return cookies[SESSION_COOKIE] ?? null;
 }
 
-export async function authenticate(db: Database, req: Request): Promise<User | null> {
+export async function authenticate(
+  db: Database,
+  req: Request,
+): Promise<User | null> {
   const auth = req.headers.get("authorization");
   if (auth && auth.toLowerCase().startsWith("bearer ")) {
     const raw = auth.slice(7).trim();
@@ -49,7 +52,10 @@ export async function authenticate(db: Database, req: Request): Promise<User | n
   return null;
 }
 
-export function setSessionCookieHeader(token: string, ttlSeconds: number): string {
+export function setSessionCookieHeader(
+  token: string,
+  ttlSeconds: number,
+): string {
   return `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${ttlSeconds}`;
 }
 

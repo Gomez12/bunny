@@ -32,7 +32,11 @@ describe("seedDefaultSwimlanes", () => {
     createProject(db, { name: "alpha" });
     const lanes = listSwimlanes(db, "alpha");
     expect(lanes.map((l) => l.name)).toEqual([...DEFAULT_SWIMLANES]);
-    expect(lanes.map((l) => l.position)).toEqual([POSITION_STEP, POSITION_STEP * 2, POSITION_STEP * 3]);
+    expect(lanes.map((l) => l.position)).toEqual([
+      POSITION_STEP,
+      POSITION_STEP * 2,
+      POSITION_STEP * 3,
+    ]);
     db.close();
   });
 
@@ -57,7 +61,9 @@ describe("swimlane CRUD", () => {
   test("UNIQUE(project, name) enforced", async () => {
     const db = await newDb();
     createProject(db, { name: "alpha" });
-    expect(() => createSwimlane(db, { project: "alpha", name: "Todo" })).toThrow();
+    expect(() =>
+      createSwimlane(db, { project: "alpha", name: "Todo" }),
+    ).toThrow();
     db.close();
   });
 
@@ -65,7 +71,10 @@ describe("swimlane CRUD", () => {
     const db = await newDb();
     createProject(db, { name: "alpha" });
     const lane = listSwimlanes(db, "alpha")[0]!;
-    const updated = updateSwimlane(db, lane.id, { name: "Backlog", wipLimit: 5 });
+    const updated = updateSwimlane(db, lane.id, {
+      name: "Backlog",
+      wipLimit: 5,
+    });
     expect(updated.name).toBe("Backlog");
     expect(updated.wipLimit).toBe(5);
     db.close();
@@ -90,7 +99,9 @@ describe("swimlane CRUD", () => {
     createProject(db, { name: "alpha" });
     const lane = createSwimlane(db, { project: "alpha", name: "Empty" });
     deleteSwimlane(db, lane.id);
-    expect(listSwimlanes(db, "alpha").map((l) => l.name)).not.toContain("Empty");
+    expect(listSwimlanes(db, "alpha").map((l) => l.name)).not.toContain(
+      "Empty",
+    );
     db.close();
   });
 
@@ -132,7 +143,9 @@ describe("swimlane CRUD", () => {
     createProject(db, { name: "alpha" });
     const lanes = listSwimlanes(db, "alpha");
     updateSwimlane(db, lanes[0]!.id, { defaultAssigneeAgent: "bot" });
-    const updated = updateSwimlane(db, lanes[0]!.id, { defaultAssigneeAgent: null });
+    const updated = updateSwimlane(db, lanes[0]!.id, {
+      defaultAssigneeAgent: null,
+    });
     expect(updated.defaultAssigneeAgent).toBeNull();
     db.close();
   });
@@ -140,7 +153,11 @@ describe("swimlane CRUD", () => {
   test("create and update swimlane color", async () => {
     const db = await newDb();
     createProject(db, { name: "alpha" });
-    const lane = createSwimlane(db, { project: "alpha", name: "Colored", color: "#6366f1" });
+    const lane = createSwimlane(db, {
+      project: "alpha",
+      name: "Colored",
+      color: "#6366f1",
+    });
     expect(lane.color).toBe("#6366f1");
     const updated = updateSwimlane(db, lane.id, { color: "#ef4444" });
     expect(updated.color).toBe("#ef4444");
@@ -152,8 +169,16 @@ describe("swimlane CRUD", () => {
   test("create and update swimlane group", async () => {
     const db = await newDb();
     createProject(db, { name: "alpha" });
-    const lane1 = createSwimlane(db, { project: "alpha", name: "Plan", group: "agent-workflow" });
-    const lane2 = createSwimlane(db, { project: "alpha", name: "Review", group: "agent-workflow" });
+    const lane1 = createSwimlane(db, {
+      project: "alpha",
+      name: "Plan",
+      group: "agent-workflow",
+    });
+    const lane2 = createSwimlane(db, {
+      project: "alpha",
+      name: "Review",
+      group: "agent-workflow",
+    });
     expect(lane1.group).toBe("agent-workflow");
     expect(lane2.group).toBe("agent-workflow");
     const updated = updateSwimlane(db, lane1.id, { group: "other" });

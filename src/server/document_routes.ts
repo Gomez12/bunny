@@ -20,7 +20,11 @@ import {
 import { setSessionHiddenFromChat } from "../memory/session_visibility.ts";
 import { insertMessage } from "../memory/messages.ts";
 import { runAgent } from "../agent/loop.ts";
-import { createSseRenderer, controllerSink, finishSse } from "../agent/render_sse.ts";
+import {
+  createSseRenderer,
+  controllerSink,
+  finishSse,
+} from "../agent/render_sse.ts";
 import { registry as toolsRegistry } from "../tools/index.ts";
 
 export interface DocumentRouteCtx {
@@ -64,14 +68,18 @@ export async function handleDocumentRoute(
     if (req.method === "POST") return handleAsk(req, ctx, user, id);
   }
 
-  const exportMatch = pathname.match(/^\/api\/documents\/(\d+)\/export\/(docx|html)$/);
+  const exportMatch = pathname.match(
+    /^\/api\/documents\/(\d+)\/export\/(docx|html)$/,
+  );
   if (exportMatch) {
     const id = Number(exportMatch[1]);
     const format = exportMatch[2] as "docx" | "html";
     if (req.method === "POST") return handleExport(ctx, user, id, format);
   }
 
-  const templateMatch = pathname.match(/^\/api\/documents\/(\d+)\/save-as-template$/);
+  const templateMatch = pathname.match(
+    /^\/api\/documents\/(\d+)\/save-as-template$/,
+  );
   if (templateMatch) {
     const id = Number(templateMatch[1]);
     if (req.method === "POST") return handleSaveAsTemplate(ctx, user, id);
@@ -88,7 +96,12 @@ export async function handleDocumentRoute(
 
 // ── Handlers ──────────────────────────────────────────────────────────────
 
-function handleList(ctx: DocumentRouteCtx, user: User, rawProject: string, url: URL): Response {
+function handleList(
+  ctx: DocumentRouteCtx,
+  user: User,
+  rawProject: string,
+  url: URL,
+): Response {
   let project: string;
   try {
     project = validateProjectName(rawProject);
@@ -99,7 +112,12 @@ function handleList(ctx: DocumentRouteCtx, user: User, rawProject: string, url: 
   if (!p) return json({ error: "project not found" }, 404);
   if (!canSeeProject(p, user)) return json({ error: "forbidden" }, 403);
   const templateParam = url.searchParams.get("template");
-  const isTemplate = templateParam === "true" ? true : templateParam === "false" ? false : undefined;
+  const isTemplate =
+    templateParam === "true"
+      ? true
+      : templateParam === "false"
+        ? false
+        : undefined;
   return json({ documents: listDocuments(ctx.db, project, { isTemplate }) });
 }
 
@@ -385,8 +403,10 @@ async function handleImageUpload(
 
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
-  if (!file || !(file instanceof File)) return json({ error: "missing file" }, 400);
-  if (file.size > MAX_IMAGE_BYTES) return json({ error: "file too large (10MB max)" }, 413);
+  if (!file || !(file instanceof File))
+    return json({ error: "missing file" }, 400);
+  if (file.size > MAX_IMAGE_BYTES)
+    return json({ error: "file too large (10MB max)" }, 413);
 
   const ext = file.name.split(".").pop()?.toLowerCase() || "png";
   const safeName = `${randomUUID()}.${ext}`;
@@ -432,8 +452,18 @@ async function handleExport(
   return exportHtmlZip(doc);
 }
 
-async function exportDocx(doc: { name: string; contentMd: string }): Promise<Response> {
-  const { Document: DocxDocument, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = await import("docx");
+async function exportDocx(doc: {
+  name: string;
+  contentMd: string;
+}): Promise<Response> {
+  const {
+    Document: DocxDocument,
+    Packer,
+    Paragraph,
+    TextRun,
+    HeadingLevel,
+    AlignmentType,
+  } = await import("docx");
 
   const lines = doc.contentMd.split("\n");
   const children: InstanceType<typeof Paragraph>[] = [];
@@ -441,17 +471,32 @@ async function exportDocx(doc: { name: string; contentMd: string }): Promise<Res
   for (const line of lines) {
     const h1 = line.match(/^# (.+)/);
     if (h1) {
-      children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun(h1[1]!)] }));
+      children.push(
+        new Paragraph({
+          heading: HeadingLevel.HEADING_1,
+          children: [new TextRun(h1[1]!)],
+        }),
+      );
       continue;
     }
     const h2 = line.match(/^## (.+)/);
     if (h2) {
-      children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun(h2[1]!)] }));
+      children.push(
+        new Paragraph({
+          heading: HeadingLevel.HEADING_2,
+          children: [new TextRun(h2[1]!)],
+        }),
+      );
       continue;
     }
     const h3 = line.match(/^### (.+)/);
     if (h3) {
-      children.push(new Paragraph({ heading: HeadingLevel.HEADING_3, children: [new TextRun(h3[1]!)] }));
+      children.push(
+        new Paragraph({
+          heading: HeadingLevel.HEADING_3,
+          children: [new TextRun(h3[1]!)],
+        }),
+      );
       continue;
     }
     if (line.trim() === "") {
@@ -474,7 +519,9 @@ async function exportDocx(doc: { name: string; contentMd: string }): Promise<Res
       } else if (match[4] || match[5]) {
         runs.push(new TextRun({ text: match[4] || match[5]!, italics: true }));
       } else if (match[6]) {
-        runs.push(new TextRun({ text: match[6], font: "Courier New", size: 20 }));
+        runs.push(
+          new TextRun({ text: match[6], font: "Courier New", size: 20 }),
+        );
       }
       lastIndex = match.index + match[0].length;
     }
@@ -495,13 +542,17 @@ async function exportDocx(doc: { name: string; contentMd: string }): Promise<Res
 
   return new Response(buffer, {
     headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "Content-Type":
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "Content-Disposition": `attachment; filename="${safeName}.docx"`,
     },
   });
 }
 
-async function exportHtmlZip(doc: { name: string; contentMd: string }): Promise<Response> {
+async function exportHtmlZip(doc: {
+  name: string;
+  contentMd: string;
+}): Promise<Response> {
   const JSZip = (await import("jszip")).default;
 
   const htmlBody = markdownToSimpleHtml(doc.contentMd);
@@ -547,7 +598,11 @@ ${htmlBody}
 }
 
 function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function markdownToSimpleHtml(md: string): string {
@@ -559,7 +614,9 @@ function markdownToSimpleHtml(md: string): string {
   for (const line of lines) {
     if (line.startsWith("```")) {
       if (inCodeBlock) {
-        result.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+        result.push(
+          `<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`,
+        );
         codeLines = [];
         inCodeBlock = false;
       } else {
@@ -572,12 +629,32 @@ function markdownToSimpleHtml(md: string): string {
       continue;
     }
 
-    if (line.match(/^### /)) { result.push(`<h3>${inlineFormat(line.slice(4))}</h3>`); continue; }
-    if (line.match(/^## /)) { result.push(`<h2>${inlineFormat(line.slice(3))}</h2>`); continue; }
-    if (line.match(/^# /)) { result.push(`<h1>${inlineFormat(line.slice(2))}</h1>`); continue; }
-    if (line.match(/^---$/)) { result.push("<hr>"); continue; }
-    if (line.match(/^> /)) { result.push(`<blockquote><p>${inlineFormat(line.slice(2))}</p></blockquote>`); continue; }
-    if (line.trim() === "") { result.push(""); continue; }
+    if (line.match(/^### /)) {
+      result.push(`<h3>${inlineFormat(line.slice(4))}</h3>`);
+      continue;
+    }
+    if (line.match(/^## /)) {
+      result.push(`<h2>${inlineFormat(line.slice(3))}</h2>`);
+      continue;
+    }
+    if (line.match(/^# /)) {
+      result.push(`<h1>${inlineFormat(line.slice(2))}</h1>`);
+      continue;
+    }
+    if (line.match(/^---$/)) {
+      result.push("<hr>");
+      continue;
+    }
+    if (line.match(/^> /)) {
+      result.push(
+        `<blockquote><p>${inlineFormat(line.slice(2))}</p></blockquote>`,
+      );
+      continue;
+    }
+    if (line.trim() === "") {
+      result.push("");
+      continue;
+    }
 
     result.push(`<p>${inlineFormat(line)}</p>`);
   }

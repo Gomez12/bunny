@@ -26,7 +26,12 @@ describe("createBunnyQueue", () => {
     const db = await setup();
     const q = createBunnyQueue(db);
 
-    await q.log({ topic: "llm", kind: "request", sessionId: "s1", data: { prompt: "hello" } });
+    await q.log({
+      topic: "llm",
+      kind: "request",
+      sessionId: "s1",
+      data: { prompt: "hello" },
+    });
 
     // Give the queue worker a moment to process.
     await q.close();
@@ -36,7 +41,9 @@ describe("createBunnyQueue", () => {
     expect(events[0]?.topic).toBe("llm");
     expect(events[0]?.kind).toBe("request");
     expect(events[0]?.sessionId).toBe("s1");
-    expect(JSON.parse(events[0]?.payloadJson ?? "{}")).toEqual({ prompt: "hello" });
+    expect(JSON.parse(events[0]?.payloadJson ?? "{}")).toEqual({
+      prompt: "hello",
+    });
   });
 
   test("multiple log() calls all reach the events table", async () => {
@@ -74,7 +81,12 @@ describe("createBunnyQueue", () => {
     const db = await setup();
     const q = createBunnyQueue(db);
 
-    await q.log({ topic: "auth", kind: "login", userId: "u42", data: { username: "alice" } });
+    await q.log({
+      topic: "auth",
+      kind: "login",
+      userId: "u42",
+      data: { username: "alice" },
+    });
 
     await q.close();
 

@@ -3,7 +3,11 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openDb } from "../../src/memory/db.ts";
-import { ensureSeedUsers, getSystemUserId, SYSTEM_USERNAME } from "../../src/auth/seed.ts";
+import {
+  ensureSeedUsers,
+  getSystemUserId,
+  SYSTEM_USERNAME,
+} from "../../src/auth/seed.ts";
 import { countUsers, getUserByUsername } from "../../src/auth/users.ts";
 
 let tmp: string;

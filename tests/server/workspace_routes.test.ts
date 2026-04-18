@@ -17,15 +17,30 @@ let adminCookie: string;
 const ORIGINAL_HOME = process.env["BUNNY_HOME"];
 
 const cfg: BunnyConfig = {
-  llm: { baseUrl: "", apiKey: "", model: "x", modelReasoning: undefined, profile: undefined },
+  llm: {
+    baseUrl: "",
+    apiKey: "",
+    model: "x",
+    modelReasoning: undefined,
+    profile: undefined,
+  },
   embed: { baseUrl: "", apiKey: "", model: "x", dim: 1536 },
   memory: { indexReasoning: false, recallK: 8, lastN: 10 },
   render: { reasoning: "collapsed", color: undefined },
   queue: { topics: [] },
-  auth: { defaultAdminUsername: "admin", defaultAdminPassword: "pw-initial", sessionTtlHours: 1 },
+  auth: {
+    defaultAdminUsername: "admin",
+    defaultAdminPassword: "pw-initial",
+    sessionTtlHours: 1,
+  },
   agent: { systemPrompt: "You are Bunny.", defaultProject: "general" },
   ui: { autosaveIntervalMs: 5000 },
-  web: { serpApiKey: "", serpProvider: "serper", serpBaseUrl: "", userAgent: "" },
+  web: {
+    serpApiKey: "",
+    serpProvider: "serper",
+    serpBaseUrl: "",
+    userAgent: "",
+  },
   sessionId: undefined,
 };
 
@@ -37,8 +52,15 @@ beforeEach(async () => {
   ctx = {
     db,
     cfg,
-    queue: { log: () => {}, close: async () => {} } as unknown as RouteCtx["queue"],
-    scheduler: { stop: () => {}, tick: async () => {}, runTask: async () => {} },
+    queue: {
+      log: () => {},
+      close: async () => {},
+    } as unknown as RouteCtx["queue"],
+    scheduler: {
+      stop: () => {},
+      tick: async () => {},
+      runTask: async () => {},
+    },
     handlerRegistry: {
       register: () => {},
       get: () => undefined,
@@ -57,7 +79,16 @@ afterEach(() => {
   if (tmp) rmSync(tmp, { recursive: true, force: true });
 });
 
-async function req(method: string, path: string, opts: { body?: unknown; cookie?: string; bodyRaw?: string | Uint8Array; headers?: Record<string, string> } = {}) {
+async function req(
+  method: string,
+  path: string,
+  opts: {
+    body?: unknown;
+    cookie?: string;
+    bodyRaw?: string | Uint8Array;
+    headers?: Record<string, string>;
+  } = {},
+) {
   const headers: Record<string, string> = { ...(opts.headers ?? {}) };
   if (opts.body && !opts.bodyRaw) headers["Content-Type"] = "application/json";
   if (opts.cookie) headers["Cookie"] = opts.cookie;
@@ -68,12 +99,16 @@ async function req(method: string, path: string, opts: { body?: unknown; cookie?
   });
   const res = await handleApi(r, new URL(r.url), ctx);
   const ct = res.headers.get("content-type") ?? "";
-  const body = ct.includes("application/json") ? await res.json() : await res.text();
+  const body = ct.includes("application/json")
+    ? await res.json()
+    : await res.text();
   return { res, body };
 }
 
 async function login(username: string, password: string): Promise<string> {
-  const res = await req("POST", "/api/auth/login", { body: { username, password } });
+  const res = await req("POST", "/api/auth/login", {
+    body: { username, password },
+  });
   const setCookie = res.res.headers.get("set-cookie") ?? "";
   const m = setCookie.match(/bunny_session=([^;]+)/);
   if (!m) throw new Error("no cookie");
@@ -91,9 +126,15 @@ describe("workspace routes", () => {
   });
 
   test("list returns seeded input/output on fresh project", async () => {
-    const { res, body } = await req("GET", "/api/projects/alpha/workspace/list", { cookie: adminCookie });
+    const { res, body } = await req(
+      "GET",
+      "/api/projects/alpha/workspace/list",
+      { cookie: adminCookie },
+    );
     expect(res.status).toBe(200);
-    const names = (body as { entries: Array<{ name: string }> }).entries.map((e) => e.name);
+    const names = (body as { entries: Array<{ name: string }> }).entries.map(
+      (e) => e.name,
+    );
     expect(names).toContain("input");
     expect(names).toContain("output");
   });
@@ -104,7 +145,11 @@ describe("workspace routes", () => {
       body: { path: "output/hi.txt", content: "hello" },
     });
     expect(up.res.status).toBe(201);
-    const dl = await req("GET", "/api/projects/alpha/workspace/file?path=output/hi.txt", { cookie: adminCookie });
+    const dl = await req(
+      "GET",
+      "/api/projects/alpha/workspace/file?path=output/hi.txt",
+      { cookie: adminCookie },
+    );
     expect(dl.res.status).toBe(200);
     expect((dl.body as { content: string }).content).toBe("hello");
   });
@@ -114,9 +159,13 @@ describe("workspace routes", () => {
       cookie: adminCookie,
       body: { path: "readme.md", content: "# hi" },
     });
-    const r = await req("GET", "/api/projects/alpha/workspace/file?path=readme.md&encoding=raw", {
-      cookie: adminCookie,
-    });
+    const r = await req(
+      "GET",
+      "/api/projects/alpha/workspace/file?path=readme.md&encoding=raw",
+      {
+        cookie: adminCookie,
+      },
+    );
     expect(r.res.status).toBe(200);
     expect(r.body).toBe("# hi");
   });
@@ -148,36 +197,50 @@ describe("workspace routes", () => {
   });
 
   test("path traversal returns 400", async () => {
-    const r = await req("GET", "/api/projects/alpha/workspace/file?path=../../etc/passwd", {
-      cookie: adminCookie,
-    });
+    const r = await req(
+      "GET",
+      "/api/projects/alpha/workspace/file?path=../../etc/passwd",
+      {
+        cookie: adminCookie,
+      },
+    );
     expect(r.res.status).toBe(400);
   });
 
   test("delete of protected input/output is rejected", async () => {
-    const r = await req("DELETE", "/api/projects/alpha/workspace?path=input", { cookie: adminCookie });
+    const r = await req("DELETE", "/api/projects/alpha/workspace?path=input", {
+      cookie: adminCookie,
+    });
     expect(r.res.status).toBe(400);
   });
 
   test("403 for non-admin viewer on private project writes", async () => {
     // Switch alpha to private, owned by the admin user, so bob is a viewer.
     const adminRow = db
-      .prepare<{ id: string }, [string]>(`SELECT id FROM users WHERE username = ?`)
+      .prepare<
+        { id: string },
+        [string]
+      >(`SELECT id FROM users WHERE username = ?`)
       .get("admin") as { id: string } | null;
     expect(adminRow).not.toBeNull();
-    db.run(`UPDATE projects SET visibility='private', created_by=? WHERE name='alpha'`, [
-      adminRow!.id,
-    ]);
+    db.run(
+      `UPDATE projects SET visibility='private', created_by=? WHERE name='alpha'`,
+      [adminRow!.id],
+    );
     await createUser(db, { username: "bob", password: "pw-bob" });
     const bob = await login("bob", "pw-bob");
 
     // Viewer can't even see this private project → 403 on list.
-    const list = await req("GET", "/api/projects/alpha/workspace/list", { cookie: bob });
+    const list = await req("GET", "/api/projects/alpha/workspace/list", {
+      cookie: bob,
+    });
     expect(list.res.status).toBe(403);
 
     // Make it public; bob can now read but not write.
     db.run(`UPDATE projects SET visibility='public' WHERE name='alpha'`);
-    const list2 = await req("GET", "/api/projects/alpha/workspace/list", { cookie: bob });
+    const list2 = await req("GET", "/api/projects/alpha/workspace/list", {
+      cookie: bob,
+    });
     expect(list2.res.status).toBe(200);
 
     const up = await req("POST", "/api/projects/alpha/workspace/file", {

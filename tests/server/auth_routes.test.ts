@@ -14,15 +14,30 @@ let db: Database;
 let ctx: RouteCtx;
 
 const cfg: BunnyConfig = {
-  llm: { baseUrl: "", apiKey: "", model: "x", modelReasoning: undefined, profile: undefined },
+  llm: {
+    baseUrl: "",
+    apiKey: "",
+    model: "x",
+    modelReasoning: undefined,
+    profile: undefined,
+  },
   embed: { baseUrl: "", apiKey: "", model: "x", dim: 1536 },
   memory: { indexReasoning: false, recallK: 8, lastN: 10 },
   render: { reasoning: "collapsed", color: undefined },
   queue: { topics: [] },
-  auth: { defaultAdminUsername: "admin", defaultAdminPassword: "pw-initial", sessionTtlHours: 1 },
+  auth: {
+    defaultAdminUsername: "admin",
+    defaultAdminPassword: "pw-initial",
+    sessionTtlHours: 1,
+  },
   agent: { systemPrompt: "You are Bunny.", defaultProject: "general" },
   ui: { autosaveIntervalMs: 5000 },
-  web: { serpApiKey: "", serpProvider: "serper", serpBaseUrl: "", userAgent: "" },
+  web: {
+    serpApiKey: "",
+    serpProvider: "serper",
+    serpBaseUrl: "",
+    userAgent: "",
+  },
   sessionId: undefined,
 };
 
@@ -33,7 +48,10 @@ beforeEach(async () => {
   ctx = {
     db,
     cfg,
-    queue: { log: () => {}, close: async () => {} } as unknown as RouteCtx["queue"],
+    queue: {
+      log: () => {},
+      close: async () => {},
+    } as unknown as RouteCtx["queue"],
     scheduler: {
       stop: () => {},
       tick: async () => {},
@@ -54,7 +72,11 @@ afterEach(() => {
   if (tmp) rmSync(tmp, { recursive: true, force: true });
 });
 
-async function req(method: string, path: string, opts: { body?: unknown; cookie?: string; bearer?: string } = {}) {
+async function req(
+  method: string,
+  path: string,
+  opts: { body?: unknown; cookie?: string; bearer?: string } = {},
+) {
   const headers: Record<string, string> = {};
   if (opts.body) headers["Content-Type"] = "application/json";
   if (opts.cookie) headers["Cookie"] = opts.cookie;
@@ -66,7 +88,9 @@ async function req(method: string, path: string, opts: { body?: unknown; cookie?
   });
   const res = await handleApi(r, new URL(r.url), ctx);
   const ct = res.headers.get("content-type") ?? "";
-  const body = ct.includes("application/json") ? await res.json() : await res.text();
+  const body = ct.includes("application/json")
+    ? await res.json()
+    : await res.text();
   return { res, body };
 }
 
@@ -92,7 +116,9 @@ describe("auth routes", () => {
 
     const me = await req("GET", "/api/auth/me", { cookie });
     expect(me.res.status).toBe(200);
-    expect((me.body as { user: { username: string } }).user.username).toBe("admin");
+    expect((me.body as { user: { username: string } }).user.username).toBe(
+      "admin",
+    );
 
     const out = await req("POST", "/api/auth/logout", { cookie });
     expect(out.res.status).toBe(200);
@@ -119,7 +145,11 @@ describe("auth routes", () => {
   });
 
   test("admin can list + search users", async () => {
-    await createUser(db, { username: "bob", password: "pw-bob", email: "bob@x.com" });
+    await createUser(db, {
+      username: "bob",
+      password: "pw-bob",
+      email: "bob@x.com",
+    });
     const login = await req("POST", "/api/auth/login", {
       body: { username: "admin", password: "pw-initial" },
     });
@@ -127,7 +157,9 @@ describe("auth routes", () => {
 
     const all = await req("GET", "/api/users", { cookie });
     expect(all.res.status).toBe(200);
-    const list = (all.body as { users: { username: string }[] }).users.map((u) => u.username);
+    const list = (all.body as { users: { username: string }[] }).users.map(
+      (u) => u.username,
+    );
     expect(list).toContain("bob");
     expect(list).toContain("admin");
 
@@ -136,7 +168,11 @@ describe("auth routes", () => {
   });
 
   test("non-admin can read /api/users/directory (lightweight mention list)", async () => {
-    await createUser(db, { username: "bob", password: "pw-bob", displayName: "Bob B." });
+    await createUser(db, {
+      username: "bob",
+      password: "pw-bob",
+      displayName: "Bob B.",
+    });
     await createUser(db, { username: "carol", password: "pw-carol" });
     const login = await req("POST", "/api/auth/login", {
       body: { username: "bob", password: "pw-bob" },
@@ -145,8 +181,11 @@ describe("auth routes", () => {
 
     const all = await req("GET", "/api/users/directory", { cookie });
     expect(all.res.status).toBe(200);
-    const users = (all.body as { users: Array<{ username: string; displayName: string | null }> })
-      .users;
+    const users = (
+      all.body as {
+        users: Array<{ username: string; displayName: string | null }>;
+      }
+    ).users;
     const usernames = users.map((u) => u.username);
     expect(usernames).toContain("bob");
     expect(usernames).toContain("carol");
@@ -175,6 +214,8 @@ describe("auth routes", () => {
     // Bearer token works without cookie
     const me = await req("GET", "/api/auth/me", { bearer: key });
     expect(me.res.status).toBe(200);
-    expect((me.body as { user: { username: string } }).user.username).toBe("carol");
+    expect((me.body as { user: { username: string } }).user.username).toBe(
+      "carol",
+    );
   });
 });

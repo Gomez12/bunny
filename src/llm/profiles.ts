@@ -92,12 +92,21 @@ export function detectProfile(baseUrl: string): LlmProfile {
   if (lower.includes("api.openai.com")) return "openai";
   if (lower.includes("openrouter.ai")) return "openrouter";
   if (lower.includes("deepseek.com")) return "deepseek";
-  if (lower.includes("localhost") || lower.includes("127.0.0.1") || lower.includes("ollama")) return "ollama";
-  if (lower.includes("anthropic") || lower.includes("litellm")) return "anthropic-compat";
+  if (
+    lower.includes("localhost") ||
+    lower.includes("127.0.0.1") ||
+    lower.includes("ollama")
+  )
+    return "ollama";
+  if (lower.includes("anthropic") || lower.includes("litellm"))
+    return "anthropic-compat";
   return "openai"; // safest fallback: no-op reasoning extraction
 }
 
-export function getProfile(id: LlmProfile | undefined, baseUrl: string): Profile {
+export function getProfile(
+  id: LlmProfile | undefined,
+  baseUrl: string,
+): Profile {
   const resolved = id ?? detectProfile(baseUrl);
   return PROFILES[resolved];
 }

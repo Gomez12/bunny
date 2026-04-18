@@ -48,7 +48,9 @@ function rowToProject(r: ProjectRow): Project {
   return {
     name: r.name,
     description: r.description,
-    visibility: (r.visibility === "private" ? "private" : "public") as ProjectVisibility,
+    visibility: (r.visibility === "private"
+      ? "private"
+      : "public") as ProjectVisibility,
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -57,14 +59,18 @@ function rowToProject(r: ProjectRow): Project {
 
 export function listProjects(db: Database): Project[] {
   const rows = db
-    .prepare(`SELECT name, description, visibility, created_by, created_at, updated_at FROM projects ORDER BY name ASC`)
+    .prepare(
+      `SELECT name, description, visibility, created_by, created_at, updated_at FROM projects ORDER BY name ASC`,
+    )
     .all() as ProjectRow[];
   return rows.map(rowToProject);
 }
 
 export function getProject(db: Database, name: string): Project | null {
   const row = db
-    .prepare(`SELECT name, description, visibility, created_by, created_at, updated_at FROM projects WHERE name = ?`)
+    .prepare(
+      `SELECT name, description, visibility, created_by, created_at, updated_at FROM projects WHERE name = ?`,
+    )
     .get(name) as ProjectRow | undefined;
   return row ? rowToProject(row) : null;
 }
@@ -99,10 +105,15 @@ export interface UpdateProjectPatch {
   visibility?: ProjectVisibility;
 }
 
-export function updateProject(db: Database, name: string, patch: UpdateProjectPatch): Project {
+export function updateProject(
+  db: Database,
+  name: string,
+  patch: UpdateProjectPatch,
+): Project {
   const existing = getProject(db, name);
   if (!existing) throw new Error(`project '${name}' not found`);
-  const description = patch.description === undefined ? existing.description : patch.description;
+  const description =
+    patch.description === undefined ? existing.description : patch.description;
   const visibility = patch.visibility ?? existing.visibility;
   db.prepare(
     `UPDATE projects SET description = ?, visibility = ?, updated_at = ? WHERE name = ?`,
@@ -111,7 +122,8 @@ export function updateProject(db: Database, name: string, patch: UpdateProjectPa
 }
 
 export function deleteProject(db: Database, name: string): void {
-  if (name === DEFAULT_PROJECT) throw new Error(`cannot delete the default '${DEFAULT_PROJECT}' project`);
+  if (name === DEFAULT_PROJECT)
+    throw new Error(`cannot delete the default '${DEFAULT_PROJECT}' project`);
   db.prepare(`DELETE FROM projects WHERE name = ?`).run(name);
 }
 
@@ -121,7 +133,10 @@ export function deleteProject(db: Database, name: string): void {
  * {@link DEFAULT_PROJECT}. Callers use `null` to decide whether to accept a
  * caller-supplied project vs. enforce the existing one.
  */
-export function getSessionProject(db: Database, sessionId: string): string | null {
+export function getSessionProject(
+  db: Database,
+  sessionId: string,
+): string | null {
   const row = db
     .prepare(
       `SELECT COALESCE(project, ?) AS project FROM messages WHERE session_id = ? LIMIT 1`,
@@ -131,7 +146,11 @@ export function getSessionProject(db: Database, sessionId: string): string | nul
 }
 
 /** Ensure a project row exists; create with defaults if missing. Returns the row. */
-export function ensureProject(db: Database, name: string, createdBy?: string | null): Project {
+export function ensureProject(
+  db: Database,
+  name: string,
+  createdBy?: string | null,
+): Project {
   const validated = validateProjectName(name);
   const existing = getProject(db, validated);
   if (existing) return existing;

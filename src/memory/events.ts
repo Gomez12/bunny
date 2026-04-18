@@ -35,7 +35,10 @@ export interface ListEventsResult {
 const MAX_LIMIT = 500;
 const DEFAULT_LIMIT = 100;
 
-function buildWhere(f: ListEventsFilter): { sql: string; params: (string | number)[] } {
+function buildWhere(f: ListEventsFilter): {
+  sql: string;
+  params: (string | number)[];
+} {
   const parts: string[] = [];
   const params: (string | number)[] = [];
 
@@ -75,7 +78,10 @@ function buildWhere(f: ListEventsFilter): { sql: string; params: (string | numbe
   return { sql, params };
 }
 
-export function listEvents(db: Database, f: ListEventsFilter = {}): ListEventsResult {
+export function listEvents(
+  db: Database,
+  f: ListEventsFilter = {},
+): ListEventsResult {
   const { sql: where, params } = buildWhere(f);
   const limit = Math.min(Math.max(f.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
   const offset = Math.max(f.offset ?? 0, 0);
@@ -120,12 +126,19 @@ export function listEvents(db: Database, f: ListEventsFilter = {}): ListEventsRe
   };
 }
 
-export function listEventFacets(db: Database): { topics: string[]; kinds: string[] } {
+export function listEventFacets(db: Database): {
+  topics: string[];
+  kinds: string[];
+} {
   const topicRows = db
-    .prepare(`SELECT DISTINCT topic FROM events WHERE topic IS NOT NULL ORDER BY topic ASC`)
+    .prepare(
+      `SELECT DISTINCT topic FROM events WHERE topic IS NOT NULL ORDER BY topic ASC`,
+    )
     .all() as Array<{ topic: string }>;
   const kindRows = db
-    .prepare(`SELECT DISTINCT kind FROM events WHERE kind IS NOT NULL ORDER BY kind ASC`)
+    .prepare(
+      `SELECT DISTINCT kind FROM events WHERE kind IS NOT NULL ORDER BY kind ASC`,
+    )
     .all() as Array<{ kind: string }>;
   return {
     topics: topicRows.map((r) => r.topic),

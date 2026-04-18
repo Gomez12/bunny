@@ -42,7 +42,12 @@ describe("api keys", () => {
   test("expired keys reject", async () => {
     const db = await newDb();
     const u = await createUser(db, { username: "b", password: "p" });
-    const { meta, secret } = await createApiKey(db, u.id, "tmp", Date.now() - 1000);
+    const { meta, secret } = await createApiKey(
+      db,
+      u.id,
+      "tmp",
+      Date.now() - 1000,
+    );
     expect(meta.expiresAt).not.toBeNull();
     expect(await validateApiKey(db, secret)).toBeNull();
     db.close();

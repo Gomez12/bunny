@@ -44,7 +44,9 @@ export async function handleWorkspaceRoute(
   ctx: WorkspaceRouteCtx,
   user: User,
 ): Promise<Response | null> {
-  const match = url.pathname.match(/^\/api\/projects\/([^/]+)\/workspace(?:\/(list|file|mkdir|move))?$/);
+  const match = url.pathname.match(
+    /^\/api\/projects\/([^/]+)\/workspace(?:\/(list|file|mkdir|move))?$/,
+  );
   if (!match) return null;
 
   let project: string;
@@ -83,21 +85,37 @@ export async function handleWorkspaceRoute(
       const body = (await readJson<{ path?: string }>(req)) ?? {};
       if (!body.path) return json({ error: "missing path" }, 400);
       const entry = mkdirWorkspace(project, body.path);
-      void ctx.queue.log({ topic: "workspace", kind: "mkdir", userId: user.id, data: { project, path: body.path } });
+      void ctx.queue.log({
+        topic: "workspace",
+        kind: "mkdir",
+        userId: user.id,
+        data: { project, path: body.path },
+      });
       return json({ entry }, 201);
     }
     if (action === "move" && req.method === "POST") {
       const body = (await readJson<{ from?: string; to?: string }>(req)) ?? {};
-      if (!body.from || !body.to) return json({ error: "missing from/to" }, 400);
+      if (!body.from || !body.to)
+        return json({ error: "missing from/to" }, 400);
       const entry = moveWorkspaceEntry(project, body.from, body.to);
-      void ctx.queue.log({ topic: "workspace", kind: "move", userId: user.id, data: { project, from: body.from, to: body.to } });
+      void ctx.queue.log({
+        topic: "workspace",
+        kind: "move",
+        userId: user.id,
+        data: { project, from: body.from, to: body.to },
+      });
       return json({ entry });
     }
     if (!action && req.method === "DELETE") {
       const path = url.searchParams.get("path");
       if (!path) return json({ error: "missing path" }, 400);
       deleteWorkspaceEntry(project, path);
-      void ctx.queue.log({ topic: "workspace", kind: "delete", userId: user.id, data: { project, path } });
+      void ctx.queue.log({
+        topic: "workspace",
+        kind: "delete",
+        userId: user.id,
+        data: { project, path },
+      });
       return json({ ok: true });
     }
   } catch (e) {
@@ -134,19 +152,37 @@ function handleGetFile(project: string, url: URL): Response {
   }
 }
 
-async function handleUpload(req: Request, project: string, ctx: WorkspaceRouteCtx, user: User): Promise<Response> {
+async function handleUpload(
+  req: Request,
+  project: string,
+  ctx: WorkspaceRouteCtx,
+  user: User,
+): Promise<Response> {
   const contentType = req.headers.get("content-type") ?? "";
 
   // JSON body: { path, content, encoding? }
   if (contentType.includes("application/json")) {
-    const body = (await readJson<{ path?: string; content?: string; encoding?: string }>(req)) ?? {};
+    const body =
+      (await readJson<{ path?: string; content?: string; encoding?: string }>(
+        req,
+      )) ?? {};
     if (!body.path || body.content === undefined) {
       return json({ error: "missing path / content" }, 400);
     }
     const enc = body.encoding === "base64" ? "base64" : "utf8";
     try {
       const result = writeWorkspaceFile(project, body.path, body.content, enc);
-      void ctx.queue.log({ topic: "workspace", kind: "file.write", userId: user.id, data: { project, path: body.path, encoding: enc, size: body.content.length } });
+      void ctx.queue.log({
+        topic: "workspace",
+        kind: "file.write",
+        userId: user.id,
+        data: {
+          project,
+          path: body.path,
+          encoding: enc,
+          size: body.content.length,
+        },
+      });
       return json({ entry: statWorkspace(project, result.path) }, 201);
     } catch (e) {
       return json({ error: errorMessage(e) }, 400);
@@ -182,7 +218,9 @@ async function handleUpload(req: Request, project: string, ctx: WorkspaceRouteCt
         if (f.size > MAX_UPLOAD_BYTES) {
           return json({ error: `file too large: ${f.name}` }, 413);
         }
-        const rel = targetDir ? `${targetDir.replace(/\/+$/, "")}/${f.name}` : f.name;
+        const rel = targetDir
+          ? `${targetDir.replace(/\/+$/, "")}/${f.name}`
+          : f.name;
         const buf = new Uint8Array(await f.arrayBuffer());
         const written = writeWorkspaceFile(project, rel, buf, "utf8");
         stored.push(statWorkspace(project, written.path));
@@ -191,7 +229,16 @@ async function handleUpload(req: Request, project: string, ctx: WorkspaceRouteCt
       return json({ error: errorMessage(e) }, 400);
     }
     for (const s of stored) {
-      void ctx.queue.log({ topic: "workspace", kind: "file.write", userId: user.id, data: { project, path: (s as { path?: string }).path, source: "multipart" } });
+      void ctx.queue.log({
+        topic: "workspace",
+        kind: "file.write",
+        userId: user.id,
+        data: {
+          project,
+          path: (s as { path?: string }).path,
+          source: "multipart",
+        },
+      });
     }
     return json({ entries: stored }, 201);
   }

@@ -47,7 +47,11 @@ afterEach(() => {
 describe("createDocument", () => {
   test("creates a document with defaults", async () => {
     const { db } = await setup();
-    const doc = createDocument(db, { project: "alpha", name: "Notes", createdBy: "owner" });
+    const doc = createDocument(db, {
+      project: "alpha",
+      name: "Notes",
+      createdBy: "owner",
+    });
     expect(doc.id).toBeGreaterThan(0);
     expect(doc.project).toBe("alpha");
     expect(doc.name).toBe("Notes");
@@ -81,15 +85,27 @@ describe("createDocument", () => {
     const { db } = await setup();
     createDocument(db, { project: "alpha", name: "Notes", createdBy: "owner" });
     expect(() =>
-      createDocument(db, { project: "alpha", name: "Notes", createdBy: "owner" }),
+      createDocument(db, {
+        project: "alpha",
+        name: "Notes",
+        createdBy: "owner",
+      }),
     ).toThrow();
     db.close();
   });
 
   test("allows same name in different projects", async () => {
     const { db } = await setup();
-    const a = createDocument(db, { project: "alpha", name: "Notes", createdBy: "owner" });
-    const b = createDocument(db, { project: "beta", name: "Notes", createdBy: "owner" });
+    const a = createDocument(db, {
+      project: "alpha",
+      name: "Notes",
+      createdBy: "owner",
+    });
+    const b = createDocument(db, {
+      project: "beta",
+      name: "Notes",
+      createdBy: "owner",
+    });
     expect(a.id).not.toBe(b.id);
     db.close();
   });
@@ -154,7 +170,11 @@ describe("updateDocument", () => {
 
   test("updates content and thumbnail", async () => {
     const { db } = await setup();
-    const doc = createDocument(db, { project: "alpha", name: "X", createdBy: "owner" });
+    const doc = createDocument(db, {
+      project: "alpha",
+      name: "X",
+      createdBy: "owner",
+    });
     const updated = updateDocument(db, doc.id, {
       contentMd: "# New content",
       thumbnail: "data:image/png;base64,abc",
@@ -166,14 +186,22 @@ describe("updateDocument", () => {
 
   test("throws for missing document", async () => {
     const { db } = await setup();
-    expect(() => updateDocument(db, 999, { name: "X" })).toThrow("document 999 not found");
+    expect(() => updateDocument(db, 999, { name: "X" })).toThrow(
+      "document 999 not found",
+    );
     db.close();
   });
 
   test("rejects empty name", async () => {
     const { db } = await setup();
-    const doc = createDocument(db, { project: "alpha", name: "X", createdBy: "owner" });
-    expect(() => updateDocument(db, doc.id, { name: "  " })).toThrow("document name is required");
+    const doc = createDocument(db, {
+      project: "alpha",
+      name: "X",
+      createdBy: "owner",
+    });
+    expect(() => updateDocument(db, doc.id, { name: "  " })).toThrow(
+      "document name is required",
+    );
     db.close();
   });
 });
@@ -181,7 +209,11 @@ describe("updateDocument", () => {
 describe("deleteDocument", () => {
   test("removes document", async () => {
     const { db } = await setup();
-    const doc = createDocument(db, { project: "alpha", name: "X", createdBy: "owner" });
+    const doc = createDocument(db, {
+      project: "alpha",
+      name: "X",
+      createdBy: "owner",
+    });
     deleteDocument(db, doc.id);
     expect(getDocument(db, doc.id)).toBeNull();
     db.close();
@@ -191,16 +223,28 @@ describe("deleteDocument", () => {
 describe("canEditDocument", () => {
   test("admin can always edit", async () => {
     const { db } = await setup();
-    const doc = createDocument(db, { project: "alpha", name: "X", createdBy: "other" });
+    const doc = createDocument(db, {
+      project: "alpha",
+      name: "X",
+      createdBy: "other",
+    });
     const project = { name: "alpha", createdBy: "other" } as any;
-    const admin: User = { id: "owner", username: "owner", role: "admin" } as any;
+    const admin: User = {
+      id: "owner",
+      username: "owner",
+      role: "admin",
+    } as any;
     expect(canEditDocument(admin, doc, project)).toBe(true);
     db.close();
   });
 
   test("project owner can edit", async () => {
     const { db } = await setup();
-    const doc = createDocument(db, { project: "alpha", name: "X", createdBy: "other" });
+    const doc = createDocument(db, {
+      project: "alpha",
+      name: "X",
+      createdBy: "other",
+    });
     const project = { name: "alpha", createdBy: "owner" } as any;
     const user: User = { id: "owner", username: "owner", role: "user" } as any;
     expect(canEditDocument(user, doc, project)).toBe(true);
@@ -209,7 +253,11 @@ describe("canEditDocument", () => {
 
   test("document creator can edit", async () => {
     const { db } = await setup();
-    const doc = createDocument(db, { project: "alpha", name: "X", createdBy: "other" });
+    const doc = createDocument(db, {
+      project: "alpha",
+      name: "X",
+      createdBy: "other",
+    });
     const project = { name: "alpha", createdBy: "someone-else" } as any;
     const user: User = { id: "other", username: "other", role: "user" } as any;
     expect(canEditDocument(user, doc, project)).toBe(true);
@@ -218,9 +266,17 @@ describe("canEditDocument", () => {
 
   test("random user cannot edit", async () => {
     const { db } = await setup();
-    const doc = createDocument(db, { project: "alpha", name: "X", createdBy: "owner" });
+    const doc = createDocument(db, {
+      project: "alpha",
+      name: "X",
+      createdBy: "owner",
+    });
     const project = { name: "alpha", createdBy: "owner" } as any;
-    const user: User = { id: "random", username: "random", role: "user" } as any;
+    const user: User = {
+      id: "random",
+      username: "random",
+      role: "user",
+    } as any;
     expect(canEditDocument(user, doc, project)).toBe(false);
     db.close();
   });
@@ -244,7 +300,12 @@ describe("templates", () => {
   test("listDocuments filters by isTemplate", async () => {
     const { db } = await setup();
     createDocument(db, { project: "alpha", name: "Doc A", createdBy: "owner" });
-    createDocument(db, { project: "alpha", name: "Tpl B", isTemplate: true, createdBy: "owner" });
+    createDocument(db, {
+      project: "alpha",
+      name: "Tpl B",
+      isTemplate: true,
+      createdBy: "owner",
+    });
     createDocument(db, { project: "alpha", name: "Doc C", createdBy: "owner" });
 
     const docs = listDocuments(db, "alpha");
@@ -291,7 +352,9 @@ describe("templates", () => {
 
   test("saveAsTemplate throws for missing document", async () => {
     const { db } = await setup();
-    expect(() => saveAsTemplate(db, 999, "owner")).toThrow("document 999 not found");
+    expect(() => saveAsTemplate(db, 999, "owner")).toThrow(
+      "document 999 not found",
+    );
     db.close();
   });
 });

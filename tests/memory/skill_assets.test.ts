@@ -19,9 +19,14 @@ Step 1: do the thing.
 `;
     const { frontmatter, body } = parseFrontmatter(raw, "fallback");
     expect(frontmatter.name).toBe("pdf-processing");
-    expect(frontmatter.description).toBe("Extract PDF text, fill forms, merge files.");
+    expect(frontmatter.description).toBe(
+      "Extract PDF text, fill forms, merge files.",
+    );
     expect(frontmatter.license).toBe("Apache-2.0");
-    expect(frontmatter.metadata).toEqual({ author: "example-org", version: "1.0" });
+    expect(frontmatter.metadata).toEqual({
+      author: "example-org",
+      version: "1.0",
+    });
     expect(frontmatter.allowedTools).toEqual(["Bash", "Read"]);
     expect(body).toContain("# PDF Processing");
     expect(body).toContain("Step 1: do the thing.");
@@ -64,7 +69,9 @@ compatibility: Requires Docker and docker-compose
 ---
 Instructions here.`;
     const { frontmatter } = parseFrontmatter(raw, "fb");
-    expect(frontmatter.compatibility).toBe("Requires Docker and docker-compose");
+    expect(frontmatter.compatibility).toBe(
+      "Requires Docker and docker-compose",
+    );
   });
 
   test("strips leading whitespace before frontmatter", () => {

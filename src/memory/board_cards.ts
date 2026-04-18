@@ -80,21 +80,26 @@ export interface ListCardsOpts {
   includeArchived?: boolean;
 }
 
-export function listCards(db: Database, project: string, opts: ListCardsOpts = {}): Card[] {
+export function listCards(
+  db: Database,
+  project: string,
+  opts: ListCardsOpts = {},
+): Card[] {
   const where = opts.includeArchived ? "" : "AND archived_at IS NULL";
   const rows = prep(
     db,
     `SELECT ${SELECT_COLS} FROM board_cards
        WHERE project = ? ${where}
        ORDER BY swimlane_id ASC, position ASC, id ASC`,
-  )
-    .all(project) as CardRow[];
+  ).all(project) as CardRow[];
   return rows.map(rowToCard);
 }
 
 export function getCard(db: Database, id: number): Card | null {
-  const row = prep(db, `SELECT ${SELECT_COLS} FROM board_cards WHERE id = ?`)
-    .get(id) as CardRow | undefined;
+  const row = prep(
+    db,
+    `SELECT ${SELECT_COLS} FROM board_cards WHERE id = ?`,
+  ).get(id) as CardRow | undefined;
   return row ? rowToCard(row) : null;
 }
 
@@ -127,22 +132,21 @@ export function createCard(db: Database, opts: CreateCardOpts): Card {
                                estimate_hours, percent_done, created_by,
                                created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  )
-    .run(
-      opts.project,
-      opts.swimlaneId,
-      position,
-      title,
-      opts.description ?? "",
-      opts.assigneeUserId ?? null,
-      opts.assigneeAgent ?? null,
-      autoRun ? 1 : 0,
-      opts.estimateHours ?? null,
-      opts.percentDone ?? null,
-      opts.createdBy,
-      now,
-      now,
-    );
+  ).run(
+    opts.project,
+    opts.swimlaneId,
+    position,
+    title,
+    opts.description ?? "",
+    opts.assigneeUserId ?? null,
+    opts.assigneeAgent ?? null,
+    autoRun ? 1 : 0,
+    opts.estimateHours ?? null,
+    opts.percentDone ?? null,
+    opts.createdBy,
+    now,
+    now,
+  );
   return getCard(db, Number(info.lastInsertRowid))!;
 }
 
@@ -158,11 +162,21 @@ export interface UpdateCardPatch {
   position?: number;
 }
 
-export function updateCard(db: Database, id: number, patch: UpdateCardPatch): Card {
+export function updateCard(
+  db: Database,
+  id: number,
+  patch: UpdateCardPatch,
+): Card {
   const existing = getCard(db, id);
   if (!existing) throw new Error(`card ${id} not found`);
-  const assigneeUser = patch.assigneeUserId === undefined ? existing.assigneeUserId : patch.assigneeUserId;
-  const assigneeAgent = patch.assigneeAgent === undefined ? existing.assigneeAgent : patch.assigneeAgent;
+  const assigneeUser =
+    patch.assigneeUserId === undefined
+      ? existing.assigneeUserId
+      : patch.assigneeUserId;
+  const assigneeAgent =
+    patch.assigneeAgent === undefined
+      ? existing.assigneeAgent
+      : patch.assigneeAgent;
   validateAssignee(assigneeUser, assigneeAgent);
   const title = patch.title === undefined ? existing.title : patch.title.trim();
   if (!title) throw new Error("card title is required");
@@ -183,9 +197,14 @@ export function updateCard(db: Database, id: number, patch: UpdateCardPatch): Ca
   } else {
     autoRun = existing.autoRun;
   }
-  const estimateHours = patch.estimateHours === undefined ? existing.estimateHours : patch.estimateHours;
-  const percentDone = patch.percentDone === undefined ? existing.percentDone : patch.percentDone;
-  prep(db,
+  const estimateHours =
+    patch.estimateHours === undefined
+      ? existing.estimateHours
+      : patch.estimateHours;
+  const percentDone =
+    patch.percentDone === undefined ? existing.percentDone : patch.percentDone;
+  prep(
+    db,
     `UPDATE board_cards
      SET title = ?, description = ?, assignee_user_id = ?, assignee_agent = ?,
          auto_run = ?, estimate_hours = ?, percent_done = ?,
@@ -213,8 +232,10 @@ export function updateCard(db: Database, id: number, patch: UpdateCardPatch): Ca
  * enqueue even if two ticks race.
  */
 export function clearAutoRun(db: Database, id: number): boolean {
-  const info = prep(db, `UPDATE board_cards SET auto_run = 0, updated_at = ? WHERE id = ? AND auto_run = 1`)
-    .run(Date.now(), id);
+  const info = prep(
+    db,
+    `UPDATE board_cards SET auto_run = 0, updated_at = ? WHERE id = ? AND auto_run = 1`,
+  ).run(Date.now(), id);
   return info.changes > 0;
 }
 
@@ -243,10 +264,17 @@ export function moveCard(db: Database, id: number, opts: MoveCardOpts): Card {
   if (opts.position !== undefined) {
     position = opts.position;
   } else {
-    position = computeMidpointPosition(db, swimlaneId, id, opts.beforeCardId, opts.afterCardId);
+    position = computeMidpointPosition(
+      db,
+      swimlaneId,
+      id,
+      opts.beforeCardId,
+      opts.afterCardId,
+    );
   }
 
-  prep(db,
+  prep(
+    db,
     `UPDATE board_cards
      SET swimlane_id = ?, position = ?, updated_at = ?
      WHERE id = ?`,
@@ -255,11 +283,10 @@ export function moveCard(db: Database, id: number, opts: MoveCardOpts): Card {
 }
 
 export function archiveCard(db: Database, id: number): void {
-  prep(db, `UPDATE board_cards SET archived_at = ?, updated_at = ? WHERE id = ?`).run(
-    Date.now(),
-    Date.now(),
-    id,
-  );
+  prep(
+    db,
+    `UPDATE board_cards SET archived_at = ?, updated_at = ? WHERE id = ?`,
+  ).run(Date.now(), Date.now(), id);
 }
 
 /**
@@ -279,13 +306,17 @@ export function canEditCard(user: User, card: Card, project: Project): boolean {
 
 function validateAssignee(userId: string | null, agent: string | null): void {
   if (userId && agent) {
-    throw new Error("card assignee must be either a user or an agent, not both");
+    throw new Error(
+      "card assignee must be either a user or an agent, not both",
+    );
   }
 }
 
 function nextPosition(db: Database, swimlaneId: number): number {
-  const row = prep(db, `SELECT MAX(position) AS maxp FROM board_cards WHERE swimlane_id = ?`)
-    .get(swimlaneId) as { maxp: number | null } | undefined;
+  const row = prep(
+    db,
+    `SELECT MAX(position) AS maxp FROM board_cards WHERE swimlane_id = ?`,
+  ).get(swimlaneId) as { maxp: number | null } | undefined;
   return (row?.maxp ?? 0) + POSITION_STEP;
 }
 
@@ -296,8 +327,10 @@ function computeMidpointPosition(
   beforeCardId?: number,
   afterCardId?: number,
 ): number {
-  let before = beforeCardId !== undefined ? getNeighbourPosition(db, beforeCardId) : null;
-  let after = afterCardId !== undefined ? getNeighbourPosition(db, afterCardId) : null;
+  let before =
+    beforeCardId !== undefined ? getNeighbourPosition(db, beforeCardId) : null;
+  let after =
+    afterCardId !== undefined ? getNeighbourPosition(db, afterCardId) : null;
 
   // Place at top of lane (before the named card).
   if (before !== null && after === null) {
@@ -314,7 +347,8 @@ function computeMidpointPosition(
     return mid === before ? before + 1 : mid;
   }
   // No neighbours given → append to end of target lane (skip moving card).
-  const row = prep(db,
+  const row = prep(
+    db,
     `SELECT MAX(position) AS maxp FROM board_cards
        WHERE swimlane_id = ? AND id != ?`,
   ).get(swimlaneId, movingId) as { maxp: number | null } | undefined;
@@ -322,8 +356,9 @@ function computeMidpointPosition(
 }
 
 function getNeighbourPosition(db: Database, cardId: number): number {
-  const row = prep(db, `SELECT position FROM board_cards WHERE id = ?`)
-    .get(cardId) as { position: number } | undefined;
+  const row = prep(db, `SELECT position FROM board_cards WHERE id = ?`).get(
+    cardId,
+  ) as { position: number } | undefined;
   if (!row) throw new Error(`neighbour card ${cardId} not found`);
   return row.position;
 }

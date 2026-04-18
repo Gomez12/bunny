@@ -46,7 +46,11 @@ afterEach(() => {
 describe("createWhiteboard", () => {
   test("creates a whiteboard with defaults", async () => {
     const { db } = await setup();
-    const wb = createWhiteboard(db, { project: "alpha", name: "Design", createdBy: "owner" });
+    const wb = createWhiteboard(db, {
+      project: "alpha",
+      name: "Design",
+      createdBy: "owner",
+    });
     expect(wb.id).toBeGreaterThan(0);
     expect(wb.project).toBe("alpha");
     expect(wb.name).toBe("Design");
@@ -59,24 +63,44 @@ describe("createWhiteboard", () => {
   test("requires non-empty name", async () => {
     const { db } = await setup();
     expect(() =>
-      createWhiteboard(db, { project: "alpha", name: "  ", createdBy: "owner" }),
+      createWhiteboard(db, {
+        project: "alpha",
+        name: "  ",
+        createdBy: "owner",
+      }),
     ).toThrow("whiteboard name is required");
     db.close();
   });
 
   test("enforces unique (project, name)", async () => {
     const { db } = await setup();
-    createWhiteboard(db, { project: "alpha", name: "Design", createdBy: "owner" });
+    createWhiteboard(db, {
+      project: "alpha",
+      name: "Design",
+      createdBy: "owner",
+    });
     expect(() =>
-      createWhiteboard(db, { project: "alpha", name: "Design", createdBy: "owner" }),
+      createWhiteboard(db, {
+        project: "alpha",
+        name: "Design",
+        createdBy: "owner",
+      }),
     ).toThrow();
     db.close();
   });
 
   test("allows same name in different projects", async () => {
     const { db } = await setup();
-    const a = createWhiteboard(db, { project: "alpha", name: "Design", createdBy: "owner" });
-    const b = createWhiteboard(db, { project: "beta", name: "Design", createdBy: "owner" });
+    const a = createWhiteboard(db, {
+      project: "alpha",
+      name: "Design",
+      createdBy: "owner",
+    });
+    const b = createWhiteboard(db, {
+      project: "beta",
+      name: "Design",
+      createdBy: "owner",
+    });
     expect(a.id).not.toBe(b.id);
     db.close();
   });
@@ -127,7 +151,11 @@ describe("getWhiteboard", () => {
 describe("updateWhiteboard", () => {
   test("partial update preserves unchanged fields", async () => {
     const { db } = await setup();
-    const wb = createWhiteboard(db, { project: "alpha", name: "Orig", createdBy: "owner" });
+    const wb = createWhiteboard(db, {
+      project: "alpha",
+      name: "Orig",
+      createdBy: "owner",
+    });
     const updated = updateWhiteboard(db, wb.id, { name: "Renamed" });
     expect(updated.name).toBe("Renamed");
     expect(updated.elementsJson).toBe("[]");
@@ -136,7 +164,11 @@ describe("updateWhiteboard", () => {
 
   test("updates elements and thumbnail", async () => {
     const { db } = await setup();
-    const wb = createWhiteboard(db, { project: "alpha", name: "X", createdBy: "owner" });
+    const wb = createWhiteboard(db, {
+      project: "alpha",
+      name: "X",
+      createdBy: "owner",
+    });
     const updated = updateWhiteboard(db, wb.id, {
       elementsJson: '[{"id":"1"}]',
       thumbnail: "data:image/png;base64,abc",
@@ -148,14 +180,22 @@ describe("updateWhiteboard", () => {
 
   test("throws for missing whiteboard", async () => {
     const { db } = await setup();
-    expect(() => updateWhiteboard(db, 999, { name: "X" })).toThrow("whiteboard 999 not found");
+    expect(() => updateWhiteboard(db, 999, { name: "X" })).toThrow(
+      "whiteboard 999 not found",
+    );
     db.close();
   });
 
   test("rejects empty name", async () => {
     const { db } = await setup();
-    const wb = createWhiteboard(db, { project: "alpha", name: "X", createdBy: "owner" });
-    expect(() => updateWhiteboard(db, wb.id, { name: "  " })).toThrow("whiteboard name is required");
+    const wb = createWhiteboard(db, {
+      project: "alpha",
+      name: "X",
+      createdBy: "owner",
+    });
+    expect(() => updateWhiteboard(db, wb.id, { name: "  " })).toThrow(
+      "whiteboard name is required",
+    );
     db.close();
   });
 });
@@ -163,7 +203,11 @@ describe("updateWhiteboard", () => {
 describe("deleteWhiteboard", () => {
   test("removes whiteboard", async () => {
     const { db } = await setup();
-    const wb = createWhiteboard(db, { project: "alpha", name: "X", createdBy: "owner" });
+    const wb = createWhiteboard(db, {
+      project: "alpha",
+      name: "X",
+      createdBy: "owner",
+    });
     deleteWhiteboard(db, wb.id);
     expect(getWhiteboard(db, wb.id)).toBeNull();
     db.close();
@@ -173,16 +217,28 @@ describe("deleteWhiteboard", () => {
 describe("canEditWhiteboard", () => {
   test("admin can always edit", async () => {
     const { db } = await setup();
-    const wb = createWhiteboard(db, { project: "alpha", name: "X", createdBy: "other" });
+    const wb = createWhiteboard(db, {
+      project: "alpha",
+      name: "X",
+      createdBy: "other",
+    });
     const project = { name: "alpha", createdBy: "other" } as any;
-    const admin: User = { id: "owner", username: "owner", role: "admin" } as any;
+    const admin: User = {
+      id: "owner",
+      username: "owner",
+      role: "admin",
+    } as any;
     expect(canEditWhiteboard(admin, wb, project)).toBe(true);
     db.close();
   });
 
   test("project owner can edit", async () => {
     const { db } = await setup();
-    const wb = createWhiteboard(db, { project: "alpha", name: "X", createdBy: "other" });
+    const wb = createWhiteboard(db, {
+      project: "alpha",
+      name: "X",
+      createdBy: "other",
+    });
     const project = { name: "alpha", createdBy: "owner" } as any;
     const user: User = { id: "owner", username: "owner", role: "user" } as any;
     expect(canEditWhiteboard(user, wb, project)).toBe(true);
@@ -191,7 +247,11 @@ describe("canEditWhiteboard", () => {
 
   test("whiteboard creator can edit", async () => {
     const { db } = await setup();
-    const wb = createWhiteboard(db, { project: "alpha", name: "X", createdBy: "other" });
+    const wb = createWhiteboard(db, {
+      project: "alpha",
+      name: "X",
+      createdBy: "other",
+    });
     const project = { name: "alpha", createdBy: "someone-else" } as any;
     const user: User = { id: "other", username: "other", role: "user" } as any;
     expect(canEditWhiteboard(user, wb, project)).toBe(true);
@@ -200,9 +260,17 @@ describe("canEditWhiteboard", () => {
 
   test("random user cannot edit", async () => {
     const { db } = await setup();
-    const wb = createWhiteboard(db, { project: "alpha", name: "X", createdBy: "owner" });
+    const wb = createWhiteboard(db, {
+      project: "alpha",
+      name: "X",
+      createdBy: "owner",
+    });
     const project = { name: "alpha", createdBy: "owner" } as any;
-    const user: User = { id: "random", username: "random", role: "user" } as any;
+    const user: User = {
+      id: "random",
+      username: "random",
+      role: "user",
+    } as any;
     expect(canEditWhiteboard(user, wb, project)).toBe(false);
     db.close();
   });

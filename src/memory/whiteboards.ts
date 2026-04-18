@@ -50,14 +50,20 @@ const SELECT_COLS = `id, project, name, elements_json, app_state_json, thumbnail
 
 const SUMMARY_COLS = `id, name, thumbnail, created_at, updated_at`;
 
-export function listWhiteboards(db: Database, project: string): WhiteboardSummary[] {
+export function listWhiteboards(
+  db: Database,
+  project: string,
+): WhiteboardSummary[] {
   const rows = db
     .prepare(
       `SELECT ${SUMMARY_COLS} FROM whiteboards
        WHERE project = ?
        ORDER BY updated_at DESC`,
     )
-    .all(project) as Pick<WhiteboardRow, "id" | "name" | "thumbnail" | "created_at" | "updated_at">[];
+    .all(project) as Pick<
+    WhiteboardRow,
+    "id" | "name" | "thumbnail" | "created_at" | "updated_at"
+  >[];
   return rows.map((r) => ({
     id: r.id,
     name: r.name,
@@ -83,7 +89,10 @@ export interface CreateWhiteboardOpts {
   createdBy: string;
 }
 
-export function createWhiteboard(db: Database, opts: CreateWhiteboardOpts): Whiteboard {
+export function createWhiteboard(
+  db: Database,
+  opts: CreateWhiteboardOpts,
+): Whiteboard {
   const name = opts.name.trim();
   if (!name) throw new Error("whiteboard name is required");
   const now = Date.now();
@@ -113,15 +122,23 @@ export interface UpdateWhiteboardPatch {
   thumbnail?: string | null;
 }
 
-export function updateWhiteboard(db: Database, id: number, patch: UpdateWhiteboardPatch): Whiteboard {
+export function updateWhiteboard(
+  db: Database,
+  id: number,
+  patch: UpdateWhiteboardPatch,
+): Whiteboard {
   const existing = getWhiteboard(db, id);
   if (!existing) throw new Error(`whiteboard ${id} not found`);
 
   const name = patch.name === undefined ? existing.name : patch.name.trim();
   if (!name) throw new Error("whiteboard name is required");
   const elementsJson = patch.elementsJson ?? existing.elementsJson;
-  const appStateJson = patch.appStateJson === undefined ? existing.appStateJson : patch.appStateJson;
-  const thumbnail = patch.thumbnail === undefined ? existing.thumbnail : patch.thumbnail;
+  const appStateJson =
+    patch.appStateJson === undefined
+      ? existing.appStateJson
+      : patch.appStateJson;
+  const thumbnail =
+    patch.thumbnail === undefined ? existing.thumbnail : patch.thumbnail;
 
   db.prepare(
     `UPDATE whiteboards
@@ -135,7 +152,11 @@ export function deleteWhiteboard(db: Database, id: number): void {
   db.prepare(`DELETE FROM whiteboards WHERE id = ?`).run(id);
 }
 
-export function canEditWhiteboard(user: User, wb: Whiteboard, project: Project): boolean {
+export function canEditWhiteboard(
+  user: User,
+  wb: Whiteboard,
+  project: Project,
+): boolean {
   if (user.role === "admin") return true;
   if (project.createdBy && project.createdBy === user.id) return true;
   if (wb.createdBy === user.id) return true;

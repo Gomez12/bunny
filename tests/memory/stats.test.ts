@@ -3,7 +3,10 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openDb } from "../../src/memory/db.ts";
-import { insertMessage, getMessagesBySession } from "../../src/memory/messages.ts";
+import {
+  insertMessage,
+  getMessagesBySession,
+} from "../../src/memory/messages.ts";
 import { getDashboardStats } from "../../src/memory/stats.ts";
 
 let tmp: string;
@@ -108,7 +111,12 @@ describe("getDashboardStats", () => {
 
   test("filters by userId when provided", async () => {
     const db = await newDb();
-    insertMessage(db, { sessionId: "s1", role: "user", content: "a", userId: "u1" });
+    insertMessage(db, {
+      sessionId: "s1",
+      role: "user",
+      content: "a",
+      userId: "u1",
+    });
     insertMessage(db, {
       sessionId: "s1",
       role: "assistant",
@@ -117,9 +125,18 @@ describe("getDashboardStats", () => {
       promptTokens: 100,
       completionTokens: 50,
     });
-    insertMessage(db, { sessionId: "s2", role: "user", content: "c", userId: "u2" });
+    insertMessage(db, {
+      sessionId: "s2",
+      role: "user",
+      content: "c",
+      userId: "u2",
+    });
 
-    const dataU1 = getDashboardStats(db, { fromTs: 0, bucketMs: 86_400_000, userId: "u1" });
+    const dataU1 = getDashboardStats(db, {
+      fromTs: 0,
+      bucketMs: 86_400_000,
+      userId: "u1",
+    });
     expect(dataU1.kpi.totalMessages).toBe(2);
     expect(dataU1.kpi.totalPromptTokens).toBe(100);
 
@@ -131,9 +148,18 @@ describe("getDashboardStats", () => {
   test("error rate counts events with errors", async () => {
     const db = await newDb();
     const now = Date.now();
-    db.run(`INSERT INTO events (ts, topic, kind) VALUES (?, 'llm', 'request')`, [now]);
-    db.run(`INSERT INTO events (ts, topic, kind) VALUES (?, 'llm', 'response')`, [now + 1]);
-    db.run(`INSERT INTO events (ts, topic, kind, error) VALUES (?, 'llm', 'request', 'timeout')`, [now + 2]);
+    db.run(
+      `INSERT INTO events (ts, topic, kind) VALUES (?, 'llm', 'request')`,
+      [now],
+    );
+    db.run(
+      `INSERT INTO events (ts, topic, kind) VALUES (?, 'llm', 'response')`,
+      [now + 1],
+    );
+    db.run(
+      `INSERT INTO events (ts, topic, kind, error) VALUES (?, 'llm', 'request', 'timeout')`,
+      [now + 2],
+    );
 
     const data = getDashboardStats(db, { fromTs: 0, bucketMs: 86_400_000 });
     expect(data.errorRate.total).toBe(3);
@@ -145,11 +171,16 @@ describe("getDashboardStats", () => {
     const db = await newDb();
     const now = Date.now();
     for (let i = 0; i < 25; i++) {
-      db.run(`INSERT INTO events (ts, topic, kind) VALUES (?, 'llm', 'request')`, [now + i]);
+      db.run(
+        `INSERT INTO events (ts, topic, kind) VALUES (?, 'llm', 'request')`,
+        [now + i],
+      );
     }
     const data = getDashboardStats(db, { fromTs: 0, bucketMs: 86_400_000 });
     expect(data.recentActivity.length).toBe(20);
-    expect(data.recentActivity[0]!.ts).toBeGreaterThan(data.recentActivity[19]!.ts);
+    expect(data.recentActivity[0]!.ts).toBeGreaterThan(
+      data.recentActivity[19]!.ts,
+    );
     db.close();
   });
 });

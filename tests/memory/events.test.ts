@@ -40,11 +40,45 @@ function insert(
 beforeEach(async () => {
   tmp = mkdtempSync(join(tmpdir(), "bunny-events-"));
   db = await openDb(join(tmp, "test.sqlite"));
-  insert(db, { ts: 1000, topic: "llm", kind: "request", sessionId: "s1", userId: "u1", payloadJson: '{"foo":"bar"}' });
-  insert(db, { ts: 2000, topic: "llm", kind: "response", sessionId: "s1", userId: "u1", durationMs: 42 });
-  insert(db, { ts: 3000, topic: "tool", kind: "call", sessionId: "s1", userId: "u1", payloadJson: '{"name":"web_search"}' });
-  insert(db, { ts: 4000, topic: "tool", kind: "result", sessionId: "s2", userId: "u2", error: "boom" });
-  insert(db, { ts: 5000, topic: "memory", kind: "index", sessionId: "s2", userId: "u2" });
+  insert(db, {
+    ts: 1000,
+    topic: "llm",
+    kind: "request",
+    sessionId: "s1",
+    userId: "u1",
+    payloadJson: '{"foo":"bar"}',
+  });
+  insert(db, {
+    ts: 2000,
+    topic: "llm",
+    kind: "response",
+    sessionId: "s1",
+    userId: "u1",
+    durationMs: 42,
+  });
+  insert(db, {
+    ts: 3000,
+    topic: "tool",
+    kind: "call",
+    sessionId: "s1",
+    userId: "u1",
+    payloadJson: '{"name":"web_search"}',
+  });
+  insert(db, {
+    ts: 4000,
+    topic: "tool",
+    kind: "result",
+    sessionId: "s2",
+    userId: "u2",
+    error: "boom",
+  });
+  insert(db, {
+    ts: 5000,
+    topic: "memory",
+    kind: "index",
+    sessionId: "s2",
+    userId: "u2",
+  });
 });
 
 afterEach(() => {

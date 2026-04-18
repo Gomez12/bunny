@@ -59,7 +59,9 @@ interface GroupRow {
 function parseJsonArray(raw: string): string[] {
   try {
     const arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr.filter((v): v is string => typeof v === "string") : [];
+    return Array.isArray(arr)
+      ? arr.filter((v): v is string => typeof v === "string")
+      : [];
   } catch {
     return [];
   }
@@ -87,11 +89,16 @@ function rowToContact(r: ContactRow, groups: number[] = []): Contact {
 const SELECT_COLS = `id, project, name, emails, phones, company, title, notes,
                      avatar, tags, created_by, created_at, updated_at`;
 
-function batchGetGroupIds(db: Database, contactIds: number[]): Map<number, number[]> {
+function batchGetGroupIds(
+  db: Database,
+  contactIds: number[],
+): Map<number, number[]> {
   if (contactIds.length === 0) return new Map();
   const placeholders = contactIds.map(() => "?").join(",");
   const rows = db
-    .prepare(`SELECT contact_id, group_id FROM contact_group_members WHERE contact_id IN (${placeholders})`)
+    .prepare(
+      `SELECT contact_id, group_id FROM contact_group_members WHERE contact_id IN (${placeholders})`,
+    )
     .all(...contactIds) as Array<{ contact_id: number; group_id: number }>;
   const map = new Map<number, number[]>();
   for (const r of rows) {
@@ -116,18 +123,25 @@ interface FilterOpts {
   groupId?: number;
 }
 
-function buildContactWhere(project: string, opts?: FilterOpts): { where: string; params: (string | number)[] } {
+function buildContactWhere(
+  project: string,
+  opts?: FilterOpts,
+): { where: string; params: (string | number)[] } {
   const conditions = ["c.project = ?"];
   const params: (string | number)[] = [project];
 
   if (opts?.groupId !== undefined) {
-    conditions.push("EXISTS (SELECT 1 FROM contact_group_members cgm WHERE cgm.contact_id = c.id AND cgm.group_id = ?)");
+    conditions.push(
+      "EXISTS (SELECT 1 FROM contact_group_members cgm WHERE cgm.contact_id = c.id AND cgm.group_id = ?)",
+    );
     params.push(opts.groupId);
   }
 
   if (opts?.search) {
     const q = `%${opts.search}%`;
-    conditions.push("(c.name LIKE ? OR c.emails LIKE ? OR c.phones LIKE ? OR c.company LIKE ? OR c.tags LIKE ?)");
+    conditions.push(
+      "(c.name LIKE ? OR c.emails LIKE ? OR c.phones LIKE ? OR c.company LIKE ? OR c.tags LIKE ?)",
+    );
     params.push(q, q, q, q, q);
   }
 
@@ -149,7 +163,9 @@ export function listContacts(
   const { where, params } = buildContactWhere(project, opts);
   const countParams = [...params];
 
-  let sql = `SELECT ${SELECT_COLS.split(",").map((c) => "c." + c.trim()).join(", ")} FROM contacts c WHERE ${where} ORDER BY c.name ASC`;
+  let sql = `SELECT ${SELECT_COLS.split(",")
+    .map((c) => "c." + c.trim())
+    .join(", ")} FROM contacts c WHERE ${where} ORDER BY c.name ASC`;
 
   if (opts?.limit !== undefined) {
     sql += ` LIMIT ?`;
@@ -161,7 +177,10 @@ export function listContacts(
   }
 
   const rows = db.prepare(sql).all(...params) as ContactRow[];
-  const groupMap = batchGetGroupIds(db, rows.map((r) => r.id));
+  const groupMap = batchGetGroupIds(
+    db,
+    rows.map((r) => r.id),
+  );
   const contacts = rows.map((r) => rowToContact(r, groupMap.get(r.id) ?? []));
 
   const countRow = db
@@ -221,7 +240,9 @@ export function createContact(db: Database, opts: CreateContactOpts): Contact {
 
   const contactId = Number(info.lastInsertRowid);
   if (opts.groups?.length) {
-    const stmt = db.prepare(`INSERT OR IGNORE INTO contact_group_members(group_id, contact_id) VALUES (?, ?)`);
+    const stmt = db.prepare(
+      `INSERT OR IGNORE INTO contact_group_members(group_id, contact_id) VALUES (?, ?)`,
+    );
     for (const gid of opts.groups) stmt.run(gid, contactId);
   }
 
@@ -240,7 +261,11 @@ export interface UpdateContactPatch {
   groups?: number[];
 }
 
-export function updateContact(db: Database, id: number, patch: UpdateContactPatch): Contact {
+export function updateContact(
+  db: Database,
+  id: number,
+  patch: UpdateContactPatch,
+): Contact {
   const existing = getContact(db, id);
   if (!existing) throw new Error(`contact ${id} not found`);
 
@@ -276,8 +301,12 @@ export function updateContact(db: Database, id: number, patch: UpdateContactPatc
 
   let groups = existing.groups;
   if (patch.groups !== undefined) {
-    db.prepare(`DELETE FROM contact_group_members WHERE contact_id = ?`).run(id);
-    const stmt = db.prepare(`INSERT OR IGNORE INTO contact_group_members(group_id, contact_id) VALUES (?, ?)`);
+    db.prepare(`DELETE FROM contact_group_members WHERE contact_id = ?`).run(
+      id,
+    );
+    const stmt = db.prepare(
+      `INSERT OR IGNORE INTO contact_group_members(group_id, contact_id) VALUES (?, ?)`,
+    );
     for (const gid of patch.groups) stmt.run(gid, id);
     groups = patch.groups;
   }
@@ -323,11 +352,18 @@ export function bulkCreateContacts(
       const name = (c.name ?? "").trim();
       if (!name) continue;
       const info = insertContact.run(
-        project, name,
-        JSON.stringify(c.emails ?? []), JSON.stringify(c.phones ?? []),
-        c.company ?? "", c.title ?? "", c.notes ?? "",
-        c.avatar ?? null, JSON.stringify(c.tags ?? []),
-        createdBy, now, now,
+        project,
+        name,
+        JSON.stringify(c.emails ?? []),
+        JSON.stringify(c.phones ?? []),
+        c.company ?? "",
+        c.title ?? "",
+        c.notes ?? "",
+        c.avatar ?? null,
+        JSON.stringify(c.tags ?? []),
+        createdBy,
+        now,
+        now,
       );
       if (c.groups?.length) {
         const contactId = Number(info.lastInsertRowid);
@@ -339,7 +375,11 @@ export function bulkCreateContacts(
   return tx();
 }
 
-export function canEditContact(user: User, contact: Contact, project: Project): boolean {
+export function canEditContact(
+  user: User,
+  contact: Contact,
+  project: Project,
+): boolean {
   if (user.role === "admin") return true;
   if (project.createdBy && project.createdBy === user.id) return true;
   if (contact.createdBy === user.id) return true;
@@ -419,7 +459,11 @@ export interface UpdateGroupPatch {
   color?: string | null;
 }
 
-export function updateGroup(db: Database, id: number, patch: UpdateGroupPatch): ContactGroup {
+export function updateGroup(
+  db: Database,
+  id: number,
+  patch: UpdateGroupPatch,
+): ContactGroup {
   const existing = getGroup(db, id);
   if (!existing) throw new Error(`contact group ${id} not found`);
 
@@ -427,12 +471,9 @@ export function updateGroup(db: Database, id: number, patch: UpdateGroupPatch): 
   if (!name) throw new Error("group name is required");
   const color = patch.color === undefined ? existing.color : patch.color;
 
-  db.prepare(`UPDATE contact_groups SET name = ?, color = ?, updated_at = ? WHERE id = ?`).run(
-    name,
-    color,
-    Date.now(),
-    id,
-  );
+  db.prepare(
+    `UPDATE contact_groups SET name = ?, color = ?, updated_at = ? WHERE id = ?`,
+  ).run(name, color, Date.now(), id);
   return getGroup(db, id)!;
 }
 

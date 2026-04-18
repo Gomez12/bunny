@@ -58,7 +58,10 @@ export interface CreateUserOpts {
   mustChangePassword?: boolean;
 }
 
-export async function createUser(db: Database, opts: CreateUserOpts): Promise<User> {
+export async function createUser(
+  db: Database,
+  opts: CreateUserOpts,
+): Promise<User> {
   const id = crypto.randomUUID();
   const now = Date.now();
   const hash = await hashPassword(opts.password);
@@ -91,24 +94,30 @@ export async function createUser(db: Database, opts: CreateUserOpts): Promise<Us
 }
 
 export function getUserById(db: Database, id: string): User | null {
-  const row = db.prepare(`SELECT * FROM users WHERE id = ?`).get(id) as UserRow | null;
+  const row = db
+    .prepare(`SELECT * FROM users WHERE id = ?`)
+    .get(id) as UserRow | null;
   return row ? rowToUser(row) : null;
 }
 
 export function getUserByUsername(db: Database, username: string): User | null {
-  const row = db.prepare(`SELECT * FROM users WHERE username = ?`).get(username) as UserRow | null;
+  const row = db
+    .prepare(`SELECT * FROM users WHERE username = ?`)
+    .get(username) as UserRow | null;
   return row ? rowToUser(row) : null;
 }
 
 export function getUserPasswordHash(db: Database, id: string): string | null {
-  const row = db.prepare(`SELECT password_hash FROM users WHERE id = ?`).get(id) as
-    | { password_hash: string }
-    | null;
+  const row = db
+    .prepare(`SELECT password_hash FROM users WHERE id = ?`)
+    .get(id) as { password_hash: string } | null;
   return row?.password_hash ?? null;
 }
 
 export function countUsers(db: Database): number {
-  const row = db.prepare(`SELECT COUNT(*) AS n FROM users`).get() as { n: number };
+  const row = db.prepare(`SELECT COUNT(*) AS n FROM users`).get() as {
+    n: number;
+  };
   return row.n;
 }
 
@@ -151,19 +160,30 @@ export interface UpdateUserOpts {
   expandToolBubbles?: boolean;
 }
 
-export function updateUser(db: Database, id: string, opts: UpdateUserOpts): User | null {
+export function updateUser(
+  db: Database,
+  id: string,
+  opts: UpdateUserOpts,
+): User | null {
   const current = getUserById(db, id);
   if (!current) return null;
   const next = {
     role: opts.role ?? current.role,
-    displayName: opts.displayName === undefined ? current.displayName : opts.displayName,
+    displayName:
+      opts.displayName === undefined ? current.displayName : opts.displayName,
     email: opts.email === undefined ? current.email : opts.email,
     mustChangePassword:
-      opts.mustChangePassword === undefined ? current.mustChangePassword : opts.mustChangePassword,
+      opts.mustChangePassword === undefined
+        ? current.mustChangePassword
+        : opts.mustChangePassword,
     expandThinkBubbles:
-      opts.expandThinkBubbles === undefined ? current.expandThinkBubbles : opts.expandThinkBubbles,
+      opts.expandThinkBubbles === undefined
+        ? current.expandThinkBubbles
+        : opts.expandThinkBubbles,
     expandToolBubbles:
-      opts.expandToolBubbles === undefined ? current.expandToolBubbles : opts.expandToolBubbles,
+      opts.expandToolBubbles === undefined
+        ? current.expandToolBubbles
+        : opts.expandToolBubbles,
   };
   const now = Date.now();
   db.prepare(

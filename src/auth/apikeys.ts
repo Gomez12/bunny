@@ -22,7 +22,9 @@ function randomHex(bytes: number): string {
 async function sha256Hex(input: string): Promise<string> {
   const data = new TextEncoder().encode(input);
   const hash = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, "0")).join("");
+  return Array.from(new Uint8Array(hash), (b) =>
+    b.toString(16).padStart(2, "0"),
+  ).join("");
 }
 
 export interface ApiKeyMeta {
@@ -98,40 +100,52 @@ export async function createApiKey(
   };
 }
 
-export async function validateApiKey(db: Database, raw: string): Promise<{ userId: string; id: string } | null> {
+export async function validateApiKey(
+  db: Database,
+  raw: string,
+): Promise<{ userId: string; id: string } | null> {
   if (!raw || !raw.startsWith(KEY_PREFIX)) return null;
   const keyHash = await sha256Hex(raw);
   const row = prep(
     db,
     `SELECT id, user_id, expires_at, revoked_at, last_used_at FROM api_keys WHERE key_hash = ?`,
-  ).get(keyHash) as
-    | {
-        id: string;
-        user_id: string;
-        expires_at: number | null;
-        revoked_at: number | null;
-        last_used_at: number | null;
-      }
-    | null;
+  ).get(keyHash) as {
+    id: string;
+    user_id: string;
+    expires_at: number | null;
+    revoked_at: number | null;
+    last_used_at: number | null;
+  } | null;
   if (!row) return null;
   if (row.revoked_at !== null) return null;
   const now = Date.now();
   if (row.expires_at !== null && row.expires_at < now) return null;
   // Throttle last_used_at writes — they're telemetry, not auth-critical.
-  if (row.last_used_at === null || now - row.last_used_at >= LAST_USED_THROTTLE_MS) {
-    prep(db, `UPDATE api_keys SET last_used_at = ? WHERE id = ?`).run(now, row.id);
+  if (
+    row.last_used_at === null ||
+    now - row.last_used_at >= LAST_USED_THROTTLE_MS
+  ) {
+    prep(db, `UPDATE api_keys SET last_used_at = ? WHERE id = ?`).run(
+      now,
+      row.id,
+    );
   }
   return { userId: row.user_id, id: row.id };
 }
 
 export function listApiKeys(db: Database, userId: string): ApiKeyMeta[] {
-  const rows = prep(db, `SELECT * FROM api_keys WHERE user_id = ? ORDER BY created_at DESC`).all(
-    userId,
-  ) as ApiKeyRow[];
+  const rows = prep(
+    db,
+    `SELECT * FROM api_keys WHERE user_id = ? ORDER BY created_at DESC`,
+  ).all(userId) as ApiKeyRow[];
   return rows.map(rowToMeta);
 }
 
-export function revokeApiKey(db: Database, id: string, userId: string): boolean {
+export function revokeApiKey(
+  db: Database,
+  id: string,
+  userId: string,
+): boolean {
   const res = prep(
     db,
     `UPDATE api_keys SET revoked_at = ? WHERE id = ? AND user_id = ? AND revoked_at IS NULL`,

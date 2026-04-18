@@ -11,7 +11,10 @@ import { createUser, getUserByUsername, hasAnyUser } from "./users.ts";
 
 export const SYSTEM_USERNAME = "system";
 
-export async function ensureSeedUsers(db: Database, auth: AuthConfig): Promise<void> {
+export async function ensureSeedUsers(
+  db: Database,
+  auth: AuthConfig,
+): Promise<void> {
   if (!hasAnyUser(db)) {
     await createUser(db, {
       username: auth.defaultAdminUsername,
@@ -25,7 +28,9 @@ export async function ensureSeedUsers(db: Database, auth: AuthConfig): Promise<v
     // Unusable password — 64 random hex chars, never returned anywhere.
     const bytes = new Uint8Array(32);
     crypto.getRandomValues(bytes);
-    const unusable = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    const unusable = Array.from(bytes, (b) =>
+      b.toString(16).padStart(2, "0"),
+    ).join("");
     await createUser(db, {
       username: SYSTEM_USERNAME,
       password: unusable,
@@ -38,6 +43,7 @@ export async function ensureSeedUsers(db: Database, auth: AuthConfig): Promise<v
 
 export function getSystemUserId(db: Database): string {
   const u = getUserByUsername(db, SYSTEM_USERNAME);
-  if (!u) throw new Error("System user not seeded — call ensureSeedUsers() first");
+  if (!u)
+    throw new Error("System user not seeded — call ensureSeedUsers() first");
   return u.id;
 }

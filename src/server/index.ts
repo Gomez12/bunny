@@ -27,7 +27,10 @@ import { defaultHandlerRegistry } from "../scheduler/handlers.ts";
 import { startScheduler } from "../scheduler/ticker.ts";
 import { computeNextRun } from "../scheduler/cron.ts";
 import { ensureSystemTask } from "../memory/scheduled_tasks.ts";
-import { BOARD_AUTO_RUN_HANDLER, registerBoardAutoRun } from "../board/auto_run_handler.ts";
+import {
+  BOARD_AUTO_RUN_HANDLER,
+  registerBoardAutoRun,
+} from "../board/auto_run_handler.ts";
 
 const DEFAULT_PORT = 3000;
 
@@ -52,7 +55,8 @@ async function maybeGzip(res: Response, req: Request): Promise<Response> {
   const ae = req.headers.get("accept-encoding") ?? "";
   if (!ae.includes("gzip")) return res;
   const buf = await res.arrayBuffer();
-  if (buf.byteLength < GZIP_MIN_BYTES) return new Response(buf, { status: res.status, headers: res.headers });
+  if (buf.byteLength < GZIP_MIN_BYTES)
+    return new Response(buf, { status: res.status, headers: res.headers });
   const compressed = Bun.gzipSync(new Uint8Array(buf));
   const headers = new Headers(res.headers);
   headers.set("Content-Encoding", "gzip");
@@ -72,7 +76,9 @@ export function parsePortFlag(argv: readonly string[]): number {
   return flag ? Number(flag.split("=")[1]) : DEFAULT_PORT;
 }
 
-export async function startServer(opts: ServeOptions = {}): Promise<{ stop: () => Promise<void>; url: string }> {
+export async function startServer(
+  opts: ServeOptions = {},
+): Promise<{ stop: () => Promise<void>; url: string }> {
   const cfg = loadConfig();
 
   const home = paths.home();
@@ -102,7 +108,10 @@ export async function startServer(opts: ServeOptions = {}): Promise<{ stop: () =
       nextRunAt: computeNextRun(boardAutoRunCron, bootNow),
     });
   } catch (e) {
-    console.warn("[bunny] failed to seed board.auto_run_scan:", errorMessage(e));
+    console.warn(
+      "[bunny] failed to seed board.auto_run_scan:",
+      errorMessage(e),
+    );
   }
   const scheduler = startScheduler({
     db,
@@ -120,7 +129,9 @@ export async function startServer(opts: ServeOptions = {}): Promise<{ stop: () =
   };
 
   const port = opts.port ?? DEFAULT_PORT;
-  const webRoot = opts.webRoot ? resolve(opts.webRoot) : resolve(process.cwd(), "web/dist");
+  const webRoot = opts.webRoot
+    ? resolve(opts.webRoot)
+    : resolve(process.cwd(), "web/dist");
   const haveStatic = existsSync(webRoot);
   const haveEmbedded = Object.keys(webBundle).length > 0;
 
@@ -212,7 +223,8 @@ async function serveStatic(pathname: string, root: string): Promise<Response> {
 
   // SPA fallback — let React Router handle unknown paths.
   const index = Bun.file(join(root, "index.html"));
-  if (await index.exists()) return new Response(index, { headers: { "Cache-Control": "no-cache" } });
+  if (await index.exists())
+    return new Response(index, { headers: { "Cache-Control": "no-cache" } });
   return new Response("not found", { status: 404 });
 }
 

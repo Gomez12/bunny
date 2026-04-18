@@ -5,7 +5,11 @@ import { errorMessage } from "../util/error.ts";
 import { writeWorkspaceFile } from "../memory/workspace_fs.ts";
 import { NodeHtmlMarkdown } from "node-html-markdown";
 
-export const WEB_TOOL_NAMES = ["web_fetch", "web_search", "web_download"] as const;
+export const WEB_TOOL_NAMES = [
+  "web_fetch",
+  "web_search",
+  "web_download",
+] as const;
 export type WebToolName = (typeof WEB_TOOL_NAMES)[number];
 
 export interface WebToolContext {
@@ -25,7 +29,10 @@ export function makeWebTools(ctx: WebToolContext): ToolDescriptor[] {
   return [fetchTool(ctx), searchTool(ctx), downloadTool(ctx)];
 }
 
-function getNumber(args: Record<string, unknown>, key: string): number | undefined {
+function getNumber(
+  args: Record<string, unknown>,
+  key: string,
+): number | undefined {
   const v = args[key];
   if (typeof v === "number") return v;
   if (typeof v === "string") {
@@ -47,7 +54,11 @@ function browserHeaders(cfg: WebConfig): Record<string, string> {
   };
 }
 
-async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number = FETCH_TIMEOUT_MS): Promise<Response> {
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number = FETCH_TIMEOUT_MS,
+): Promise<Response> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -60,7 +71,10 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
 function stripTags(html: string, ...tags: string[]): string {
   let result = html;
   for (const tag of tags) {
-    result = result.replace(new RegExp(`<${tag}[^>]*>[\\s\\S]*?</${tag}>`, "gi"), "");
+    result = result.replace(
+      new RegExp(`<${tag}[^>]*>[\\s\\S]*?</${tag}>`, "gi"),
+      "",
+    );
   }
   return result;
 }
@@ -78,28 +92,51 @@ function fetchTool(ctx: WebToolContext): ToolDescriptor {
     parameters: {
       type: "object",
       properties: {
-        url: { type: "string", description: "The URL to fetch (must start with http:// or https://)." },
+        url: {
+          type: "string",
+          description:
+            "The URL to fetch (must start with http:// or https://).",
+        },
       },
       required: ["url"],
     },
     handler: async (args) => {
       const url = getString(args, "url");
       if (!url) return toolErr("missing 'url'");
-      if (!/^https?:\/\//i.test(url)) return toolErr("url must start with http:// or https://");
+      if (!/^https?:\/\//i.test(url))
+        return toolErr("url must start with http:// or https://");
 
       try {
-        const res = await fetchWithTimeout(url, { headers: browserHeaders(ctx.webCfg), redirect: "follow" });
+        const res = await fetchWithTimeout(url, {
+          headers: browserHeaders(ctx.webCfg),
+          redirect: "follow",
+        });
 
         if (!res.ok) return toolErr(`HTTP ${res.status} ${res.statusText}`);
 
         const ct = res.headers.get("content-type") ?? "";
-        if (!ct.includes("html") && !ct.includes("xml") && !ct.includes("text/plain")) {
-          return toolErr(`unexpected content-type: ${ct} — use web_download for binary files`);
+        if (
+          !ct.includes("html") &&
+          !ct.includes("xml") &&
+          !ct.includes("text/plain")
+        ) {
+          return toolErr(
+            `unexpected content-type: ${ct} — use web_download for binary files`,
+          );
         }
 
         let html = await res.text();
         const title = extractTitle(html);
-        html = stripTags(html, "script", "style", "nav", "footer", "header", "aside", "noscript");
+        html = stripTags(
+          html,
+          "script",
+          "style",
+          "nav",
+          "footer",
+          "header",
+          "aside",
+          "noscript",
+        );
         let md = NodeHtmlMarkdown.translate(html);
 
         let truncated = false;
@@ -112,7 +149,8 @@ function fetchTool(ctx: WebToolContext): ToolDescriptor {
 
         return toolOk({ url, title, content: md, truncated, contentBytes });
       } catch (e) {
-        if ((e as Error).name === "AbortError") return toolErr(`request timed out after ${FETCH_TIMEOUT_MS / 1000}s`);
+        if ((e as Error).name === "AbortError")
+          return toolErr(`request timed out after ${FETCH_TIMEOUT_MS / 1000}s`);
         return toolErr(errorMessage(e));
       }
     },
@@ -125,7 +163,11 @@ interface SearchResult {
   snippet: string;
 }
 
-async function serpSearch(query: string, maxResults: number, cfg: WebConfig): Promise<SearchResult[]> {
+async function serpSearch(
+  query: string,
+  maxResults: number,
+  cfg: WebConfig,
+): Promise<SearchResult[]> {
   const res = await fetch(cfg.serpBaseUrl, {
     method: "POST",
     headers: {
@@ -134,8 +176,11 @@ async function serpSearch(query: string, maxResults: number, cfg: WebConfig): Pr
     },
     body: JSON.stringify({ q: query, num: maxResults }),
   });
-  if (!res.ok) throw new Error(`SERP API returned ${res.status} ${res.statusText}`);
-  const data = (await res.json()) as { organic?: Array<{ title?: string; link?: string; snippet?: string }> };
+  if (!res.ok)
+    throw new Error(`SERP API returned ${res.status} ${res.statusText}`);
+  const data = (await res.json()) as {
+    organic?: Array<{ title?: string; link?: string; snippet?: string }>;
+  };
   return (data.organic ?? []).slice(0, maxResults).map((r) => ({
     title: r.title ?? "",
     url: r.link ?? "",
@@ -145,27 +190,39 @@ async function serpSearch(query: string, maxResults: number, cfg: WebConfig): Pr
 
 export function parseDuckDuckGoResults(html: string): SearchResult[] {
   const results: SearchResult[] = [];
-  const blockRe = /<div[^>]*class="[^"]*result[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?=<div[^>]*class="[^"]*result|$)/gi;
+  const blockRe =
+    /<div[^>]*class="[^"]*result[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?=<div[^>]*class="[^"]*result|$)/gi;
   let block: RegExpExecArray | null;
   while ((block = blockRe.exec(html)) !== null) {
     const chunk = block[1]!;
-    const linkMatch = chunk.match(/<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/i);
+    const linkMatch = chunk.match(
+      /<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/i,
+    );
     if (!linkMatch) continue;
     let href = linkMatch[1]!;
     const uddgMatch = href.match(/[?&]uddg=([^&]+)/);
     if (uddgMatch) href = decodeURIComponent(uddgMatch[1]!);
     const title = linkMatch[2]!.replace(/<[^>]+>/g, "").trim();
-    const snippetMatch = chunk.match(/<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/i);
-    const snippet = snippetMatch ? snippetMatch[1]!.replace(/<[^>]+>/g, "").trim() : "";
+    const snippetMatch = chunk.match(
+      /<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/i,
+    );
+    const snippet = snippetMatch
+      ? snippetMatch[1]!.replace(/<[^>]+>/g, "").trim()
+      : "";
     results.push({ title, url: href, snippet });
   }
   return results;
 }
 
-async function duckduckgoSearch(query: string, maxResults: number, userAgent: string): Promise<SearchResult[]> {
+async function duckduckgoSearch(
+  query: string,
+  maxResults: number,
+  userAgent: string,
+): Promise<SearchResult[]> {
   let lastError: Error | undefined;
   for (let attempt = 0; attempt < DDG_MAX_RETRIES; attempt++) {
-    if (attempt > 0) await new Promise((r) => setTimeout(r, 3000 * Math.pow(2, attempt - 1)));
+    if (attempt > 0)
+      await new Promise((r) => setTimeout(r, 3000 * Math.pow(2, attempt - 1)));
     try {
       const res = await fetch("https://html.duckduckgo.com/html/", {
         method: "POST",
@@ -181,7 +238,8 @@ async function duckduckgoSearch(query: string, maxResults: number, userAgent: st
         lastError = new Error(`DuckDuckGo returned ${res.status}`);
         continue;
       }
-      if (!res.ok) throw new Error(`DuckDuckGo returned ${res.status} ${res.statusText}`);
+      if (!res.ok)
+        throw new Error(`DuckDuckGo returned ${res.status} ${res.statusText}`);
       const html = await res.text();
       if (html.includes("captcha") || html.includes("bot detection")) {
         lastError = new Error("DuckDuckGo CAPTCHA detected");
@@ -191,7 +249,12 @@ async function duckduckgoSearch(query: string, maxResults: number, userAgent: st
     } catch (e) {
       lastError = e as Error;
       const msg = lastError.message ?? "";
-      if (msg.includes("Unable to connect") || msg.includes("ECONNREFUSED") || msg.includes("ENOTFOUND")) break;
+      if (
+        msg.includes("Unable to connect") ||
+        msg.includes("ECONNREFUSED") ||
+        msg.includes("ENOTFOUND")
+      )
+        break;
     }
   }
   throw lastError ?? new Error("DuckDuckGo search failed after retries");
@@ -209,13 +272,22 @@ export function parseBingResults(html: string): SearchResult[] {
     const url = citeMatch ? citeMatch[1]!.replace(/<[^>]+>/g, "").trim() : "";
     if (!url.startsWith("http")) continue;
     const snippetMatch = block.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
-    const snippet = snippetMatch ? snippetMatch[1]!.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&#\d+;/g, "").trim() : "";
+    const snippet = snippetMatch
+      ? snippetMatch[1]!
+          .replace(/<[^>]+>/g, "")
+          .replace(/&nbsp;/g, " ")
+          .replace(/&#\d+;/g, "")
+          .trim()
+      : "";
     results.push({ title, url, snippet });
   }
   return results;
 }
 
-async function bingSearch(query: string, maxResults: number): Promise<SearchResult[]> {
+async function bingSearch(
+  query: string,
+  maxResults: number,
+): Promise<SearchResult[]> {
   const res = await fetch(
     `https://www.bing.com/search?q=${encodeURIComponent(query)}&count=${maxResults}&setlang=en&cc=US`,
     {
@@ -231,7 +303,11 @@ async function bingSearch(query: string, maxResults: number): Promise<SearchResu
   return parseBingResults(html).slice(0, maxResults);
 }
 
-async function freeSearch(query: string, maxResults: number, userAgent: string): Promise<{ results: SearchResult[]; source: string }> {
+async function freeSearch(
+  query: string,
+  maxResults: number,
+  userAgent: string,
+): Promise<{ results: SearchResult[]; source: string }> {
   try {
     const results = await duckduckgoSearch(query, maxResults, userAgent);
     return { results, source: "duckduckgo" };
@@ -250,14 +326,20 @@ function searchTool(ctx: WebToolContext): ToolDescriptor {
       type: "object",
       properties: {
         query: { type: "string", description: "The search query." },
-        max_results: { type: "integer", description: "Number of results to return (1-10, default 10)." },
+        max_results: {
+          type: "integer",
+          description: "Number of results to return (1-10, default 10).",
+        },
       },
       required: ["query"],
     },
     handler: async (args) => {
       const query = getString(args, "query");
       if (!query) return toolErr("missing 'query'");
-      const maxResults = Math.max(1, Math.min(10, getNumber(args, "max_results") ?? 10));
+      const maxResults = Math.max(
+        1,
+        Math.min(10, getNumber(args, "max_results") ?? 10),
+      );
 
       try {
         let results: SearchResult[];
@@ -289,7 +371,8 @@ function downloadTool(ctx: WebToolContext): ToolDescriptor {
         url: { type: "string", description: "The URL to download." },
         path: {
           type: "string",
-          description: "Workspace-relative file path (e.g. 'input/report.pdf'). Must not escape the workspace.",
+          description:
+            "Workspace-relative file path (e.g. 'input/report.pdf'). Must not escape the workspace.",
         },
       },
       required: ["url", "path"],
@@ -299,27 +382,38 @@ function downloadTool(ctx: WebToolContext): ToolDescriptor {
       const path = getString(args, "path");
       if (!url) return toolErr("missing 'url'");
       if (!path) return toolErr("missing 'path'");
-      if (!/^https?:\/\//i.test(url)) return toolErr("url must start with http:// or https://");
+      if (!/^https?:\/\//i.test(url))
+        return toolErr("url must start with http:// or https://");
 
       try {
-        const res = await fetchWithTimeout(url, { headers: { "User-Agent": ua(ctx.webCfg) }, redirect: "follow" });
+        const res = await fetchWithTimeout(url, {
+          headers: { "User-Agent": ua(ctx.webCfg) },
+          redirect: "follow",
+        });
 
         if (!res.ok) return toolErr(`HTTP ${res.status} ${res.statusText}`);
 
         const contentLength = Number(res.headers.get("content-length") ?? "0");
         if (contentLength > MAX_DOWNLOAD_BYTES) {
-          return toolErr(`file too large: ${contentLength} bytes (max ${MAX_DOWNLOAD_BYTES})`);
+          return toolErr(
+            `file too large: ${contentLength} bytes (max ${MAX_DOWNLOAD_BYTES})`,
+          );
         }
 
         const bytes = new Uint8Array(await res.arrayBuffer());
         if (bytes.byteLength > MAX_DOWNLOAD_BYTES) {
-          return toolErr(`file too large: ${bytes.byteLength} bytes (max ${MAX_DOWNLOAD_BYTES})`);
+          return toolErr(
+            `file too large: ${bytes.byteLength} bytes (max ${MAX_DOWNLOAD_BYTES})`,
+          );
         }
 
         const result = writeWorkspaceFile(ctx.project, path, bytes);
         return toolOk({ url, path: result.path, size: result.size });
       } catch (e) {
-        if ((e as Error).name === "AbortError") return toolErr(`download timed out after ${FETCH_TIMEOUT_MS / 1000}s`);
+        if ((e as Error).name === "AbortError")
+          return toolErr(
+            `download timed out after ${FETCH_TIMEOUT_MS / 1000}s`,
+          );
         return toolErr(errorMessage(e));
       }
     },

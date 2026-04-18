@@ -107,13 +107,26 @@ export interface UpdateSkillPatch {
   sourceRef?: string | null;
 }
 
-export function updateSkill(db: Database, name: string, patch: UpdateSkillPatch): Skill {
+export function updateSkill(
+  db: Database,
+  name: string,
+  patch: UpdateSkillPatch,
+): Skill {
   const existing = getSkill(db, name);
   if (!existing) throw new Error(`skill '${name}' not found`);
-  const description = patch.description === undefined ? existing.description : (patch.description ?? "");
+  const description =
+    patch.description === undefined
+      ? existing.description
+      : (patch.description ?? "");
   const visibility = patch.visibility ?? existing.visibility;
-  const sourceUrl = patch.sourceUrl === undefined ? existing.sourceUrl : (patch.sourceUrl ?? null);
-  const sourceRef = patch.sourceRef === undefined ? existing.sourceRef : (patch.sourceRef ?? null);
+  const sourceUrl =
+    patch.sourceUrl === undefined
+      ? existing.sourceUrl
+      : (patch.sourceUrl ?? null);
+  const sourceRef =
+    patch.sourceRef === undefined
+      ? existing.sourceRef
+      : (patch.sourceRef ?? null);
   db.prepare(
     `UPDATE skills
      SET description = ?, visibility = ?, source_url = ?, source_ref = ?, updated_at = ?
@@ -129,20 +142,33 @@ export function deleteSkill(db: Database, name: string): void {
 
 // ── Project ↔ Skill links ────────────────────────────────────────────────
 
-export function linkSkillToProject(db: Database, project: string, skill: string): void {
+export function linkSkillToProject(
+  db: Database,
+  project: string,
+  skill: string,
+): void {
   db.prepare(
     `INSERT OR IGNORE INTO project_skills(project, skill) VALUES (?, ?)`,
   ).run(project, skill);
 }
 
-export function unlinkSkillFromProject(db: Database, project: string, skill: string): void {
-  db.prepare(`DELETE FROM project_skills WHERE project = ? AND skill = ?`).run(project, skill);
+export function unlinkSkillFromProject(
+  db: Database,
+  project: string,
+  skill: string,
+): void {
+  db.prepare(`DELETE FROM project_skills WHERE project = ? AND skill = ?`).run(
+    project,
+    skill,
+  );
 }
 
 export function listSkillsForProject(db: Database, project: string): Skill[] {
   const rows = db
     .prepare(
-      `SELECT ${SELECT_COLUMNS.split(",").map((c) => "s." + c.trim()).join(", ")}
+      `SELECT ${SELECT_COLUMNS.split(",")
+        .map((c) => "s." + c.trim())
+        .join(", ")}
        FROM project_skills ps
        JOIN skills s ON s.name = ps.skill
        WHERE ps.project = ?
@@ -154,14 +180,18 @@ export function listSkillsForProject(db: Database, project: string): Skill[] {
 
 export function listProjectsForSkill(db: Database, skill: string): string[] {
   const rows = db
-    .prepare(`SELECT project FROM project_skills WHERE skill = ? ORDER BY project ASC`)
+    .prepare(
+      `SELECT project FROM project_skills WHERE skill = ? ORDER BY project ASC`,
+    )
     .all(skill) as Array<{ project: string }>;
   return rows.map((r) => r.project);
 }
 
 export function mapProjectsBySkill(db: Database): Map<string, string[]> {
   const rows = db
-    .prepare(`SELECT skill, project FROM project_skills ORDER BY skill ASC, project ASC`)
+    .prepare(
+      `SELECT skill, project FROM project_skills ORDER BY skill ASC, project ASC`,
+    )
     .all() as Array<{ skill: string; project: string }>;
   const out = new Map<string, string[]>();
   for (const { skill, project } of rows) {
@@ -172,9 +202,15 @@ export function mapProjectsBySkill(db: Database): Map<string, string[]> {
   return out;
 }
 
-export function isSkillLinkedToProject(db: Database, project: string, skill: string): boolean {
+export function isSkillLinkedToProject(
+  db: Database,
+  project: string,
+  skill: string,
+): boolean {
   const row = db
-    .prepare(`SELECT 1 AS ok FROM project_skills WHERE project = ? AND skill = ? LIMIT 1`)
+    .prepare(
+      `SELECT 1 AS ok FROM project_skills WHERE project = ? AND skill = ? LIMIT 1`,
+    )
     .get(project, skill) as { ok: number } | undefined;
   return !!row;
 }

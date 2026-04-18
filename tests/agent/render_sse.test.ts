@@ -35,7 +35,11 @@ describe("SSE renderer", () => {
   test("emits content deltas as JSON events", () => {
     const s = collectingSink();
     const r = createSseRenderer(s.sink);
-    r.onDelta({ channel: "content", index: 0, text: "hello" } satisfies StreamDelta);
+    r.onDelta({
+      channel: "content",
+      index: 0,
+      text: "hello",
+    } satisfies StreamDelta);
     expect(s.events).toEqual([{ type: "content", text: "hello" }]);
   });
 
@@ -49,8 +53,18 @@ describe("SSE renderer", () => {
   test("emits tool_call with name and argsDelta", () => {
     const s = collectingSink();
     const r = createSseRenderer(s.sink);
-    r.onDelta({ channel: "tool_call", index: 0, callIndex: 0, name: "read", argsDelta: '{"p":' });
-    expect(s.events[0]).toMatchObject({ type: "tool_call", name: "read", argsDelta: '{"p":' });
+    r.onDelta({
+      channel: "tool_call",
+      index: 0,
+      callIndex: 0,
+      name: "read",
+      argsDelta: '{"p":',
+    });
+    expect(s.events[0]).toMatchObject({
+      type: "tool_call",
+      name: "read",
+      argsDelta: '{"p":',
+    });
   });
 
   test("emits tool_result with ok/error", () => {

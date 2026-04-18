@@ -42,7 +42,10 @@ function defaultBase(cwd: string): string {
  * The directory is **not** created here; callers that need it on disk should
  * `mkdir -p` it themselves.
  */
-export function resolveBunnyHome(env: NodeJS.ProcessEnv = process.env, cwd: string = process.cwd()): string {
+export function resolveBunnyHome(
+  env: NodeJS.ProcessEnv = process.env,
+  cwd: string = process.cwd(),
+): string {
   const override = env["BUNNY_HOME"];
   if (override && override.length > 0) {
     return isAbsolute(override) ? override : resolve(cwd, override);

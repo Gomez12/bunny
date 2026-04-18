@@ -3,7 +3,10 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openDb } from "../../src/memory/db.ts";
-import { insertMessage, getMessagesBySession } from "../../src/memory/messages.ts";
+import {
+  insertMessage,
+  getMessagesBySession,
+} from "../../src/memory/messages.ts";
 
 let tmp: string;
 
@@ -20,7 +23,12 @@ describe("tool call persistence", () => {
   test("stores channel='tool_call' with args + matches tool_result via toolCallId", async () => {
     const db = await newDb();
     insertMessage(db, { sessionId: "s1", role: "user", content: "ls" });
-    insertMessage(db, { sessionId: "s1", role: "assistant", channel: "reasoning", content: "thinking" });
+    insertMessage(db, {
+      sessionId: "s1",
+      role: "assistant",
+      channel: "reasoning",
+      content: "thinking",
+    });
     insertMessage(db, {
       sessionId: "s1",
       role: "assistant",

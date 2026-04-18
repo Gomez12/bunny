@@ -38,41 +38,67 @@ let tmp: string;
 //  call 1 → tool_call: read_file({ path: "bunny.config.toml" })
 //  call 2 → final text answer
 function buildSse(chunks: unknown[]): string {
-  return chunks.map((c) => `data: ${JSON.stringify(c)}\n\n`).join("") + "data: [DONE]\n\n";
+  return (
+    chunks.map((c) => `data: ${JSON.stringify(c)}\n\n`).join("") +
+    "data: [DONE]\n\n"
+  );
 }
 
 function toolCallResponse(): string {
   return buildSse([
     {
-      choices: [{
-        index: 0,
-        delta: {
-          tool_calls: [{
-            index: 0,
-            id: "call_abc",
-            type: "function",
-            function: { name: "read_file", arguments: "" },
-          }],
+      choices: [
+        {
+          index: 0,
+          delta: {
+            tool_calls: [
+              {
+                index: 0,
+                id: "call_abc",
+                type: "function",
+                function: { name: "read_file", arguments: "" },
+              },
+            ],
+          },
+          finish_reason: null,
         },
-        finish_reason: null,
-      }],
+      ],
     },
     {
-      choices: [{
-        index: 0,
-        delta: {
-          tool_calls: [{ index: 0, function: { arguments: '{"path":"bunny.config.toml"}' } }],
+      choices: [
+        {
+          index: 0,
+          delta: {
+            tool_calls: [
+              {
+                index: 0,
+                function: { arguments: '{"path":"bunny.config.toml"}' },
+              },
+            ],
+          },
+          finish_reason: "tool_calls",
         },
-        finish_reason: "tool_calls",
-      }],
+      ],
     },
   ]);
 }
 
 function finalResponse(): string {
   return buildSse([
-    { choices: [{ index: 0, delta: { content: "Here is the config: " }, finish_reason: null }] },
-    { choices: [{ index: 0, delta: { content: "[llm]" }, finish_reason: "stop" }] },
+    {
+      choices: [
+        {
+          index: 0,
+          delta: { content: "Here is the config: " },
+          finish_reason: null,
+        },
+      ],
+    },
+    {
+      choices: [
+        { index: 0, delta: { content: "[llm]" }, finish_reason: "stop" },
+      ],
+    },
   ]);
 }
 
@@ -82,7 +108,10 @@ beforeAll(() => {
   process.chdir(tmp);
 
   // Create a minimal config file for the tool to read.
-  writeFileSync(join(tmp, "bunny.config.toml"), '[llm]\nmodel = "test-model"\n');
+  writeFileSync(
+    join(tmp, "bunny.config.toml"),
+    '[llm]\nmodel = "test-model"\n',
+  );
 
   callCount = 0;
   server = Bun.serve({
@@ -91,7 +120,10 @@ beforeAll(() => {
       callCount++;
       const body = callCount === 1 ? toolCallResponse() : finalResponse();
       return new Response(body, {
-        headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+        },
       });
     },
   });
@@ -107,7 +139,13 @@ afterAll(() => {
 // ---------------------------------------------------------------------------
 
 function makeLlmCfg(): LlmConfig {
-  return { baseUrl, apiKey: "", model: "test", modelReasoning: undefined, profile: "openai" };
+  return {
+    baseUrl,
+    apiKey: "",
+    model: "test",
+    modelReasoning: undefined,
+    profile: "openai",
+  };
 }
 
 function makeEmbedCfg(): EmbedConfig {
@@ -131,7 +169,12 @@ describe("agent loop — full turn", () => {
     });
 
     const tools = new ToolRegistry();
-    tools.register("read_file", "Read a file", READ_FILE_SCHEMA, readFileHandler);
+    tools.register(
+      "read_file",
+      "Read a file",
+      READ_FILE_SCHEMA,
+      readFileHandler,
+    );
 
     const sessionId = "test-session-1";
     const result = await runAgent({

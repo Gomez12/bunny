@@ -22,7 +22,9 @@ export interface SseSink {
  * Ignores errors raised when the stream has already been closed (e.g. client
  * disconnect) so renderer callbacks never throw back into the agent loop.
  */
-export function controllerSink(controller: ReadableStreamDefaultController<Uint8Array>): SseSink {
+export function controllerSink(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+): SseSink {
   let closed = false;
   return {
     enqueue(chunk) {
@@ -54,7 +56,10 @@ export interface SseRendererOpts {
   author?: string;
 }
 
-export function createSseRenderer(sink: SseSink, opts: SseRendererOpts = {}): Renderer {
+export function createSseRenderer(
+  sink: SseSink,
+  opts: SseRendererOpts = {},
+): Renderer {
   const author = opts.author;
   const tag = <T extends object>(payload: T): T & { author?: string } =>
     author ? { ...payload, author } : payload;
@@ -103,7 +108,11 @@ export function createSseRenderer(sink: SseSink, opts: SseRendererOpts = {}): Re
     );
   }
 
-  function onStats(stats: { durationMs: number; promptTokens?: number; completionTokens?: number }): void {
+  function onStats(stats: {
+    durationMs: number;
+    promptTokens?: number;
+    completionTokens?: number;
+  }): void {
     send(sink, {
       type: "stats",
       durationMs: stats.durationMs,

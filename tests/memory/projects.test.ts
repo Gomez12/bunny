@@ -58,7 +58,11 @@ describe("project registry", () => {
     createProject(db, { name: "alpha", description: "first" });
     createProject(db, { name: "beta", visibility: "private" });
     const list = listProjects(db);
-    expect(list.map((p) => p.name).sort()).toEqual(["alpha", "beta", "general"]);
+    expect(list.map((p) => p.name).sort()).toEqual([
+      "alpha",
+      "beta",
+      "general",
+    ]);
     const updated = updateProject(db, "alpha", { description: "new desc" });
     expect(updated.description).toBe("new desc");
     db.close();
@@ -88,7 +92,12 @@ describe("getSessionProject", () => {
   test("derives from any message in the session", async () => {
     const db = await newDb();
     createProject(db, { name: "alpha" });
-    insertMessage(db, { sessionId: "s1", role: "user", content: "hi", project: "alpha" });
+    insertMessage(db, {
+      sessionId: "s1",
+      role: "user",
+      content: "hi",
+      project: "alpha",
+    });
     expect(getSessionProject(db, "s1")).toBe("alpha");
     db.close();
   });

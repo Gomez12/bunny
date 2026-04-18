@@ -135,7 +135,10 @@ export interface ListTasksOpts {
   ownerUserId?: string;
 }
 
-export function listTasks(db: Database, opts: ListTasksOpts = {}): ScheduledTask[] {
+export function listTasks(
+  db: Database,
+  opts: ListTasksOpts = {},
+): ScheduledTask[] {
   const where: string[] = [];
   const params: (string | number | null)[] = [];
   if (opts.kind) {
@@ -151,7 +154,9 @@ export function listTasks(db: Database, opts: ListTasksOpts = {}): ScheduledTask
     `SELECT ${SELECT_COLS} FROM scheduled_tasks ${whereSql}
      ORDER BY kind ASC, name ASC`,
   );
-  const rows = (params.length === 0 ? stmt.all() : stmt.all(...params)) as TaskRow[];
+  const rows = (
+    params.length === 0 ? stmt.all() : stmt.all(...params)
+  ) as TaskRow[];
   return rows.map(rowToTask);
 }
 
@@ -164,28 +169,46 @@ export interface UpdateTaskPatch {
   nextRunAt?: number;
 }
 
-export function updateTask(db: Database, id: string, patch: UpdateTaskPatch): ScheduledTask {
+export function updateTask(
+  db: Database,
+  id: string,
+  patch: UpdateTaskPatch,
+): ScheduledTask {
   const existing = getTask(db, id);
   if (!existing) throw new Error(`scheduled task ${id} not found`);
   const name = patch.name === undefined ? existing.name : patch.name.trim();
   if (!name) throw new Error("task name is required");
   const description =
     patch.description === undefined ? existing.description : patch.description;
-  const cronExpr = patch.cronExpr === undefined ? existing.cronExpr : patch.cronExpr.trim();
+  const cronExpr =
+    patch.cronExpr === undefined ? existing.cronExpr : patch.cronExpr.trim();
   const payload =
     patch.payload === undefined
-      ? (existing.payload === null ? null : JSON.stringify(existing.payload))
+      ? existing.payload === null
+        ? null
+        : JSON.stringify(existing.payload)
       : patch.payload === null
         ? null
         : JSON.stringify(patch.payload);
-  const enabled = patch.enabled === undefined ? existing.enabled : patch.enabled;
-  const nextRunAt = patch.nextRunAt === undefined ? existing.nextRunAt : patch.nextRunAt;
+  const enabled =
+    patch.enabled === undefined ? existing.enabled : patch.enabled;
+  const nextRunAt =
+    patch.nextRunAt === undefined ? existing.nextRunAt : patch.nextRunAt;
   db.prepare(
     `UPDATE scheduled_tasks
        SET name = ?, description = ?, cron_expr = ?, payload = ?,
            enabled = ?, next_run_at = ?, updated_at = ?
      WHERE id = ?`,
-  ).run(name, description, cronExpr, payload, enabled ? 1 : 0, nextRunAt, Date.now(), id);
+  ).run(
+    name,
+    description,
+    cronExpr,
+    payload,
+    enabled ? 1 : 0,
+    nextRunAt,
+    Date.now(),
+    id,
+  );
   return getTask(db, id)!;
 }
 
@@ -231,7 +254,11 @@ export interface SetTaskResultOpts {
   ranAt?: number;
 }
 
-export function setTaskResult(db: Database, id: string, opts: SetTaskResultOpts): void {
+export function setTaskResult(
+  db: Database,
+  id: string,
+  opts: SetTaskResultOpts,
+): void {
   db.prepare(
     `UPDATE scheduled_tasks
        SET last_run_at = ?, last_status = ?, last_error = ?,

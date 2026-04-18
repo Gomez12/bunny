@@ -51,7 +51,10 @@ export interface StartSchedulerOpts {
 export function startScheduler(opts: StartSchedulerOpts): SchedulerHandle {
   const { db, queue, cfg, registry } = opts;
 
-  const runHandler = async (task: ScheduledTask, now: number): Promise<void> => {
+  const runHandler = async (
+    task: ScheduledTask,
+    now: number,
+  ): Promise<void> => {
     const handler = registry.get(task.handler);
     const ranAt = now;
     if (!handler) {
@@ -121,7 +124,10 @@ export function startScheduler(opts: StartSchedulerOpts): SchedulerHandle {
     await Promise.allSettled(due.map((task) => runHandler(task, now)));
   };
 
-  const runTask = async (taskId: string, now: number = Date.now()): Promise<void> => {
+  const runTask = async (
+    taskId: string,
+    now: number = Date.now(),
+  ): Promise<void> => {
     const task = getTask(db, taskId);
     if (!task) throw new Error(`scheduled task ${taskId} not found`);
     await runHandler(task, now);

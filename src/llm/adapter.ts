@@ -11,7 +11,13 @@
  */
 
 import type { LlmConfig } from "../config.ts";
-import type { ChatMessage, ChatRequest, ContentPart, LlmResponse, StreamDelta } from "./types.ts";
+import type {
+  ChatMessage,
+  ChatRequest,
+  ContentPart,
+  LlmResponse,
+  StreamDelta,
+} from "./types.ts";
 import { getProfile } from "./profiles.ts";
 import { parseStream } from "./stream.ts";
 import { DeltaAccumulator } from "./delta.ts";
@@ -29,7 +35,9 @@ export interface StreamResult {
  * models receive the images. Everything else is passed through unchanged
  * (the `attachments` field itself is stripped — providers don't know it).
  */
-function serializeMessage(m: ChatMessage): ChatMessage | Record<string, unknown> {
+function serializeMessage(
+  m: ChatMessage,
+): ChatMessage | Record<string, unknown> {
   if (m.role !== "user" || !m.attachments || m.attachments.length === 0) {
     return m;
   }
@@ -67,7 +75,10 @@ function buildRequestBody(req: ChatRequest, model: string): unknown {
  * underlying stream. Consume `deltas` to drive the stream; `response` resolves
  * automatically when `deltas` is exhausted (or when you call `drainResponse`).
  */
-export async function chat(cfg: LlmConfig, req: ChatRequest): Promise<StreamResult> {
+export async function chat(
+  cfg: LlmConfig,
+  req: ChatRequest,
+): Promise<StreamResult> {
   const url = cfg.baseUrl.replace(/\/$/, "") + "/chat/completions";
   const profile = getProfile(cfg.profile, cfg.baseUrl);
 
@@ -82,7 +93,10 @@ export async function chat(cfg: LlmConfig, req: ChatRequest): Promise<StreamResu
 
   if (!res.ok) {
     const text = await res.text().catch(() => "(no body)");
-    throw new LlmError(`LLM request failed: ${res.status} ${res.statusText} — ${text}`, res.status);
+    throw new LlmError(
+      `LLM request failed: ${res.status} ${res.statusText} — ${text}`,
+      res.status,
+    );
   }
 
   if (!res.body) throw new LlmError("LLM response has no body", 0);
@@ -120,11 +134,16 @@ export async function chat(cfg: LlmConfig, req: ChatRequest): Promise<StreamResu
  * Convenience: consume the full stream and return the final response without
  * yielding individual deltas. Useful in tests and non-streaming contexts.
  */
-export async function chatSync(cfg: LlmConfig, req: ChatRequest): Promise<LlmResponse> {
+export async function chatSync(
+  cfg: LlmConfig,
+  req: ChatRequest,
+): Promise<LlmResponse> {
   const { deltas, response } = await chat(cfg, req);
   // Drain the deltas so the generator runs to completion and resolves `response`.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  for await (const _d of deltas) { /* drain */ }
+  for await (const _d of deltas) {
+    /* drain */
+  }
   return response;
 }
 

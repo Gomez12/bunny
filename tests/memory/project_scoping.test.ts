@@ -21,8 +21,18 @@ afterEach(() => {
 describe("BM25 scoped by project", () => {
   test("returns hits only from the requested project", async () => {
     const db = await newDb();
-    insertMessage(db, { sessionId: "a1", role: "user", content: "unique phrase alpha", project: "alpha" });
-    insertMessage(db, { sessionId: "b1", role: "user", content: "unique phrase beta", project: "beta" });
+    insertMessage(db, {
+      sessionId: "a1",
+      role: "user",
+      content: "unique phrase alpha",
+      project: "alpha",
+    });
+    insertMessage(db, {
+      sessionId: "b1",
+      role: "user",
+      content: "unique phrase beta",
+      project: "beta",
+    });
 
     const alphaHits = searchBM25(db, "unique phrase", 10, undefined, "alpha");
     expect(alphaHits.map((h) => h.sessionId)).toEqual(["a1"]);
@@ -43,9 +53,21 @@ describe("BM25 scoped by project", () => {
        VALUES ('legacy', ?, 'user', 'content', 'legacy phrase marker', NULL)`,
       [now],
     );
-    const general = searchBM25(db, "legacy phrase marker", 10, undefined, "general");
+    const general = searchBM25(
+      db,
+      "legacy phrase marker",
+      10,
+      undefined,
+      "general",
+    );
     expect(general.length).toBe(1);
-    const alpha = searchBM25(db, "legacy phrase marker", 10, undefined, "alpha");
+    const alpha = searchBM25(
+      db,
+      "legacy phrase marker",
+      10,
+      undefined,
+      "alpha",
+    );
     expect(alpha.length).toBe(0);
     db.close();
   });
@@ -54,8 +76,18 @@ describe("BM25 scoped by project", () => {
 describe("listSessions scoped by project", () => {
   test("filters sessions by project", async () => {
     const db = await newDb();
-    insertMessage(db, { sessionId: "s-a", role: "user", content: "hello", project: "alpha" });
-    insertMessage(db, { sessionId: "s-b", role: "user", content: "hello", project: "beta" });
+    insertMessage(db, {
+      sessionId: "s-a",
+      role: "user",
+      content: "hello",
+      project: "alpha",
+    });
+    insertMessage(db, {
+      sessionId: "s-b",
+      role: "user",
+      content: "hello",
+      project: "beta",
+    });
 
     const alpha = listSessions(db, { project: "alpha" });
     expect(alpha.map((s) => s.sessionId)).toEqual(["s-a"]);

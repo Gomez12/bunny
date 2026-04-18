@@ -95,8 +95,7 @@ export function buildSystemMessage(
       .map((a) => `- @${a.name} — ${a.description || "(no description)"}`)
       .join("\n");
     if (lines) {
-      content +=
-        `\n\n## Other agents\nYou can delegate by prefixing a question with @name in your text, or — if you have access to the call_agent tool — by invoking it. Available agents:\n${lines}`;
+      content += `\n\n## Other agents\nYou can delegate by prefixing a question with @name in your text, or — if you have access to the call_agent tool — by invoking it. Available agents:\n${lines}`;
     }
   }
 
@@ -104,8 +103,7 @@ export function buildSystemMessage(
     const lines = opts.skillCatalog
       .map((s) => `- **${s.name}**: ${s.description}`)
       .join("\n");
-    content +=
-      `\n\n## Available skills\nUse the \`activate_skill\` tool to load a skill's full instructions before following its workflow.\n${lines}`;
+    content += `\n\n## Available skills\nUse the \`activate_skill\` tool to load a skill's full instructions before following its workflow.\n${lines}`;
   }
 
   if (recall.length > 0) {
@@ -119,7 +117,10 @@ export function buildSystemMessage(
   return { role: "system", content };
 }
 
-function buildAgentHeader(name: string, description: string | undefined): string {
+function buildAgentHeader(
+  name: string,
+  description: string | undefined,
+): string {
   const desc = description?.trim();
   const lines = [
     `You are "${name}", a specialised agent.`,
@@ -133,7 +134,10 @@ function buildProjectLayered(
   baseSystem: string,
   projectPrompt: ProjectAssets["systemPrompt"] | undefined,
 ): string {
-  const replace = projectPrompt && projectPrompt.prompt.trim() !== "" && projectPrompt.append === false;
+  const replace =
+    projectPrompt &&
+    projectPrompt.prompt.trim() !== "" &&
+    projectPrompt.append === false;
   let content = replace ? projectPrompt.prompt : baseSystem;
   if (!replace && projectPrompt && projectPrompt.prompt.trim() !== "") {
     content += `\n\n## Project instructions\n${projectPrompt.prompt.trim()}`;
