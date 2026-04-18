@@ -53,6 +53,7 @@ const DocumentEditor = forwardRef<DocumentEditorHandle, Props>(function Document
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
   const editorRef = useRef<Editor | null>(null);
+  const lastExternalMd = useRef(contentMd);
 
   const handleImageFiles = useCallback(async (files: File[]) => {
     const ed = editorRef.current;
@@ -100,6 +101,7 @@ const DocumentEditor = forwardRef<DocumentEditorHandle, Props>(function Document
     onUpdate: ({ editor: e }) => {
       if (suppressChangeRef.current) return;
       const md = getEditorMarkdown(e as Editor);
+      lastExternalMd.current = md;
       onChangeRef.current(md);
     },
     editorProps: {
@@ -135,7 +137,6 @@ const DocumentEditor = forwardRef<DocumentEditorHandle, Props>(function Document
   }, [editor]);
 
   // Sync external content changes (e.g. after AI edit)
-  const lastExternalMd = useRef(contentMd);
   useEffect(() => {
     if (!editor || contentMd === lastExternalMd.current) return;
     lastExternalMd.current = contentMd;
