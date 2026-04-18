@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { login, type AuthUser } from "../api";
+import Rabbit from "../components/Rabbit";
 
 export default function LoginPage({ onLogin }: { onLogin: (user: AuthUser) => void }) {
   const [username, setUsername] = useState("");
@@ -24,6 +25,9 @@ export default function LoginPage({ onLogin }: { onLogin: (user: AuthUser) => vo
   return (
     <div className="auth-page">
       <form className="auth-card" onSubmit={submit}>
+        <div className="auth-hero" aria-hidden="true">
+          <Rabbit size={160} />
+        </div>
         <h1>Sign in to Bunny</h1>
         <label>
           <span>Username</span>

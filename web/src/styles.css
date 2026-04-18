@@ -3659,3 +3659,452 @@ button {
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* ── Chat read-only note (admin "All" scope) ────────────────── */
+.chat__readonly-note {
+  padding: 14px 18px;
+  color: var(--text-dim);
+  font-size: 13px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.chat__readonly-swap {
+  padding: 2px 8px;
+  color: var(--accent);
+}
+
+/* ── Session sidebar scope toggle ───────────────────────────── */
+.sidebar__scope {
+  display: inline-flex;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px;
+  align-self: flex-start;
+  margin: 0 2px 2px 2px;
+}
+.sidebar__scope-btn {
+  background: transparent;
+  border: none;
+  padding: 3px 12px;
+  color: var(--text-dim);
+  border-radius: 999px;
+  font-size: 11px;
+  transition: background 0.15s, color 0.15s;
+}
+.sidebar__scope-btn:hover {
+  color: var(--text);
+}
+.sidebar__scope-btn--active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ── Sidebar navigation (shell) ─────────────────────────────── */
+.app-shell {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+.app-shell__main {
+  grid-column: 2;
+  grid-row: 1;
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+}
+.app-shell__main::before {
+  content: "";
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  width: 220px;
+  height: 256px;
+  background-image: url("./assets/rabbit.svg");
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: bottom right;
+  opacity: 0.04;
+  pointer-events: none;
+  z-index: 0;
+  color: var(--text);
+}
+.app-shell__main--dense::before {
+  display: none;
+}
+.app-shell__main > * {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+}
+
+/* Permanent icon rail with hover-expand overlay (VS Code pattern).
+   At rest: 56px, only icons. On hover / keyboard focus inside: expands to
+   240px as an absolute overlay — no layout reflow of the content area. */
+.nav {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 56px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow: hidden;
+  z-index: 20;
+  transition: width 0.18s ease, box-shadow 0.18s ease;
+}
+.nav:hover,
+.nav:focus-within {
+  width: 240px;
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.35);
+}
+.nav__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px 10px 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  min-width: 240px;
+}
+.nav__brand-rabbit {
+  color: var(--accent);
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 20px;
+  height: 23px;
+}
+.nav__brand-text {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.nav:hover .nav__brand-text,
+.nav:focus-within .nav__brand-text {
+  opacity: 1;
+}
+.nav__project {
+  margin: 0 8px 10px 8px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  min-width: 224px;
+  opacity: 0;
+  transition: opacity 0.12s ease, border-color 0.15s;
+}
+.nav:hover .nav__project,
+.nav:focus-within .nav__project {
+  opacity: 1;
+}
+.nav__project:hover {
+  border-color: var(--accent-soft);
+}
+.nav__project-label {
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+.nav__project-value {
+  color: var(--text);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nav__groups {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 8px 16px 8px;
+}
+.nav__groups::-webkit-scrollbar {
+  width: 0;
+}
+.nav__group {
+  margin-top: 10px;
+}
+.nav__group-label {
+  padding: 6px 10px 4px 10px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.nav:hover .nav__group-label,
+.nav:focus-within .nav__group-label {
+  opacity: 1;
+}
+.nav__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-dim);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: background 0.15s, color 0.15s;
+}
+.nav__item:hover {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+.nav__item--active {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 0 1px var(--accent-soft);
+}
+.nav__item--active:hover {
+  background: var(--accent);
+  color: #fff;
+}
+.nav__item-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+}
+.nav__item-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.nav:hover .nav__item-label,
+.nav:focus-within .nav__item-label {
+  opacity: 1;
+}
+.nav__footer {
+  border-top: 1px solid var(--border);
+  padding: 10px 8px;
+  display: grid;
+  gap: 8px;
+}
+.nav__user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-dim);
+  font-size: 12px;
+  min-width: 224px;
+  padding: 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.nav:hover .nav__user,
+.nav:focus-within .nav__user {
+  opacity: 1;
+}
+.nav__user-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+  flex: 1;
+}
+.nav__user-role {
+  text-transform: uppercase;
+  font-size: 9px;
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+.nav__user-settings {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-faint);
+  border-radius: 6px;
+  padding: 3px;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.nav__user-settings:hover {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border-color: var(--border);
+}
+.nav__logout {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  border-radius: 8px;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  min-width: 40px;
+}
+.nav__logout:hover {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+.nav__logout span {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.nav:hover .nav__logout span,
+.nav:focus-within .nav__logout span {
+  opacity: 1;
+}
+
+/* Mobile drawer toggle, hidden by default */
+.nav__drawer-btn {
+  display: none;
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 25;
+  padding: 6px 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+}
+.nav__backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 19;
+}
+
+@media (max-width: 640px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+  .nav {
+    width: 240px;
+    transform: translateX(-100%);
+    transition: transform 0.18s ease;
+    z-index: 30;
+  }
+  .nav:hover,
+  .nav:focus-within {
+    width: 240px;
+    box-shadow: none;
+  }
+  .nav--open {
+    transform: translateX(0);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
+  }
+  .nav__brand-text,
+  .nav__project,
+  .nav__group-label,
+  .nav__item-label,
+  .nav__user,
+  .nav__logout span {
+    opacity: 1;
+  }
+  .nav__drawer-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+}
+
+/* ── Empty state ────────────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--text-dim);
+}
+.empty-state--sm {
+  padding: 24px 12px;
+}
+.empty-state__rabbit {
+  color: var(--accent);
+  opacity: 0.85;
+  margin-bottom: 4px;
+}
+.empty-state__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+.empty-state__desc {
+  margin: 0;
+  max-width: 42ch;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.empty-state__action {
+  margin-top: 8px;
+}
+
+/* ── Sub-tabs (inner segmented control) ─────────────────────── */
+.subtabs {
+  display: flex;
+  gap: 4px;
+  padding: 12px 24px 0 24px;
+  border-bottom: 1px solid var(--border);
+}
+.subtab {
+  background: transparent;
+  border: none;
+  padding: 8px 14px;
+  color: var(--text-dim);
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+.subtab:hover {
+  color: var(--text);
+}
+.subtab--active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+/* ── Auth hero (login / change password) ────────────────────── */
+.auth-hero {
+  display: flex;
+  justify-content: center;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+

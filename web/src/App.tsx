@@ -2,25 +2,22 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { createSession, fetchMe, logout, type AuthUser } from "./api";
 import LoginPage from "./pages/LoginPage";
 import ChangePasswordPage from "./pages/ChangePasswordPage";
+import Sidebar, { type NavTabId } from "./components/Sidebar";
 
 // Tabs + pages are route-level — lazy-load so the initial bundle stays small
 // (mermaid, highlight.js, react-markdown, @dnd-kit end up in their own chunks).
 const DashboardTab = lazy(() => import("./tabs/DashboardTab"));
 const ChatTab = lazy(() => import("./tabs/ChatTab"));
-const MessagesTab = lazy(() => import("./tabs/MessagesTab"));
-const ProjectsTab = lazy(() => import("./tabs/ProjectsTab"));
-const AgentsTab = lazy(() => import("./tabs/AgentsTab"));
 const BoardTab = lazy(() => import("./tabs/BoardTab"));
 const FilesTab = lazy(() => import("./tabs/FilesTab"));
-const LogsTab = lazy(() => import("./tabs/LogsTab"));
 const TasksTab = lazy(() => import("./tabs/TasksTab"));
-const SkillsTab = lazy(() => import("./tabs/SkillsTab"));
 const WhiteboardTab = lazy(() => import("./tabs/WhiteboardTab"));
 const DocumentTab = lazy(() => import("./tabs/DocumentTab"));
 const ContactsTab = lazy(() => import("./tabs/ContactsTab"));
+const WorkspaceTab = lazy(() => import("./tabs/WorkspaceTab"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 
-type Tab = "dashboard" | "chat" | "messages" | "board" | "whiteboard" | "documents" | "contacts" | "files" | "tasks" | "projects" | "agents" | "skills" | "logs" | "settings";
+type Tab = NavTabId;
 
 const SESSION_STORAGE_KEY = "bunny.activeSessionId";
 const PROJECT_STORAGE_KEY = "bunny.activeProject";
@@ -28,8 +25,36 @@ const TAB_STORAGE_KEY = "bunny.activeTab";
 const DEFAULT_PROJECT = "general";
 
 const VALID_TABS: ReadonlySet<string> = new Set<Tab>([
-  "dashboard", "chat", "messages", "board", "whiteboard", "documents", "contacts", "files", "tasks", "projects", "agents", "skills", "logs", "settings",
+  "chat",
+  "board",
+  "tasks",
+  "documents",
+  "whiteboard",
+  "files",
+  "contacts",
+  "workspace",
+  "dashboard",
+  "settings",
 ]);
+
+// Tabs that were removed in the 2026-04-17 redesign (ADR 0020) and where they
+// now live. Keeps stored localStorage values usable after an upgrade.
+const LEGACY_TAB_ALIAS: Record<string, Tab> = {
+  messages: "chat",
+  logs: "settings",
+  projects: "workspace",
+  agents: "workspace",
+  skills: "workspace",
+};
+// For legacy aliases that land on Workspace, map to the matching inner sub-tab.
+const LEGACY_WORKSPACE_SUB: Record<string, "projects" | "agents" | "skills"> = {
+  projects: "projects",
+  agents: "agents",
+  skills: "skills",
+};
+
+// Tabs whose body is too dense for the rabbit watermark to sit behind it.
+const DENSE_TABS: ReadonlySet<Tab> = new Set<Tab>(["dashboard"]);
 
 function adoptSession(id: string): string {
   localStorage.setItem(SESSION_STORAGE_KEY, id);
@@ -41,10 +66,21 @@ function adoptProject(name: string): string {
   return name;
 }
 
+function resolveStoredTab(): Tab {
+  const stored = localStorage.getItem(TAB_STORAGE_KEY);
+  if (!stored) return "chat";
+  if (VALID_TABS.has(stored)) return stored as Tab;
+  const aliased = LEGACY_TAB_ALIAS[stored];
+  if (aliased) return aliased;
+  return "chat";
+}
+
 export default function App() {
-  const [tab, setTabRaw] = useState<Tab>(() => {
+  const [tab, setTabRaw] = useState<Tab>(resolveStoredTab);
+  // Pick the initial Workspace sub-tab from legacy storage on first paint only.
+  const [initialWorkspaceSub] = useState<"projects" | "agents" | "skills">(() => {
     const stored = localStorage.getItem(TAB_STORAGE_KEY);
-    return stored && VALID_TABS.has(stored) ? (stored as Tab) : "chat";
+    return (stored && LEGACY_WORKSPACE_SUB[stored]) || "projects";
   });
   const setTab = (t: Tab) => {
     localStorage.setItem(TAB_STORAGE_KEY, t);
@@ -105,7 +141,7 @@ export default function App() {
     } catch {
       // ignored — error surfaces on next API call
     }
-    setTab("chat");
+    setTab("dashboard");
   };
 
   const onLogout = async () => {
@@ -117,116 +153,23 @@ export default function App() {
     setUser(null);
   };
 
-  return (
-    <div className="app">
-      <header className="topbar">
-        <div className="brand">
-          <span className="brand-dot" />
-          <span>bunny</span>
-          <span className="project-pill" title="Active project">
-            {activeProject}
-          </span>
-        </div>
-        <nav className="tabs">
-          <button
-            className={`tab ${tab === "dashboard" ? "tab--active" : ""}`}
-            onClick={() => setTab("dashboard")}
-          >
-            Dashboard
-          </button>
-          <button
-            className={`tab ${tab === "chat" ? "tab--active" : ""}`}
-            onClick={() => setTab("chat")}
-          >
-            Chat
-          </button>
-          <button
-            className={`tab ${tab === "messages" ? "tab--active" : ""}`}
-            onClick={() => setTab("messages")}
-          >
-            Messages
-          </button>
-          <button
-            className={`tab ${tab === "board" ? "tab--active" : ""}`}
-            onClick={() => setTab("board")}
-          >
-            Board
-          </button>
-          <button
-            className={`tab ${tab === "whiteboard" ? "tab--active" : ""}`}
-            onClick={() => setTab("whiteboard")}
-          >
-            Whiteboard
-          </button>
-          <button
-            className={`tab ${tab === "documents" ? "tab--active" : ""}`}
-            onClick={() => setTab("documents")}
-          >
-            Documents
-          </button>
-          <button
-            className={`tab ${tab === "contacts" ? "tab--active" : ""}`}
-            onClick={() => setTab("contacts")}
-          >
-            Contacts
-          </button>
-          <button
-            className={`tab ${tab === "files" ? "tab--active" : ""}`}
-            onClick={() => setTab("files")}
-          >
-            Files
-          </button>
-          <button
-            className={`tab ${tab === "tasks" ? "tab--active" : ""}`}
-            onClick={() => setTab("tasks")}
-          >
-            Tasks
-          </button>
-          <button
-            className={`tab ${tab === "projects" ? "tab--active" : ""}`}
-            onClick={() => setTab("projects")}
-          >
-            Projects
-          </button>
-          <button
-            className={`tab ${tab === "agents" ? "tab--active" : ""}`}
-            onClick={() => setTab("agents")}
-          >
-            Agents
-          </button>
-          <button
-            className={`tab ${tab === "skills" ? "tab--active" : ""}`}
-            onClick={() => setTab("skills")}
-          >
-            Skills
-          </button>
-          {user.role === "admin" && (
-            <button
-              className={`tab ${tab === "logs" ? "tab--active" : ""}`}
-              onClick={() => setTab("logs")}
-            >
-              Logs
-            </button>
-          )}
-          <button
-            className={`tab ${tab === "settings" ? "tab--active" : ""}`}
-            onClick={() => setTab("settings")}
-          >
-            Settings
-          </button>
-        </nav>
-        <div className="topbar-right">
-          <span className="user-chip" title={user.email ?? ""}>
-            {user.displayName || user.username}
-            <span className="user-role">{user.role}</span>
-          </span>
-          <button className="logout-btn" onClick={onLogout}>
-            Logout
-          </button>
-        </div>
-      </header>
+  const dense = DENSE_TABS.has(tab);
 
-      <main className="main">
+  return (
+    <div className="app-shell">
+      <Sidebar
+        activeTab={tab}
+        onPickTab={setTab}
+        user={user}
+        activeProject={activeProject}
+        onPickProjectTab={() => setTab("workspace")}
+        onLogout={onLogout}
+      />
+
+      <main
+        className={`app-shell__main ${dense ? "app-shell__main--dense" : ""}`}
+        data-tab={tab}
+      >
         <Suspense fallback={<div className="app-loading">Loading…</div>}>
           {tab === "dashboard" && <DashboardTab currentUser={user} />}
           {tab === "chat" && sessionId && (
@@ -238,7 +181,6 @@ export default function App() {
               onNewSession={onNewSession}
             />
           )}
-          {tab === "messages" && <MessagesTab currentUser={user} project={activeProject} />}
           {tab === "board" && (
             <BoardTab
               project={activeProject}
@@ -249,11 +191,14 @@ export default function App() {
               }}
             />
           )}
-          {tab === "projects" && (
-            <ProjectsTab currentUser={user} activeProject={activeProject} onPickProject={onPickProject} />
+          {tab === "workspace" && (
+            <WorkspaceTab
+              currentUser={user}
+              activeProject={activeProject}
+              onPickProject={onPickProject}
+              initialSub={initialWorkspaceSub}
+            />
           )}
-          {tab === "agents" && <AgentsTab currentUser={user} activeProject={activeProject} />}
-          {tab === "skills" && <SkillsTab currentUser={user} activeProject={activeProject} />}
           {tab === "whiteboard" && (
             <WhiteboardTab
               project={activeProject}
@@ -284,7 +229,6 @@ export default function App() {
           )}
           {tab === "files" && <FilesTab project={activeProject} currentUser={user} />}
           {tab === "tasks" && <TasksTab currentUser={user} />}
-          {tab === "logs" && user.role === "admin" && <LogsTab />}
           {tab === "settings" && <SettingsPage user={user} onUserUpdated={setUser} />}
         </Suspense>
       </main>

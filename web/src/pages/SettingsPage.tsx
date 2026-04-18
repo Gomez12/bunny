@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import type { AuthUser } from "../api";
 import { updateOwnProfile, changeOwnPassword } from "../api";
 import ApiKeyList from "../components/ApiKeyList";
 import UserList from "../components/UserList";
 
-type Tab = "profile" | "keys" | "users";
+const LogsTab = lazy(() => import("../tabs/LogsTab"));
+
+type Tab = "profile" | "keys" | "users" | "logs";
 
 export default function SettingsPage({
   user,
@@ -32,11 +34,21 @@ export default function SettingsPage({
             Users
           </button>
         )}
+        {user.role === "admin" && (
+          <button className={tab === "logs" ? "active" : ""} onClick={() => setTab("logs")}>
+            Logs
+          </button>
+        )}
       </nav>
       <section className="settings-body">
         {tab === "profile" && <ProfileForm user={user} onUpdated={onUserUpdated} />}
         {tab === "keys" && <ApiKeyList />}
         {tab === "users" && user.role === "admin" && <UserList currentUserId={user.id} />}
+        {tab === "logs" && user.role === "admin" && (
+          <Suspense fallback={<div className="app-loading">Loading…</div>}>
+            <LogsTab />
+          </Suspense>
+        )}
       </section>
     </div>
   );

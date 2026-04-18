@@ -10,6 +10,7 @@ import MarkdownContent from "../components/MarkdownContent";
 import ReasoningBlock from "../components/ReasoningBlock";
 import ToolCallCard from "../components/ToolCallCard";
 import SessionSidebar from "../components/SessionSidebar";
+import EmptyState from "../components/EmptyState";
 import StatsFooter from "../components/StatsFooter";
 import {
   fetchMessages,
@@ -44,6 +45,8 @@ export default function ChatTab({
   const { turns, streaming, send, abort, reset } = useSSEChat(sessionId, project, () =>
     setRefreshKey((k) => k + 1),
   );
+
+  const [adminScope, setAdminScope] = useState<"mine" | "all">("mine");
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<ComposerHandle>(null);
@@ -213,8 +216,15 @@ export default function ChatTab({
         onNew={onNewSession}
         refreshKey={refreshKey}
         project={project}
-        excludeHidden
+        excludeHidden={adminScope === "mine"}
         allowToggleHidden
+        scope={currentUser.role === "admin" ? adminScope : undefined}
+        showOwner={currentUser.role === "admin" && adminScope === "all"}
+        scopeToggle={
+          currentUser.role === "admin"
+            ? { value: adminScope, onChange: setAdminScope }
+            : undefined
+        }
       />
       <div
         className={"chat__main" + (isDragOver ? " chat__main--dragover" : "")}
@@ -230,10 +240,10 @@ export default function ChatTab({
         )}
         <div className="chat__scroll" ref={scrollRef}>
           {isEmpty && (
-            <div className="chat__empty">
-              <h2>How can I help you today?</h2>
-              <p>Session <code>{sessionId.slice(0, 8)}</code></p>
-            </div>
+            <EmptyState
+              title="How can I help you today?"
+              description={`Project ${project} · session ${sessionId.slice(0, 8)}`}
+            />
           )}
           {history.map((t) => (
             <div key={t.id} className="turn">
@@ -300,14 +310,28 @@ export default function ChatTab({
           ))}
         </div>
         <div className="chat__composer">
-          <Composer
-            ref={composerRef}
-            disabled={streaming}
-            streaming={streaming}
-            onSubmit={send}
-            onAbort={abort}
-            project={project}
-          />
+          {adminScope === "all" ? (
+            <div className="chat__readonly-note">
+              Viewing all users' sessions (read-only). Switch the sidebar scope back to
+              <button
+                type="button"
+                className="btn btn--ghost chat__readonly-swap"
+                onClick={() => setAdminScope("mine")}
+              >
+                Mine
+              </button>
+              to continue this session.
+            </div>
+          ) : (
+            <Composer
+              ref={composerRef}
+              disabled={streaming}
+              streaming={streaming}
+              onSubmit={send}
+              onAbort={abort}
+              project={project}
+            />
+          )}
         </div>
       </div>
     </div>

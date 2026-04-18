@@ -45,7 +45,16 @@ Reasoning is stored on `messages.channel='reasoning'` (visible in UI, not used i
 
 ## Web UI
 
-Next to the CLI, Bunny runs a web UI (`bunny serve`) with thirteen tabs (in order): **Dashboard** (KPIs, time-series charts, activity feed — see [ADR 0014](./adr/0014-dashboard.md)), **Chat** (live streaming, scoped to the active project; agents callable via `@name`), **Messages** (all sessions for the active project, BM25-searchable), **Board** (Trello-style kanban per project — drag-and-drop, assign cards to a user or agent, and the **Run** button lets the agent execute the card with live SSE streaming), **Whiteboard** (per-project Excalidraw whiteboards with AI-powered edit and question modes — see [ADR 0015](./adr/0015-whiteboards.md)), **Documents** (per-project rich-text WYSIWYG documents backed by Tiptap, stored as markdown, with Word ribbon toolbar, code-mode toggle, and AI edit/question modes — see [ADR 0016](./adr/0016-documents.md)), **Files** (per-project workspace file browser — see [ADR 0012](./adr/0012-project-workspaces.md)), **Tasks** (system and user scheduled tasks with cron — see [ADR 0011](./adr/0011-scheduled-tasks.md)), **Projects** (card grid + create/edit dialog), **Agents** (personalities with their own prompt/tools, per-project opt-in, subagent orchestration via `call_agent`), **Skills** (reusable instruction packages, install from GitHub/skills.sh — see [ADR 0013](./adr/0013-agent-skills.md)), **Logs** (admin-only audit trail of queue events), and **Settings** (own profile, API keys, and user management for admins). See [ADR 0006](./adr/0006-web-ui.md) for the UI layout, [ADR 0007](./adr/0007-auth-and-users.md) for the auth layer, [ADR 0008](./adr/0008-projects.md) for the projects concept, [ADR 0009](./adr/0009-agents.md) for agents and [ADR 0010](./adr/0010-project-boards.md) for the board. The agent loop is unchanged — the webserver plugs into the same `Renderer` interface as the CLI (via `createSseRenderer`) and passes the authenticated `userId` + optional `agent` to `runAgent`.
+Next to the CLI, Bunny runs a web UI (`bunny serve`) with a left sidebar grouped into four sections:
+
+- **Work** — **Chat** (live streaming, scoped to the active project; agents callable via `@name`; session list built into the sidebar), **Board** (Trello-style kanban per project — drag-and-drop, assign cards to a user or agent, and the **Run** button lets the agent execute the card with live SSE streaming), **Tasks** (system and user scheduled tasks with cron — see [ADR 0011](./adr/0011-scheduled-tasks.md)).
+- **Content** — **Documents** (per-project rich-text WYSIWYG documents backed by Tiptap — see [ADR 0016](./adr/0016-documents.md)), **Whiteboard** (per-project Excalidraw whiteboards with AI-powered edit and question modes — see [ADR 0015](./adr/0015-whiteboards.md)), **Files** (per-project workspace file browser — see [ADR 0012](./adr/0012-project-workspaces.md)), **Contacts** (per-project contact cards with groups, search, and vCard import/export — see [ADR 0019](./adr/0019-contacts.md)).
+- **Configure** — **Workspace** (Projects / Agents / Skills as inner sub-tabs — see [ADRs 0008](./adr/0008-projects.md), [0009](./adr/0009-agents.md), [0013](./adr/0013-agent-skills.md)).
+- **System** — **Dashboard** (KPIs, time-series charts, activity feed — see [ADR 0014](./adr/0014-dashboard.md)), **Settings** (own profile, API keys, user management for admins, and admin-only Logs sub-tab with the audit trail of queue events).
+
+See [ADR 0006](./adr/0006-web-ui.md) for the UI layout, [ADR 0020](./adr/0020-ui-redesign-and-styleguide.md) for the sidebar redesign, [ADR 0007](./adr/0007-auth-and-users.md) for the auth layer and [ADR 0010](./adr/0010-project-boards.md) for the board. The agent loop is unchanged — the webserver plugs into the same `Renderer` interface as the CLI (via `createSseRenderer`) and passes the authenticated `userId` + optional `agent` to `runAgent`.
+
+The visual language (tokens, components, icon system, rabbit mascot) is documented in the **[styleguide](./styleguide.md)** — consult it before adding UI.
 
 ## Desktop Client
 
@@ -72,3 +81,5 @@ A Tauri v2 desktop app (`client/`) wraps the web UI in a native window. It conne
 - [ADR 0017 — Tauri desktop client](./adr/0017-tauri-client.md)
 - [ADR 0018 — Web tools](./adr/0018-web-tools.md)
 - [ADR 0019 — Contacts](./adr/0019-contacts.md)
+- [ADR 0020 — UI redesign & styleguide](./adr/0020-ui-redesign-and-styleguide.md)
+- [Styleguide](./styleguide.md)

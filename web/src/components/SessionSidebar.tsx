@@ -21,6 +21,8 @@ interface Props {
   excludeHidden?: boolean;
   /** Render a per-row hide/unhide control. Default false. */
   allowToggleHidden?: boolean;
+  /** Admin-only scope toggle. When provided, renders a segmented control. */
+  scopeToggle?: { value: "mine" | "all"; onChange: (v: "mine" | "all") => void };
 }
 
 function sameSessions(a: SessionSummary[], b: SessionSummary[]): boolean {
@@ -47,6 +49,7 @@ export default memo(function SessionSidebar({
   project,
   excludeHidden,
   allowToggleHidden,
+  scopeToggle,
 }: Props) {
   const [search, setSearch] = useState("");
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -98,6 +101,34 @@ export default memo(function SessionSidebar({
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
+      {scopeToggle && (
+        <div className="sidebar__scope" role="tablist" aria-label="Session scope">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={scopeToggle.value === "mine"}
+            className={
+              "sidebar__scope-btn" +
+              (scopeToggle.value === "mine" ? " sidebar__scope-btn--active" : "")
+            }
+            onClick={() => scopeToggle.onChange("mine")}
+          >
+            Mine
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={scopeToggle.value === "all"}
+            className={
+              "sidebar__scope-btn" +
+              (scopeToggle.value === "all" ? " sidebar__scope-btn--active" : "")
+            }
+            onClick={() => scopeToggle.onChange("all")}
+          >
+            All
+          </button>
+        </div>
+      )}
       <div className="sidebar__section">Sessions</div>
       <ul className="sidebar__list">
         {sessions.length === 0 && (

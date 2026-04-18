@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { changeOwnPassword, type AuthUser } from "../api";
+import Rabbit from "../components/Rabbit";
 
 export default function ChangePasswordPage({
   user,
@@ -35,6 +36,9 @@ export default function ChangePasswordPage({
   return (
     <div className="auth-page">
       <form className="auth-card" onSubmit={submit}>
+        <div className="auth-hero" aria-hidden="true">
+          <Rabbit size={160} />
+        </div>
         <h1>{forced ? "Set a new password" : "Change your password"}</h1>
         {forced && (
           <p className="auth-note">
