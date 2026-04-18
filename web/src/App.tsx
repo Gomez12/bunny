@@ -23,6 +23,7 @@ const WhiteboardTab = lazy(() => import("./tabs/WhiteboardTab"));
 const DocumentTab = lazy(() => import("./tabs/DocumentTab"));
 const ContactsTab = lazy(() => import("./tabs/ContactsTab"));
 const KnowledgeBaseTab = lazy(() => import("./tabs/KnowledgeBaseTab"));
+const WebNewsTab = lazy(() => import("./tabs/WebNewsTab"));
 const WorkspaceTab = lazy(() => import("./tabs/WorkspaceTab"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 
@@ -65,6 +66,7 @@ const VALID_TABS: ReadonlySet<string> = new Set<Tab>([
   "files",
   "contacts",
   "knowledge-base",
+  "news",
   "workspace",
   "dashboard",
   "settings",
@@ -301,6 +303,9 @@ export default function App() {
           )}
           {tab === "knowledge-base" && (
             <KnowledgeBaseTab project={activeProject} currentUser={user} />
+          )}
+          {tab === "news" && (
+            <WebNewsTab project={activeProject} currentUser={user} />
           )}
           {tab === "files" && <FilesTab project={activeProject} currentUser={user} />}
           {tab === "tasks" && <TasksTab currentUser={user} />}

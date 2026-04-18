@@ -56,6 +56,7 @@ import { handleWhiteboardRoute } from "./whiteboard_routes.ts";
 import { handleDocumentRoute } from "./document_routes.ts";
 import { handleContactRoute } from "./contact_routes.ts";
 import { handleKbRoute } from "./kb_routes.ts";
+import { handleWebNewsRoute } from "./web_news_routes.ts";
 import { handleWorkspaceRoute } from "./workspace_routes.ts";
 import { handleScheduledTaskRoute } from "./scheduled_task_routes.ts";
 import { handleTranslationRoute } from "./translation_routes.ts";
@@ -164,6 +165,15 @@ export async function handleApi(
     user,
   );
   if (kbResponse) return kbResponse;
+
+  // ── Web News (per-project periodic aggregator) ───────────────────────────
+  const webNewsResponse = await handleWebNewsRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg },
+    user,
+  );
+  if (webNewsResponse) return webNewsResponse;
 
   // ── Workspace (per-project files) ─────────────────────────────────────────
   const workspaceResponse = await handleWorkspaceRoute(

@@ -1858,3 +1858,137 @@ export async function streamGenerateDefinition(
     { method: "POST", credentials: "include" },
   );
 }
+
+// ── Web News ────────────────────────────────────────────────────────────────
+
+export type NewsRunStatus = "idle" | "running";
+export type NewsLastRunStatus = "ok" | "error";
+
+export interface NewsTopic {
+  id: number;
+  project: string;
+  name: string;
+  description: string;
+  agent: string;
+  terms: string[];
+  updateCron: string;
+  renewTermsCron: string | null;
+  alwaysRegenerateTerms: boolean;
+  maxItemsPerRun: number;
+  enabled: boolean;
+  runStatus: NewsRunStatus;
+  nextUpdateAt: number;
+  nextRenewTermsAt: number | null;
+  lastRunAt: number | null;
+  lastRunStatus: NewsLastRunStatus | null;
+  lastRunError: string | null;
+  lastSessionId: string | null;
+  createdBy: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface NewsItem {
+  id: number;
+  topicId: number;
+  project: string;
+  title: string;
+  summary: string;
+  url: string | null;
+  imageUrl: string | null;
+  source: string | null;
+  publishedAt: number | null;
+  contentHash: string;
+  seenCount: number;
+  firstSeenAt: number;
+  lastSeenAt: number;
+  createdAt: number;
+}
+
+export interface NewsTopicInput {
+  name: string;
+  description?: string;
+  agent: string;
+  terms?: string[];
+  updateCron: string;
+  renewTermsCron?: string | null;
+  alwaysRegenerateTerms?: boolean;
+  maxItemsPerRun?: number;
+  enabled?: boolean;
+}
+
+export async function fetchNewsTopics(project: string): Promise<NewsTopic[]> {
+  const data = await jsonFetch<{ topics: NewsTopic[] }>(
+    `/api/projects/${encodeURIComponent(project)}/news/topics`,
+  );
+  return data.topics;
+}
+
+export async function createNewsTopic(
+  project: string,
+  input: NewsTopicInput,
+): Promise<NewsTopic> {
+  const data = await jsonFetch<{ topic: NewsTopic }>(
+    `/api/projects/${encodeURIComponent(project)}/news/topics`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+  return data.topic;
+}
+
+export async function updateNewsTopic(
+  project: string,
+  id: number,
+  patch: Partial<NewsTopicInput>,
+): Promise<NewsTopic> {
+  const data = await jsonFetch<{ topic: NewsTopic }>(
+    `/api/projects/${encodeURIComponent(project)}/news/topics/${id}`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+  );
+  return data.topic;
+}
+
+export async function deleteNewsTopic(project: string, id: number): Promise<void> {
+  await jsonFetch(
+    `/api/projects/${encodeURIComponent(project)}/news/topics/${id}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function runNewsTopicNow(project: string, id: number): Promise<void> {
+  await jsonFetch(
+    `/api/projects/${encodeURIComponent(project)}/news/topics/${id}/run-now`,
+    { method: "POST" },
+  );
+}
+
+export async function regenerateNewsTopicTerms(
+  project: string,
+  id: number,
+): Promise<void> {
+  await jsonFetch(
+    `/api/projects/${encodeURIComponent(project)}/news/topics/${id}/regenerate-terms`,
+    { method: "POST" },
+  );
+}
+
+export async function fetchNewsItems(
+  project: string,
+  opts?: { topicId?: number; limit?: number; since?: number },
+): Promise<NewsItem[]> {
+  const params = new URLSearchParams();
+  if (opts?.topicId !== undefined) params.set("topicId", String(opts.topicId));
+  if (opts?.limit !== undefined) params.set("limit", String(opts.limit));
+  if (opts?.since !== undefined) params.set("since", String(opts.since));
+  const qs = params.toString();
+  const data = await jsonFetch<{ items: NewsItem[] }>(
+    `/api/projects/${encodeURIComponent(project)}/news/items${qs ? `?${qs}` : ""}`,
+  );
+  return data.items;
+}
+
+export async function deleteNewsItem(project: string, id: number): Promise<void> {
+  await jsonFetch(
+    `/api/projects/${encodeURIComponent(project)}/news/items/${id}`,
+    { method: "DELETE" },
+  );
+}

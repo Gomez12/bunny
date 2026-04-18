@@ -106,6 +106,27 @@ export interface SseTranslationGeneratedEvent {
   error?: string;
 }
 
+/** Emitted when a Web News topic run finishes. Reserved for a future
+ * project-scoped SSE stream — the v1 frontend polls instead. */
+export interface SseWebNewsRunFinishedEvent {
+  type: "web_news_run_finished";
+  topicId: number;
+  project: string;
+  status: "ok" | "error";
+  inserted?: number;
+  duplicates?: number;
+  error?: string;
+}
+
+/** Emitted when a Web News topic transitions between idle / running / error.
+ * Reserved — v1 frontend polls. */
+export interface SseWebNewsTopicStatusEvent {
+  type: "web_news_topic_status";
+  topicId: number;
+  project: string;
+  status: "idle" | "running" | "error";
+}
+
 export type SseEvent =
   | SseContentEvent
   | SseReasoningEvent
@@ -119,4 +140,6 @@ export type SseEvent =
   | SseCardRunStartedEvent
   | SseCardRunFinishedEvent
   | SseKbDefinitionGeneratedEvent
-  | SseTranslationGeneratedEvent;
+  | SseTranslationGeneratedEvent
+  | SseWebNewsRunFinishedEvent
+  | SseWebNewsTopicStatusEvent;

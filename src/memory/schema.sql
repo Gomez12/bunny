@@ -483,6 +483,61 @@ CREATE TABLE IF NOT EXISTS board_card_translations (
 CREATE INDEX IF NOT EXISTS idx_card_trans_lookup  ON board_card_translations(card_id, lang);
 CREATE INDEX IF NOT EXISTS idx_card_trans_pending ON board_card_translations(status, source_version);
 
+-- ── Web News ────────────────────────────────────────────────────────────────
+-- Per-project periodic news aggregator. Each topic carries its own agent,
+-- search terms (JSON array), an update cron + optional renew-terms cron, and
+-- self-scheduling next-run timestamps. The scan handler
+-- (src/web_news/auto_run_handler.ts) fires once per minute, selects due rows,
+-- and dispatches runTopic which calls runAgent with web tools available.
+-- Items are append-only; content_hash is sha256(normalizedUrl + normalizedTitle)
+-- so a re-run that finds the same story bumps seen_count instead of inserting.
+CREATE TABLE IF NOT EXISTS web_news_topics (
+  id                        INTEGER PRIMARY KEY AUTOINCREMENT,
+  project                   TEXT    NOT NULL,
+  name                      TEXT    NOT NULL,
+  description               TEXT    NOT NULL DEFAULT '',
+  agent                     TEXT    NOT NULL,
+  terms                     TEXT    NOT NULL DEFAULT '[]',  -- JSON array<string>
+  update_cron               TEXT    NOT NULL,
+  renew_terms_cron          TEXT,                            -- NULL when not scheduled
+  always_regenerate_terms   INTEGER NOT NULL DEFAULT 0,      -- 1 = regen terms every update
+  max_items_per_run         INTEGER NOT NULL DEFAULT 10,
+  enabled                   INTEGER NOT NULL DEFAULT 1,
+  run_status                TEXT    NOT NULL DEFAULT 'idle', -- 'idle' | 'running'
+  next_update_at            INTEGER NOT NULL,
+  next_renew_terms_at       INTEGER,
+  last_run_at               INTEGER,
+  last_run_status           TEXT,                            -- 'ok' | 'error'
+  last_run_error            TEXT,
+  last_session_id           TEXT,
+  created_by                TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at                INTEGER NOT NULL,
+  updated_at                INTEGER NOT NULL,
+  UNIQUE(project, name)
+);
+CREATE INDEX IF NOT EXISTS idx_web_news_topics_project ON web_news_topics(project);
+CREATE INDEX IF NOT EXISTS idx_web_news_topics_due     ON web_news_topics(enabled, next_update_at);
+
+CREATE TABLE IF NOT EXISTS web_news_items (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  topic_id          INTEGER NOT NULL REFERENCES web_news_topics(id) ON DELETE CASCADE,
+  project           TEXT    NOT NULL,
+  title             TEXT    NOT NULL,
+  summary           TEXT    NOT NULL DEFAULT '',
+  url               TEXT,
+  image_url         TEXT,
+  source            TEXT,
+  published_at      INTEGER,
+  content_hash      TEXT    NOT NULL,
+  seen_count        INTEGER NOT NULL DEFAULT 1,
+  first_seen_at     INTEGER NOT NULL,
+  last_seen_at      INTEGER NOT NULL,
+  created_at        INTEGER NOT NULL,
+  UNIQUE(topic_id, content_hash)
+);
+CREATE INDEX IF NOT EXISTS idx_web_news_items_topic_time   ON web_news_items(topic_id, published_at DESC, first_seen_at DESC);
+CREATE INDEX IF NOT EXISTS idx_web_news_items_project_time ON web_news_items(project, first_seen_at DESC);
+
 -- ── Embeddings ───────────────────────────────────────────────────────────────
 -- Created dynamically by db.ts using the configured dimension (default 1536)
 -- because the dimension must be baked into the vec0 CREATE statement.

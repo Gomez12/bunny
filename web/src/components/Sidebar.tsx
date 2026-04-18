@@ -9,6 +9,7 @@ import {
   Folder,
   Users,
   Library,
+  Newspaper,
   LayoutDashboard,
   Settings,
   LogOut,
@@ -29,6 +30,7 @@ export type NavTabId =
   | "files"
   | "contacts"
   | "knowledge-base"
+  | "news"
   | "workspace"
   | "dashboard"
   | "settings";
@@ -66,6 +68,7 @@ const NAV: NavGroup[] = [
       { id: "files", label: "Files", icon: Folder },
       { id: "contacts", label: "Contacts", icon: Users },
       { id: "knowledge-base", label: "Knowledge Base", icon: Library },
+      { id: "news", label: "News", icon: Newspaper },
     ],
   },
   {

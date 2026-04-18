@@ -22,6 +22,7 @@ export {
   Users,
   Package,
   Library,
+  Newspaper,
   LayoutDashboard,
   Settings,
 

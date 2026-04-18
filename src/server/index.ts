@@ -43,6 +43,10 @@ import {
   QUICK_CHAT_HIDE_HANDLER,
   registerQuickChatHide,
 } from "../scheduler/handlers/session_quick_chat.ts";
+import {
+  WEB_NEWS_AUTO_RUN_HANDLER,
+  registerWebNewsAutoRun,
+} from "../web_news/auto_run_handler.ts";
 
 const DEFAULT_PORT = 3000;
 
@@ -112,6 +116,7 @@ export async function startServer(
   registerAutoTranslate(defaultHandlerRegistry);
   registerSweepStuck(defaultHandlerRegistry);
   registerQuickChatHide(defaultHandlerRegistry);
+  registerWebNewsAutoRun(defaultHandlerRegistry);
   const bootNow = Date.now();
   const boardAutoRunCron = "*/5 * * * *";
   try {
@@ -155,6 +160,21 @@ export async function startServer(
   } catch (e) {
     console.warn(
       "[bunny] failed to seed translation.sweep_stuck:",
+      errorMessage(e),
+    );
+  }
+  const webNewsAutoRunCron = "* * * * *";
+  try {
+    ensureSystemTask(db, WEB_NEWS_AUTO_RUN_HANDLER, {
+      name: "Web News auto-run scan",
+      description:
+        "Fetch the latest news for every due Web News topic (every minute).",
+      cronExpr: webNewsAutoRunCron,
+      nextRunAt: computeNextRun(webNewsAutoRunCron, bootNow),
+    });
+  } catch (e) {
+    console.warn(
+      "[bunny] failed to seed web_news.auto_run_scan:",
       errorMessage(e),
     );
   }
