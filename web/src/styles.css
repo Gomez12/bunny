@@ -5538,3 +5538,278 @@ button {
   to { transform: rotate(360deg); }
 }
 
+/* ── Notifications ───────────────────────────────────────────────────────── */
+/* Bell + badge sit in .nav__user-row (sibling to .nav__user) so the badge
+   stays visible while the rail is collapsed. The username label still fades
+   in on hover/focus, matching the existing pattern. */
+.nav__user-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 6px;
+  min-width: 224px;
+}
+.notifications {
+  position: relative;
+  flex-shrink: 0;
+}
+.notifications__bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.notifications__bell:hover {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border-color: var(--border);
+}
+.notifications__bell--pulse {
+  color: var(--accent);
+}
+.notifications__badge {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 15px;
+  text-align: center;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+.notifications__panel {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  width: 360px;
+  max-height: 70vh;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.32);
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--text);
+}
+.notifications__panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.notifications__panel-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+.notifications__panel-link {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.notifications__panel-link:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.notifications__list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+  flex: 1;
+}
+.notifications__item {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--border);
+}
+.notifications__item:last-child {
+  border-bottom: none;
+}
+.notifications__item--unread {
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+}
+.notifications__row {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text);
+}
+.notifications__row:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.notifications__row-icon {
+  display: inline-flex;
+  margin-top: 2px;
+  color: var(--text-dim);
+}
+.notifications__item--unread .notifications__row-icon {
+  color: var(--accent);
+}
+.notifications__row-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+.notifications__row-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.notifications__row-body {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.notifications__row-meta {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.notifications__row-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 6px;
+}
+.notifications__row-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.notifications__row-action:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+.notifications__empty {
+  padding: 28px 12px;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+.notifications__panel-footer {
+  border-top: 1px solid var(--border);
+  padding: 6px 12px;
+  text-align: center;
+}
+
+/* ── Toast stack ─────────────────────────────────────────────────────────── */
+.toast-stack {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 400;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  width: 320px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 10px 8px 10px 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.32);
+  pointer-events: auto;
+  animation: toast-slide-in 160ms ease-out;
+}
+@keyframes toast-slide-in {
+  from { transform: translateX(16px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+.toast__main {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text);
+  padding: 0;
+}
+.toast__icon {
+  display: inline-flex;
+  margin-top: 2px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.toast__body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.toast__title {
+  font-size: 13px;
+  font-weight: 600;
+}
+.toast__desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.toast__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.toast__close:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+

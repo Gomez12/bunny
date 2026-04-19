@@ -11,6 +11,8 @@ import {
 import LoginPage from "./pages/LoginPage";
 import ChangePasswordPage from "./pages/ChangePasswordPage";
 import Sidebar, { type NavTabId } from "./components/Sidebar";
+import ToastStack from "./components/ToastStack";
+import { useNotifications } from "./hooks/useNotifications";
 
 // Tabs + pages are route-level — lazy-load so the initial bundle stays small
 // (mermaid, highlight.js, react-markdown, @dnd-kit end up in their own chunks).
@@ -110,32 +112,38 @@ function resolveStoredTab(): Tab {
   return "chat";
 }
 
+interface BootDeepLink {
+  project?: string;
+  session?: string;
+  tab?: Tab;
+}
+
+function readBootDeepLink(): BootDeepLink | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  const session = params.get("session") ?? undefined;
+  const project = params.get("project") ?? undefined;
+  const tabParam = params.get("tab");
+  const tab =
+    tabParam && VALID_TABS.has(tabParam) ? (tabParam as Tab) : undefined;
+  if (!session && !project && !tab) return null;
+  try {
+    window.history.replaceState(null, "", window.location.pathname);
+  } catch {
+    /* ignore */
+  }
+  return { project, session, tab };
+}
+
 export default function App() {
-  const [tab, setTabRaw] = useState<Tab>(resolveStoredTab);
-  // Pick the initial Workspace sub-tab from legacy storage on first paint only.
-  const [initialWorkspaceSub] = useState<"projects" | "agents" | "skills">(() => {
-    const stored = localStorage.getItem(TAB_STORAGE_KEY);
-    return (stored && LEGACY_WORKSPACE_SUB[stored]) || "projects";
-  });
-  const setTab = (t: Tab) => {
-    localStorage.setItem(TAB_STORAGE_KEY, t);
-    setTabRaw(t);
-  };
-  const [sessionId, setSessionId] = useState<string | null>(() =>
-    localStorage.getItem(SESSION_STORAGE_KEY),
-  );
-  const [activeProject, setActiveProject] = useState<string>(
-    () => localStorage.getItem(PROJECT_STORAGE_KEY) || DEFAULT_PROJECT,
-  );
-  const [user, setUser] = useState<AuthUser | null | undefined>(undefined); // undefined = loading
+  const [user, setUser] = useState<AuthUser | null | undefined>(undefined);
   const [theme, setThemeRaw] = useState<Theme>(resolveStoredTheme);
   const setTheme = (t: Theme) => {
     localStorage.setItem(THEME_STORAGE_KEY, t);
     applyTheme(t);
     setThemeRaw(t);
   };
-  // Follow OS changes while the user hasn't made an explicit choice. As soon
-  // as they click the toggle, the stored value pins the theme across devices.
+
   useEffect(() => {
     if (!window.matchMedia) return;
     const mql = window.matchMedia("(prefers-color-scheme: light)");
@@ -148,9 +156,56 @@ export default function App() {
     mql.addEventListener("change", onChange);
     return () => mql.removeEventListener("change", onChange);
   }, []);
-  // When a tab (Documents / Whiteboards / Contacts) hands off to Chat with a
-  // prompt to auto-send on arrival, ChatTab reads this, calls send(), and
-  // clears it via onConsumePendingChatSend so it doesn't re-fire.
+
+  useEffect(() => {
+    void fetchMe().then(setUser);
+  }, []);
+
+  if (user === undefined) return <div className="app-loading">Loading…</div>;
+  if (user === null) return <LoginPage onLogin={setUser} />;
+  if (user.mustChangePassword)
+    return (
+      <ChangePasswordPage
+        user={user}
+        onDone={() => setUser({ ...user, mustChangePassword: false })}
+      />
+    );
+
+  return (
+    <AuthenticatedShell
+      user={user}
+      setUser={setUser}
+      theme={theme}
+      setTheme={setTheme}
+    />
+  );
+}
+
+interface ShellProps {
+  user: AuthUser;
+  setUser: (u: AuthUser | null) => void;
+  theme: Theme;
+  setTheme: (t: Theme) => void;
+}
+
+function AuthenticatedShell({ user, setUser, theme, setTheme }: ShellProps) {
+  const [tab, setTabRaw] = useState<Tab>(resolveStoredTab);
+  const [initialWorkspaceSub] = useState<"projects" | "agents" | "skills">(
+    () => {
+      const stored = localStorage.getItem(TAB_STORAGE_KEY);
+      return (stored && LEGACY_WORKSPACE_SUB[stored]) || "projects";
+    },
+  );
+  const setTab = useCallback((t: Tab) => {
+    localStorage.setItem(TAB_STORAGE_KEY, t);
+    setTabRaw(t);
+  }, []);
+  const [sessionId, setSessionId] = useState<string | null>(() =>
+    localStorage.getItem(SESSION_STORAGE_KEY),
+  );
+  const [activeProject, setActiveProject] = useState<string>(
+    () => localStorage.getItem(PROJECT_STORAGE_KEY) || DEFAULT_PROJECT,
+  );
   const [pendingChatSend, setPendingChatSend] = useState<
     (OpenInChatPayload & { sessionId: string }) | null
   >(null);
@@ -159,36 +214,51 @@ export default function App() {
     [],
   );
 
-  useEffect(() => {
-    void fetchMe().then(setUser);
-  }, []);
-
-  const pwChangeRequired = !!user && user.mustChangePassword;
+  const [pendingDeepLink, setPendingDeepLink] = useState<BootDeepLink | null>(
+    readBootDeepLink,
+  );
 
   useEffect(() => {
-    if (!user || pwChangeRequired) return;
+    if (pendingDeepLink) {
+      if (pendingDeepLink.project)
+        setActiveProject(adoptProject(pendingDeepLink.project));
+      if (pendingDeepLink.session)
+        setSessionId(adoptSession(pendingDeepLink.session));
+      if (pendingDeepLink.tab) setTab(pendingDeepLink.tab);
+      setPendingDeepLink(null);
+      return;
+    }
     if (sessionId) return;
     void (async () => {
       try {
         setSessionId(adoptSession(await createSession()));
       } catch {
-        // ignored — user likely not yet authenticated
+        /* ignored */
       }
     })();
-  }, [user, pwChangeRequired, sessionId]);
+  }, [sessionId, pendingDeepLink, setTab]);
 
-  if (user === undefined) return <div className="app-loading">Loading…</div>;
+  const notifications = useNotifications({
+    activeSessionId: tab === "chat" ? sessionId : null,
+  });
 
-  if (user === null) return <LoginPage onLogin={setUser} />;
-
-  if (pwChangeRequired) {
-    return (
-      <ChangePasswordPage
-        user={user}
-        onDone={() => setUser({ ...user, mustChangePassword: false })}
-      />
-    );
-  }
+  const navigateDeepLink = useCallback(
+    (link: string) => {
+      let u: URL;
+      try {
+        u = new URL(link, window.location.origin);
+      } catch {
+        return;
+      }
+      const nextProject = u.searchParams.get("project");
+      const nextSession = u.searchParams.get("session");
+      const nextTab = u.searchParams.get("tab");
+      if (nextProject) setActiveProject(adoptProject(nextProject));
+      if (nextSession) setSessionId(adoptSession(nextSession));
+      if (nextTab && VALID_TABS.has(nextTab)) setTab(nextTab as Tab);
+    },
+    [setTab],
+  );
 
   const onNewSession = async () => {
     setSessionId(adoptSession(await createSession()));
@@ -199,8 +269,6 @@ export default function App() {
     try {
       await setSessionQuickChat(id, true);
     } catch (e) {
-      // Non-fatal: the session is still created, just won't carry the QC flag
-      // until the user toggles it via the composer checkbox.
       console.error(e);
     }
     setSessionId(adoptSession(id));
@@ -218,11 +286,10 @@ export default function App() {
 
   const onPickProject = async (name: string) => {
     setActiveProject(adoptProject(name));
-    // Switching project always starts a fresh session (one project per session).
     try {
       setSessionId(adoptSession(await createSession()));
     } catch {
-      // ignored — error surfaces on next API call
+      /* ignored */
     }
     setTab("dashboard");
   };
@@ -249,6 +316,17 @@ export default function App() {
         onLogout={onLogout}
         theme={theme}
         onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
+        notifications={{
+          items: notifications.items,
+          unreadCount: notifications.unreadCount,
+          hasMore: notifications.hasMore,
+          onMarkRead: notifications.markRead,
+          onMarkAllRead: notifications.markAllRead,
+          onDismiss: notifications.dismiss,
+          onLoadMore: notifications.loadMore,
+          onRequestPermission: notifications.requestOSPermission,
+          onNavigate: navigateDeepLink,
+        }}
       />
 
       <main
@@ -307,11 +385,21 @@ export default function App() {
           {tab === "news" && (
             <WebNewsTab project={activeProject} currentUser={user} />
           )}
-          {tab === "files" && <FilesTab project={activeProject} currentUser={user} />}
+          {tab === "files" && (
+            <FilesTab project={activeProject} currentUser={user} />
+          )}
           {tab === "tasks" && <TasksTab currentUser={user} />}
-          {tab === "settings" && <SettingsPage user={user} onUserUpdated={setUser} />}
+          {tab === "settings" && (
+            <SettingsPage user={user} onUserUpdated={(u) => setUser(u)} />
+          )}
         </Suspense>
       </main>
+
+      <ToastStack
+        toasts={notifications.toasts}
+        onDismiss={notifications.clearToast}
+        onClickToast={navigateDeepLink}
+      />
     </div>
   );
 }

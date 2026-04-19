@@ -19,7 +19,8 @@ import {
   Sun,
   Moon,
 } from "../lib/icons";
-import type { AuthUser, Theme } from "../api";
+import type { AuthUser, NotificationDto, Theme } from "../api";
+import NotificationBell from "./NotificationBell";
 
 export type NavTabId =
   | "chat"
@@ -77,6 +78,18 @@ const NAV: NavGroup[] = [
   },
 ];
 
+export interface SidebarNotificationsProps {
+  items: NotificationDto[];
+  unreadCount: number;
+  hasMore: boolean;
+  onMarkRead: (id: number) => Promise<void>;
+  onMarkAllRead: () => Promise<void>;
+  onDismiss: (id: number) => Promise<void>;
+  onLoadMore: () => Promise<void>;
+  onRequestPermission: () => void;
+  onNavigate: (deepLink: string) => void;
+}
+
 type Props = {
   activeTab: NavTabId;
   onPickTab: (id: NavTabId) => void;
@@ -86,6 +99,7 @@ type Props = {
   onLogout: () => void;
   theme: Theme;
   onToggleTheme: () => void;
+  notifications: SidebarNotificationsProps;
 };
 
 export default function Sidebar({
@@ -97,6 +111,7 @@ export default function Sidebar({
   onLogout,
   theme,
   onToggleTheme,
+  notifications,
 }: Props) {
   const [open, setOpen] = useState(false);
   const closeDrawer = () => setOpen(false);
@@ -165,21 +180,39 @@ export default function Sidebar({
         </div>
 
         <div className="nav__footer">
-          <div className="nav__user" title={user.email ?? ""}>
-            <span className="nav__user-name">{user.displayName || user.username}</span>
-            <span className="nav__user-role">{user.role}</span>
-            <button
-              type="button"
-              className="nav__user-settings"
-              onClick={() => {
-                onPickTab("settings");
+          <div className="nav__user-row">
+            <NotificationBell
+              items={notifications.items}
+              unreadCount={notifications.unreadCount}
+              hasMore={notifications.hasMore}
+              onMarkRead={notifications.onMarkRead}
+              onMarkAllRead={notifications.onMarkAllRead}
+              onDismiss={notifications.onDismiss}
+              onLoadMore={notifications.onLoadMore}
+              onRequestPermission={notifications.onRequestPermission}
+              onNavigate={(link) => {
+                notifications.onNavigate(link);
                 closeDrawer();
               }}
-              title="Open settings"
-              aria-label="Open settings"
-            >
-              <Settings size={14} />
-            </button>
+            />
+            <div className="nav__user" title={user.email ?? ""}>
+              <span className="nav__user-name">
+                {user.displayName || user.username}
+              </span>
+              <span className="nav__user-role">{user.role}</span>
+              <button
+                type="button"
+                className="nav__user-settings"
+                onClick={() => {
+                  onPickTab("settings");
+                  closeDrawer();
+                }}
+                title="Open settings"
+                aria-label="Open settings"
+              >
+                <Settings size={14} />
+              </button>
+            </div>
           </div>
           <button
             type="button"

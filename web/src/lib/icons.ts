@@ -47,6 +47,9 @@ export {
 
   // Status
   AlertCircle,
+  AtSign,
+  Bell,
+  BellRing,
   Info,
   CheckCircle,
   Loader2,

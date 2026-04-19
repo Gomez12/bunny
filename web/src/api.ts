@@ -1,7 +1,9 @@
 /** Shared types and fetch helpers for the Bunny API. */
 
-import type { SseEvent } from "../../src/agent/sse_events";
+import type { NotificationDto, SseEvent } from "../../src/agent/sse_events";
 import type { ChatAttachment } from "../../src/llm/types";
+
+export type { NotificationDto };
 
 export type Theme = "light" | "dark";
 
@@ -1102,6 +1104,66 @@ export function streamCardRun(
     { method: "GET" },
     onEvent,
   );
+}
+
+// ── Notifications ──────────────────────────────────────────────────────────
+
+export interface NotificationsPage {
+  items: NotificationDto[];
+  unreadCount: number;
+}
+
+export interface ListNotificationsOpts {
+  unreadOnly?: boolean;
+  limit?: number;
+  /** Cursor: return rows with id < before. */
+  before?: number;
+}
+
+export async function listNotifications(
+  opts: ListNotificationsOpts = {},
+): Promise<NotificationsPage> {
+  const qs = new URLSearchParams();
+  if (opts.unreadOnly) qs.set("unread", "1");
+  if (opts.limit != null) qs.set("limit", String(opts.limit));
+  if (opts.before != null) qs.set("before", String(opts.before));
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  return jsonFetch<NotificationsPage>(`/api/notifications${suffix}`);
+}
+
+export async function markNotificationRead(
+  id: number,
+): Promise<{ unreadCount: number }> {
+  return jsonFetch<{ unreadCount: number }>(
+    `/api/notifications/${id}/read`,
+    { method: "PATCH" },
+  );
+}
+
+export async function markAllNotificationsRead(): Promise<{
+  unreadCount: number;
+}> {
+  return jsonFetch<{ unreadCount: number }>(
+    "/api/notifications/mark-all-read",
+    { method: "POST" },
+  );
+}
+
+export async function deleteNotification(
+  id: number,
+): Promise<{ unreadCount: number }> {
+  return jsonFetch<{ unreadCount: number }>(`/api/notifications/${id}`, {
+    method: "DELETE",
+  });
+}
+
+/** Subscribe to the per-user notifications SSE stream. Returns the same shape
+ *  as the other SSE consumers (`done`/`abort`). The stream lives as long as
+ *  the user is logged in; the backend closes it on logout. */
+export function openNotificationStream(
+  onEvent: (ev: ServerEvent) => void,
+): { done: Promise<void>; abort: () => void } {
+  return openSseStream("/api/notifications/stream", { method: "GET" }, onEvent);
 }
 
 // ── Scheduled tasks ─────────────────────────────────────────────────────────
