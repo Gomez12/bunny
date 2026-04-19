@@ -61,6 +61,7 @@ import { handleWorkspaceRoute } from "./workspace_routes.ts";
 import { handleScheduledTaskRoute } from "./scheduled_task_routes.ts";
 import { handleTranslationRoute } from "./translation_routes.ts";
 import { handleChatRoute } from "./chat_routes.ts";
+import { handleNotificationRoute } from "./notification_routes.ts";
 import { handleTrashRoute } from "./trash_routes.ts";
 import type { SchedulerHandle } from "../scheduler/ticker.ts";
 import type { HandlerRegistry } from "../scheduler/handlers.ts";
@@ -198,6 +199,15 @@ export async function handleApi(
     user,
   );
   if (translationResponse) return translationResponse;
+
+  // ── Notifications (per-user, cross-project) ──────────────────────────────
+  const notificationResponse = await handleNotificationRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg },
+    user,
+  );
+  if (notificationResponse) return notificationResponse;
 
   // ── Scheduler (system + user tasks) ───────────────────────────────────────
   const taskResponse = await handleScheduledTaskRoute(
@@ -431,11 +441,16 @@ async function handleChat(
   // Resolve the addressed agent: explicit body.agent wins, otherwise parse a
   // leading `@name` from the prompt. Either path strips the mention so the
   // agent doesn't see its own handle in its instructions.
+  //
+  // A leading `@name` that happens to match a user rather than an agent is
+  // intentionally left in the prompt — the user-mention scanner in the agent
+  // loop picks it up. Stripping unconditionally would 404 here (no such
+  // agent) even though the speaker meant to ping a person.
   let prompt = rawPrompt;
   let agentName: string | undefined = body.agent?.trim() || undefined;
   if (!agentName) {
     const parsed = parseMention(rawPrompt);
-    if (parsed.agent) {
+    if (parsed.agent && getAgent(ctx.db, parsed.agent)) {
       if (!parsed.cleaned.trim()) {
         return json({ error: "missing prompt after @mention" }, 400);
       }
@@ -512,6 +527,7 @@ async function handleChat(
           queue: ctx.queue,
           renderer,
           askUserEnabled: true,
+          mentionsEnabled: true,
         });
       } catch (e) {
         renderer.onError(errorMessage(e));

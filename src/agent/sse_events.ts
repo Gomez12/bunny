@@ -154,6 +154,41 @@ export interface SseAskUserQuestionEvent {
   author?: string;
 }
 
+/** Serialisable notification row shipped to the web UI. Matches the shape
+ *  returned from `GET /api/notifications` and embedded in
+ *  `SseNotificationCreatedEvent` so front-end and back-end stay in lock-step. */
+export interface NotificationDto {
+  id: number;
+  kind: "mention" | "mention_blocked" | string;
+  title: string;
+  body: string;
+  actorUserId: string | null;
+  actorUsername: string | null;
+  actorDisplayName: string | null;
+  project: string | null;
+  sessionId: string | null;
+  messageId: number | null;
+  deepLink: string;
+  readAt: number | null;
+  createdAt: number;
+}
+
+/** Emitted into the recipient's per-user fanout when a new notification
+ *  row is created (e.g. by the chat mention dispatcher). */
+export interface SseNotificationCreatedEvent {
+  type: "notification_created";
+  notification: NotificationDto;
+}
+
+/** Emitted into the user's own fanout when a notification is marked read,
+ *  so other tabs can decrement their unread badge immediately. `ids: []`
+ *  means "every unread row was just marked read" (mark-all-read). */
+export interface SseNotificationReadEvent {
+  type: "notification_read";
+  ids: number[];
+  readAt: number;
+}
+
 export type SseEvent =
   | SseContentEvent
   | SseReasoningEvent
@@ -171,4 +206,6 @@ export type SseEvent =
   | SseTranslationGeneratedEvent
   | SseWebNewsRunFinishedEvent
   | SseWebNewsTopicStatusEvent
-  | SseAskUserQuestionEvent;
+  | SseAskUserQuestionEvent
+  | SseNotificationCreatedEvent
+  | SseNotificationReadEvent;

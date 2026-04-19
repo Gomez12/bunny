@@ -67,6 +67,8 @@ import {
   ACTIVATE_SKILL_TOOL_NAME,
 } from "../tools/activate_skill.ts";
 import { makeAskUserTool, ASK_USER_TOOL_NAME } from "../tools/ask_user.ts";
+import { dispatchMentionNotifications } from "../notifications/mentions.ts";
+import { getUserById } from "../auth/users.ts";
 import { listSkillsForProject } from "../memory/skills.ts";
 import {
   buildSkillCatalog,
@@ -138,6 +140,10 @@ export interface RunAgentOptions {
    *  and from background card / scheduler runs where a blocking question
    *  would just time out unanswered. */
   askUserEnabled?: boolean;
+  /** Scan the user turn for `@username` mentions and create notifications.
+   *  Only `POST /api/chat` sets this. Regenerate and every background code
+   *  path leave it off so edits / re-runs don't re-fire pings. See ADR 0027. */
+  mentionsEnabled?: boolean;
 }
 
 /** Run one user turn through the agent loop. Returns the final assistant response. */
@@ -269,6 +275,34 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
       userId,
       data: { role: "user", agent: agentName },
     });
+
+    // Scan for @username mentions and fire notifications. Gated by
+    // `mentionsEnabled` so only /api/chat does this (regenerate + every
+    // background path leave it off — see ADR 0027).
+    if (opts.mentionsEnabled && userId) {
+      const sender = getUserById(db, userId);
+      if (sender) {
+        try {
+          dispatchMentionNotifications({
+            db,
+            queue,
+            project,
+            sessionId,
+            messageId: userMsgId,
+            sender,
+            rawPrompt: prompt,
+          });
+        } catch (err) {
+          void queue.log({
+            topic: "notification",
+            kind: "dispatch.error",
+            sessionId,
+            userId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+    }
   }
 
   const userMessage: ChatMessage = { role: "user", content: prompt };

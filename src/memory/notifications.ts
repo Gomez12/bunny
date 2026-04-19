@@ -9,6 +9,7 @@
  */
 
 import type { Database } from "bun:sqlite";
+import type { NotificationDto } from "../agent/sse_events.ts";
 
 export const MAX_NOTIFICATIONS_PER_USER = 200;
 
@@ -228,4 +229,23 @@ export function deleteNotification(
     .prepare(`DELETE FROM notifications WHERE id = ? AND user_id = ?`)
     .run(id, userId);
   return info.changes > 0;
+}
+
+/** Convert an in-memory Notification to the wire DTO consumed by the web UI. */
+export function notificationToDto(n: Notification): NotificationDto {
+  return {
+    id: n.id,
+    kind: n.kind,
+    title: n.title,
+    body: n.body,
+    actorUserId: n.actorUserId,
+    actorUsername: n.actorUsername,
+    actorDisplayName: n.actorDisplayName,
+    project: n.project,
+    sessionId: n.sessionId,
+    messageId: n.messageId,
+    deepLink: n.deepLink,
+    readAt: n.readAt,
+    createdAt: n.createdAt,
+  };
 }

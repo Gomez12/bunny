@@ -18,8 +18,13 @@ import type { Database } from "bun:sqlite";
 import { AGENT_NAME_RE } from "../memory/agent_name.ts";
 import { getUserByUsernameCI, type User } from "../auth/users.ts";
 import { getProject, type Project } from "../memory/projects.ts";
-import { createNotification } from "../memory/notifications.ts";
+import {
+  createNotification,
+  notificationToDto,
+  type Notification,
+} from "../memory/notifications.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
+import { publish } from "./fanout.ts";
 
 // Reuse the agent-name body (case-insensitive) and wrap with boundary rules.
 const MENTION_RE = new RegExp(
@@ -62,8 +67,17 @@ function canSeeProject(p: Project, user: User): boolean {
 }
 
 export interface DispatchDeps {
-  /** Broadcast a freshly-created notification to the recipient's live SSE subscribers. */
-  publish?: (userId: string, notificationId: number) => void;
+  /** Broadcast a freshly-created notification to the recipient's live SSE
+   *  subscribers. Defaults to the module-level fanout; tests can inject a
+   *  spy to capture calls without touching real subscribers. */
+  publish?: (userId: string, notification: Notification) => void;
+}
+
+function defaultPublish(userId: string, notification: Notification): void {
+  publish(userId, {
+    type: "notification_created",
+    notification: notificationToDto(notification),
+  });
 }
 
 export interface DispatchMentionOpts {
@@ -176,7 +190,7 @@ export function dispatchMentionNotifications(
           project: opts.project,
         },
       });
-      opts.deps?.publish?.(recipient.id, notif.id);
+      (opts.deps?.publish ?? defaultPublish)(recipient.id, notif);
     } catch (err) {
       void opts.queue.log({
         topic: "notification",
@@ -220,7 +234,7 @@ export function dispatchMentionNotifications(
           project: opts.project,
         },
       });
-      opts.deps?.publish?.(opts.sender.id, notif.id);
+      (opts.deps?.publish ?? defaultPublish)(opts.sender.id, notif);
     } catch (err) {
       void opts.queue.log({
         topic: "notification",

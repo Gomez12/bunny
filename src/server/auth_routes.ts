@@ -32,6 +32,7 @@ import {
   getSessionToken,
   setSessionCookieHeader,
 } from "./auth_middleware.ts";
+import { closeAllFor as closeNotificationFanoutsFor } from "../notifications/fanout.ts";
 import { json } from "./http.ts";
 
 function publicUser(u: User) {
@@ -85,6 +86,9 @@ export async function handleAuthRoute(
   if (pathname === "/api/auth/logout" && req.method === "POST") {
     const token = getSessionToken(req);
     if (token) revokeSession(ctx.db, token);
+    // Drop live notification SSE subscribers so the webview can't keep a
+    // revoked session warm via the existing socket.
+    closeNotificationFanoutsFor(user.id);
     void ctx.queue.log({ topic: "auth", kind: "logout", userId: user.id });
     return json(
       { ok: true },

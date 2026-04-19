@@ -207,7 +207,7 @@ describe("dispatchMentionNotifications", () => {
 
   test("publish callback fires per created row", async () => {
     const { db, sender, queue } = await ctx();
-    const events: Array<[string, number]> = [];
+    const events: Array<[string, string, number]> = [];
     dispatchMentionNotifications({
       db,
       queue,
@@ -216,11 +216,15 @@ describe("dispatchMentionNotifications", () => {
       messageId: 13,
       sender,
       rawPrompt: "@alice hi",
-      deps: { publish: (userId, notifId) => events.push([userId, notifId]) },
+      deps: {
+        publish: (userId, notif) =>
+          events.push([userId, notif.kind, notif.id]),
+      },
     });
     expect(events).toHaveLength(1);
     expect(events[0]![0]).toBe("u_alice");
-    expect(events[0]![1]).toBeGreaterThan(0);
+    expect(events[0]![1]).toBe("mention");
+    expect(events[0]![2]).toBeGreaterThan(0);
   });
 
   test("deep link encodes project + session and targets the message anchor", async () => {
