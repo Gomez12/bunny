@@ -129,6 +129,21 @@ export function getUserByUsername(db: Database, username: string): User | null {
   return row ? rowToUser(row) : null;
 }
 
+/**
+ * Case-insensitive variant used by the mention scanner — users type `@Alice`
+ * without caring about the stored casing. Storage stays as-typed; this only
+ * relaxes the lookup.
+ */
+export function getUserByUsernameCI(
+  db: Database,
+  username: string,
+): User | null {
+  const row = db
+    .prepare(`SELECT * FROM users WHERE LOWER(username) = LOWER(?)`)
+    .get(username) as UserRow | null;
+  return row ? rowToUser(row) : null;
+}
+
 export function getUserPasswordHash(db: Database, id: string): string | null {
   const row = db
     .prepare(`SELECT password_hash FROM users WHERE id = ?`)

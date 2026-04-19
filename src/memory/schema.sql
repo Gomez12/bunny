@@ -558,6 +558,35 @@ CREATE TABLE IF NOT EXISTS web_news_items (
 CREATE INDEX IF NOT EXISTS idx_web_news_items_topic_time   ON web_news_items(topic_id, published_at DESC, first_seen_at DESC);
 CREATE INDEX IF NOT EXISTS idx_web_news_items_project_time ON web_news_items(project, first_seen_at DESC);
 
+-- ── User notifications ──────────────────────────────────────────────────────
+-- Per-user (cross-project) notifications. v1 trigger: @username mentions in
+-- chat prompts; extensible to future triggers (board-card assignment, task
+-- completion, …) via the `kind` column. Actor name + display name are
+-- denormalised so the panel still reads correctly after the actor user is
+-- deleted. `read_at` is NULL for unread. `deep_link` is an app-relative query
+-- string the frontend parses on boot. The dispatcher prunes to the newest
+-- 200 rows per user on insert to keep the list bounded.
+CREATE TABLE IF NOT EXISTS notifications (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id             TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind                TEXT    NOT NULL,          -- 'mention' | 'mention_blocked' | (future)
+  title               TEXT    NOT NULL,
+  body                TEXT    NOT NULL DEFAULT '',
+  actor_user_id       TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  actor_username      TEXT,                        -- denormalised so the panel survives user deletion
+  actor_display_name  TEXT,
+  project             TEXT,                        -- nullable (future triggers may not be project-scoped)
+  session_id          TEXT,
+  message_id          INTEGER,
+  deep_link           TEXT    NOT NULL DEFAULT '',
+  read_at             INTEGER,
+  created_at          INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_time
+  ON notifications(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
+  ON notifications(user_id, created_at DESC) WHERE read_at IS NULL;
+
 -- ── Embeddings ───────────────────────────────────────────────────────────────
 -- Created dynamically by db.ts using the configured dimension (default 1536)
 -- because the dimension must be baked into the vec0 CREATE statement.
