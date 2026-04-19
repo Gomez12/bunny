@@ -64,10 +64,21 @@ export interface ChatMessage {
   attachments?: ChatAttachment[];
 }
 
-/** JSON-schema subset sufficient for a tool description. */
+/** JSON-schema subset sufficient for a tool description. Property entries
+ *  may carry extra JSON-Schema fields (e.g. `items` for `type: array`) — the
+ *  shape stays loose because the adapter forwards schemas to the provider
+ *  verbatim and never inspects them. */
 export interface JsonSchemaObject {
   type: "object";
-  properties: Record<string, { type: string; description?: string }>;
+  properties: Record<
+    string,
+    {
+      type: string;
+      description?: string;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      [key: string]: any;
+    }
+  >;
   required?: string[];
 }
 

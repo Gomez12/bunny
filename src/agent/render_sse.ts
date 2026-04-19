@@ -129,7 +129,25 @@ export function createSseRenderer(
     send(sink, tag({ type: "turn_end" }));
   }
 
-  return { onDelta, onToolResult, onStats, onError, onTurnEnd };
+  function onAskUserQuestion(ev: {
+    type: "ask_user_question";
+    questionId: string;
+    question: string;
+    options: string[];
+    allowCustom: boolean;
+    multiSelect: boolean;
+  }): void {
+    send(sink, tag(ev));
+  }
+
+  return {
+    onDelta,
+    onToolResult,
+    onStats,
+    onError,
+    onTurnEnd,
+    onAskUserQuestion,
+  };
 }
 
 /** Emit the terminal `done` event and close the underlying stream. */

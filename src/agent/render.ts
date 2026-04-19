@@ -25,6 +25,7 @@
 import type { StreamDelta } from "../llm/types.ts";
 import type { ReasoningRenderMode } from "../config.ts";
 import type { ToolResult } from "../tools/registry.ts";
+import type { SseAskUserQuestionEvent } from "./sse_events.ts";
 
 // ---------------------------------------------------------------------------
 // ANSI helpers
@@ -63,6 +64,11 @@ export interface Renderer {
   onStats(stats: TurnStats): void;
   onError(message: string): void;
   onTurnEnd(): void;
+  /** Optional — set on renderers that can forward an interactive question
+   *  from the `ask_user` tool to the human. Transports without an interactive
+   *  client (CLI, subagent silent renderer) leave this undefined, which
+   *  signals to `runAgent` that the `ask_user` tool should NOT be spliced in. */
+  onAskUserQuestion?(ev: SseAskUserQuestionEvent): void;
 }
 
 /** Renderer that discards every event. Used e.g. to silence subagent runs. */

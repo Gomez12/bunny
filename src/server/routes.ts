@@ -511,6 +511,7 @@ async function handleChat(
           db: ctx.db,
           queue: ctx.queue,
           renderer,
+          askUserEnabled: true,
         });
       } catch (e) {
         renderer.onError(errorMessage(e));

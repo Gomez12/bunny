@@ -20,6 +20,10 @@ export interface Turn {
   done: boolean;
   /** Responding agent name. Null = default assistant. Set from SSE events. */
   author: string | null;
+  /** Stack of `ask_user` questions emitted during this turn (newest last).
+   *  A question stays in the list so prior answers stay visible; only the
+   *  last one is currently awaiting input. */
+  userQuestions: PendingUserQuestion[];
 }
 
 export interface ToolCallState {
@@ -29,6 +33,19 @@ export interface ToolCallState {
   ok?: boolean;
   output?: string;
   error?: string;
+}
+
+/** Active `ask_user` question emitted mid-turn. Cleared once the user submits
+ *  (which triggers the corresponding tool_result frame) or the turn ends. */
+export interface PendingUserQuestion {
+  questionId: string;
+  question: string;
+  options: string[];
+  allowCustom: boolean;
+  multiSelect: boolean;
+  /** Set once the user has submitted — keeps the card visible in a submitted
+   *  state until the tool_result lands. */
+  submittedAnswer?: string;
 }
 
 // ≈ 4 chars/token is the heuristic OpenAI itself documents for English prose.
@@ -76,6 +93,7 @@ export function useSSEChat(sessionId: string, project: string, onTurnComplete?: 
           startedAt,
           done: false,
           author: null,
+          userQuestions: [],
         },
       ]);
       setStreaming(true);
@@ -141,6 +159,22 @@ export function useSSEChat(sessionId: string, project: string, onTurnComplete?: 
               return { ...t, serverStats: summed };
             });
             break;
+          case "ask_user_question":
+            updateLast((t) => ({
+              ...t,
+              userQuestions: [
+                ...t.userQuestions,
+                {
+                  questionId: ev.questionId,
+                  question: ev.question,
+                  options: ev.options,
+                  allowCustom: ev.allowCustom,
+                  multiSelect: ev.multiSelect,
+                },
+              ],
+              author: t.author ?? readAuthor(ev),
+            }));
+            break;
           case "error":
             updateLast((t) => ({ ...t, error: ev.message }));
             break;
@@ -196,6 +230,29 @@ export function useSSEChat(sessionId: string, project: string, onTurnComplete?: 
     setStreaming(false);
   }, []);
 
+  /** Mark a pending user-question as answered so the card flips to a
+   *  submitted/read-only state. The matching tool_result SSE frame is what
+   *  actually tells the loop to continue streaming. */
+  const markUserQuestionAnswered = useCallback(
+    (turnId: string, questionId: string, answer: string) => {
+      setTurns((prev) =>
+        prev.map((t) =>
+          t.id === turnId
+            ? {
+                ...t,
+                userQuestions: t.userQuestions.map((q) =>
+                  q.questionId === questionId
+                    ? { ...q, submittedAnswer: answer }
+                    : q,
+                ),
+              }
+            : t,
+        ),
+      );
+    },
+    [],
+  );
+
   useEffect(() => () => abortRef.current?.(), []);
 
   // While streaming, tick every 150ms and update the current turn's displayed
@@ -224,5 +281,5 @@ export function useSSEChat(sessionId: string, project: string, onTurnComplete?: 
     return () => clearInterval(id);
   }, [streaming]);
 
-  return { turns, streaming, send, abort, reset };
+  return { turns, streaming, send, abort, reset, markUserQuestionAnswered };
 }

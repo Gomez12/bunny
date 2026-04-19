@@ -355,6 +355,23 @@ export async function patchMessage(messageId: number, content: string): Promise<
   });
 }
 
+/**
+ * Submit the human's answer to an `ask_user` question. Resolves the pending
+ * promise server-side so the agent loop returns the tool result and keeps
+ * streaming. Returns 404 if the question has already timed out or been
+ * answered (the UI should hide/disable the card in that case).
+ */
+export async function answerUserQuestion(
+  sessionId: string,
+  questionId: string,
+  answer: string,
+): Promise<void> {
+  await jsonFetch<{ ok: true }>(
+    `/api/sessions/${encodeURIComponent(sessionId)}/questions/${encodeURIComponent(questionId)}/answer`,
+    { method: "POST", body: JSON.stringify({ answer }) },
+  );
+}
+
 export async function trimMessagesAfter(messageId: number): Promise<{ trimmedCount: number }> {
   const res = await jsonFetch<{ ok: true; trimmedCount: number }>(
     `/api/messages/${messageId}/trim-after`,

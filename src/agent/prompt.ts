@@ -49,6 +49,10 @@ export interface BuildSystemMessageOpts {
   otherAgents?: PeerAgentDescriptor[];
   /** Skill catalog entries for progressive disclosure (tier 1: name + description). */
   skillCatalog?: SkillCatalogEntry[];
+  /** True when the `ask_user` tool is spliced into the per-run registry.
+   *  Adds a short instruction block so the model actually reaches for it on
+   *  ambiguous / preference-driven prompts instead of guessing and going on. */
+  askUserAvailable?: boolean;
 }
 
 /**
@@ -104,6 +108,10 @@ export function buildSystemMessage(
       .map((s) => `- **${s.name}**: ${s.description}`)
       .join("\n");
     content += `\n\n## Available skills\nUse the \`activate_skill\` tool to load a skill's full instructions before following its workflow.\n${lines}`;
+  }
+
+  if (opts.askUserAvailable) {
+    content += `\n\n## Asking the user\nYou have an \`ask_user\` tool that pauses the turn and shows the human a multiple-choice card. Prefer calling it — instead of guessing or giving a generic answer — whenever ANY of these apply:\n- The user's request hinges on a personal preference, constraint, or piece of context you don't have (e.g. "help me choose between X and Y", "which should I pick", "what fits me best").\n- There are 2–5 sensible branches you could take and the right one depends on the user.\n- You'd otherwise need to hedge with "it depends" or enumerate every possibility.\nCall it with a short, specific \`question\` and 2–5 short \`options\` that cover the realistic branches. Leave \`allow_custom\` on the default (true) so the user can still write their own answer. Do NOT use \`ask_user\` for trivia, for rhetorical questions inside your own reasoning, or when you already have enough to act.`;
   }
 
   if (recall.length > 0) {

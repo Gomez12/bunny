@@ -5,6 +5,7 @@ import Composer, {
   type ComposerHandle,
 } from "../components/Composer";
 import {
+  answerUserQuestion,
   fetchSessions,
   forkSessionApi,
   patchMessage,
@@ -19,6 +20,7 @@ import MessageBubble from "../components/MessageBubble";
 import MarkdownContent from "../components/MarkdownContent";
 import ReasoningBlock from "../components/ReasoningBlock";
 import ToolCallCard from "../components/ToolCallCard";
+import UserQuestionCard from "../components/UserQuestionCard";
 import SessionSidebar from "../components/SessionSidebar";
 import EmptyState from "../components/EmptyState";
 import StatsFooter from "../components/StatsFooter";
@@ -86,9 +88,8 @@ export default function ChatTab({
   // Bump the sidebar refreshKey on turn end so a new session surfaces in
   // "Mine"; intentionally do NOT refetch chat history (the live turn is
   // already rendered — refetching would render it twice).
-  const { turns, streaming, send, abort, reset } = useSSEChat(sessionId, project, () =>
-    setRefreshKey((k) => k + 1),
-  );
+  const { turns, streaming, send, abort, reset, markUserQuestionAnswered } =
+    useSSEChat(sessionId, project, () => setRefreshKey((k) => k + 1));
 
   const [adminScope, setAdminScope] = useState<"mine" | "all">("mine");
 
@@ -564,6 +565,16 @@ export default function ChatTab({
                     output={tc.output}
                     error={tc.error}
                     defaultOpen={expandTool}
+                  />
+                ))}
+                {t.userQuestions.map((q) => (
+                  <UserQuestionCard
+                    key={q.questionId}
+                    question={q}
+                    onSubmit={async (answer) => {
+                      await answerUserQuestion(sessionId, q.questionId, answer);
+                      markUserQuestionAnswered(t.id, q.questionId, answer);
+                    }}
                   />
                 ))}
                 {t.content && <MarkdownContent text={t.content} />}

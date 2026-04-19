@@ -66,6 +66,7 @@ import {
   makeActivateSkillTool,
   ACTIVATE_SKILL_TOOL_NAME,
 } from "../tools/activate_skill.ts";
+import { makeAskUserTool, ASK_USER_TOOL_NAME } from "../tools/ask_user.ts";
 import { listSkillsForProject } from "../memory/skills.ts";
 import {
   buildSkillCatalog,
@@ -88,6 +89,7 @@ const skillCatalogCache = new Map<
 const DYNAMIC_TOOL_NAMES = new Set<string>([
   CALL_AGENT_TOOL_NAME,
   ACTIVATE_SKILL_TOOL_NAME,
+  ASK_USER_TOOL_NAME,
   ...BOARD_TOOL_NAMES,
   ...WORKSPACE_TOOL_NAMES,
   ...WEB_TOOL_NAMES,
@@ -128,6 +130,14 @@ export interface RunAgentOptions {
   /** Stamp `regen_of_message_id` on the first assistant content row produced
    *  by this run (multi-step continuations are NOT chained). */
   regenOfMessageId?: number;
+  /** Expose the `ask_user` tool to the model for this run. Only set this on
+   *  code paths whose renderer *and* front-end can round-trip a user answer
+   *  back into the blocked tool — currently `/api/chat` and
+   *  `/api/messages/:id/regenerate`. Leaving it off (the default) keeps the
+   *  tool hidden from edit-mode handlers (whiteboards, documents, KB, contacts)
+   *  and from background card / scheduler runs where a blocking question
+   *  would just time out unanswered. */
+  askUserEnabled?: boolean;
 }
 
 /** Run one user turn through the agent loop. Returns the final assistant response. */
@@ -221,6 +231,9 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
     projectSkills = catalog;
   }
 
+  const askUserAvailable = Boolean(
+    opts.askUserEnabled && renderer.onAskUserQuestion,
+  );
   const systemMsg = opts.systemPromptOverride
     ? { role: "system" as const, content: opts.systemPromptOverride }
     : buildSystemMessage({
@@ -232,6 +245,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
         agentDescription: agentRow?.description,
         otherAgents,
         skillCatalog,
+        askUserAvailable,
       });
 
   if (!opts.skipUserInsert) {
@@ -283,6 +297,13 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
     boardCtx: { db, project, userId: userId ?? "system" },
     skillNames,
     webCfg: opts.webCfg,
+    askUserCtx: askUserAvailable
+      ? {
+          sessionId,
+          author: agentName ?? undefined,
+          emit: (ev) => renderer.onAskUserQuestion?.(ev),
+        }
+      : undefined,
     invokeSubagent: async (subName, subPrompt) => {
       // Subagents run with a silent renderer so only their final answer
       // reaches the UI via the `call_agent` tool_result — no parent-labelled
@@ -474,6 +495,11 @@ interface BuildRunRegistryOpts {
   skillNames: string[];
   webCfg?: WebConfig;
   invokeSubagent: (name: string, prompt: string) => Promise<string>;
+  askUserCtx?: {
+    sessionId: string;
+    author?: string;
+    emit: (ev: import("./sse_events.ts").SseAskUserQuestionEvent) => void;
+  };
 }
 
 function buildRunRegistry(opts: BuildRunRegistryOpts): ToolRegistry {
@@ -520,6 +546,16 @@ function buildRunRegistry(opts: BuildRunRegistryOpts): ToolRegistry {
           const resources = listSkillResources(name);
           return { instructions: assets.instructions, resources };
         },
+      }),
+    );
+  }
+
+  if (opts.askUserCtx && (!whitelist || whitelist.includes(ASK_USER_TOOL_NAME))) {
+    extras.push(
+      makeAskUserTool({
+        sessionId: opts.askUserCtx.sessionId,
+        author: opts.askUserCtx.author,
+        emit: opts.askUserCtx.emit,
       }),
     );
   }

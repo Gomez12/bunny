@@ -136,6 +136,24 @@ export interface SseWebNewsTopicStatusEvent {
   status: "idle" | "running" | "error";
 }
 
+/** Emitted by the `ask_user` tool. The handler blocks until the user submits an
+ * answer via `POST /api/sessions/:sessionId/questions/:questionId/answer`, then
+ * the answer is returned as the tool result. */
+export interface SseAskUserQuestionEvent {
+  type: "ask_user_question";
+  /** Unique id — used as the path segment when posting the answer. */
+  questionId: string;
+  question: string;
+  /** Suggested answers. Empty when the model wants free-form input only. */
+  options: string[];
+  /** Whether the UI should offer a free-form text input in addition to the
+   *  options (or on its own when `options` is empty). */
+  allowCustom: boolean;
+  /** Whether the user may pick more than one option. */
+  multiSelect: boolean;
+  author?: string;
+}
+
 export type SseEvent =
   | SseContentEvent
   | SseReasoningEvent
@@ -152,4 +170,5 @@ export type SseEvent =
   | SseKbDefinitionIllustrationGeneratedEvent
   | SseTranslationGeneratedEvent
   | SseWebNewsRunFinishedEvent
-  | SseWebNewsTopicStatusEvent;
+  | SseWebNewsTopicStatusEvent
+  | SseAskUserQuestionEvent;

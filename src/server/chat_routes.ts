@@ -26,6 +26,7 @@ import { registry } from "../tools/index.ts";
 import { errorMessage } from "../util/error.ts";
 import { json } from "./http.ts";
 import type { User } from "../auth/users.ts";
+import { answerPendingQuestion } from "../agent/ask_user_registry.ts";
 
 export interface ChatRouteCtx {
   db: Database;
@@ -167,6 +168,41 @@ export async function handleChatRoute(
     return handleRegenerate(req, ctx, user, messageId);
   }
 
+  const answerMatch = pathname.match(
+    /^\/api\/sessions\/([^/]+)\/questions\/([^/]+)\/answer$/,
+  );
+  if (answerMatch && req.method === "POST") {
+    const sessionId = decodeURIComponent(answerMatch[1]!);
+    const questionId = decodeURIComponent(answerMatch[2]!);
+    if (!ctx.canAccessSession(sessionId))
+      return json({ error: "forbidden" }, 403);
+    let body: { answer?: string };
+    try {
+      body = (await req.json()) as { answer?: string };
+    } catch {
+      return json({ error: "invalid json" }, 400);
+    }
+    if (typeof body.answer !== "string")
+      return json({ error: "answer (string) is required" }, 400);
+    const answer = body.answer;
+    if (answer.length > 10_000)
+      return json({ error: "answer exceeds 10000 characters" }, 413);
+    const delivered = answerPendingQuestion(sessionId, questionId, answer);
+    if (!delivered)
+      return json(
+        { error: "no pending question for that session/questionId" },
+        404,
+      );
+    void ctx.queue.log({
+      topic: "chat",
+      kind: "ask_user.answer",
+      userId: user.id,
+      sessionId,
+      data: { questionId, length: answer.length },
+    });
+    return json({ ok: true, sessionId, questionId });
+  }
+
   return null;
 }
 
@@ -246,6 +282,7 @@ async function handleRegenerate(
           renderer,
           skipUserInsert: true,
           regenOfMessageId,
+          askUserEnabled: true,
         });
         void ctx.queue.log({
           topic: "message",

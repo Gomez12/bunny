@@ -983,6 +983,121 @@ button {
 }
 .toolcall__error { color: var(--err); }
 
+/* ── Ask-user question card ─────────────────────────────────── */
+.askuser {
+  margin: 8px 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-sidebar);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.askuser--answered {
+  opacity: 0.75;
+}
+.askuser__question {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.askuser__options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.askuser__option {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.askuser__option--selected {
+  border-color: var(--accent);
+  background: rgba(124, 92, 255, 0.08);
+}
+.askuser__option-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  width: 100%;
+}
+.askuser__option-label input[type="radio"],
+.askuser__option-label input[type="checkbox"] {
+  flex-shrink: 0;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.askuser__option-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 2px 0;
+  outline: none;
+}
+.askuser__option-input:focus {
+  outline: none;
+}
+.askuser__custom {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.askuser__custom--active {
+  border-color: var(--accent);
+  background: rgba(124, 92, 255, 0.08);
+}
+.askuser__custom-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 4px 0;
+  outline: none;
+  resize: vertical;
+  min-height: 32px;
+}
+.askuser__error {
+  color: var(--err);
+  font-size: 12px;
+}
+.askuser__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.askuser__answer {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.askuser__answer-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+}
+.askuser__answer-text {
+  margin: 0;
+  font-family: inherit;
+  font-size: 14px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: var(--text);
+}
+
 /* ── Messages tab ───────────────────────────────────────────── */
 .messages {
   display: grid;
