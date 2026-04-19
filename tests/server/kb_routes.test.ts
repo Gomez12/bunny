@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { extractDefinitionJson } from "../../src/server/kb_routes.ts";
+import {
+  extractDefinitionJson,
+  extractSvgBlock,
+} from "../../src/server/kb_routes.ts";
 
 describe("extractDefinitionJson", () => {
   test("parses a ```json fence", () => {
@@ -76,5 +79,42 @@ describe("extractDefinitionJson", () => {
   test("returns null when JSON has no meaningful fields", () => {
     const raw = "```json\n{}\n```";
     expect(extractDefinitionJson(raw)).toBeNull();
+  });
+});
+
+describe("extractSvgBlock", () => {
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>';
+
+  test("parses a ```svg fence", () => {
+    const raw = `Here you go:\n\n\`\`\`svg\n${svg}\n\`\`\``;
+    const parsed = extractSvgBlock(raw);
+    expect(parsed).not.toBeNull();
+    expect(parsed).toContain("<svg");
+    expect(parsed).toContain("</svg>");
+  });
+
+  test("falls back to a bare ``` fence", () => {
+    const raw = `\`\`\`\n${svg}\n\`\`\``;
+    const parsed = extractSvgBlock(raw);
+    expect(parsed).toBe(svg);
+  });
+
+  test("falls back to a raw <svg>…</svg> match", () => {
+    const raw = `Sure, here is your illustration: ${svg} — hope it helps!`;
+    const parsed = extractSvgBlock(raw);
+    expect(parsed).toBe(svg);
+  });
+
+  test("rejects payloads that don't contain an <svg> element", () => {
+    expect(extractSvgBlock("Sorry, I could not draw that.")).toBeNull();
+    expect(extractSvgBlock("```\nhello world\n```")).toBeNull();
+  });
+
+  test("rejects payloads exceeding the size cap", () => {
+    const huge = `<svg xmlns="http://www.w3.org/2000/svg">${"a".repeat(
+      300 * 1024,
+    )}</svg>`;
+    expect(extractSvgBlock(huge)).toBeNull();
   });
 });

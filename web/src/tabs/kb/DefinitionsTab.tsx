@@ -11,6 +11,7 @@ import {
   type DefinitionInput,
   type AuthUser,
 } from "../../api";
+import { svgToDataUrl } from "../../lib/svg";
 
 type DialogState =
   | { kind: "closed" }
@@ -89,7 +90,6 @@ export default function DefinitionsTab({ project, currentUser }: Props) {
   };
 
   const handleDelete = async (d: Definition) => {
-    if (!confirm(`Delete definition "${d.term}"?`)) return;
     try {
       await deleteDefinition(project, d.id);
       await refresh();
@@ -180,6 +180,11 @@ export default function DefinitionsTab({ project, currentUser }: Props) {
                   </span>
                 )}
               </div>
+              {d.svgContent && (
+                <div className="kb-card__illustration" aria-hidden="true">
+                  <img src={svgToDataUrl(d.svgContent)} alt="" />
+                </div>
+              )}
               <div className="kb-card__chips">
                 {activeBadge(d)}
                 {statusChip(d)}

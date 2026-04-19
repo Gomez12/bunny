@@ -10,6 +10,7 @@
  */
 
 import type { Database } from "bun:sqlite";
+import { backfillTranslationSlotsForProject } from "./translatable.ts";
 
 export type ProjectVisibility = "public" | "private";
 
@@ -211,6 +212,13 @@ export function updateProject(
     Date.now(),
     name,
   );
+  // If languages changed, backfill sidecar rows for every existing entity so
+  // newly added languages get pending translations without a restart or a
+  // manual re-save per entity.
+  const languagesChanged =
+    patch.languages !== undefined &&
+    JSON.stringify(languages) !== JSON.stringify(existing.languages);
+  if (languagesChanged) backfillTranslationSlotsForProject(db, name);
   return getProject(db, name)!;
 }
 

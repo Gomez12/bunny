@@ -23,6 +23,7 @@ import { webBundle } from "./web_bundle.ts";
 import { ensureSeedUsers } from "../auth/seed.ts";
 import { ensureProject, validateProjectName } from "../memory/projects.ts";
 import { ensureProjectDir } from "../memory/project_assets.ts";
+import { backfillAllTranslationSlots } from "../memory/translatable.ts";
 import { defaultHandlerRegistry } from "../scheduler/handlers.ts";
 import { startScheduler } from "../scheduler/ticker.ts";
 import { computeNextRun } from "../scheduler/cron.ts";
@@ -109,6 +110,12 @@ export async function startServer(
     ensureProjectDir(defaultProject);
   } catch (e) {
     console.warn("[bunny] invalid [agent].default_project:", errorMessage(e));
+  }
+  // Heal sidecar gaps from older builds / DBs that predate language-aware flows.
+  try {
+    backfillAllTranslationSlots(db);
+  } catch (e) {
+    console.warn("[bunny] translation backfill failed:", errorMessage(e));
   }
   const queue = createBunnyQueue(db);
 

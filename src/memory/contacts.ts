@@ -7,6 +7,7 @@ import {
   registerKind,
   type TranslatableKind,
 } from "./translatable.ts";
+import { registerTrashable, softDelete } from "./trash.ts";
 
 export const CONTACT_KIND: TranslatableKind = {
   name: "contact",
@@ -15,8 +16,18 @@ export const CONTACT_KIND: TranslatableKind = {
   entityFk: "contact_id",
   sourceFields: ["notes"],
   sidecarFields: ["notes"],
+  aliveFilter: "deleted_at IS NULL",
 };
 registerKind(CONTACT_KIND);
+
+registerTrashable({
+  kind: "contact",
+  table: "contacts",
+  nameColumn: "name",
+  hasUniqueName: false,
+  translationSidecarTable: "contact_translations",
+  translationSidecarFk: "contact_id",
+});
 
 function resolveOriginalLangForContact(
   db: Database,
@@ -158,7 +169,7 @@ function buildContactWhere(
   project: string,
   opts?: FilterOpts,
 ): { where: string; params: (string | number)[] } {
-  const conditions = ["c.project = ?"];
+  const conditions = ["c.project = ?", "c.deleted_at IS NULL"];
   const params: (string | number)[] = [project];
 
   if (opts?.groupId !== undefined) {
@@ -223,7 +234,9 @@ export function listContacts(
 
 export function getContact(db: Database, id: number): Contact | null {
   const row = db
-    .prepare(`SELECT ${SELECT_COLS} FROM contacts WHERE id = ?`)
+    .prepare(
+      `SELECT ${SELECT_COLS} FROM contacts WHERE id = ? AND deleted_at IS NULL`,
+    )
     .get(id) as ContactRow | undefined;
   if (!row) return null;
   return rowToContact(row, getGroupIds(db, id));
@@ -366,9 +379,16 @@ export function updateContact(
   };
 }
 
-export function deleteContact(db: Database, id: number): void {
-  db.prepare(`DELETE FROM contact_group_members WHERE contact_id = ?`).run(id);
-  db.prepare(`DELETE FROM contacts WHERE id = ?`).run(id);
+/**
+ * Group memberships stay in place on soft-delete so restore fully reinstates
+ * them; the cascade FK drops them only on hard-delete from the Trash tab.
+ */
+export function deleteContact(
+  db: Database,
+  id: number,
+  deletedBy: string | null = null,
+): void {
+  softDelete(db, "contact", id, deletedBy);
 }
 
 export function bulkCreateContacts(
@@ -440,8 +460,13 @@ export function listGroups(db: Database, project: string): ContactGroup[] {
     .prepare(
       `SELECT g.*, COALESCE(m.cnt, 0) AS member_count
        FROM contact_groups g
-       LEFT JOIN (SELECT group_id, COUNT(*) AS cnt FROM contact_group_members GROUP BY group_id) m
-         ON m.group_id = g.id
+       LEFT JOIN (
+         SELECT cgm.group_id, COUNT(*) AS cnt
+           FROM contact_group_members cgm
+           JOIN contacts c ON c.id = cgm.contact_id
+          WHERE c.deleted_at IS NULL
+          GROUP BY cgm.group_id
+       ) m ON m.group_id = g.id
        WHERE g.project = ?
        ORDER BY g.name ASC`,
     )
@@ -463,8 +488,13 @@ export function getGroup(db: Database, id: number): ContactGroup | null {
     .prepare(
       `SELECT g.*, COALESCE(m.cnt, 0) AS member_count
        FROM contact_groups g
-       LEFT JOIN (SELECT group_id, COUNT(*) AS cnt FROM contact_group_members GROUP BY group_id) m
-         ON m.group_id = g.id
+       LEFT JOIN (
+         SELECT cgm.group_id, COUNT(*) AS cnt
+           FROM contact_group_members cgm
+           JOIN contacts c ON c.id = cgm.contact_id
+          WHERE c.deleted_at IS NULL
+          GROUP BY cgm.group_id
+       ) m ON m.group_id = g.id
        WHERE g.id = ?`,
     )
     .get(id) as (GroupRow & { member_count: number }) | undefined;

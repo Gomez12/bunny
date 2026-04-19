@@ -132,13 +132,10 @@ export default function DocumentSidebar({
       </button>
       <button
         className="sidebar__hide-btn"
-        title="Delete"
+        title="Move to trash"
         onClick={() => {
-          const label = isTemplate ? "template" : "document";
-          if (confirm(`Delete ${label} "${item.name}"?`)) {
-            if (isTemplate) onDeleteTemplate(item.id);
-            else onDelete(item.id);
-          }
+          if (isTemplate) onDeleteTemplate(item.id);
+          else onDelete(item.id);
         }}
       >
         &times;

@@ -294,6 +294,10 @@ CREATE INDEX IF NOT EXISTS idx_project_skills_skill ON project_skills(skill);
 -- Per-project Excalidraw whiteboards. Each project can have multiple named
 -- whiteboards that store the full Excalidraw elements JSON + a small PNG
 -- thumbnail for the sidebar preview.
+-- `deleted_at` / `deleted_by` implement soft-delete; the row stays in place so
+-- an admin can restore it from the Trash tab or hard-delete it. Because
+-- UNIQUE(project, name) cannot be weakened, soft-delete renames the row to
+-- `__trash:<id>:<name>` — every list/get query filters `deleted_at IS NULL`.
 CREATE TABLE IF NOT EXISTS whiteboards (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
   project         TEXT    NOT NULL,
@@ -304,9 +308,12 @@ CREATE TABLE IF NOT EXISTS whiteboards (
   created_by      TEXT    REFERENCES users(id) ON DELETE SET NULL,
   created_at      INTEGER NOT NULL,
   updated_at      INTEGER NOT NULL,
+  deleted_at      INTEGER,                       -- ms; non-null ⇒ soft-deleted (hidden from list)
+  deleted_by      TEXT,                          -- user.id who soft-deleted (no FK so legacy rows survive)
   UNIQUE(project, name)
 );
 CREATE INDEX IF NOT EXISTS idx_whiteboards_project ON whiteboards(project, updated_at);
+CREATE INDEX IF NOT EXISTS idx_whiteboards_trash   ON whiteboards(deleted_at) WHERE deleted_at IS NOT NULL;
 
 -- ── Documents ───────────────────────────────────────────────────────────────
 -- Per-project rich-text documents. Content is stored as markdown; the WYSIWYG
@@ -323,9 +330,12 @@ CREATE TABLE IF NOT EXISTS documents (
   created_by      TEXT    REFERENCES users(id) ON DELETE SET NULL,
   created_at      INTEGER NOT NULL,
   updated_at      INTEGER NOT NULL,
+  deleted_at      INTEGER,                         -- ms; non-null ⇒ soft-deleted (trash bin)
+  deleted_by      TEXT,                            -- user.id who soft-deleted
   UNIQUE(project, name)
 );
 CREATE INDEX IF NOT EXISTS idx_documents_project ON documents(project, updated_at);
+CREATE INDEX IF NOT EXISTS idx_documents_trash   ON documents(deleted_at) WHERE deleted_at IS NOT NULL;
 
 -- ── Contacts ────────────────────────────────────────────────────────────────
 -- Per-project contact management. Emails, phones, and tags are stored as
@@ -345,10 +355,13 @@ CREATE TABLE IF NOT EXISTS contacts (
   source_version INTEGER NOT NULL DEFAULT 1,     -- bumps on every notes edit
   created_by     TEXT    REFERENCES users(id) ON DELETE SET NULL,
   created_at     INTEGER NOT NULL,
-  updated_at     INTEGER NOT NULL
+  updated_at     INTEGER NOT NULL,
+  deleted_at     INTEGER,                        -- ms; non-null ⇒ soft-deleted (trash bin)
+  deleted_by     TEXT                            -- user.id who soft-deleted
 );
 CREATE INDEX IF NOT EXISTS idx_contacts_project ON contacts(project, name);
 CREATE INDEX IF NOT EXISTS idx_contacts_created_by ON contacts(created_by);
+CREATE INDEX IF NOT EXISTS idx_contacts_trash ON contacts(deleted_at) WHERE deleted_at IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS contact_groups (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -394,12 +407,19 @@ CREATE TABLE IF NOT EXISTS kb_definitions (
   active_description   TEXT    NOT NULL DEFAULT 'manual', -- 'manual' | 'short' | 'long'
   original_lang        TEXT,                            -- ISO 639-1 of the source fields
   source_version       INTEGER NOT NULL DEFAULT 1,      -- bumps on every source-field edit
+  svg_content          TEXT,                            -- raw SVG markup (language-neutral like llm_sources)
+  svg_status           TEXT    NOT NULL DEFAULT 'idle', -- 'idle' | 'generating' | 'error'
+  svg_error            TEXT,
+  svg_generated_at     INTEGER,                         -- Unix ms of last successful SVG generation
   created_by           TEXT    REFERENCES users(id) ON DELETE SET NULL,
   created_at           INTEGER NOT NULL,
   updated_at           INTEGER NOT NULL,
+  deleted_at           INTEGER,                         -- ms; non-null ⇒ soft-deleted (trash bin)
+  deleted_by           TEXT,                            -- user.id who soft-deleted
   UNIQUE(project, term)
 );
 CREATE INDEX IF NOT EXISTS idx_kb_definitions_project ON kb_definitions(project, term);
+CREATE INDEX IF NOT EXISTS idx_kb_definitions_trash   ON kb_definitions(deleted_at) WHERE deleted_at IS NOT NULL;
 
 -- ── Translations ────────────────────────────────────────────────────────────
 -- Per-entity sidecar tables. Each holds one row per (entity, target-language)

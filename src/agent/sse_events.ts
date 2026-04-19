@@ -93,6 +93,15 @@ export interface SseKbDefinitionGeneratedEvent {
   sources: number;
 }
 
+/** Emitted by the KB /generate-illustration handler once the model's SVG has
+ * been parsed and persisted. `bytes` is the UTF-8 byte length of the stored
+ * SVG markup — useful for a "size saved" indicator. */
+export interface SseKbDefinitionIllustrationGeneratedEvent {
+  type: "kb_definition_illustration_generated";
+  definitionId: number;
+  bytes: number;
+}
+
 /** Emitted when a translation sidecar row reaches a terminal state (ready or
  * error) inside a session-scoped SSE stream. Only fires when the translation
  * ran inside an active user session — background scheduler ticks have no
@@ -140,6 +149,7 @@ export type SseEvent =
   | SseCardRunStartedEvent
   | SseCardRunFinishedEvent
   | SseKbDefinitionGeneratedEvent
+  | SseKbDefinitionIllustrationGeneratedEvent
   | SseTranslationGeneratedEvent
   | SseWebNewsRunFinishedEvent
   | SseWebNewsTopicStatusEvent;

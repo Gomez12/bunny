@@ -41,6 +41,13 @@ export interface TranslatableKind {
   readonly sourceFields: readonly string[];
   /** Snake_case translated columns on the sidecar — same order as sourceFields. */
   readonly sidecarFields: readonly string[];
+  /**
+   * Optional SQL predicate that selects "live" rows only — trashed / archived
+   * entities are excluded. Used by the backfill pass so a soft-deleted entity
+   * never resurrects its sidecars. Example: `"deleted_at IS NULL"` or
+   * `"archived_at IS NULL"`. Omit for tables without that notion.
+   */
+  readonly aliveFilter?: string;
 }
 
 /** A row from a sidecar table, normalised for routes and handler use. */
@@ -393,6 +400,39 @@ export function setOriginalLang(
   db.prepare(
     `UPDATE ${kind.entityTable} SET original_lang = ?, updated_at = ? WHERE id = ?`,
   ).run(lang, Date.now(), entityId);
+}
+
+/**
+ * Backfill missing sidecar rows for every live entity of this kind in the
+ * given project. Use when the project's `languages` array grows or when a
+ * version upgrade lands the translation feature on a database that already
+ * has entities. Every call is idempotent — `ensureLanguageRows` uses
+ * `ON CONFLICT DO NOTHING`.
+ */
+export function backfillTranslationSlotsForProject(
+  db: Database,
+  project: string,
+): void {
+  const tx = db.transaction(() => {
+    for (const kind of listKinds()) {
+      const whereAlive = kind.aliveFilter ? ` AND ${kind.aliveFilter}` : "";
+      const rows = db
+        .prepare(
+          `SELECT id FROM ${kind.entityTable} WHERE project = ?${whereAlive}`,
+        )
+        .all(project) as { id: number }[];
+      for (const r of rows) createTranslationSlots(db, kind, r.id);
+    }
+  });
+  tx();
+}
+
+/** Backfill missing sidecar rows across every project. Called at boot. */
+export function backfillAllTranslationSlots(db: Database): void {
+  const projects = db.prepare(`SELECT name FROM projects`).all() as {
+    name: string;
+  }[];
+  for (const p of projects) backfillTranslationSlotsForProject(db, p.name);
 }
 
 /**

@@ -84,9 +84,7 @@ export async function runTopic(opts: RunTopicOpts): Promise<RunTopicResult> {
   const needsRenewByCron =
     topic.nextRenewTermsAt !== null && topic.nextRenewTermsAt <= now;
   const renewTerms =
-    topic.terms.length === 0 ||
-    topic.alwaysRegenerateTerms ||
-    needsRenewByCron;
+    topic.terms.length === 0 || topic.alwaysRegenerateTerms || needsRenewByCron;
 
   void queue.log({
     topic: "web_news",
@@ -385,8 +383,7 @@ function parseItems(raw: unknown): ParsedNewsItem[] | null {
         typeof rawSummary === "string" ? rawSummary.trim().slice(0, 2000) : "",
       url: validHttpUrl(rec["url"]),
       imageUrl: validHttpUrl(rec["imageUrl"]),
-      source:
-        typeof rawSource === "string" ? rawSource.trim() || null : null,
+      source: typeof rawSource === "string" ? rawSource.trim() || null : null,
       publishedAt: parseIsoDate(rec["publishedAt"]),
     });
   }

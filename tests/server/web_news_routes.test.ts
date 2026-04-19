@@ -8,10 +8,7 @@ import { handleApi, type RouteCtx } from "../../src/server/routes.ts";
 import { ensureSeedUsers } from "../../src/auth/seed.ts";
 import { createUser } from "../../src/auth/users.ts";
 import { createProject } from "../../src/memory/projects.ts";
-import {
-  createAgent,
-  linkAgentToProject,
-} from "../../src/memory/agents.ts";
+import { createAgent, linkAgentToProject } from "../../src/memory/agents.ts";
 import type { BunnyConfig } from "../../src/config.ts";
 
 let tmp: string;
@@ -22,7 +19,13 @@ let userCookie: string;
 let queueEvents: Array<{ topic: string; kind: string; data?: unknown }> = [];
 
 const cfg: BunnyConfig = {
-  llm: { baseUrl: "", apiKey: "", model: "x", modelReasoning: undefined, profile: undefined },
+  llm: {
+    baseUrl: "",
+    apiKey: "",
+    model: "x",
+    modelReasoning: undefined,
+    profile: undefined,
+  },
   embed: { baseUrl: "", apiKey: "", model: "x", dim: 1536 },
   memory: { indexReasoning: false, recallK: 8, lastN: 10 },
   render: { reasoning: "collapsed", color: undefined },
@@ -34,7 +37,12 @@ const cfg: BunnyConfig = {
   },
   agent: { systemPrompt: "You are Bunny.", defaultProject: "general" },
   ui: { autosaveIntervalMs: 5000 },
-  web: { serpApiKey: "", serpProvider: "serper", serpBaseUrl: "", userAgent: "" },
+  web: {
+    serpApiKey: "",
+    serpProvider: "serper",
+    serpBaseUrl: "",
+    userAgent: "",
+  },
   translation: {
     maxPerTick: 20,
     maxDocumentBytes: 30_720,
@@ -72,7 +80,11 @@ beforeEach(async () => {
     },
   };
   adminCookie = await login("admin", "pw-initial");
-  await createUser(db, { username: "alice", password: "pw-alice", role: "user" });
+  await createUser(db, {
+    username: "alice",
+    password: "pw-alice",
+    role: "user",
+  });
   userCookie = await login("alice", "pw-alice");
 });
 
@@ -268,9 +280,7 @@ describe("Web News HTTP surface", () => {
     );
     expect(res.res.status).toBe(200);
     const topicRow = db
-      .prepare(
-        `SELECT next_renew_terms_at FROM web_news_topics WHERE id = ?`,
-      )
+      .prepare(`SELECT next_renew_terms_at FROM web_news_topics WHERE id = ?`)
       .get(id) as { next_renew_terms_at: number | null };
     expect(topicRow.next_renew_terms_at).toBe(0);
   });
@@ -294,11 +304,9 @@ describe("Web News HTTP surface", () => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(a.body.topic.id, "alpha", "hi", "", "h1", 1, 1, 1);
 
-    const inProject = await req(
-      `GET`,
-      `/api/projects/alpha/news/items`,
-      { cookie: adminCookie },
-    );
+    const inProject = await req(`GET`, `/api/projects/alpha/news/items`, {
+      cookie: adminCookie,
+    });
     expect(inProject.res.status).toBe(200);
     expect(inProject.body.items).toHaveLength(1);
 

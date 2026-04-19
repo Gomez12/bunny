@@ -7,6 +7,7 @@ import { createProject } from "../../src/memory/projects.ts";
 import {
   canEditDefinition,
   clearLlmFields,
+  clearSvgFields,
   createDefinition,
   deleteDefinition,
   getDefinition,
@@ -16,6 +17,9 @@ import {
   setLlmError,
   setLlmGenerating,
   setLlmResult,
+  setSvgError,
+  setSvgGenerating,
+  setSvgResult,
   updateDefinition,
 } from "../../src/memory/kb_definitions.ts";
 import type { User } from "../../src/auth/users.ts";
@@ -83,6 +87,10 @@ describe("createDefinition", () => {
     expect(d.llmGeneratedAt).toBeNull();
     expect(d.isProjectDependent).toBe(false);
     expect(d.activeDescription).toBe("manual");
+    expect(d.svgContent).toBeNull();
+    expect(d.svgStatus).toBe("idle");
+    expect(d.svgError).toBeNull();
+    expect(d.svgGeneratedAt).toBeNull();
     expect(d.createdBy).toBe("owner");
     db.close();
   });
@@ -366,6 +374,88 @@ describe("setActiveDescription", () => {
     });
     // @ts-expect-error — intentional bad call
     expect(() => setActiveDescription(db, d.id, "bogus")).toThrow();
+    db.close();
+  });
+});
+
+describe("SVG illustration state machine", () => {
+  const sampleSvg =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="red"/></svg>';
+
+  test("generating → result stores the SVG and flips back to idle", async () => {
+    const { db } = await setup();
+    const d = createDefinition(db, {
+      project: "alpha",
+      term: "chair",
+      createdBy: "owner",
+    });
+
+    expect(setSvgGenerating(db, d.id)).toBe(true);
+    const mid = getDefinition(db, d.id)!;
+    expect(mid.svgStatus).toBe("generating");
+    expect(mid.svgError).toBeNull();
+
+    const final = setSvgResult(db, d.id, sampleSvg);
+    expect(final.svgStatus).toBe("idle");
+    expect(final.svgContent).toBe(sampleSvg);
+    expect(final.svgError).toBeNull();
+    expect(final.svgGeneratedAt).not.toBeNull();
+    db.close();
+  });
+
+  test("concurrent setSvgGenerating second call loses the race", async () => {
+    const { db } = await setup();
+    const d = createDefinition(db, {
+      project: "alpha",
+      term: "chair",
+      createdBy: "owner",
+    });
+    expect(setSvgGenerating(db, d.id)).toBe(true);
+    expect(setSvgGenerating(db, d.id)).toBe(false);
+    db.close();
+  });
+
+  test("setSvgError flips to error and stores the message", async () => {
+    const { db } = await setup();
+    const d = createDefinition(db, {
+      project: "alpha",
+      term: "chair",
+      createdBy: "owner",
+    });
+    setSvgGenerating(db, d.id);
+    const errored = setSvgError(db, d.id, "model blew up");
+    expect(errored.svgStatus).toBe("error");
+    expect(errored.svgError).toBe("model blew up");
+    expect(errored.svgContent).toBeNull();
+    db.close();
+  });
+
+  test("clearSvgFields nulls the content + resets status, doesn't touch LLM fields", async () => {
+    const { db } = await setup();
+    const d = createDefinition(db, {
+      project: "alpha",
+      term: "chair",
+      createdBy: "owner",
+    });
+    // Seed both LLM and SVG state so we can verify isolation.
+    setLlmGenerating(db, d.id);
+    setLlmResult(db, d.id, {
+      short: "s",
+      long: "l",
+      sources: [{ title: "t", url: "https://example.com" }],
+    });
+    setSvgGenerating(db, d.id);
+    setSvgResult(db, d.id, sampleSvg);
+
+    const cleared = clearSvgFields(db, d.id);
+    expect(cleared.svgContent).toBeNull();
+    expect(cleared.svgStatus).toBe("idle");
+    expect(cleared.svgError).toBeNull();
+    expect(cleared.svgGeneratedAt).toBeNull();
+    // LLM fields must be untouched.
+    expect(cleared.llmShort).toBe("s");
+    expect(cleared.llmLong).toBe("l");
+    expect(cleared.llmSources).toHaveLength(1);
     db.close();
   });
 });

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  clearDefinitionIllustration,
   clearDefinitionLlm,
   setDefinitionActive,
   streamGenerateDefinition,
+  streamGenerateDefinitionIllustration,
   type AuthUser,
   type ActiveDescription,
   type Definition,
@@ -13,6 +15,7 @@ import LanguageTabs from "./LanguageTabs";
 import StatusPill, { type PillStatus } from "./StatusPill";
 import { useTranslations } from "../hooks/useTranslations";
 import { translationStatusToPill } from "./LanguageTabs";
+import { svgToDataUrl } from "../lib/svg";
 
 type Props =
   | {
@@ -46,6 +49,10 @@ export default function DefinitionDialog(props: Props) {
   const [generationLog, setGenerationLog] = useState<string[]>([]);
   const genAbortRef = useRef<AbortController | null>(null);
 
+  const [generatingSvg, setGeneratingSvg] = useState(initial?.svgStatus === "generating");
+  const [svgElapsed, setSvgElapsed] = useState(0);
+  const svgAbortRef = useRef<AbortController | null>(null);
+
   const canEdit =
     props.mode === "create" ||
     props.currentUser.role === "admin" ||
@@ -64,17 +71,32 @@ export default function DefinitionDialog(props: Props) {
     setProjectDependent(editDef.isProjectDependent);
     setActive(editDef.activeDescription);
     setGenerating(editDef.llmStatus === "generating");
+    setGeneratingSvg(editDef.svgStatus === "generating");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editDefId, editDefUpdatedAt]);
 
   useEffect(() => {
     return () => {
       genAbortRef.current?.abort();
+      svgAbortRef.current?.abort();
     };
   }, []);
 
+  useEffect(() => {
+    if (!generatingSvg) {
+      setSvgElapsed(0);
+      return;
+    }
+    const started = Date.now();
+    const t = setInterval(() => {
+      setSvgElapsed(Math.floor((Date.now() - started) / 1000));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [generatingSvg]);
+
   const handleClose = () => {
     genAbortRef.current?.abort();
+    svgAbortRef.current?.abort();
     void props.onClose();
   };
 
@@ -217,10 +239,102 @@ export default function DefinitionDialog(props: Props) {
     }
   };
 
+  const handleGenerateIllustration = async () => {
+    if (props.mode !== "edit" || !canEdit) return;
+    if (generatingSvg) return;
+
+    // Save any meta edits first so the prompt reflects the current state.
+    const saved = await handleSaveMeta();
+    if (!saved) return;
+
+    setError(null);
+
+    const controller = new AbortController();
+    svgAbortRef.current = controller;
+
+    let streamOpened = false;
+    try {
+      const res = await streamGenerateDefinitionIllustration(
+        props.project,
+        props.definition.id,
+      );
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({
+          error: `HTTP ${res.status}`,
+        }))) as { error?: string };
+        setError(err.error ?? `HTTP ${res.status}`);
+        // Force the UI out of "generating" in case the stored row is in that
+        // state (prior crashed run, another tab). onRefreshed will reconcile
+        // with the authoritative server state.
+        setGeneratingSvg(false);
+        return;
+      }
+
+      setGeneratingSvg(true);
+      streamOpened = true;
+
+      const reader = res.body?.getReader();
+      if (!reader) {
+        setError("No response body");
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let idx: number;
+        while ((idx = buffer.indexOf("\n\n")) !== -1) {
+          const frame = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 2);
+          for (const line of frame.split("\n")) {
+            if (!line.startsWith("data:")) continue;
+            const payload = line.slice(5).trim();
+            if (!payload) continue;
+            try {
+              const ev = JSON.parse(payload) as ServerEvent;
+              if (ev.type === "error") setError(ev.message);
+            } catch {
+              /* ignore malformed */
+            }
+          }
+        }
+      }
+    } catch (e) {
+      if ((e as Error).name === "AbortError") return;
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      if (streamOpened) setGeneratingSvg(false);
+      svgAbortRef.current = null;
+      if (props.mode === "edit") {
+        await props.onRefreshed();
+      }
+    }
+  };
+
+  const handleClearIllustration = async () => {
+    if (props.mode !== "edit" || !canEdit) return;
+    if (!confirm("Remove the illustration for this definition?")) return;
+    try {
+      await clearDefinitionIllustration(props.project, props.definition.id);
+      await props.onRefreshed();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const current = props.mode === "edit" ? props.definition : null;
   const hasLlmData = !!(current && (current.llmShort || current.llmLong || current.llmSources.length > 0));
   const canGenerate = props.mode === "edit" && canEdit && !generating;
   const canClear = props.mode === "edit" && canEdit && hasLlmData && !generating;
+
+  const hasSvg = !!current?.svgContent;
+  const canGenerateSvg = props.mode === "edit" && canEdit && !generatingSvg;
+  const canClearSvg = props.mode === "edit" && canEdit && hasSvg && !generatingSvg;
+  const svgDataUrl = current?.svgContent ? svgToDataUrl(current.svgContent) : null;
 
   const originalLang = current?.originalLang ?? null;
   const tr = useTranslations(
@@ -430,6 +544,56 @@ export default function DefinitionDialog(props: Props) {
                   </ul>
                 ) : (
                   <em className="kb-dialog__placeholder">No sources.</em>
+                )}
+              </div>
+            </div>
+          )}
+
+          {props.mode === "edit" && (
+            <div className="kb-dialog__illustration">
+              <div className="kb-dialog__llm-header">
+                <span className="kb-dialog__llm-title">Illustration</span>
+                <div className="kb-dialog__llm-actions">
+                  <button
+                    className="btn btn--send"
+                    onClick={() => void handleGenerateIllustration()}
+                    disabled={!canGenerateSvg}
+                    title={generatingSvg ? "Generation in progress" : "Generate an SVG illustration"}
+                  >
+                    {generatingSvg ? "Generating…" : hasSvg ? "Regenerate" : "Generate"}
+                  </button>
+                  <button
+                    className="btn"
+                    onClick={() => void handleClearIllustration()}
+                    disabled={!canClearSvg}
+                    title="Remove the stored illustration"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              {current?.svgError && (
+                <p className="kb-dialog__error" role="alert">{current.svgError}</p>
+              )}
+
+              {generatingSvg && (
+                <p className="kb-dialog__note">
+                  Drawing your illustration… {svgElapsed}s
+                </p>
+              )}
+
+              <div className="kb-dialog__illustration-preview">
+                {svgDataUrl ? (
+                  <img
+                    className="kb-dialog__illustration-img"
+                    src={svgDataUrl}
+                    alt={`Illustration for ${current?.term ?? ""}`}
+                  />
+                ) : (
+                  <em className="kb-dialog__placeholder">
+                    No illustration yet.
+                  </em>
                 )}
               </div>
             </div>

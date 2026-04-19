@@ -209,12 +209,12 @@ function handleDelete(ctx: DocumentRouteCtx, user: User, id: number): Response {
   if (!p) return json({ error: "project not found" }, 404);
   if (!canEditDocument(user, doc, p)) return json({ error: "forbidden" }, 403);
 
-  deleteDocument(ctx.db, id);
+  deleteDocument(ctx.db, id, user.id);
   void ctx.queue.log({
     topic: "document",
     kind: "delete",
     userId: user.id,
-    data: { id, project: doc.project, name: doc.name },
+    data: { id, project: doc.project, name: doc.name, soft: true },
   });
   return json({ ok: true });
 }

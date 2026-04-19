@@ -24,7 +24,10 @@ async function newUser(db: Database, name: string): Promise<string> {
 }
 
 function backdateSession(db: Database, sessionId: string, ts: number): void {
-  db.prepare(`UPDATE messages SET ts = ? WHERE session_id = ?`).run(ts, sessionId);
+  db.prepare(`UPDATE messages SET ts = ? WHERE session_id = ?`).run(
+    ts,
+    sessionId,
+  );
 }
 
 afterEach(() => {
@@ -37,7 +40,12 @@ describe("session.hide_inactive_quick_chats handler logic", () => {
   test("hides quick chats whose newest message is older than the threshold", async () => {
     const db = await newDb();
     const u = await newUser(db, "alice");
-    insertMessage(db, { sessionId: "old", role: "user", userId: u, content: "old message" });
+    insertMessage(db, {
+      sessionId: "old",
+      role: "user",
+      userId: u,
+      content: "old message",
+    });
     setSessionQuickChat(db, u, "old", true);
     backdateSession(db, "old", Date.now() - FIFTEEN_MIN - 60_000);
 
@@ -49,7 +57,12 @@ describe("session.hide_inactive_quick_chats handler logic", () => {
   test("does NOT touch quick chats with recent activity", async () => {
     const db = await newDb();
     const u = await newUser(db, "bob");
-    insertMessage(db, { sessionId: "fresh", role: "user", userId: u, content: "recent" });
+    insertMessage(db, {
+      sessionId: "fresh",
+      role: "user",
+      userId: u,
+      content: "recent",
+    });
     setSessionQuickChat(db, u, "fresh", true);
     expect(selectAndHideInactive(db, Date.now(), FIFTEEN_MIN)).toEqual([]);
     db.close();
@@ -58,7 +71,12 @@ describe("session.hide_inactive_quick_chats handler logic", () => {
   test("ignores already-hidden rows", async () => {
     const db = await newDb();
     const u = await newUser(db, "carol");
-    insertMessage(db, { sessionId: "x", role: "user", userId: u, content: "old" });
+    insertMessage(db, {
+      sessionId: "x",
+      role: "user",
+      userId: u,
+      content: "old",
+    });
     backdateSession(db, "x", Date.now() - FIFTEEN_MIN - 60_000);
     setSessionQuickChat(db, u, "x", true);
     setSessionHiddenFromChat(db, u, "x", true);
@@ -77,7 +95,12 @@ describe("session.hide_inactive_quick_chats handler logic", () => {
   test("ignores non-quick-chat sessions even if inactive", async () => {
     const db = await newDb();
     const u = await newUser(db, "dan");
-    insertMessage(db, { sessionId: "regular", role: "user", userId: u, content: "ages ago" });
+    insertMessage(db, {
+      sessionId: "regular",
+      role: "user",
+      userId: u,
+      content: "ages ago",
+    });
     backdateSession(db, "regular", Date.now() - FIFTEEN_MIN - 60_000);
     expect(selectAndHideInactive(db, Date.now(), FIFTEEN_MIN)).toEqual([]);
     db.close();

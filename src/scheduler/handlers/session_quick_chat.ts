@@ -45,7 +45,8 @@ export function selectAndHideInactive(
     .all(cutoff) as HiddenRow[];
   if (rows.length === 0) return rows;
   const txn = db.transaction(() => {
-    for (const r of rows) setSessionHiddenFromChat(db, r.user_id, r.session_id, true);
+    for (const r of rows)
+      setSessionHiddenFromChat(db, r.user_id, r.session_id, true);
   });
   txn();
   return rows;

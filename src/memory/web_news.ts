@@ -199,7 +199,8 @@ function validateTerms(raw: unknown): string[] {
   if (!Array.isArray(raw)) throw new Error("terms must be an array of strings");
   const out: string[] = [];
   for (const t of raw) {
-    if (typeof t !== "string") throw new Error("terms must contain only strings");
+    if (typeof t !== "string")
+      throw new Error("terms must contain only strings");
     const trimmed = t.trim();
     if (trimmed) out.push(trimmed);
   }

@@ -288,12 +288,12 @@ function handleDelete(
   if (!canEditContact(user, contact, r.p))
     return json({ error: "forbidden" }, 403);
 
-  deleteContact(ctx.db, id);
+  deleteContact(ctx.db, id, user.id);
   void ctx.queue.log({
     topic: "contact",
     kind: "delete",
     userId: user.id,
-    data: { id, project: r.project },
+    data: { id, project: r.project, soft: true },
   });
   return json({ ok: true });
 }

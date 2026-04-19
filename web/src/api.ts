@@ -1747,6 +1747,7 @@ export async function askContacts(
 
 export type ActiveDescription = "manual" | "short" | "long";
 export type LlmStatus = "idle" | "generating" | "error";
+export type SvgStatus = "idle" | "generating" | "error";
 
 export interface DefinitionSource {
   title: string;
@@ -1768,6 +1769,10 @@ export interface Definition {
   isProjectDependent: boolean;
   activeDescription: ActiveDescription;
   originalLang: string | null;
+  svgContent: string | null;
+  svgStatus: SvgStatus;
+  svgError: string | null;
+  svgGeneratedAt: number | null;
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
@@ -1857,6 +1862,33 @@ export async function streamGenerateDefinition(
     `/api/projects/${encodeURIComponent(project)}/kb/definitions/${id}/generate`,
     { method: "POST", credentials: "include" },
   );
+}
+
+/**
+ * Kick off SVG illustration generation for a definition. Returns the raw
+ * streaming Response so the caller can parse SSE events. The server returns
+ * 409 (JSON body) if a generation is already in progress — callers should
+ * check `response.ok` before consuming as a stream.
+ */
+export async function streamGenerateDefinitionIllustration(
+  project: string,
+  id: number,
+): Promise<Response> {
+  return fetch(
+    `/api/projects/${encodeURIComponent(project)}/kb/definitions/${id}/generate-illustration`,
+    { method: "POST", credentials: "include" },
+  );
+}
+
+export async function clearDefinitionIllustration(
+  project: string,
+  id: number,
+): Promise<Definition> {
+  const data = await jsonFetch<{ definition: Definition }>(
+    `/api/projects/${encodeURIComponent(project)}/kb/definitions/${id}/clear-illustration`,
+    { method: "POST" },
+  );
+  return data.definition;
 }
 
 // ── Web News ────────────────────────────────────────────────────────────────
@@ -1991,4 +2023,38 @@ export async function deleteNewsItem(project: string, id: number): Promise<void>
     `/api/projects/${encodeURIComponent(project)}/news/items/${id}`,
     { method: "DELETE" },
   );
+}
+
+// ── Trash (admin-only) ────────────────────────────────────────────────────
+
+export type TrashKind = "document" | "whiteboard" | "contact" | "kb_definition";
+
+export interface TrashItem {
+  kind: TrashKind;
+  id: number;
+  name: string;
+  project: string;
+  deletedAt: number;
+  deletedBy: string | null;
+  createdBy: string | null;
+  createdAt: number;
+}
+
+export async function listTrash(): Promise<TrashItem[]> {
+  const { items } = await jsonFetch<{ items: TrashItem[] }>("/api/trash");
+  return items;
+}
+
+export async function restoreTrashed(
+  kind: TrashKind,
+  id: number,
+): Promise<void> {
+  await jsonFetch(`/api/trash/${kind}/${id}/restore`, { method: "POST" });
+}
+
+export async function hardDeleteTrashed(
+  kind: TrashKind,
+  id: number,
+): Promise<void> {
+  await jsonFetch(`/api/trash/${kind}/${id}`, { method: "DELETE" });
 }

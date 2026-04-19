@@ -135,10 +135,8 @@ export default function WhiteboardSidebar({
             </button>
             <button
               className="sidebar__hide-btn"
-              title="Delete"
-              onClick={() => {
-                if (confirm(`Delete whiteboard "${wb.name}"?`)) onDelete(wb.id);
-              }}
+              title="Move to trash"
+              onClick={() => onDelete(wb.id)}
             >
               &times;
             </button>

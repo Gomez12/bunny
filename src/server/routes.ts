@@ -61,6 +61,7 @@ import { handleWorkspaceRoute } from "./workspace_routes.ts";
 import { handleScheduledTaskRoute } from "./scheduled_task_routes.ts";
 import { handleTranslationRoute } from "./translation_routes.ts";
 import { handleChatRoute } from "./chat_routes.ts";
+import { handleTrashRoute } from "./trash_routes.ts";
 import type { SchedulerHandle } from "../scheduler/ticker.ts";
 import type { HandlerRegistry } from "../scheduler/handlers.ts";
 import { parseMention } from "../agent/mention.ts";
@@ -211,6 +212,15 @@ export async function handleApi(
     user,
   );
   if (taskResponse) return taskResponse;
+
+  // ── Trash (admin-only, cross-entity bin) ──────────────────────────────────
+  const trashResponse = await handleTrashRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue },
+    user,
+  );
+  if (trashResponse) return trashResponse;
 
   // ── UI config (public subset of bunny.config.toml) ────────────────────────
   if (pathname === "/api/config/ui" && req.method === "GET") {

@@ -16,6 +16,7 @@ import {
   registerKind,
   type TranslatableKind,
 } from "./translatable.ts";
+import { registerTrashable, softDelete } from "./trash.ts";
 
 export const KB_DEFINITION_KIND: TranslatableKind = {
   name: "kb_definition",
@@ -24,11 +25,22 @@ export const KB_DEFINITION_KIND: TranslatableKind = {
   entityFk: "definition_id",
   sourceFields: ["term", "manual_description", "llm_short", "llm_long"],
   sidecarFields: ["term", "manual_description", "llm_short", "llm_long"],
+  aliveFilter: "deleted_at IS NULL",
 };
 registerKind(KB_DEFINITION_KIND);
 
+registerTrashable({
+  kind: "kb_definition",
+  table: "kb_definitions",
+  nameColumn: "term",
+  hasUniqueName: true,
+  translationSidecarTable: "kb_definition_translations",
+  translationSidecarFk: "definition_id",
+});
+
 export type ActiveDescription = "manual" | "short" | "long";
 export type LlmStatus = "idle" | "generating" | "error";
+export type SvgStatus = "idle" | "generating" | "error";
 
 export interface DefinitionSource {
   title: string;
@@ -50,6 +62,10 @@ export interface Definition {
   isProjectDependent: boolean;
   activeDescription: ActiveDescription;
   originalLang: string | null;
+  svgContent: string | null;
+  svgStatus: SvgStatus;
+  svgError: string | null;
+  svgGeneratedAt: number | null;
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
@@ -70,6 +86,10 @@ interface DefinitionRow {
   is_project_dependent: number;
   active_description: string;
   original_lang: string | null;
+  svg_content: string | null;
+  svg_status: string;
+  svg_error: string | null;
+  svg_generated_at: number | null;
   created_by: string | null;
   created_at: number;
   updated_at: number;
@@ -78,7 +98,8 @@ interface DefinitionRow {
 const SELECT_COLS = `id, project, term, manual_description, llm_short, llm_long,
                      llm_sources, llm_cleared, llm_status, llm_error,
                      llm_generated_at, is_project_dependent, active_description,
-                     original_lang, created_by, created_at, updated_at`;
+                     original_lang, svg_content, svg_status, svg_error,
+                     svg_generated_at, created_by, created_at, updated_at`;
 
 function parseSources(raw: string): DefinitionSource[] {
   try {
@@ -105,6 +126,10 @@ function normaliseStatus(raw: string): LlmStatus {
   return raw === "generating" || raw === "error" ? raw : "idle";
 }
 
+function normaliseSvgStatus(raw: string): SvgStatus {
+  return raw === "generating" || raw === "error" ? raw : "idle";
+}
+
 function normaliseActive(raw: string): ActiveDescription {
   return raw === "short" || raw === "long" ? raw : "manual";
 }
@@ -125,6 +150,10 @@ function rowToDefinition(r: DefinitionRow): Definition {
     isProjectDependent: r.is_project_dependent !== 0,
     activeDescription: normaliseActive(r.active_description),
     originalLang: r.original_lang,
+    svgContent: r.svg_content,
+    svgStatus: normaliseSvgStatus(r.svg_status),
+    svgError: r.svg_error,
+    svgGeneratedAt: r.svg_generated_at,
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -144,7 +173,7 @@ export function listDefinitions(
   project: string,
   opts?: ListDefinitionsOpts,
 ): { definitions: Definition[]; total: number } {
-  const conditions = ["project = ?"];
+  const conditions = ["project = ?", "deleted_at IS NULL"];
   const params: (string | number)[] = [project];
 
   if (opts?.search) {
@@ -177,7 +206,9 @@ export function listDefinitions(
 
 export function getDefinition(db: Database, id: number): Definition | null {
   const row = db
-    .prepare(`SELECT ${SELECT_COLS} FROM kb_definitions WHERE id = ?`)
+    .prepare(
+      `SELECT ${SELECT_COLS} FROM kb_definitions WHERE id = ? AND deleted_at IS NULL`,
+    )
     .get(id) as DefinitionRow | undefined;
   return row ? rowToDefinition(row) : null;
 }
@@ -189,7 +220,8 @@ export function getDefinitionByTerm(
 ): Definition | null {
   const row = db
     .prepare(
-      `SELECT ${SELECT_COLS} FROM kb_definitions WHERE project = ? AND term = ?`,
+      `SELECT ${SELECT_COLS} FROM kb_definitions
+        WHERE project = ? AND term = ? AND deleted_at IS NULL`,
     )
     .get(project, term) as DefinitionRow | undefined;
   return row ? rowToDefinition(row) : null;
@@ -314,8 +346,12 @@ export function updateDefinition(
   return getDefinition(db, id)!;
 }
 
-export function deleteDefinition(db: Database, id: number): void {
-  db.prepare(`DELETE FROM kb_definitions WHERE id = ?`).run(id);
+export function deleteDefinition(
+  db: Database,
+  id: number,
+  deletedBy: string | null = null,
+): void {
+  softDelete(db, "kb_definition", id, deletedBy);
 }
 
 // ── LLM field state machine ─────────────────────────────────────────────────
@@ -397,6 +433,73 @@ export function clearLlmFields(db: Database, id: number): Definition {
   ).run(Date.now(), id);
   // The LLM source fields were cleared — translations must re-derive too.
   markTranslationsStale(db, KB_DEFINITION_KIND, id);
+  const updated = getDefinition(db, id);
+  if (!updated) throw new Error(`definition ${id} not found`);
+  return updated;
+}
+
+// ── SVG illustration state machine ──────────────────────────────────────────
+
+/**
+ * Conditional flip of `svg_status` to `'generating'`. Returns true when this
+ * caller won the race. Matches the `setLlmGenerating` pattern so two concurrent
+ * Generate-illustration clicks never double-bill the model.
+ */
+export function setSvgGenerating(db: Database, id: number): boolean {
+  const info = db
+    .prepare(
+      `UPDATE kb_definitions
+       SET svg_status = 'generating', svg_error = NULL, updated_at = ?
+       WHERE id = ? AND svg_status != 'generating'`,
+    )
+    .run(Date.now(), id);
+  return info.changes > 0;
+}
+
+export function setSvgResult(
+  db: Database,
+  id: number,
+  svg: string,
+): Definition {
+  const now = Date.now();
+  db.prepare(
+    `UPDATE kb_definitions
+     SET svg_content = ?, svg_status = 'idle', svg_error = NULL,
+         svg_generated_at = ?, updated_at = ?
+     WHERE id = ?`,
+  ).run(svg, now, now, id);
+  const updated = getDefinition(db, id);
+  if (!updated)
+    throw new Error(`definition ${id} vanished during setSvgResult`);
+  return updated;
+}
+
+export function setSvgError(
+  db: Database,
+  id: number,
+  error: string,
+): Definition {
+  db.prepare(
+    `UPDATE kb_definitions
+     SET svg_status = 'error', svg_error = ?, updated_at = ?
+     WHERE id = ?`,
+  ).run(error, Date.now(), id);
+  const updated = getDefinition(db, id);
+  if (!updated) throw new Error(`definition ${id} vanished during setSvgError`);
+  return updated;
+}
+
+/**
+ * Clear the stored SVG and reset the illustration state. Mirrors
+ * `clearLlmFields` but only touches the `svg_*` column set.
+ */
+export function clearSvgFields(db: Database, id: number): Definition {
+  db.prepare(
+    `UPDATE kb_definitions
+     SET svg_content = NULL, svg_status = 'idle', svg_error = NULL,
+         svg_generated_at = NULL, updated_at = ?
+     WHERE id = ?`,
+  ).run(Date.now(), id);
   const updated = getDefinition(db, id);
   if (!updated) throw new Error(`definition ${id} not found`);
   return updated;

@@ -147,6 +147,13 @@ function migrateColumns(db: Database): void {
   addColumn(
     "ALTER TABLE documents ADD COLUMN is_template INTEGER NOT NULL DEFAULT 0",
   );
+  // ── KB definition illustrations (SVG) ────────────────────────────────────
+  addColumn("ALTER TABLE kb_definitions ADD COLUMN svg_content TEXT");
+  addColumn(
+    "ALTER TABLE kb_definitions ADD COLUMN svg_status TEXT NOT NULL DEFAULT 'idle'",
+  );
+  addColumn("ALTER TABLE kb_definitions ADD COLUMN svg_error TEXT");
+  addColumn("ALTER TABLE kb_definitions ADD COLUMN svg_generated_at INTEGER");
   // ── Multi-language support ────────────────────────────────────────────────
   addColumn(
     "ALTER TABLE projects ADD COLUMN languages TEXT NOT NULL DEFAULT '[\"en\"]'",
@@ -159,6 +166,14 @@ function migrateColumns(db: Database): void {
     addColumn(`ALTER TABLE ${t} ADD COLUMN original_lang TEXT`);
     addColumn(
       `ALTER TABLE ${t} ADD COLUMN source_version INTEGER NOT NULL DEFAULT 1`,
+    );
+  }
+  // Soft-delete / trash bin — see ADR 0025.
+  for (const t of ["documents", "whiteboards", "contacts", "kb_definitions"]) {
+    addColumn(`ALTER TABLE ${t} ADD COLUMN deleted_at INTEGER`);
+    addColumn(`ALTER TABLE ${t} ADD COLUMN deleted_by TEXT`);
+    db.run(
+      `CREATE INDEX IF NOT EXISTS idx_${t}_trash ON ${t}(deleted_at) WHERE deleted_at IS NOT NULL`,
     );
   }
   // Backfill original_lang once for legacy rows.

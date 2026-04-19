@@ -29,6 +29,7 @@ export const BOARD_CARD_KIND: TranslatableKind = {
   entityFk: "card_id",
   sourceFields: ["title", "description"],
   sidecarFields: ["title", "description"],
+  aliveFilter: "archived_at IS NULL",
 };
 registerKind(BOARD_CARD_KIND);
 

@@ -98,7 +98,6 @@ export default function ContactsTab({ project, currentUser, onOpenInChat }: Prop
   };
 
   const handleDelete = async (c: Contact) => {
-    if (!confirm(`Delete contact "${c.name}"?`)) return;
     try {
       await deleteContact(project, c.id);
       await refresh();

@@ -269,4 +269,73 @@ describe("KB definitions HTTP surface", () => {
     });
     expect(res.res.status).toBe(404);
   });
+
+  test("clear-illustration wipes the stored SVG and resets status", async () => {
+    createProject(db, { name: "alpha" });
+    const create = await req("POST", "/api/projects/alpha/kb/definitions", {
+      body: { term: "supplier" },
+      cookie: adminCookie,
+    });
+    const id = (create.body.definition as { id: number }).id;
+
+    // Seed an SVG + generated_at + status as if a run had succeeded.
+    db.run(
+      `UPDATE kb_definitions
+         SET svg_content = ?, svg_status = 'idle', svg_generated_at = ?
+       WHERE id = ?`,
+      ["<svg xmlns='http://www.w3.org/2000/svg'/>", Date.now(), id],
+    );
+
+    const clear = await req(
+      "POST",
+      `/api/projects/alpha/kb/definitions/${id}/clear-illustration`,
+      { cookie: adminCookie },
+    );
+    expect(clear.res.status).toBe(200);
+    const def = clear.body.definition as {
+      svgContent: string | null;
+      svgStatus: string;
+      svgGeneratedAt: number | null;
+    };
+    expect(def.svgContent).toBeNull();
+    expect(def.svgStatus).toBe("idle");
+    expect(def.svgGeneratedAt).toBeNull();
+  });
+
+  test("generate-illustration returns 409 when already running", async () => {
+    createProject(db, { name: "alpha" });
+    const create = await req("POST", "/api/projects/alpha/kb/definitions", {
+      body: { term: "supplier" },
+      cookie: adminCookie,
+    });
+    const id = (create.body.definition as { id: number }).id;
+
+    // Pin the row into the 'generating' state without calling the LLM.
+    db.run(`UPDATE kb_definitions SET svg_status = 'generating' WHERE id = ?`, [
+      id,
+    ]);
+
+    const res = await req(
+      "POST",
+      `/api/projects/alpha/kb/definitions/${id}/generate-illustration`,
+      { cookie: adminCookie },
+    );
+    expect(res.res.status).toBe(409);
+  });
+
+  test("non-owner cannot clear someone else's illustration", async () => {
+    createProject(db, { name: "alpha" });
+    const create = await req("POST", "/api/projects/alpha/kb/definitions", {
+      body: { term: "supplier" },
+      cookie: adminCookie,
+    });
+    const id = (create.body.definition as { id: number }).id;
+
+    const res = await req(
+      "POST",
+      `/api/projects/alpha/kb/definitions/${id}/clear-illustration`,
+      { cookie: userCookie },
+    );
+    expect(res.res.status).toBe(403);
+  });
 });

@@ -41,6 +41,7 @@ export {
   Play,
   Pause,
   RefreshCw,
+  RotateCcw,
   Eraser,
   ExternalLink,
 

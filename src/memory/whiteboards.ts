@@ -1,6 +1,16 @@
 import type { Database } from "bun:sqlite";
 import type { Project } from "./projects.ts";
 import type { User } from "../auth/users.ts";
+import { registerTrashable, softDelete } from "./trash.ts";
+
+registerTrashable({
+  kind: "whiteboard",
+  table: "whiteboards",
+  nameColumn: "name",
+  hasUniqueName: true,
+  translationSidecarTable: null,
+  translationSidecarFk: null,
+});
 
 export interface Whiteboard {
   id: number;
@@ -57,7 +67,7 @@ export function listWhiteboards(
   const rows = db
     .prepare(
       `SELECT ${SUMMARY_COLS} FROM whiteboards
-       WHERE project = ?
+       WHERE project = ? AND deleted_at IS NULL
        ORDER BY updated_at DESC`,
     )
     .all(project) as Pick<
@@ -75,7 +85,9 @@ export function listWhiteboards(
 
 export function getWhiteboard(db: Database, id: number): Whiteboard | null {
   const row = db
-    .prepare(`SELECT ${SELECT_COLS} FROM whiteboards WHERE id = ?`)
+    .prepare(
+      `SELECT ${SELECT_COLS} FROM whiteboards WHERE id = ? AND deleted_at IS NULL`,
+    )
     .get(id) as WhiteboardRow | undefined;
   return row ? rowToWhiteboard(row) : null;
 }
@@ -148,8 +160,12 @@ export function updateWhiteboard(
   return getWhiteboard(db, id)!;
 }
 
-export function deleteWhiteboard(db: Database, id: number): void {
-  db.prepare(`DELETE FROM whiteboards WHERE id = ?`).run(id);
+export function deleteWhiteboard(
+  db: Database,
+  id: number,
+  deletedBy: string | null = null,
+): void {
+  softDelete(db, "whiteboard", id, deletedBy);
 }
 
 export function canEditWhiteboard(

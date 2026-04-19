@@ -5,8 +5,9 @@ import ApiKeyList from "../components/ApiKeyList";
 import UserList from "../components/UserList";
 
 const LogsTab = lazy(() => import("../tabs/LogsTab"));
+const TrashTab = lazy(() => import("../tabs/TrashTab"));
 
-type Tab = "profile" | "keys" | "users" | "logs";
+type Tab = "profile" | "keys" | "users" | "trash" | "logs";
 
 export default function SettingsPage({
   user,
@@ -35,6 +36,11 @@ export default function SettingsPage({
           </button>
         )}
         {user.role === "admin" && (
+          <button className={tab === "trash" ? "active" : ""} onClick={() => setTab("trash")}>
+            Trash
+          </button>
+        )}
+        {user.role === "admin" && (
           <button className={tab === "logs" ? "active" : ""} onClick={() => setTab("logs")}>
             Logs
           </button>
@@ -44,6 +50,11 @@ export default function SettingsPage({
         {tab === "profile" && <ProfileForm user={user} onUpdated={onUserUpdated} />}
         {tab === "keys" && <ApiKeyList />}
         {tab === "users" && user.role === "admin" && <UserList currentUserId={user.id} />}
+        {tab === "trash" && user.role === "admin" && (
+          <Suspense fallback={<div className="app-loading">Loading…</div>}>
+            <TrashTab />
+          </Suspense>
+        )}
         {tab === "logs" && user.role === "admin" && (
           <Suspense fallback={<div className="app-loading">Loading…</div>}>
             <LogsTab />

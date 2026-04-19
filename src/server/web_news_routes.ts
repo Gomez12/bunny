@@ -135,7 +135,8 @@ function resolveProject(
     return { ok: false, error: json({ error: errorMessage(e) }, 400) };
   }
   const p = getProject(ctx.db, project);
-  if (!p) return { ok: false, error: json({ error: "project not found" }, 404) };
+  if (!p)
+    return { ok: false, error: json({ error: "project not found" }, 404) };
   if (!canSeeProject(p, user))
     return { ok: false, error: json({ error: "forbidden" }, 403) };
   return { ok: true, project, p };

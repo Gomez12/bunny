@@ -182,12 +182,12 @@ function handleDelete(
   if (!p) return json({ error: "project not found" }, 404);
   if (!canEditWhiteboard(user, wb, p)) return json({ error: "forbidden" }, 403);
 
-  deleteWhiteboard(ctx.db, id);
+  deleteWhiteboard(ctx.db, id, user.id);
   void ctx.queue.log({
     topic: "whiteboard",
     kind: "delete",
     userId: user.id,
-    data: { id, project: wb.project, name: wb.name },
+    data: { id, project: wb.project, name: wb.name, soft: true },
   });
   return json({ ok: true });
 }

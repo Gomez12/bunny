@@ -29,6 +29,7 @@ import { registry as toolsRegistry } from "../tools/index.ts";
 import {
   canEditDefinition,
   clearLlmFields,
+  clearSvgFields,
   createDefinition,
   deleteDefinition,
   getDefinition,
@@ -37,6 +38,9 @@ import {
   setLlmError,
   setLlmGenerating,
   setLlmResult,
+  setSvgError,
+  setSvgGenerating,
+  setSvgResult,
   updateDefinition,
   type ActiveDescription,
   type DefinitionSource,
@@ -83,6 +87,26 @@ export async function handleKbRoute(
     const project = decodeURIComponent(clearMatch[1]!);
     const id = Number(clearMatch[2]);
     if (req.method === "POST") return handleClearLlm(ctx, user, project, id);
+  }
+
+  const generateSvgMatch = pathname.match(
+    /^\/api\/projects\/([^/]+)\/kb\/definitions\/(\d+)\/generate-illustration$/,
+  );
+  if (generateSvgMatch) {
+    const project = decodeURIComponent(generateSvgMatch[1]!);
+    const id = Number(generateSvgMatch[2]);
+    if (req.method === "POST")
+      return handleGenerateIllustration(ctx, user, project, id);
+  }
+
+  const clearSvgMatch = pathname.match(
+    /^\/api\/projects\/([^/]+)\/kb\/definitions\/(\d+)\/clear-illustration$/,
+  );
+  if (clearSvgMatch) {
+    const project = decodeURIComponent(clearSvgMatch[1]!);
+    const id = Number(clearSvgMatch[2]);
+    if (req.method === "POST")
+      return handleClearIllustration(ctx, user, project, id);
   }
 
   const activeMatch = pathname.match(
@@ -264,12 +288,12 @@ function handleDelete(
   const r = loadDefinitionFor(ctx, user, rawProject, id, true);
   if (!r.ok) return r.error;
 
-  deleteDefinition(ctx.db, id);
+  deleteDefinition(ctx.db, id, user.id);
   void ctx.queue.log({
     topic: "kb",
     kind: "definition.delete",
     userId: user.id,
-    data: { id, project: r.project, term: r.def.term },
+    data: { id, project: r.project, term: r.def.term, soft: true },
   });
   return json({ ok: true });
 }
@@ -531,6 +555,215 @@ export function extractDefinitionJson(raw: string): {
     } catch {
       continue;
     }
+  }
+
+  return null;
+}
+
+// ── Illustration (SVG) generation (SSE) ──────────────────────────────────────
+
+const ILLUSTRATION_MAX_BYTES = 200 * 1024;
+
+const ILLUSTRATION_SYSTEM_PROMPT = `You are a Knowledge Base illustrator. The user gives you a single glossary term (optionally accompanied by one or more descriptions) and you produce a professional SVG illustration that purely visually conveys what the term means.
+
+Rules:
+- Return exactly one SVG illustration. It must be clear, precise, and accurate — double-check every element before replying.
+- Use as little text as possible. Only include text where it is absolutely necessary to disambiguate the meaning.
+- Use clean, geometric shapes, reasonable proportions, and a readable colour palette. Prefer a neutral background.
+- The SVG must be self-contained (no external images, no external fonts). Do not include <script> elements or event handler attributes.
+- Include a viewBox and an xmlns attribute.
+
+Output format — return EXACTLY ONE fenced \`\`\`svg\`\`\` block containing a valid <svg>…</svg> document, and NOTHING ELSE (no prose before or after).`;
+
+const ILLUSTRATION_DESC_MAX = 1000;
+
+function clip(s: string): string {
+  return s.length > ILLUSTRATION_DESC_MAX
+    ? `${s.slice(0, ILLUSTRATION_DESC_MAX)}…`
+    : s;
+}
+
+function buildIllustrationPrompt(def: {
+  term: string;
+  manualDescription: string;
+  llmShort: string | null;
+  llmLong: string | null;
+}): string {
+  const parts: string[] = [
+    `Please create a professional SVG illustration that purely visually shows what is meant by the following definition: "${def.term}".`,
+    `The SVG must be clear and precise — verify everything is correct before returning it. Use as little text as possible; only use text where it is absolutely necessary for the explanation.`,
+  ];
+  const manual = def.manualDescription.trim();
+  const short = def.llmShort?.trim();
+  const long = def.llmLong?.trim();
+  if (short) {
+    parts.push(
+      `The following is a short description that indicates what is meant by the definition: ${clip(short)}`,
+    );
+  }
+  if (long) {
+    parts.push(
+      `The following is a longer description that indicates what is meant by the definition: ${clip(long)}`,
+    );
+  }
+  if (manual) {
+    parts.push(
+      `The following is a manual description (written by the user) that indicates what is meant by the definition: ${clip(manual)}`,
+    );
+  }
+  return parts.join("\n\n");
+}
+
+async function handleGenerateIllustration(
+  ctx: KbRouteCtx,
+  user: User,
+  rawProject: string,
+  id: number,
+): Promise<Response> {
+  const r = loadDefinitionFor(ctx, user, rawProject, id, true);
+  if (!r.ok) return r.error;
+
+  if (!setSvgGenerating(ctx.db, id)) {
+    return json({ error: "illustration generation already in progress" }, 409);
+  }
+
+  void ctx.queue.log({
+    topic: "kb",
+    kind: "definition.illustration.generate",
+    userId: user.id,
+    data: { id, project: r.project, term: r.def.term },
+  });
+
+  const sessionId = `kb-svg-${randomUUID()}`;
+  setSessionHiddenFromChat(ctx.db, user.id, sessionId, true);
+
+  const userPrompt = buildIllustrationPrompt(r.def);
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const sink = controllerSink(controller);
+      const renderer = createSseRenderer(sink);
+
+      let finalAnswer = "";
+      try {
+        finalAnswer = await runAgent({
+          prompt: userPrompt,
+          sessionId,
+          userId: user.id,
+          project: r.project,
+          llmCfg: ctx.cfg.llm,
+          embedCfg: ctx.cfg.embed,
+          memoryCfg: ctx.cfg.memory,
+          agentCfg: ctx.cfg.agent,
+          // Intentionally no webCfg — SVG generation is pure; web tools would
+          // add latency and non-determinism without improving the drawing.
+          tools: toolsRegistry,
+          db: ctx.db,
+          queue: ctx.queue,
+          renderer,
+          systemPromptOverride: ILLUSTRATION_SYSTEM_PROMPT,
+        });
+
+        const svg = extractSvgBlock(finalAnswer);
+        if (!svg) {
+          setSvgError(ctx.db, id, "model did not return a valid SVG block");
+          void ctx.queue.log({
+            topic: "kb",
+            kind: "definition.illustration.parse_error",
+            userId: user.id,
+            data: { id, project: r.project, term: r.def.term },
+          });
+          renderer.onError(
+            "Illustration generation failed: model did not return a valid SVG",
+          );
+        } else {
+          setSvgResult(ctx.db, id, svg);
+          const bytes = new TextEncoder().encode(svg).length;
+          const ev: SseEvent = {
+            type: "kb_definition_illustration_generated",
+            definitionId: id,
+            bytes,
+          };
+          sink.enqueue(SSE_ENCODER.encode(`data: ${JSON.stringify(ev)}\n\n`));
+          void ctx.queue.log({
+            topic: "kb",
+            kind: "definition.illustration.done",
+            userId: user.id,
+            data: { id, project: r.project, term: r.def.term, bytes },
+          });
+        }
+      } catch (e) {
+        const msg = errorMessage(e);
+        try {
+          setSvgError(ctx.db, id, msg);
+        } catch {
+          // swallow — DB may already be closed during test teardown
+        }
+        renderer.onError(msg);
+      } finally {
+        finishSse(sink);
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "X-Session-Id": sessionId,
+      "X-Definition-Id": String(id),
+    },
+  });
+}
+
+function handleClearIllustration(
+  ctx: KbRouteCtx,
+  user: User,
+  rawProject: string,
+  id: number,
+): Response {
+  const r = loadDefinitionFor(ctx, user, rawProject, id, true);
+  if (!r.ok) return r.error;
+
+  const updated = clearSvgFields(ctx.db, id);
+  void ctx.queue.log({
+    topic: "kb",
+    kind: "definition.illustration.clear",
+    userId: user.id,
+    data: { id, project: r.project, term: r.def.term },
+  });
+  return json({ definition: updated });
+}
+
+/**
+ * Extract an SVG document from the model's final answer. Accepts a
+ * ```svg``` fence, a bare ``` fence, or a loose <svg>…</svg> match — in that
+ * order. Rejects payloads that don't contain `<svg`. Payloads larger than
+ * ILLUSTRATION_MAX_BYTES are rejected so a runaway model can't fill the DB.
+ */
+export function extractSvgBlock(raw: string): string | null {
+  const candidates: string[] = [];
+  const fencedSvg = raw.match(/```svg\s*\n([\s\S]*?)\n```/);
+  if (fencedSvg?.[1]) candidates.push(fencedSvg[1]);
+  const fencedBare = raw.match(/```\s*\n([\s\S]*?)\n```/);
+  if (fencedBare?.[1]) candidates.push(fencedBare[1]);
+  const openIdx = raw.indexOf("<svg");
+  const closeIdx = raw.lastIndexOf("</svg>");
+  if (openIdx >= 0 && closeIdx > openIdx) {
+    candidates.push(raw.slice(openIdx, closeIdx + "</svg>".length));
+  }
+
+  for (const candidate of candidates) {
+    const trimmed = candidate.trim();
+    if (!trimmed.includes("<svg")) continue;
+    const svgStart = trimmed.indexOf("<svg");
+    const svgEnd = trimmed.lastIndexOf("</svg>");
+    if (svgStart < 0 || svgEnd <= svgStart) continue;
+    const svg = trimmed.slice(svgStart, svgEnd + "</svg>".length);
+    const bytes = new TextEncoder().encode(svg).length;
+    if (bytes === 0 || bytes > ILLUSTRATION_MAX_BYTES) continue;
+    return svg;
   }
 
   return null;

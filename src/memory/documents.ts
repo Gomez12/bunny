@@ -7,6 +7,7 @@ import {
   registerKind,
   type TranslatableKind,
 } from "./translatable.ts";
+import { registerTrashable, softDelete } from "./trash.ts";
 
 export const DOCUMENT_KIND: TranslatableKind = {
   name: "document",
@@ -15,8 +16,18 @@ export const DOCUMENT_KIND: TranslatableKind = {
   entityFk: "document_id",
   sourceFields: ["name", "content_md"],
   sidecarFields: ["name", "content_md"],
+  aliveFilter: "deleted_at IS NULL",
 };
 registerKind(DOCUMENT_KIND);
+
+registerTrashable({
+  kind: "document",
+  table: "documents",
+  nameColumn: "name",
+  hasUniqueName: true,
+  translationSidecarTable: "document_translations",
+  translationSidecarFk: "document_id",
+});
 
 function resolveOriginalLang(
   db: Database,
@@ -90,8 +101,8 @@ export function listDocuments(
     opts?.isTemplate !== undefined ? (opts.isTemplate ? 1 : 0) : undefined;
   const sql =
     templateFilter !== undefined
-      ? `SELECT ${SUMMARY_COLS} FROM documents WHERE project = ? AND is_template = ? ORDER BY updated_at DESC`
-      : `SELECT ${SUMMARY_COLS} FROM documents WHERE project = ? AND is_template = 0 ORDER BY updated_at DESC`;
+      ? `SELECT ${SUMMARY_COLS} FROM documents WHERE project = ? AND is_template = ? AND deleted_at IS NULL ORDER BY updated_at DESC`
+      : `SELECT ${SUMMARY_COLS} FROM documents WHERE project = ? AND is_template = 0 AND deleted_at IS NULL ORDER BY updated_at DESC`;
   const params =
     templateFilter !== undefined ? [project, templateFilter] : [project];
   const rows = db.prepare(sql).all(...params) as Pick<
@@ -110,7 +121,9 @@ export function listDocuments(
 
 export function getDocument(db: Database, id: number): Document | null {
   const row = db
-    .prepare(`SELECT ${SELECT_COLS} FROM documents WHERE id = ?`)
+    .prepare(
+      `SELECT ${SELECT_COLS} FROM documents WHERE id = ? AND deleted_at IS NULL`,
+    )
     .get(id) as DocumentRow | undefined;
   return row ? rowToDocument(row) : null;
 }
@@ -188,8 +201,12 @@ export function updateDocument(
   return getDocument(db, id)!;
 }
 
-export function deleteDocument(db: Database, id: number): void {
-  db.prepare(`DELETE FROM documents WHERE id = ?`).run(id);
+export function deleteDocument(
+  db: Database,
+  id: number,
+  deletedBy: string | null = null,
+): void {
+  softDelete(db, "document", id, deletedBy);
 }
 
 export function canEditDocument(
@@ -215,7 +232,10 @@ export function saveAsTemplate(
   let suffix = 1;
   while (true) {
     const existing = db
-      .prepare(`SELECT id FROM documents WHERE project = ? AND name = ?`)
+      .prepare(
+        `SELECT id FROM documents
+          WHERE project = ? AND name = ? AND deleted_at IS NULL`,
+      )
       .get(source.project, name) as { id: number } | undefined;
     if (!existing) break;
     suffix++;
