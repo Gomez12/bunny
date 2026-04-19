@@ -63,6 +63,10 @@ import { handleTranslationRoute } from "./translation_routes.ts";
 import { handleChatRoute } from "./chat_routes.ts";
 import { handleNotificationRoute } from "./notification_routes.ts";
 import { handleTrashRoute } from "./trash_routes.ts";
+import {
+  handleTelegramPublicRoute,
+  handleTelegramRoute,
+} from "./telegram_routes.ts";
 import type { SchedulerHandle } from "../scheduler/ticker.ts";
 import type { HandlerRegistry } from "../scheduler/handlers.ts";
 import { parseMention } from "../agent/mention.ts";
@@ -86,6 +90,17 @@ export async function handleApi(
   // Auth / user / apikey routes take precedence.
   const authResponse = await handleAuthRoute(req, url, ctx);
   if (authResponse) return authResponse;
+
+  // Public Telegram webhook — Telegram servers POST here without a Bunny
+  // session. The handler authenticates the request via a constant-time
+  // compare against the stored `webhook_secret`. This carveout MUST sit
+  // before `authenticate` so the request never hits the 401 path.
+  const telegramPublicResponse = await handleTelegramPublicRoute(req, url, {
+    db: ctx.db,
+    queue: ctx.queue,
+    cfg: ctx.cfg,
+  });
+  if (telegramPublicResponse) return telegramPublicResponse;
 
   // All remaining /api/* routes require an authenticated user.
   const user = await authenticate(ctx.db, req);
@@ -176,6 +191,15 @@ export async function handleApi(
     user,
   );
   if (webNewsResponse) return webNewsResponse;
+
+  // ── Telegram (per-project bot config + per-user links + news subs) ────────
+  const telegramResponse = await handleTelegramRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg },
+    user,
+  );
+  if (telegramResponse) return telegramResponse;
 
   // ── Workspace (per-project files) ─────────────────────────────────────────
   const workspaceResponse = await handleWorkspaceRoute(
@@ -522,6 +546,7 @@ async function handleChat(
           memoryCfg: ctx.cfg.memory,
           agentCfg: ctx.cfg.agent,
           webCfg: ctx.cfg.web,
+          telegramCfg: ctx.cfg.telegram,
           tools: registry,
           db: ctx.db,
           queue: ctx.queue,

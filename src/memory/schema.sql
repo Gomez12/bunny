@@ -587,6 +587,74 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user_time
 CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
   ON notifications(user_id, created_at DESC) WHERE read_at IS NULL;
 
+-- ── Telegram integration ─────────────────────────────────────────────────────
+-- Per-project Telegram bot configuration + per-(user, project) chat linking.
+-- See ADR 0028. Bot tokens are per-project; linking is per-(user, project)
+-- because the bot itself is project-scoped. Outbound deliveries (mentions,
+-- card runs, news digests) are additional channels beside the SSE fanout —
+-- they skip when the recipient has no link for that project.
+CREATE TABLE IF NOT EXISTS project_telegram_config (
+  project          TEXT    PRIMARY KEY REFERENCES projects(name) ON DELETE CASCADE,
+  bot_token        TEXT    NOT NULL UNIQUE,
+  bot_username     TEXT    NOT NULL,
+  transport        TEXT    NOT NULL CHECK(transport IN ('poll','webhook')) DEFAULT 'poll',
+  webhook_secret   TEXT,                                            -- set when transport='webhook'
+  last_update_id   INTEGER NOT NULL DEFAULT 0,
+  enabled          INTEGER NOT NULL DEFAULT 1,
+  poll_lease_until INTEGER NOT NULL DEFAULT 0,                      -- ticker race-safety
+  created_at       INTEGER NOT NULL,
+  updated_at       INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_project_telegram_config_enabled
+  ON project_telegram_config(enabled, transport, poll_lease_until);
+
+CREATE TABLE IF NOT EXISTS user_telegram_links (
+  user_id            TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  project            TEXT    NOT NULL REFERENCES projects(name) ON DELETE CASCADE,
+  chat_id            INTEGER NOT NULL,
+  tg_username        TEXT,
+  current_session_id TEXT,                                          -- rolling session for this chat
+  busy_until         INTEGER NOT NULL DEFAULT 0,                    -- per-chat serialisation mutex
+  linked_at          INTEGER NOT NULL,
+  PRIMARY KEY (user_id, project),
+  UNIQUE (project, chat_id)
+);
+CREATE INDEX IF NOT EXISTS idx_user_telegram_links_project
+  ON user_telegram_links(project, chat_id);
+
+CREATE TABLE IF NOT EXISTS telegram_pending_links (
+  link_token  TEXT    PRIMARY KEY,
+  user_id     TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  project     TEXT    NOT NULL REFERENCES projects(name) ON DELETE CASCADE,
+  expires_at  INTEGER NOT NULL,
+  created_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_telegram_pending_links_user
+  ON telegram_pending_links(user_id, expires_at);
+
+-- Optional per-topic Web News subscribers for Telegram digests. When no row
+-- exists for a topic, the digest falls back to the topic creator only.
+CREATE TABLE IF NOT EXISTS web_news_topic_subscriptions (
+  topic_id  INTEGER NOT NULL REFERENCES web_news_topics(id) ON DELETE CASCADE,
+  user_id   TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (topic_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_web_news_topic_subs_user
+  ON web_news_topic_subscriptions(user_id);
+
+-- Inbound update_id dedup (poison-message safety — advancing last_update_id
+-- before processing ensures a malformed update can't wedge the bot, and this
+-- table makes the "already processed" check O(1)).
+CREATE TABLE IF NOT EXISTS telegram_seen_updates (
+  project    TEXT    NOT NULL,
+  update_id  INTEGER NOT NULL,
+  seen_at    INTEGER NOT NULL,
+  PRIMARY KEY (project, update_id)
+);
+CREATE INDEX IF NOT EXISTS idx_telegram_seen_updates_time
+  ON telegram_seen_updates(seen_at);
+
 -- ── Embeddings ───────────────────────────────────────────────────────────────
 -- Created dynamically by db.ts using the configured dimension (default 1536)
 -- because the dimension must be baked into the vec0 CREATE statement.

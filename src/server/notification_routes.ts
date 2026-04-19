@@ -75,17 +75,14 @@ export async function handleNotificationRoute(
   return null;
 }
 
-function handleList(
-  ctx: NotificationRouteCtx,
-  user: User,
-  url: URL,
-): Response {
+function handleList(ctx: NotificationRouteCtx, user: User, url: URL): Response {
   const unreadOnly = url.searchParams.get("unread") === "1";
   const limitRaw = Number(url.searchParams.get("limit"));
   const beforeRaw = Number(url.searchParams.get("before"));
   const limit =
     Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 200) : 50;
-  const before = Number.isFinite(beforeRaw) && beforeRaw > 0 ? beforeRaw : undefined;
+  const before =
+    Number.isFinite(beforeRaw) && beforeRaw > 0 ? beforeRaw : undefined;
   const items = listForUser(ctx.db, user.id, { unreadOnly, limit, before }).map(
     notificationToDto,
   );

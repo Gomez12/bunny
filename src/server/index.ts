@@ -48,6 +48,11 @@ import {
   WEB_NEWS_AUTO_RUN_HANDLER,
   registerWebNewsAutoRun,
 } from "../web_news/auto_run_handler.ts";
+import {
+  TELEGRAM_POLL_HANDLER,
+  registerTelegramPoll,
+} from "../telegram/poll_handler.ts";
+import { reapplyAllTransports } from "../telegram/webhook_setup.ts";
 
 const DEFAULT_PORT = 3000;
 
@@ -124,6 +129,7 @@ export async function startServer(
   registerSweepStuck(defaultHandlerRegistry);
   registerQuickChatHide(defaultHandlerRegistry);
   registerWebNewsAutoRun(defaultHandlerRegistry);
+  registerTelegramPoll(defaultHandlerRegistry);
   const bootNow = Date.now();
   const boardAutoRunCron = "*/5 * * * *";
   try {
@@ -185,6 +191,22 @@ export async function startServer(
       errorMessage(e),
     );
   }
+  const telegramPollCron = "* * * * *";
+  try {
+    ensureSystemTask(db, TELEGRAM_POLL_HANDLER, {
+      name: "Telegram poll",
+      description:
+        "Fetch new Telegram updates for every enabled project (short-polling, every minute).",
+      cronExpr: telegramPollCron,
+      nextRunAt: computeNextRun(telegramPollCron, bootNow),
+    });
+  } catch (e) {
+    console.warn("[bunny] failed to seed telegram.poll:", errorMessage(e));
+  }
+  // Self-heal webhook registrations that may have drifted while the server
+  // was offline (token rotation, transport flip, …). Errors are swallowed —
+  // individual failures log via the queue.
+  void reapplyAllTransports(db, queue, cfg.telegram.publicBaseUrl || undefined);
   const quickChatHideCron = "*/5 * * * *";
   try {
     ensureSystemTask(db, QUICK_CHAT_HIDE_HANDLER, {

@@ -25,6 +25,7 @@ import type {
   MemoryConfig,
   AgentConfig,
   WebConfig,
+  TelegramConfig,
 } from "../config.ts";
 import type { ChatAttachment, ChatMessage } from "../llm/types.ts";
 import type { ToolRegistry, ToolDescriptor } from "../tools/registry.ts";
@@ -125,6 +126,10 @@ export interface RunAgentOptions {
   renderer: Renderer;
   /** Web tool config (SERP keys, user-agent). Web tools are disabled when omitted. */
   webCfg?: WebConfig;
+  /** Telegram runtime config — when set, successful mention notifications
+   *  also fan out to the recipient's linked Telegram chat. Only pass this
+   *  from code paths where outbound pushes are desired (`POST /api/chat`). */
+  telegramCfg?: TelegramConfig;
   /** When set, replaces the entire system prompt (skips project/agent/recall prompt building). */
   systemPromptOverride?: string;
   /** Regenerate path: the prompt is already in the DB; don't insert it again. */
@@ -291,6 +296,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
             messageId: userMsgId,
             sender,
             rawPrompt: prompt,
+            telegramCfg: opts.telegramCfg,
           });
         } catch (err) {
           void queue.log({
@@ -584,7 +590,10 @@ function buildRunRegistry(opts: BuildRunRegistryOpts): ToolRegistry {
     );
   }
 
-  if (opts.askUserCtx && (!whitelist || whitelist.includes(ASK_USER_TOOL_NAME))) {
+  if (
+    opts.askUserCtx &&
+    (!whitelist || whitelist.includes(ASK_USER_TOOL_NAME))
+  ) {
     extras.push(
       makeAskUserTool({
         sessionId: opts.askUserCtx.sessionId,

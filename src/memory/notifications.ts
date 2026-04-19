@@ -139,10 +139,7 @@ export function createNotification(
   return created;
 }
 
-export function getNotification(
-  db: Database,
-  id: number,
-): Notification | null {
+export function getNotification(db: Database, id: number): Notification | null {
   const row = db
     .prepare(`SELECT ${SELECT_COLS} FROM notifications WHERE id = ?`)
     .get(id) as NotificationRow | null;

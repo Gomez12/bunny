@@ -77,7 +77,9 @@ describe("parseUserMentions", () => {
   test("skips mentions inside fenced code blocks and inline spans", () => {
     expect(parseUserMentions("see ```\n@alice inside\n```")).toEqual([]);
     expect(parseUserMentions("maybe `@alice` here")).toEqual([]);
-    expect(parseUserMentions("real @alice plus `@bob` span")).toEqual(["alice"]);
+    expect(parseUserMentions("real @alice plus `@bob` span")).toEqual([
+      "alice",
+    ]);
   });
 
   test("skips emails and URL-like tokens", () => {
@@ -217,8 +219,7 @@ describe("dispatchMentionNotifications", () => {
       sender,
       rawPrompt: "@alice hi",
       deps: {
-        publish: (userId, notif) =>
-          events.push([userId, notif.kind, notif.id]),
+        publish: (userId, notif) => events.push([userId, notif.kind, notif.id]),
       },
     });
     expect(events).toHaveLength(1);

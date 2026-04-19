@@ -41,6 +41,7 @@ import {
   type CardRun,
   type RunTriggerKind,
 } from "../memory/board_runs.ts";
+import { sendTelegramToUser } from "../telegram/outbound.ts";
 
 /** One subscriber's view of a fanout. */
 export interface RunFanout {
@@ -210,6 +211,31 @@ export async function runCard(opts: RunCardOpts): Promise<RunCardResult> {
         status: "done",
         finalAnswer,
       });
+      // Ping the user assignee (or the trigger user for agent-assigned cards)
+      // on Telegram. Scheduled runs always ping; manual runs skip self-pings.
+      const pingUser =
+        card.assigneeUserId ||
+        ((opts.triggerKind ?? "manual") === "scheduled"
+          ? opts.triggeredBy
+          : null);
+      if (pingUser) {
+        const isSelfTrigger =
+          (opts.triggerKind ?? "manual") === "manual" &&
+          pingUser === opts.triggeredBy;
+        if (!isSelfTrigger) {
+          const snippet = finalAnswer.slice(0, 500);
+          const body =
+            `✅ Card finished: **${card.title}**\n\n` +
+            (snippet || "(empty response)");
+          void sendTelegramToUser(opts.db, opts.queue, opts.cfg.telegram, {
+            userId: pingUser,
+            project: card.project,
+            text: body,
+            silent: true,
+            source: "card_run",
+          });
+        }
+      }
     } catch (e) {
       const msg = errorMessage(e);
       markRunError(opts.db, run.id, msg);

@@ -2137,3 +2137,130 @@ export async function hardDeleteTrashed(
 ): Promise<void> {
   await jsonFetch(`/api/trash/${kind}/${id}`, { method: "DELETE" });
 }
+
+// ── Telegram ────────────────────────────────────────────────────────────────
+
+export interface TelegramConfigDto {
+  project: string;
+  botTokenMasked: string;
+  botUsername: string;
+  transport: "poll" | "webhook";
+  hasWebhookSecret: boolean;
+  enabled: boolean;
+  lastUpdateId: number;
+  webhookUrl: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface TelegramLinkDto {
+  project: string;
+  chatIdMasked: string;
+  tgUsername: string | null;
+  currentSessionId: string | null;
+  linkedAt: number;
+}
+
+export interface TelegramConfigResponse {
+  config: TelegramConfigDto | null;
+  publicBaseUrl: string | null;
+}
+
+export async function fetchTelegramConfig(
+  project: string,
+): Promise<TelegramConfigResponse> {
+  return jsonFetch<TelegramConfigResponse>(
+    `/api/projects/${encodeURIComponent(project)}/telegram`,
+  );
+}
+
+export async function saveTelegramConfig(
+  project: string,
+  patch: {
+    botToken?: string;
+    transport?: "poll" | "webhook";
+    enabled?: boolean;
+  },
+): Promise<TelegramConfigResponse> {
+  return jsonFetch<TelegramConfigResponse>(
+    `/api/projects/${encodeURIComponent(project)}/telegram`,
+    { method: "PUT", body: JSON.stringify(patch) },
+  );
+}
+
+export async function deleteTelegramConfigApi(project: string): Promise<void> {
+  await jsonFetch<{ ok: true }>(
+    `/api/projects/${encodeURIComponent(project)}/telegram`,
+    { method: "DELETE" },
+  );
+}
+
+export async function regenerateTelegramWebhookSecret(
+  project: string,
+): Promise<void> {
+  await jsonFetch<{ ok: true }>(
+    `/api/projects/${encodeURIComponent(project)}/telegram/regenerate-webhook-secret`,
+    { method: "POST" },
+  );
+}
+
+export async function telegramTestSend(
+  project: string,
+  chatId: number,
+  text?: string,
+): Promise<{ ok: true; messageId: number }> {
+  return jsonFetch<{ ok: true; messageId: number }>(
+    `/api/projects/${encodeURIComponent(project)}/telegram/test-send`,
+    { method: "POST", body: JSON.stringify({ chatId, text }) },
+  );
+}
+
+export async function listMyTelegramLinks(): Promise<TelegramLinkDto[]> {
+  const { links } = await jsonFetch<{ links: TelegramLinkDto[] }>(
+    `/api/me/telegram-links`,
+  );
+  return links;
+}
+
+export interface PendingLinkDto {
+  token: string;
+  expiresAt: number;
+  botUsername: string;
+  deepLink: string;
+}
+
+export async function createPendingTelegramLink(
+  project: string,
+): Promise<PendingLinkDto> {
+  return jsonFetch<PendingLinkDto>(`/api/me/telegram-links`, {
+    method: "POST",
+    body: JSON.stringify({ project }),
+  });
+}
+
+export async function deleteTelegramLinkFor(project: string): Promise<void> {
+  await jsonFetch<{ ok: true }>(
+    `/api/me/telegram-links/${encodeURIComponent(project)}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function listNewsTopicSubscribers(
+  project: string,
+  topicId: number,
+): Promise<{ subscribers: { userId: string; createdAt: number }[]; creator: string | null }> {
+  return jsonFetch(
+    `/api/projects/${encodeURIComponent(project)}/news/topics/${topicId}/subscribers`,
+  );
+}
+
+export async function setNewsTopicSubscribers(
+  project: string,
+  topicId: number,
+  userIds: string[],
+): Promise<void> {
+  await jsonFetch<{ ok: true; count: number }>(
+    `/api/projects/${encodeURIComponent(project)}/news/topics/${topicId}/subscribers`,
+    { method: "PUT", body: JSON.stringify({ userIds }) },
+  );
+}

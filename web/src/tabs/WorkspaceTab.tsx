@@ -4,8 +4,9 @@ import type { AuthUser } from "../api";
 const ProjectsTab = lazy(() => import("./ProjectsTab"));
 const AgentsTab = lazy(() => import("./AgentsTab"));
 const SkillsTab = lazy(() => import("./SkillsTab"));
+const IntegrationsTab = lazy(() => import("./IntegrationsTab"));
 
-type Sub = "projects" | "agents" | "skills";
+type Sub = "projects" | "agents" | "skills" | "integrations";
 
 type Props = {
   currentUser: AuthUser;
@@ -49,6 +50,14 @@ export default function WorkspaceTab({
         >
           Skills
         </button>
+        <button
+          type="button"
+          className={`subtab ${sub === "integrations" ? "subtab--active" : ""}`}
+          aria-current={sub === "integrations" ? "page" : undefined}
+          onClick={() => setSub("integrations")}
+        >
+          Integrations
+        </button>
       </nav>
       <Suspense fallback={<div className="app-loading">Loading…</div>}>
         {sub === "projects" && (
@@ -63,6 +72,12 @@ export default function WorkspaceTab({
         )}
         {sub === "skills" && (
           <SkillsTab currentUser={currentUser} activeProject={activeProject} />
+        )}
+        {sub === "integrations" && (
+          <IntegrationsTab
+            currentUser={currentUser}
+            activeProject={activeProject}
+          />
         )}
       </Suspense>
     </div>

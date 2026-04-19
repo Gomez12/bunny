@@ -34,6 +34,8 @@ import {
   upsertNewsItem,
   type NewsTopic,
 } from "../memory/web_news.ts";
+import { listTopicSubscribers } from "../memory/web_news_subscriptions.ts";
+import { sendTelegramToUser } from "../telegram/outbound.ts";
 
 export interface RunTopicOpts {
   db: Database;
@@ -155,6 +157,7 @@ export async function runTopic(opts: RunTopicOpts): Promise<RunTopicResult> {
     }
 
     const capped = parsed.items.slice(0, topic.maxItemsPerRun);
+    const insertedItems: ParsedNewsItem[] = [];
     for (const item of capped) {
       try {
         const { inserted } = upsertNewsItem(db, {
@@ -168,8 +171,12 @@ export async function runTopic(opts: RunTopicOpts): Promise<RunTopicResult> {
           publishedAt: item.publishedAt,
           now,
         });
-        if (inserted) result.inserted++;
-        else result.duplicates++;
+        if (inserted) {
+          result.inserted++;
+          insertedItems.push(item);
+        } else {
+          result.duplicates++;
+        }
       } catch (e) {
         void queue.log({
           topic: "web_news",
@@ -206,6 +213,25 @@ export async function runTopic(opts: RunTopicOpts): Promise<RunTopicResult> {
       sessionId,
     });
     result.terms = finalTerms ?? topic.terms;
+
+    // Telegram digest: subscribers if any, else the topic creator (if any).
+    // Only pings when the run actually produced *new* items — a tick that
+    // only bumped seen_count would spam the chat for nothing.
+    if (insertedItems.length > 0) {
+      const digest = buildDigest(topic, insertedItems);
+      const subs = listTopicSubscribers(db, topicId).map((s) => s.userId);
+      const recipients =
+        subs.length > 0 ? subs : topic.createdBy ? [topic.createdBy] : [];
+      for (const uid of recipients) {
+        void sendTelegramToUser(db, queue, cfg.telegram, {
+          userId: uid,
+          project: topic.project,
+          text: digest,
+          silent: true,
+          source: "news_digest",
+        });
+      }
+    }
 
     void queue.log({
       topic: "web_news",
@@ -414,4 +440,20 @@ function parseIsoDate(raw: unknown): number | null {
   if (!trimmed) return null;
   const ts = Date.parse(trimmed);
   return Number.isFinite(ts) ? ts : null;
+}
+
+const MAX_DIGEST_ITEMS = 5;
+
+function buildDigest(topic: NewsTopic, items: ParsedNewsItem[]): string {
+  const heading = `📰 **${topic.name}** — ${items.length} new item${items.length === 1 ? "" : "s"}`;
+  const lines = items.slice(0, MAX_DIGEST_ITEMS).map((it) => {
+    const title = it.title.trim();
+    return it.url
+      ? `• [${title}](${it.url})${it.source ? ` — ${it.source}` : ""}`
+      : `• ${title}${it.source ? ` — ${it.source}` : ""}`;
+  });
+  if (items.length > MAX_DIGEST_ITEMS) {
+    lines.push(`…and ${items.length - MAX_DIGEST_ITEMS} more in Bunny.`);
+  }
+  return `${heading}\n\n${lines.join("\n")}`;
 }

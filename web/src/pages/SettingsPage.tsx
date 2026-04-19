@@ -3,6 +3,7 @@ import type { AuthUser } from "../api";
 import { updateOwnProfile, changeOwnPassword } from "../api";
 import ApiKeyList from "../components/ApiKeyList";
 import UserList from "../components/UserList";
+import TelegramLinkCard from "../components/TelegramLinkCard";
 
 const LogsTab = lazy(() => import("../tabs/LogsTab"));
 const TrashTab = lazy(() => import("../tabs/TrashTab"));
@@ -224,6 +225,8 @@ function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthU
 
       {msg && <div className="auth-ok">{msg}</div>}
       {err && <div className="auth-error">{err}</div>}
+
+      <TelegramLinkCard />
     </div>
   );
 }

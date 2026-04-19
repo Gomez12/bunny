@@ -10,7 +10,15 @@
  *    aggregated `mention_blocked` counter-row for the sender only.
  */
 
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+} from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -98,6 +106,12 @@ function buildCfg(): BunnyConfig {
       maxDocumentBytes: 30_720,
       stuckThresholdMs: 30 * 60 * 1000,
       systemPrompt: "",
+    },
+    telegram: {
+      pollLeaseMs: 50_000,
+      chunkChars: 4000,
+      documentFallbackBytes: 16 * 1024,
+      publicBaseUrl: "",
     },
     sessionId: undefined,
   };

@@ -24,6 +24,8 @@ import {
   type Notification,
 } from "../memory/notifications.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
+import type { TelegramConfig as TelegramRuntimeConfig } from "../config.ts";
+import { sendTelegramToUser } from "../telegram/outbound.ts";
 import { publish } from "./fanout.ts";
 
 // Reuse the agent-name body (case-insensitive) and wrap with boundary rules.
@@ -37,9 +39,7 @@ const MENTION_RE = new RegExp(
 
 /** Strip fenced ```…``` blocks and inline `…` code spans. */
 function stripCode(text: string): string {
-  return text
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/`[^`\n]*`/g, " ");
+  return text.replace(/```[\s\S]*?```/g, " ").replace(/`[^`\n]*`/g, " ");
 }
 
 /**
@@ -91,6 +91,13 @@ export interface DispatchMentionOpts {
   /** Raw user prompt — mentions inside code spans are ignored. */
   rawPrompt: string;
   deps?: DispatchDeps;
+  /**
+   * When set, each successfully-delivered mention also fans out to the
+   * recipient's Telegram if they have a link for `project`. Self-pings are
+   * already suppressed by the sender==recipient check above, so this is
+   * safe to pass unconditionally from `/api/chat`.
+   */
+  telegramCfg?: TelegramRuntimeConfig;
 }
 
 export interface DispatchResult {
@@ -191,6 +198,18 @@ export function dispatchMentionNotifications(
         },
       });
       (opts.deps?.publish ?? defaultPublish)(recipient.id, notif);
+      if (opts.telegramCfg) {
+        const body =
+          `📣 **${senderName}** mentioned you in **${opts.project}**\n\n` +
+          opts.rawPrompt.slice(0, 500);
+        void sendTelegramToUser(opts.db, opts.queue, opts.telegramCfg, {
+          userId: recipient.id,
+          project: opts.project,
+          text: body,
+          silent: false,
+          source: "mention",
+        });
+      }
     } catch (err) {
       void opts.queue.log({
         topic: "notification",

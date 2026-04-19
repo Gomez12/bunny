@@ -119,6 +119,12 @@ function makeCfg(): BunnyConfig {
       stuckThresholdMs: 30 * 60 * 1000,
       systemPrompt: "",
     },
+    telegram: {
+      pollLeaseMs: 50_000,
+      chunkChars: 4000,
+      documentFallbackBytes: 16 * 1024,
+      publicBaseUrl: "",
+    },
     sessionId: undefined,
   };
 }

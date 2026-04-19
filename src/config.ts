@@ -102,6 +102,21 @@ export interface TranslationConfig {
   systemPrompt: string;
 }
 
+export interface TelegramConfig {
+  /** Lease TTL on a project's poll slot (ms). */
+  pollLeaseMs: number;
+  /** Max paragraphs per outbound sendMessage before we start chunking. */
+  chunkChars: number;
+  /** Above this size, an outbound reply is sent as a .md document instead. */
+  documentFallbackBytes: number;
+  /**
+   * Public base URL used when registering webhooks. Required for
+   * `transport='webhook'` to work; leave empty in local/dev setups (polling
+   * works without it). Read from `BUNNY_PUBLIC_BASE_URL`.
+   */
+  publicBaseUrl: string;
+}
+
 export interface BunnyConfig {
   llm: LlmConfig;
   embed: EmbedConfig;
@@ -113,6 +128,7 @@ export interface BunnyConfig {
   ui: UiConfig;
   web: WebConfig;
   translation: TranslationConfig;
+  telegram: TelegramConfig;
   sessionId: string | undefined;
 }
 
@@ -152,6 +168,12 @@ interface TomlShape {
     max_document_bytes: number;
     stuck_threshold_ms: number;
     system_prompt: string;
+  }>;
+  telegram?: Partial<{
+    poll_lease_ms: number;
+    chunk_chars: number;
+    document_fallback_bytes: number;
+    public_base_url: string;
   }>;
 }
 
@@ -202,6 +224,12 @@ When you are done, reply with your final answer without making any more tool cal
     maxDocumentBytes: 30_720,
     stuckThresholdMs: 30 * 60 * 1000,
     systemPrompt: "",
+  },
+  telegram: {
+    pollLeaseMs: 50_000,
+    chunkChars: 4000,
+    documentFallbackBytes: 16 * 1024,
+    publicBaseUrl: "",
   },
 } as const;
 
@@ -355,6 +383,23 @@ export function loadConfig(
       toml.translation?.system_prompt ?? DEFAULTS.translation.systemPrompt,
   };
 
+  const telegram: TelegramConfig = {
+    pollLeaseMs: Number(
+      toml.telegram?.poll_lease_ms ?? DEFAULTS.telegram.pollLeaseMs,
+    ),
+    chunkChars: Number(
+      toml.telegram?.chunk_chars ?? DEFAULTS.telegram.chunkChars,
+    ),
+    documentFallbackBytes: Number(
+      toml.telegram?.document_fallback_bytes ??
+        DEFAULTS.telegram.documentFallbackBytes,
+    ),
+    publicBaseUrl:
+      env["BUNNY_PUBLIC_BASE_URL"] ??
+      toml.telegram?.public_base_url ??
+      DEFAULTS.telegram.publicBaseUrl,
+  };
+
   return {
     llm,
     embed,
@@ -366,6 +411,7 @@ export function loadConfig(
     ui,
     web,
     translation,
+    telegram,
     sessionId: env["BUNNY_SESSION"],
   };
 }

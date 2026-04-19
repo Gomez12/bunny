@@ -4332,7 +4332,11 @@ button {
   gap: 8px;
   color: var(--text-dim);
   font-size: 12px;
-  min-width: 224px;
+  /* Fills whatever .nav__user-row leaves after the notification bell — do not
+     set min-width here, or the flex row overflows 240 px and the settings
+     cog on the right edge gets clipped by `overflow: hidden`. */
+  flex: 1;
+  min-width: 0;
   padding: 0 6px;
   white-space: nowrap;
   overflow: hidden;

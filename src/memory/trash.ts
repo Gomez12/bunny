@@ -223,11 +223,7 @@ export function restore(
  * to wipe a live row — callers must soft-delete first so the blast radius of
  * an errant click stays bounded.
  */
-export function hardDelete(
-  db: Database,
-  kind: TrashKind,
-  id: number,
-): boolean {
+export function hardDelete(db: Database, kind: TrashKind, id: number): boolean {
   const def = requireDef(kind);
   const tx = db.transaction(() => {
     const row = db

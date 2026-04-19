@@ -65,6 +65,8 @@ export {
   Languages,
   Sun,
   Moon,
+  Send,
+  Link as LinkIcon,
 } from "lucide-react";
 
 /**

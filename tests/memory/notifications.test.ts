@@ -16,7 +16,10 @@ import {
 
 let tmp: string;
 
-function seedUser(db: ReturnType<typeof openDb> extends Promise<infer T> ? T : never, id: string) {
+function seedUser(
+  db: ReturnType<typeof openDb> extends Promise<infer T> ? T : never,
+  id: string,
+) {
   const now = Date.now();
   db.run(
     `INSERT INTO users(id, username, password_hash, role, display_name, created_at, updated_at)
@@ -118,7 +121,11 @@ describe("listForUser", () => {
       kind: "mention",
       title: "three",
     });
-    createNotification(db, { userId: "bob", kind: "mention", title: "for bob" });
+    createNotification(db, {
+      userId: "bob",
+      kind: "mention",
+      title: "for bob",
+    });
 
     const all = listForUser(db, "alice");
     expect(all.map((n) => n.id)).toEqual([a3.id, a2.id, a1.id]);
@@ -196,7 +203,11 @@ describe("ON DELETE CASCADE", () => {
     const { db } = await setup();
     createNotification(db, { userId: "alice", kind: "mention", title: "x" });
     createNotification(db, { userId: "alice", kind: "mention", title: "y" });
-    createNotification(db, { userId: "bob", kind: "mention", title: "for bob" });
+    createNotification(db, {
+      userId: "bob",
+      kind: "mention",
+      title: "for bob",
+    });
     db.run(`DELETE FROM users WHERE id = 'alice'`);
     expect(listForUser(db, "alice")).toHaveLength(0);
     expect(listForUser(db, "bob")).toHaveLength(1);
