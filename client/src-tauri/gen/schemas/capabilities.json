@@ -1,1 +1,1 @@
-{"default":{"identifier":"default","description":"Default capabilities for Bunny client","local":true,"windows":["main"],"permissions":["core:default","store:allow-get","store:allow-set","store:allow-save","store:allow-load"]}}
+{"default":{"identifier":"default","description":"Default capabilities for Bunny client","local":true,"windows":["main"],"permissions":["core:default","store:allow-get","store:allow-set","store:allow-save","store:allow-load","notification:default"]}}

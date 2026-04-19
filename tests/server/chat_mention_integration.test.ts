@@ -256,6 +256,44 @@ describe("POST /api/chat with @user mentions", () => {
     expect(bobRows[0]!.body).toContain("@alice");
   });
 
+  test("regenerate on a user turn with a mention does NOT re-fire the notification", async () => {
+    const cookie = await login("bob", "pw-bob");
+    // First turn: mention alice — produces exactly one notification.
+    const res = await chat(cookie, {
+      prompt: "@alice hi",
+      project: "general",
+      sessionId: "chat-regen",
+    });
+    expect(res.status).toBe(200);
+    await drain(res);
+
+    const aliceId = (
+      db.prepare(`SELECT id FROM users WHERE username = 'alice'`).get() as {
+        id: string;
+      }
+    ).id;
+    expect(listForUser(db, aliceId)).toHaveLength(1);
+
+    // Find the user-turn row we just inserted and call /regenerate on it.
+    const userRow = db
+      .prepare(
+        `SELECT id FROM messages WHERE session_id = 'chat-regen' AND role = 'user' ORDER BY id ASC LIMIT 1`,
+      )
+      .get() as { id: number } | undefined;
+    expect(userRow).toBeDefined();
+
+    const regenReq = new Request(
+      `http://localhost/api/messages/${userRow!.id}/regenerate`,
+      { method: "POST", headers: { Cookie: cookie } },
+    );
+    const regenRes = await handleApi(regenReq, new URL(regenReq.url), ctx);
+    expect(regenRes.status).toBe(200);
+    await drain(regenRes);
+
+    // No additional notification — mentionsEnabled is off on the regen path.
+    expect(listForUser(db, aliceId)).toHaveLength(1);
+  });
+
   test("self-mention creates nothing", async () => {
     const cookie = await login("bob", "pw-bob");
     const res = await chat(cookie, {

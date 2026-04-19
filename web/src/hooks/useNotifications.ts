@@ -148,7 +148,7 @@ export function useNotifications(
       }
     })();
 
-    const { abort } = openNotificationStream((ev: ServerEvent) => {
+    const { done, abort } = openNotificationStream((ev: ServerEvent) => {
       if (!alive) return;
       if (ev.type === "notification_created") {
         applyCreated(ev.notification);
@@ -156,6 +156,10 @@ export function useNotifications(
         applyRead(ev.ids, ev.readAt);
       }
     });
+    // Swallow the rejection that fires when the stream is aborted (logout,
+    // unmount) or when the server closes the connection. Without this every
+    // logout logs an unhandled rejection in the console.
+    void done.catch(() => undefined);
     unsub = abort;
 
     return () => {

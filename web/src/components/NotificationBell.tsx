@@ -106,6 +106,11 @@ export default function NotificationBell({
           onMarkAllRead={onMarkAllRead}
           onDismiss={onDismiss}
           onLoadMore={onLoadMore}
+          onInteract={() => {
+            if (askedRef.current) return;
+            askedRef.current = true;
+            onRequestPermission();
+          }}
           onNavigate={(link) => {
             setOpen(false);
             onNavigate(link);

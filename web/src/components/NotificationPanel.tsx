@@ -16,6 +16,11 @@ interface Props {
   onDismiss: (id: number) => Promise<void>;
   onLoadMore: () => Promise<void>;
   onNavigate: (deepLink: string) => void;
+  /** Called on any user action inside the panel that counts as an
+   *  interaction gesture — panel-row click, mark-all-read, load-more. Used
+   *  to request browser notification permission without requiring the user
+   *  to click the bell specifically. */
+  onInteract?: () => void;
 }
 
 function relativeTime(ms: number): string {
@@ -43,6 +48,7 @@ export default function NotificationPanel({
   onDismiss,
   onLoadMore,
   onNavigate,
+  onInteract,
 }: Props) {
   const hasItems = items.length > 0;
 
@@ -58,7 +64,10 @@ export default function NotificationPanel({
           <button
             type="button"
             className="notifications__panel-link"
-            onClick={() => void onMarkAllRead()}
+            onClick={() => {
+              onInteract?.();
+              void onMarkAllRead();
+            }}
           >
             Mark all read
           </button>
@@ -78,6 +87,7 @@ export default function NotificationPanel({
                   type="button"
                   className="notifications__row"
                   onClick={() => {
+                    onInteract?.();
                     if (unread) void onMarkRead(n.id);
                     if (n.deepLink) onNavigate(n.deepLink);
                   }}
