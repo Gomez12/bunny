@@ -27,6 +27,7 @@ const ContactsTab = lazy(() => import("./tabs/ContactsTab"));
 const KnowledgeBaseTab = lazy(() => import("./tabs/KnowledgeBaseTab"));
 const WebNewsTab = lazy(() => import("./tabs/WebNewsTab"));
 const WorkspaceTab = lazy(() => import("./tabs/WorkspaceTab"));
+const NotificationsTab = lazy(() => import("./tabs/NotificationsTab"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 
 type Tab = NavTabId;
@@ -71,6 +72,7 @@ const VALID_TABS: ReadonlySet<string> = new Set<Tab>([
   "news",
   "workspace",
   "dashboard",
+  "notifications",
   "settings",
 ]);
 
@@ -317,15 +319,10 @@ function AuthenticatedShell({ user, setUser, theme, setTheme }: ShellProps) {
         theme={theme}
         onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
         notifications={{
-          items: notifications.items,
           unreadCount: notifications.unreadCount,
-          hasMore: notifications.hasMore,
-          onMarkRead: notifications.markRead,
-          onMarkAllRead: notifications.markAllRead,
-          onDismiss: notifications.dismiss,
-          onLoadMore: notifications.loadMore,
+          isActive: tab === "notifications",
+          onOpen: () => setTab("notifications"),
           onRequestPermission: notifications.requestOSPermission,
-          onNavigate: navigateDeepLink,
         }}
       />
 
@@ -389,6 +386,19 @@ function AuthenticatedShell({ user, setUser, theme, setTheme }: ShellProps) {
             <FilesTab project={activeProject} currentUser={user} />
           )}
           {tab === "tasks" && <TasksTab currentUser={user} />}
+          {tab === "notifications" && (
+            <NotificationsTab
+              items={notifications.items}
+              unreadCount={notifications.unreadCount}
+              hasMore={notifications.hasMore}
+              onMarkRead={notifications.markRead}
+              onMarkAllRead={notifications.markAllRead}
+              onDismiss={notifications.dismiss}
+              onLoadMore={notifications.loadMore}
+              onNavigate={navigateDeepLink}
+              onRequestPermission={notifications.requestOSPermission}
+            />
+          )}
           {tab === "settings" && (
             <SettingsPage user={user} onUserUpdated={(u) => setUser(u)} />
           )}

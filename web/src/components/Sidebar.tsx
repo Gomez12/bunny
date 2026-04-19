@@ -19,7 +19,7 @@ import {
   Sun,
   Moon,
 } from "../lib/icons";
-import type { AuthUser, NotificationDto, Theme } from "../api";
+import type { AuthUser, Theme } from "../api";
 import NotificationBell from "./NotificationBell";
 
 export type NavTabId =
@@ -34,6 +34,7 @@ export type NavTabId =
   | "news"
   | "workspace"
   | "dashboard"
+  | "notifications"
   | "settings";
 
 type IconType = ComponentType<{ size?: number; strokeWidth?: number }>;
@@ -79,15 +80,10 @@ const NAV: NavGroup[] = [
 ];
 
 export interface SidebarNotificationsProps {
-  items: NotificationDto[];
   unreadCount: number;
-  hasMore: boolean;
-  onMarkRead: (id: number) => Promise<void>;
-  onMarkAllRead: () => Promise<void>;
-  onDismiss: (id: number) => Promise<void>;
-  onLoadMore: () => Promise<void>;
+  isActive: boolean;
+  onOpen: () => void;
   onRequestPermission: () => void;
-  onNavigate: (deepLink: string) => void;
 }
 
 type Props = {
@@ -182,18 +178,13 @@ export default function Sidebar({
         <div className="nav__footer">
           <div className="nav__user-row">
             <NotificationBell
-              items={notifications.items}
               unreadCount={notifications.unreadCount}
-              hasMore={notifications.hasMore}
-              onMarkRead={notifications.onMarkRead}
-              onMarkAllRead={notifications.onMarkAllRead}
-              onDismiss={notifications.onDismiss}
-              onLoadMore={notifications.onLoadMore}
-              onRequestPermission={notifications.onRequestPermission}
-              onNavigate={(link) => {
-                notifications.onNavigate(link);
+              isActive={notifications.isActive}
+              onOpen={() => {
+                notifications.onOpen();
                 closeDrawer();
               }}
+              onRequestPermission={notifications.onRequestPermission}
             />
             <div className="nav__user" title={user.email ?? ""}>
               <span className="nav__user-name">
