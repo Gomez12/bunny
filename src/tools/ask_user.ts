@@ -23,10 +23,9 @@ import { resolvePrompt } from "../prompts/resolve.ts";
 
 export const ASK_USER_TOOL_NAME = "ask_user";
 
-// Tool description resolved per tool-build through the prompt registry, so
-// admins can trim / rewrite it in Settings → Prompts. Reads per factory
-// invocation — `buildRunRegistry` calls the factory once per turn, so the
-// mtime-cached override takes effect on the very next turn.
+// Description is resolved per factory call. `buildRunRegistry` invokes the
+// factory once per turn, so a mtime-cached override picked up by the next
+// turn propagates automatically — no explicit cache bust needed.
 
 export const ASK_USER_SCHEMA: JsonSchemaObject = {
   type: "object",

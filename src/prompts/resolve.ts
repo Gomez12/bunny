@@ -14,7 +14,7 @@
  * so call sites stay in control of escaping and conditional composition.
  */
 
-import { PROMPTS } from "./registry.ts";
+import { PROMPTS, type PromptKey } from "./registry.ts";
 import { loadGlobalPromptOverrides } from "./global_overrides.ts";
 import { loadProjectPromptOverrides } from "../memory/prompt_overrides.ts";
 
@@ -24,7 +24,7 @@ export interface ResolveOpts {
 }
 
 /** Resolve a prompt key to its effective text. Unknown keys throw. */
-export function resolvePrompt(key: string, opts: ResolveOpts = {}): string {
+export function resolvePrompt(key: PromptKey, opts: ResolveOpts = {}): string {
   const def = PROMPTS[key];
   if (!def) throw new Error(`unknown prompt key: ${key}`);
   if (opts.project) {
@@ -63,7 +63,7 @@ export function interpolate(
 
 /** Convenience: resolve then interpolate in a single call. */
 export function renderPrompt(
-  key: string,
+  key: PromptKey,
   vars: Record<string, unknown> = {},
   opts: ResolveOpts = {},
 ): string {

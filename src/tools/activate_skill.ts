@@ -15,8 +15,6 @@ import { resolvePrompt } from "../prompts/resolve.ts";
 
 export const ACTIVATE_SKILL_TOOL_NAME = "activate_skill";
 
-// Tool description resolved per build through the prompt registry so admins
-// can rewrite it in Settings → Prompts.
 
 export const ACTIVATE_SKILL_SCHEMA: JsonSchemaObject = {
   type: "object",

@@ -85,7 +85,9 @@ test("project override falls through to registry default when key is missing", (
 });
 
 test("unknown keys throw", () => {
-  expect(() => resolvePrompt("does.not.exist")).toThrow(
+  // Runtime guard — callers that bypass the type system (e.g. HTTP input)
+  // still hit a throw rather than returning a silent empty string.
+  expect(() => resolvePrompt("does.not.exist" as never)).toThrow(
     /unknown prompt key/,
   );
 });

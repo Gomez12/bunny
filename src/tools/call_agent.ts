@@ -15,8 +15,6 @@ import { resolvePrompt } from "../prompts/resolve.ts";
 
 export const CALL_AGENT_TOOL_NAME = "call_agent";
 
-// Tool description resolved per build through the prompt registry so admins
-// can rewrite it in Settings → Prompts.
 
 export const CALL_AGENT_SCHEMA: JsonSchemaObject = {
   type: "object",

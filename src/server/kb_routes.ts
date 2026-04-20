@@ -351,9 +351,6 @@ function handleClearLlm(
 
 // ── LLM generation (SSE) ─────────────────────────────────────────────────────
 
-// Prompt text resolved per-request through the prompt registry
-// (`src/prompts/registry.ts`) so admins and project owners can override it
-// from the UI without a rebuild.
 
 async function handleGenerate(
   ctx: KbRouteCtx,
@@ -537,8 +534,6 @@ export function extractDefinitionJson(raw: string): {
 
 const ILLUSTRATION_MAX_BYTES = 200 * 1024;
 
-// Illustration prompt text resolved per-request through the prompt registry
-// so it is editable from the UI (see `src/prompts/registry.ts`).
 
 const ILLUSTRATION_DESC_MAX = 1000;
 

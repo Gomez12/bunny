@@ -195,8 +195,6 @@ function handleDelete(
 
 // ── Edit mode (agent loop) ──────────────────────────────────────────────
 
-// Prompt text resolved per-request through `resolvePrompt("whiteboard.edit")`
-// so admins and project owners can edit it in the UI.
 
 async function handleEdit(
   req: Request,

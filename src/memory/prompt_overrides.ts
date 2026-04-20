@@ -11,17 +11,16 @@
  * Projects that never override anything never own the file.
  */
 
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import {
+  multilineTomlString,
+  quoteKey,
+  type PromptOverrides,
+} from "../prompts/toml_utils.ts";
 import { projectDir } from "./project_assets.ts";
 
-export type ProjectPromptOverrides = Record<string, string>;
+export type ProjectPromptOverrides = PromptOverrides;
 
 const PROMPTS_FILE = "prompts.toml";
 
@@ -45,7 +44,6 @@ export function loadProjectPromptOverrides(
   name: string,
 ): ProjectPromptOverrides {
   const file = promptsPath(name);
-  if (!existsSync(file)) return {};
   let mtimeMs = -1;
   try {
     mtimeMs = statSync(file).mtimeMs;
@@ -106,23 +104,6 @@ function renderPromptsToml(overrides: ProjectPromptOverrides): string {
     lines.push(`${quoteKey(k)} = ${multilineTomlString(overrides[k]!)}`);
   }
   return `${lines.join("\n")}\n`;
-}
-
-function quoteKey(k: string): string {
-  return /[.\s"]/.test(k) ? `"${k.replace(/"/g, '\\"')}"` : k;
-}
-
-function multilineTomlString(v: string): string {
-  if (!v.includes("\n")) {
-    return `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-  }
-  // Bun's TOML parser does not trim the newline immediately following the
-  // opening `"""` delimiter, so we emit the body starting on the same line
-  // to preserve the round-trip. A body that happens to start with a
-  // newline still round-trips because we never strip a leading newline
-  // that the user put there.
-  const escaped = v.replace(/\\/g, "\\\\").replace(/"""/g, '""\\"');
-  return `"""${escaped}"""`;
 }
 
 /** Test helper. */

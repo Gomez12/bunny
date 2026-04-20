@@ -18,7 +18,13 @@ import type { Database } from "bun:sqlite";
 import type { User } from "../auth/users.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
 import { json, readJson } from "./http.ts";
-import { PROMPTS, PROMPT_KEYS, type PromptDef } from "../prompts/registry.ts";
+import {
+  PROMPTS,
+  PROMPT_KEYS,
+  isPromptKey,
+  type PromptDef,
+  type PromptKey,
+} from "../prompts/registry.ts";
 import {
   loadGlobalPromptOverrides,
   setGlobalPromptOverride,
@@ -28,6 +34,7 @@ import {
   setProjectPromptOverride,
 } from "../memory/prompt_overrides.ts";
 import { getProject, validateProjectName } from "../memory/projects.ts";
+import { canEditProject } from "./routes.ts";
 
 export interface PromptRouteCtx {
   db: Database;
@@ -35,7 +42,7 @@ export interface PromptRouteCtx {
 }
 
 interface PromptDto {
-  key: string;
+  key: PromptKey;
   scope: PromptDef["scope"];
   description: string;
   defaultText: string;
@@ -80,7 +87,7 @@ export async function handlePromptRoute(
     }
     const project = getProject(ctx.db, name);
     if (!project) return json({ error: "not found" }, 404);
-    if (!canEditProjectPrompts(user, project.createdBy)) {
+    if (!canEditProject(project, user)) {
       return json({ error: "forbidden" }, 403);
     }
     if (req.method === "GET") return handleListProject(name);
@@ -89,11 +96,6 @@ export async function handlePromptRoute(
   }
 
   return null;
-}
-
-function canEditProjectPrompts(user: User, createdBy: string | null): boolean {
-  if (user.role === "admin") return true;
-  return createdBy !== null && createdBy === user.id;
 }
 
 function buildDto(
@@ -108,7 +110,7 @@ function buildDto(
       : null;
   const effective = projectText ?? globalText ?? def.defaultText;
   const dto: PromptDto = {
-    key: def.key,
+    key: def.key as PromptKey,
     scope: def.scope,
     description: def.description,
     defaultText: def.defaultText,
@@ -145,8 +147,10 @@ async function handleSetGlobal(
 ): Promise<Response> {
   const body = await readJson<{ key?: unknown; text?: unknown }>(req);
   if (!body) return json({ error: "invalid json" }, 400);
-  const key = typeof body.key === "string" ? body.key : "";
-  if (!(key in PROMPTS)) return json({ error: "unknown prompt key" }, 400);
+  if (!isPromptKey(body.key)) {
+    return json({ error: "unknown prompt key" }, 400);
+  }
+  const key: PromptKey = body.key;
   const text = parseTextField(body.text);
   if (text === "too_long") {
     return json({ error: "text too long" }, 413);
@@ -176,10 +180,11 @@ async function handleSetProject(
 ): Promise<Response> {
   const body = await readJson<{ key?: unknown; text?: unknown }>(req);
   if (!body) return json({ error: "invalid json" }, 400);
-  const key = typeof body.key === "string" ? body.key : "";
-  const def = PROMPTS[key];
-  if (!def) return json({ error: "unknown prompt key" }, 400);
-  if (def.scope !== "projectOverridable") {
+  if (!isPromptKey(body.key)) {
+    return json({ error: "unknown prompt key" }, 400);
+  }
+  const key: PromptKey = body.key;
+  if (PROMPTS[key]!.scope !== "projectOverridable") {
     return json({ error: "key is not project-overridable" }, 400);
   }
   const text = parseTextField(body.text);

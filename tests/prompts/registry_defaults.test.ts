@@ -32,7 +32,7 @@ function fixturePath(key: string): string {
 }
 
 test("registry covers every known prompt key exactly once", () => {
-  const keys = [...PROMPT_KEYS].sort();
+  const keys: string[] = [...PROMPT_KEYS].sort();
   expect(new Set(keys).size).toBe(keys.length);
   expect(keys).toEqual(
     [
@@ -54,7 +54,8 @@ test("registry covers every known prompt key exactly once", () => {
 });
 
 test("project-overridable set is exactly the seven content-flow prompts", () => {
-  expect([...PROJECT_OVERRIDABLE_KEYS].sort()).toEqual(
+  const keys: string[] = [...PROJECT_OVERRIDABLE_KEYS].sort();
+  expect(keys).toEqual(
     [
       "kb.definition",
       "kb.illustration",

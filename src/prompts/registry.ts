@@ -399,10 +399,36 @@ export const PROMPTS: Record<string, PromptDef> = {
   },
 };
 
+/**
+ * Compile-time key union derived from the registry. Callers of
+ * `resolvePrompt` should use this instead of a raw string so a typo or a
+ * rename of a registry entry breaks typecheck rather than becoming a
+ * runtime error.
+ */
+export type PromptKey =
+  | "kb.definition"
+  | "kb.illustration"
+  | "document.edit"
+  | "whiteboard.edit"
+  | "contact.edit"
+  | "web_news.fetch"
+  | "web_news.renew_terms"
+  | "tools.ask_user.description"
+  | "tools.call_agent.description"
+  | "tools.activate_skill.description"
+  | "agent.peer_agents_hint"
+  | "agent.skill_catalog_hint"
+  | "agent.ask_user_hint";
+
 /** All registered prompt keys, in declaration order. */
-export const PROMPT_KEYS = Object.keys(PROMPTS);
+export const PROMPT_KEYS: PromptKey[] = Object.keys(PROMPTS) as PromptKey[];
 
 /** All keys that project owners can override. */
-export const PROJECT_OVERRIDABLE_KEYS = PROMPT_KEYS.filter(
+export const PROJECT_OVERRIDABLE_KEYS: PromptKey[] = PROMPT_KEYS.filter(
   (k) => PROMPTS[k]!.scope === "projectOverridable",
 );
+
+/** Runtime guard for external input (HTTP body `key` fields). */
+export function isPromptKey(raw: unknown): raw is PromptKey {
+  return typeof raw === "string" && raw in PROMPTS;
+}

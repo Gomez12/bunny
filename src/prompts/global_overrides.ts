@@ -10,10 +10,15 @@
  * file without duplicating TOML serialisation logic.
  */
 
-import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { paths } from "../paths.ts";
+import {
+  multilineTomlString,
+  quoteKey,
+  type PromptOverrides,
+} from "./toml_utils.ts";
 
-export type GlobalPromptOverrides = Record<string, string>;
+export type GlobalPromptOverrides = PromptOverrides;
 
 interface CacheEntry {
   mtimeMs: number;
@@ -38,7 +43,6 @@ function configPath(cwd?: string): string {
  */
 export function loadGlobalPromptOverrides(cwd?: string): GlobalPromptOverrides {
   const file = configPath(cwd);
-  if (!existsSync(file)) return {};
   let mtimeMs = -1;
   try {
     mtimeMs = statSync(file).mtimeMs;
@@ -67,8 +71,8 @@ export function loadGlobalPromptOverrides(cwd?: string): GlobalPromptOverrides {
 /**
  * Write one override. Passing `text: null` deletes the key (falls back to the
  * registry default). Preserves every other block in `bunny.config.toml` by
- * parsing, mutating, and re-emitting. On a previously nonexistent file, the
- * file is created with just a `[prompts]` block.
+ * stripping only the existing `[prompts]` section and appending a fresh one;
+ * no full round-trip through a TOML serialiser (Bun has none).
  */
 export function setGlobalPromptOverride(
   key: string,
@@ -76,11 +80,16 @@ export function setGlobalPromptOverride(
   cwd?: string,
 ): void {
   const file = configPath(cwd);
-  const existing = existsSync(file) ? readFileSync(file, "utf8") : "";
+  let existing = "";
+  try {
+    existing = readFileSync(file, "utf8");
+  } catch {
+    existing = "";
+  }
   const parsed = existing
     ? ((Bun.TOML.parse(existing) as Record<string, unknown>) ?? {})
     : {};
-  const prompts = { ...(parsed["prompts"] as Record<string, unknown> | undefined ?? {}) };
+  const prompts = { ...((parsed["prompts"] as Record<string, unknown> | undefined) ?? {}) };
   if (text === null) {
     delete prompts[key];
   } else {
@@ -93,12 +102,6 @@ export function setGlobalPromptOverride(
   cache.delete(file);
 }
 
-/**
- * Re-emit a TOML file with a fresh `[prompts]` block. We do not round-trip
- * the whole file through `Bun.TOML.parse` + a serialiser (Bun has no
- * serialiser, and a hand-rolled one would risk dropping comments) — instead
- * we strip the existing `[prompts]` section (if any) and append a fresh one.
- */
 function serialiseWithPrompts(
   original: string,
   prompts: Record<string, unknown>,
@@ -133,27 +136,6 @@ function stripPromptsSection(text: string): string {
   }
   while (out.length && out[out.length - 1]?.trim() === "") out.pop();
   return out.join("\n");
-}
-
-/** Dotted TOML keys like `kb.definition` must be quoted. */
-function quoteKey(k: string): string {
-  return /[.\s"]/.test(k) ? `"${k.replace(/"/g, '\\"')}"` : k;
-}
-
-/**
- * Emit a TOML string literal. Prefer a multi-line basic string (`"""…"""`)
- * whenever the value contains a newline; a single-line basic string is used
- * otherwise. Escapes are minimal and only cover backslashes and quote runs.
- */
-function multilineTomlString(v: string): string {
-  if (!v.includes("\n")) {
-    return `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-  }
-  // Bun's TOML parser does not trim the newline immediately following the
-  // opening `"""` delimiter, so we emit the body starting on the same line
-  // to preserve the round-trip.
-  const escaped = v.replace(/\\/g, "\\\\").replace(/"""/g, '""\\"');
-  return `"""${escaped}"""`;
 }
 
 /** Test helper — drop the mtime cache so tests can assert file-based reloads. */
