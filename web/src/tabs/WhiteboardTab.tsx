@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import EmptyState from "../components/EmptyState";
 import WhiteboardSidebar from "../components/WhiteboardSidebar";
 import WhiteboardComposer from "../components/WhiteboardComposer";
 import WhiteboardCanvas, {
@@ -336,10 +337,7 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
             />
           </>
         ) : (
-          <div className="wb-tab__empty">
-            <h2>No whiteboards yet</h2>
-            <p>Create one to get started.</p>
-          </div>
+          <EmptyState title="No whiteboards yet" description="Create one to get started." />
         )}
       </div>
     </div>

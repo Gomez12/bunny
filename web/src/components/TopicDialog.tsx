@@ -333,14 +333,14 @@ export default function TopicDialog({
           {error && <div className="modal__error">{error}</div>}
         </div>
 
-        <footer className="modal__footer">
-          <button type="button" className="btn btn--ghost" onClick={onCancel}>
+        <div className="project-form__actions">
+          <button type="button" className="btn" onClick={onCancel}>
             Cancel
           </button>
-          <button type="submit" className="btn btn--primary" disabled={submitting}>
+          <button type="submit" className="btn btn--send" disabled={submitting}>
             {submitting ? "Saving…" : initial ? "Save" : "Create"}
           </button>
-        </footer>
+        </div>
       </form>
     </div>
   );

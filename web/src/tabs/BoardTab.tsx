@@ -59,6 +59,7 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
     | { kind: "edit"; lane: Swimlane }
   >({ kind: "closed" });
   const [confirmDeleteLane, setConfirmDeleteLane] = useState<Swimlane | null>(null);
+  const [confirmArchiveCardId, setConfirmArchiveCardId] = useState<number | null>(null);
   const [activeGroupTab, setActiveGroupTab] = useState<string | null>(null);
   const [dragging, setDragging] = useState<
     | { kind: "card"; card: BoardCardModel }
@@ -320,13 +321,17 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
     }
   };
 
-  const handleArchiveCard = async (cardId: number) => {
-    if (!confirm("Archive this card?")) return;
+  const handleArchiveCard = (cardId: number) => {
+    setConfirmArchiveCardId(cardId);
+  };
+
+  const doArchiveCard = async (cardId: number) => {
+    setConfirmArchiveCardId(null);
     try {
       await archiveCard(cardId);
       await refresh();
     } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -467,6 +472,13 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
         confirmLabel="Delete"
         onConfirm={() => void confirmDeleteLaneAction()}
         onCancel={() => setConfirmDeleteLane(null)}
+      />
+      <ConfirmDialog
+        open={confirmArchiveCardId !== null}
+        message="Archive this card?"
+        confirmLabel="Archive"
+        onConfirm={() => void doArchiveCard(confirmArchiveCardId!)}
+        onCancel={() => setConfirmArchiveCardId(null)}
       />
     </div>
   );

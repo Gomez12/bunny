@@ -9,6 +9,7 @@ import {
   type TelegramConfigDto,
 } from "../api";
 import { Copy, RefreshCw, Send, Trash2, Check } from "../lib/icons";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 /**
  * Integrations sub-tab: v1 surface is the per-project Telegram bot config.
@@ -34,6 +35,7 @@ export default function IntegrationsTab({
   const [enabled, setEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
   // Test send state
   const [testChatId, setTestChatId] = useState("");
@@ -98,7 +100,6 @@ export default function IntegrationsTab({
   };
 
   const remove = async () => {
-    if (!confirm("Disconnect Telegram for this project?")) return;
     setSaving(true);
     try {
       await deleteTelegramConfigApi(activeProject);
@@ -280,7 +281,7 @@ export default function IntegrationsTab({
                   <button
                     type="button"
                     className="btn btn--danger"
-                    onClick={remove}
+                    onClick={() => setConfirmDisconnect(true)}
                     disabled={saving}
                   >
                     <Trash2 size={16} strokeWidth={1.75} /> Disconnect
@@ -325,6 +326,13 @@ export default function IntegrationsTab({
           {err && <p className="error">{err}</p>}
         </div>
       </section>
+      <ConfirmDialog
+        open={confirmDisconnect}
+        message="Disconnect Telegram for this project?"
+        confirmLabel="Disconnect"
+        onConfirm={() => { setConfirmDisconnect(false); void remove(); }}
+        onCancel={() => setConfirmDisconnect(false)}
+      />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
   type DefinitionInput,
   type ServerEvent,
 } from "../api";
+import ConfirmDialog from "./ConfirmDialog";
 import LanguageTabs from "./LanguageTabs";
 import StatusPill, { type PillStatus } from "./StatusPill";
 import { useTranslations } from "../hooks/useTranslations";
@@ -44,6 +45,8 @@ export default function DefinitionDialog(props: Props) {
   const [active, setActive] = useState<ActiveDescription>(initial?.activeDescription ?? "manual");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmClearIllustration, setConfirmClearIllustration] = useState(false);
 
   const [generating, setGenerating] = useState(initial?.llmStatus === "generating");
   const [generationLog, setGenerationLog] = useState<string[]>([]);
@@ -228,9 +231,14 @@ export default function DefinitionDialog(props: Props) {
     }
   }
 
-  const handleClear = async () => {
+  const handleClear = () => {
     if (props.mode !== "edit" || !canEdit) return;
-    if (!confirm("Clear the LLM-generated short, long and sources for this definition?")) return;
+    setConfirmClear(true);
+  };
+
+  const doClear = async () => {
+    setConfirmClear(false);
+    if (props.mode !== "edit") return;
     try {
       await clearDefinitionLlm(props.project, props.definition.id);
       await props.onRefreshed();
@@ -315,9 +323,14 @@ export default function DefinitionDialog(props: Props) {
     }
   };
 
-  const handleClearIllustration = async () => {
+  const handleClearIllustration = () => {
     if (props.mode !== "edit" || !canEdit) return;
-    if (!confirm("Remove the illustration for this definition?")) return;
+    setConfirmClearIllustration(true);
+  };
+
+  const doClearIllustration = async () => {
+    setConfirmClearIllustration(false);
+    if (props.mode !== "edit") return;
     try {
       await clearDefinitionIllustration(props.project, props.definition.id);
       await props.onRefreshed();
@@ -387,7 +400,7 @@ export default function DefinitionDialog(props: Props) {
           <TranslationsPanelStub />
         )}
 
-        <div className="modal__footer">
+        <div className="project-form__actions">
           <button className="btn" onClick={handleClose}>Close</button>
           {canEdit && sourceActive && (
             <button className="btn btn--send" onClick={() => void handleSaveMeta()} disabled={saving}>
@@ -396,6 +409,20 @@ export default function DefinitionDialog(props: Props) {
           )}
         </div>
       </div>
+      <ConfirmDialog
+        open={confirmClear}
+        message="Clear the LLM-generated short, long and sources for this definition?"
+        confirmLabel="Clear"
+        onConfirm={() => void doClear()}
+        onCancel={() => setConfirmClear(false)}
+      />
+      <ConfirmDialog
+        open={confirmClearIllustration}
+        message="Remove the illustration for this definition?"
+        confirmLabel="Remove"
+        onConfirm={() => void doClearIllustration()}
+        onCancel={() => setConfirmClearIllustration(false)}
+      />
     </div>
   );
 

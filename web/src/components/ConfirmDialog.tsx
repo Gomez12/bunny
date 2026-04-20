@@ -19,7 +19,7 @@ export default function ConfirmDialog({
 }: Props) {
   if (!open) return null;
   return (
-    <div className="modal-overlay" onClick={onCancel}>
+    <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <p style={{ margin: "0 0 16px", lineHeight: 1.5 }}>{message}</p>
         <div className="modal-actions">

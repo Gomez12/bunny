@@ -19,6 +19,7 @@ interface Props {
 const PROTECTED = new Set(["input", "output"]);
 
 import { formatSize } from "../lib/format";
+import EmptyState from "../components/EmptyState";
 
 function formatTime(ms: number): string {
   return new Date(ms).toLocaleString();
@@ -206,11 +207,11 @@ export default function FilesTab({ project, currentUser }: Props) {
         {loading ? (
           <div className="files-empty">Loading…</div>
         ) : entries.length === 0 ? (
-          <div className="files-empty">
-            {canEdit
-              ? "Empty. Drag files here or use the Upload button."
-              : "This directory is empty."}
-          </div>
+          <EmptyState
+            size="sm"
+            title="This directory is empty"
+            description={canEdit ? "Drag files here or use the Upload button." : undefined}
+          />
         ) : (
           <table className="files-table">
             <thead>

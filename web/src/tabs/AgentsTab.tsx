@@ -13,6 +13,7 @@ import {
   type Project,
 } from "../api";
 import AgentDialog, { type AgentDialogValue } from "../components/AgentDialog";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 interface Props {
   currentUser: AuthUser;
@@ -30,6 +31,7 @@ export default function AgentsTab({ currentUser, activeProject }: Props) {
   const [tools, setTools] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogState>({ kind: "closed" });
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -71,13 +73,17 @@ export default function AgentsTab({ currentUser, activeProject }: Props) {
     await refresh();
   };
 
-  const handleDelete = async (name: string) => {
-    if (!confirm(`Delete agent '${name}'? Messages remain; the agent config + links go away.`)) return;
+  const handleDelete = (name: string) => {
+    setConfirmDelete(name);
+  };
+
+  const doDelete = async (name: string) => {
+    setConfirmDelete(null);
     try {
       await deleteAgent(name);
       await refresh();
     } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -207,6 +213,13 @@ export default function AgentsTab({ currentUser, activeProject }: Props) {
           onSubmit={handleEdit(dialog.agent)}
         />
       )}
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        message={`Delete agent '${confirmDelete}'? Messages remain; the agent config + links go away.`}
+        confirmLabel="Delete"
+        onConfirm={() => void doDelete(confirmDelete!)}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 }

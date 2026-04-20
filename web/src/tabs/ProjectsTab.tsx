@@ -12,6 +12,7 @@ import {
   type Project,
 } from "../api";
 import ProjectDialog, { type ProjectDialogValue } from "../components/ProjectDialog";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 interface Props {
   currentUser: AuthUser;
@@ -29,6 +30,7 @@ export default function ProjectsTab({ currentUser, activeProject, onPickProject 
   const [agents, setAgents] = useState<Agent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogState>({ kind: "closed" });
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -91,13 +93,17 @@ export default function ProjectsTab({ currentUser, activeProject, onPickProject 
     ]);
   };
 
-  const handleDelete = async (name: string) => {
-    if (!confirm(`Delete project '${name}'? Messages will remain but the project metadata is removed.`)) return;
+  const handleDelete = (name: string) => {
+    setConfirmDelete(name);
+  };
+
+  const doDelete = async (name: string) => {
+    setConfirmDelete(null);
     try {
       await deleteProject(name);
       await refresh();
     } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -190,6 +196,13 @@ export default function ProjectsTab({ currentUser, activeProject, onPickProject 
           onSubmit={handleEdit}
         />
       )}
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        message={`Delete project '${confirmDelete}'? Messages will remain but the project metadata is removed.`}
+        confirmLabel="Delete"
+        onConfirm={() => void doDelete(confirmDelete!)}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 }

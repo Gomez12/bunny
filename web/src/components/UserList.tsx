@@ -159,7 +159,7 @@ function EditUserModal({
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>Edit {user.username}</h3>
         <label>
@@ -187,9 +187,9 @@ function EditUserModal({
           />
         </label>
         {err && <div className="auth-error">{err}</div>}
-        <div className="modal-actions">
-          <button onClick={onClose}>Cancel</button>
-          <button onClick={save}>Save</button>
+        <div className="project-form__actions">
+          <button type="button" className="btn" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn btn--send" onClick={save}>Save</button>
         </div>
       </div>
     </div>
@@ -227,7 +227,7 @@ function CreateUserModal({
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>New user</h3>
         <label>
@@ -262,9 +262,9 @@ function CreateUserModal({
         <p className="muted">
           The user will be prompted to change this password at first login.
         </p>
-        <div className="modal-actions">
-          <button onClick={onClose}>Cancel</button>
-          <button onClick={submit} disabled={!username || !password}>
+        <div className="project-form__actions">
+          <button type="button" className="btn" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn btn--send" onClick={submit} disabled={!username || !password}>
             Create
           </button>
         </div>

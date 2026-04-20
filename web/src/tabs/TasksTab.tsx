@@ -10,6 +10,7 @@ import {
   type ScheduledTask,
   type TaskKind,
 } from "../api";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 interface Props {
   currentUser: AuthUser;
@@ -37,6 +38,7 @@ export default function TasksTab({ currentUser }: Props) {
   const [handlers, setHandlers] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogState>({ kind: "closed" });
+  const [confirmDelete, setConfirmDelete] = useState<ScheduledTask | null>(null);
 
   const isAdmin = currentUser.role === "admin";
 
@@ -94,13 +96,17 @@ export default function TasksTab({ currentUser }: Props) {
     }
   };
 
-  const handleDelete = async (t: ScheduledTask) => {
-    if (!confirm(`Delete task '${t.name}'?`)) return;
+  const handleDelete = (t: ScheduledTask) => {
+    setConfirmDelete(t);
+  };
+
+  const doDelete = async (t: ScheduledTask) => {
+    setConfirmDelete(null);
     try {
       await deleteScheduledTask(t.id);
       await refresh();
     } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -231,6 +237,13 @@ export default function TasksTab({ currentUser }: Props) {
           }}
         />
       )}
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        message={`Delete task '${confirmDelete?.name}'?`}
+        confirmLabel="Delete"
+        onConfirm={() => void doDelete(confirmDelete!)}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 }
@@ -374,14 +387,14 @@ function TaskDialog({ mode, initial, handlers, isAdmin, onClose, onSaved }: Dial
             <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
             <span>Enabled</span>
           </label>
-          {err && <div className="modal__error">{err}</div>}
+          {err && <div className="project-form__error">{err}</div>}
         </div>
-        <footer className="modal__footer">
-          <button onClick={onClose} disabled={busy}>Cancel</button>
-          <button className="modal__primary" onClick={() => void submit()} disabled={busy}>
+        <div className="project-form__actions">
+          <button type="button" className="btn" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="btn btn--send" onClick={() => void submit()} disabled={busy}>
             {busy ? "Saving…" : mode === "create" ? "Create" : "Save"}
           </button>
-        </footer>
+        </div>
       </div>
     </div>
   );

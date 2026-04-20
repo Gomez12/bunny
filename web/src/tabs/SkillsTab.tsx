@@ -13,6 +13,7 @@ import {
   type Skill,
 } from "../api";
 import SkillDialog, { type SkillDialogValue } from "../components/SkillDialog";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 interface Props {
   currentUser: AuthUser;
@@ -30,6 +31,7 @@ export default function SkillsTab({ currentUser, activeProject }: Props) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogState>({ kind: "closed" });
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [installUrl, setInstallUrl] = useState("");
   const [installing, setInstalling] = useState(false);
 
@@ -72,13 +74,17 @@ export default function SkillsTab({ currentUser, activeProject }: Props) {
     await refresh();
   };
 
-  const handleDelete = async (name: string) => {
-    if (!confirm(`Delete skill '${name}'?`)) return;
+  const handleDelete = (name: string) => {
+    setConfirmDelete(name);
+  };
+
+  const doDelete = async (name: string) => {
+    setConfirmDelete(null);
     try {
       await deleteSkill(name);
       await refresh();
     } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -265,6 +271,13 @@ export default function SkillsTab({ currentUser, activeProject }: Props) {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        message={`Delete skill '${confirmDelete}'?`}
+        confirmLabel="Delete"
+        onConfirm={() => void doDelete(confirmDelete!)}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 }

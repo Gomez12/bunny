@@ -4,6 +4,7 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import { Trash2 } from "../lib/icons";
 import ContactDialog, { type ContactDialogValue } from "../components/ContactDialog";
 import ContactImportDialog from "../components/ContactImportDialog";
+import EmptyState from "../components/EmptyState";
 import type { ParsedVCard } from "../lib/vcard";
 import {
   fetchContacts,
@@ -367,7 +368,7 @@ export default function ContactsTab({ project, currentUser, onOpenInChat }: Prop
 
         <div className="contacts-tab__toolbar">
           <button
-            className="contacts-tab__toolbar-btn contacts-tab__toolbar-btn--primary"
+            className="contacts-tab__toolbar-btn btn--accent"
             onClick={() => setDialog({ kind: "create" })}
           >
             + New Contact
@@ -398,14 +399,9 @@ export default function ContactsTab({ project, currentUser, onOpenInChat }: Prop
         )}
 
         {contacts.length === 0 && !debouncedSearch && activeGroupId === null ? (
-          <div className="contacts-tab__empty">
-            <h2>No contacts yet</h2>
-            <p>Create your first contact or import from a .vcf file.</p>
-          </div>
+          <EmptyState title="No contacts yet" description="Create your first contact or import from a .vcf file." />
         ) : contacts.length === 0 ? (
-          <div className="contacts-tab__empty">
-            <p>No contacts match your search.</p>
-          </div>
+          <EmptyState size="sm" title="No contacts match your search." />
         ) : (
           <div className="contacts-grid">
             {contacts.map((c) => (
