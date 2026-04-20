@@ -8,6 +8,7 @@ import {
   type AuthUser,
   type UserRole,
 } from "../api";
+import ConfirmDialog from "./ConfirmDialog";
 
 export default function UserList({ currentUserId }: { currentUserId: string }) {
   const [q, setQ] = useState("");
@@ -15,6 +16,7 @@ export default function UserList({ currentUserId }: { currentUserId: string }) {
   const [editing, setEditing] = useState<AuthUser | null>(null);
   const [creating, setCreating] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState<AuthUser | null>(null);
 
   const reload = async (search = q) => {
     try {
@@ -30,9 +32,15 @@ export default function UserList({ currentUserId }: { currentUserId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
-  const onDelete = async (u: AuthUser) => {
+  const onDelete = (u: AuthUser) => {
     if (u.id === currentUserId) return;
-    if (!confirm(`Delete user "${u.username}"? This removes their sessions and keys.`)) return;
+    setConfirmDeleteUser(u);
+  };
+
+  const confirmDeleteUserAction = async () => {
+    const u = confirmDeleteUser;
+    setConfirmDeleteUser(null);
+    if (!u) return;
     await adminDeleteUser(u.id);
     await reload();
   };
@@ -108,6 +116,14 @@ export default function UserList({ currentUserId }: { currentUserId: string }) {
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmDeleteUser !== null}
+        message={`Delete user "${confirmDeleteUser?.username}"? This removes their sessions and keys.`}
+        confirmLabel="Delete"
+        onConfirm={() => void confirmDeleteUserAction()}
+        onCancel={() => setConfirmDeleteUser(null)}
+      />
     </div>
   );
 }

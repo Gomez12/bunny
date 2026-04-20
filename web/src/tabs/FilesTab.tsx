@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ConfirmDialog from "../components/ConfirmDialog";
 import {
   deleteWorkspaceEntry,
   listWorkspace,
@@ -29,6 +30,7 @@ export default function FilesTab({ project, currentUser }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [confirmDeleteEntry, setConfirmDeleteEntry] = useState<WorkspaceEntry | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canEdit = useMemo(() => {
@@ -97,8 +99,14 @@ export default function FilesTab({ project, currentUser }: Props) {
     void handleFiles(ev.dataTransfer.files);
   };
 
-  const onDelete = async (e: WorkspaceEntry) => {
-    if (!confirm(`Delete '${e.name}'${e.kind === "dir" ? " and its contents" : ""}?`)) return;
+  const onDelete = (e: WorkspaceEntry) => {
+    setConfirmDeleteEntry(e);
+  };
+
+  const confirmDeleteEntryAction = async () => {
+    const e = confirmDeleteEntry;
+    setConfirmDeleteEntry(null);
+    if (!e) return;
     try {
       await deleteWorkspaceEntry(project, e.path);
       await load();
@@ -264,6 +272,14 @@ export default function FilesTab({ project, currentUser }: Props) {
           </table>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmDeleteEntry !== null}
+        message={`Delete "${confirmDeleteEntry?.name}"${confirmDeleteEntry?.kind === "dir" ? " and its contents" : ""}?`}
+        confirmLabel="Delete"
+        onConfirm={() => void confirmDeleteEntryAction()}
+        onCancel={() => setConfirmDeleteEntry(null)}
+      />
     </section>
   );
 }

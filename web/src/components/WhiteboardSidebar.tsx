@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { WhiteboardSummary } from "../api";
+import { Trash2 } from "../lib/icons";
+import ConfirmDialog from "./ConfirmDialog";
 
 interface Props {
   whiteboards: WhiteboardSummary[];
@@ -22,6 +24,7 @@ export default function WhiteboardSidebar({
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState<{ id: number; name: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const editRef = useRef<HTMLInputElement>(null);
 
@@ -136,9 +139,9 @@ export default function WhiteboardSidebar({
             <button
               className="sidebar__hide-btn"
               title="Move to trash"
-              onClick={() => onDelete(wb.id)}
+              onClick={() => setConfirmDelete({ id: wb.id, name: wb.name })}
             >
-              &times;
+              <Trash2 size={13} strokeWidth={1.75} />
             </button>
           </li>
         ))}
@@ -146,6 +149,18 @@ export default function WhiteboardSidebar({
           <li className="sidebar__empty">No whiteboards yet</li>
         )}
       </ul>
+
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        message={`Move "${confirmDelete?.name}" to the trash?`}
+        confirmLabel="Move to Trash"
+        onConfirm={() => {
+          if (!confirmDelete) return;
+          onDelete(confirmDelete.id);
+          setConfirmDelete(null);
+        }}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 }

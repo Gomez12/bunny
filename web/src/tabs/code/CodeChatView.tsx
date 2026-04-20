@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import Composer, { type ComposerHandle } from "../../components/Composer";
 import MessageBubble from "../../components/MessageBubble";
 import MarkdownContent from "../../components/MarkdownContent";
@@ -54,6 +55,7 @@ export default function CodeChatView({ codeProject, currentUser }: Props) {
   const [history, setHistory] = useState<HistoryTurn[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDeleteSessionId, setConfirmDeleteSessionId] = useState<string | null>(null);
 
   const refreshSessions = useCallback(async () => {
     try {
@@ -126,13 +128,14 @@ export default function CodeChatView({ codeProject, currentUser }: Props) {
     setActiveSessionId(mintSessionId());
   };
 
-  const handleDelete = async (sessionId: string) => {
-    if (
-      !window.confirm(
-        "Remove this conversation from the sidebar? The messages stay in the database and can be reopened from the main Chat tab.",
-      )
-    )
-      return;
+  const handleDelete = (sessionId: string) => {
+    setConfirmDeleteSessionId(sessionId);
+  };
+
+  const confirmDelete = async () => {
+    const sessionId = confirmDeleteSessionId;
+    setConfirmDeleteSessionId(null);
+    if (!sessionId) return;
     try {
       await setSessionHiddenFromChat(sessionId, true);
       const list = await refreshSessions();
@@ -200,7 +203,7 @@ export default function CodeChatView({ codeProject, currentUser }: Props) {
                 <button
                   type="button"
                   className="btn btn--icon code-chat__sidebar-delete"
-                  onClick={() => void handleDelete(s.sessionId)}
+                  onClick={() => handleDelete(s.sessionId)}
                   title="Hide conversation"
                   aria-label="Hide conversation"
                 >
@@ -335,6 +338,13 @@ export default function CodeChatView({ codeProject, currentUser }: Props) {
           )}
         </div>
       </div>
+      <ConfirmDialog
+        open={confirmDeleteSessionId !== null}
+        message="Remove this conversation from the sidebar? The messages stay in the database and can be reopened from the main Chat tab."
+        confirmLabel="Remove"
+        onConfirm={() => void confirmDelete()}
+        onCancel={() => setConfirmDeleteSessionId(null)}
+      />
     </div>
   );
 }

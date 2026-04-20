@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { DocumentSummary } from "../api";
+import { Trash2 } from "../lib/icons";
+import ConfirmDialog from "./ConfirmDialog";
 
 interface Props {
   documents: DocumentSummary[];
@@ -33,6 +35,7 @@ export default function DocumentSidebar({
   const [templatesOpen, setTemplatesOpen] = useState(true);
   const [promptingTemplateId, setPromptingTemplateId] = useState<number | null>(null);
   const [templateDocName, setTemplateDocName] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState<{ id: number; name: string; isTemplate: boolean } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const editRef = useRef<HTMLInputElement>(null);
   const templateNameRef = useRef<HTMLInputElement>(null);
@@ -133,12 +136,9 @@ export default function DocumentSidebar({
       <button
         className="sidebar__hide-btn"
         title="Move to trash"
-        onClick={() => {
-          if (isTemplate) onDeleteTemplate(item.id);
-          else onDelete(item.id);
-        }}
+        onClick={() => setConfirmDelete({ id: item.id, name: item.name, isTemplate })}
       >
-        &times;
+        <Trash2 size={13} strokeWidth={1.75} />
       </button>
     </li>
   );
@@ -230,6 +230,19 @@ export default function DocumentSidebar({
           </>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        message={`Move "${confirmDelete?.name}" to the trash?`}
+        confirmLabel="Move to Trash"
+        onConfirm={() => {
+          if (!confirmDelete) return;
+          if (confirmDelete.isTemplate) onDeleteTemplate(confirmDelete.id);
+          else onDelete(confirmDelete.id);
+          setConfirmDelete(null);
+        }}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import type { BoardCard as BoardCardModel, Swimlane } from "../api";
 import BoardCard from "./BoardCard";
+import { Trash2 } from "../lib/icons";
 
 interface Props {
   lane: Swimlane;
@@ -93,7 +94,7 @@ export default memo(function BoardColumn({
               ✎
             </button>
             <button onClick={onDeleteLane} title="Delete lane" disabled={cards.length > 0}>
-              ✕
+              <Trash2 size={13} strokeWidth={1.75} />
             </button>
           </div>
         )}

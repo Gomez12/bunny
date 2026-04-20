@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { createMyApiKey, listMyApiKeys, revokeMyApiKey, type ApiKeyMeta } from "../api";
+import ConfirmDialog from "./ConfirmDialog";
 
 export default function ApiKeyList() {
   const [keys, setKeys] = useState<ApiKeyMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [freshSecret, setFreshSecret] = useState<string | null>(null);
+  const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
 
   // Creation form
   const [name, setName] = useState("");
@@ -41,8 +43,14 @@ export default function ApiKeyList() {
     }
   };
 
-  const revoke = async (id: string) => {
-    if (!confirm("Revoke this API key? Clients using it will lose access.")) return;
+  const revoke = (id: string) => {
+    setConfirmRevokeId(id);
+  };
+
+  const confirmRevokeAction = async () => {
+    const id = confirmRevokeId;
+    setConfirmRevokeId(null);
+    if (!id) return;
     await revokeMyApiKey(id);
     await reload();
   };
@@ -130,6 +138,14 @@ export default function ApiKeyList() {
           </tbody>
         </table>
       )}
+
+      <ConfirmDialog
+        open={confirmRevokeId !== null}
+        message="Revoke this API key? Clients using it will lose access."
+        confirmLabel="Revoke"
+        onConfirm={() => void confirmRevokeAction()}
+        onCancel={() => setConfirmRevokeId(null)}
+      />
     </div>
   );
 }

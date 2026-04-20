@@ -48,6 +48,10 @@ export {
   Eraser,
   ExternalLink,
 
+  // Visibility
+  Eye,
+  EyeOff,
+
   // Status
   AlertCircle,
   AtSign,

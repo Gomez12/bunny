@@ -12,6 +12,7 @@ import CodeProjectPickerDialog from "../components/CodeProjectPickerDialog";
 import CodeShowCodeView from "./code/CodeShowCodeView";
 import CodeChatView from "./code/CodeChatView";
 import EmptyState from "../components/EmptyState";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 const CODE_FEATURE_STORAGE_KEY = "bunny.activeCodeFeature";
 const CODE_PROJECT_STORAGE_KEY = (bunnyProject: string) =>
@@ -57,6 +58,7 @@ export default function CodeTab({ project, currentUser }: Props) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<CodeProject | null>(null);
+  const [confirmDeleteProject, setConfirmDeleteProject] = useState<CodeProject | null>(null);
 
   const setActiveId = useCallback(
     (id: number | null) => {
@@ -139,14 +141,14 @@ export default function CodeTab({ project, currentUser }: Props) {
     patchLocal(next);
   };
 
-  const handleDelete = async (cp: CodeProject) => {
-    if (
-      !window.confirm(
-        `Move "${cp.name}" to the trash? You can restore it from Settings → Trash.`,
-      )
-    ) {
-      return;
-    }
+  const handleDelete = (cp: CodeProject) => {
+    setConfirmDeleteProject(cp);
+  };
+
+  const confirmDelete = async () => {
+    const cp = confirmDeleteProject;
+    setConfirmDeleteProject(null);
+    if (!cp) return;
     try {
       await deleteCodeProject(cp.id);
       const list = await reload();
@@ -240,7 +242,7 @@ export default function CodeTab({ project, currentUser }: Props) {
           setEditTarget(cp);
           setDialogOpen(true);
         }}
-        onDelete={(cp) => void handleDelete(cp)}
+        onDelete={(cp) => handleDelete(cp)}
       />
 
       <CodeProjectDialog
@@ -251,6 +253,14 @@ export default function CodeTab({ project, currentUser }: Props) {
           setEditTarget(null);
         }}
         onSubmit={editTarget ? handleEditSubmit : handleCreate}
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteProject !== null}
+        message={`Move "${confirmDeleteProject?.name}" to the trash? You can restore it from Settings → Trash.`}
+        confirmLabel="Move to Trash"
+        onConfirm={() => void confirmDelete()}
+        onCancel={() => setConfirmDeleteProject(null)}
       />
     </div>
   );

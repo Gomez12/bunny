@@ -4,6 +4,7 @@ import {
   setSessionHiddenFromChat,
   type SessionSummary,
 } from "../api";
+import { Eye, EyeOff } from "../lib/icons";
 
 interface Props {
   activeId: string | null;
@@ -207,7 +208,7 @@ export default memo(function SessionSidebar({
                   void toggleHidden(s);
                 }}
               >
-                {s.hiddenFromChat ? "👁" : "✕"}
+                {s.hiddenFromChat ? <Eye size={12} strokeWidth={1.75} /> : <EyeOff size={12} strokeWidth={1.75} />}
               </button>
             )}
           </li>

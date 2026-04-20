@@ -9,6 +9,7 @@ import {
   type TelegramLinkDto,
 } from "../api";
 import { Copy, LinkIcon, Send, Trash2 } from "../lib/icons";
+import ConfirmDialog from "./ConfirmDialog";
 
 /**
  * Profile card that lists a user's per-project Telegram links and lets them
@@ -23,6 +24,7 @@ export default function TelegramLinkCard() {
   const [pending, setPending] = useState<PendingLinkDto | null>(null);
   const [pickProject, setPickProject] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const [confirmUnlink, setConfirmUnlink] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -58,8 +60,14 @@ export default function TelegramLinkCard() {
     }
   };
 
-  const unlink = async (project: string) => {
-    if (!confirm(`Unlink Telegram for project "${project}"?`)) return;
+  const unlink = (project: string) => {
+    setConfirmUnlink(project);
+  };
+
+  const confirmUnlinkAction = async () => {
+    const project = confirmUnlink;
+    setConfirmUnlink(null);
+    if (!project) return;
     try {
       await deleteTelegramLinkFor(project);
       setLinks((prev) => prev.filter((l) => l.project !== project));
@@ -171,6 +179,14 @@ export default function TelegramLinkCard() {
       )}
 
       {err && <p className="error">{err}</p>}
+
+      <ConfirmDialog
+        open={confirmUnlink !== null}
+        message={`Unlink Telegram for project "${confirmUnlink}"?`}
+        confirmLabel="Unlink"
+        onConfirm={() => void confirmUnlinkAction()}
+        onCancel={() => setConfirmUnlink(null)}
+      />
     </div>
   );
 }

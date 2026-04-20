@@ -12,6 +12,7 @@ import {
   type NewsTopic,
 } from "../api";
 import EmptyState from "../components/EmptyState";
+import ConfirmDialog from "../components/ConfirmDialog";
 import TopicDialog, {
   type TopicDialogValue,
 } from "../components/TopicDialog";
@@ -59,6 +60,7 @@ export default function WebNewsTab({ project, currentUser }: Props) {
   const [dialog, setDialog] = useState<DialogState>({ kind: "closed" });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [confirmDeleteTopic, setConfirmDeleteTopic] = useState<NewsTopic | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const setTemplate = (t: TemplateId) => {
@@ -121,9 +123,14 @@ export default function WebNewsTab({ project, currentUser }: Props) {
     await refresh();
   };
 
-  const handleDelete = async (topic: NewsTopic) => {
-    if (!confirm(`Delete topic "${topic.name}"? This also removes its items.`))
-      return;
+  const handleDelete = (topic: NewsTopic) => {
+    setConfirmDeleteTopic(topic);
+  };
+
+  const confirmDeleteTopicAction = async () => {
+    const topic = confirmDeleteTopic;
+    setConfirmDeleteTopic(null);
+    if (!topic) return;
     await deleteNewsTopic(project, topic.id);
     await refresh();
   };
@@ -329,6 +336,14 @@ export default function WebNewsTab({ project, currentUser }: Props) {
           onSubmit={(v) => handleEdit(dialog.topic, v)}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmDeleteTopic !== null}
+        message={`Delete topic "${confirmDeleteTopic?.name}"? This also removes its items.`}
+        confirmLabel="Delete"
+        onConfirm={() => void confirmDeleteTopicAction()}
+        onCancel={() => setConfirmDeleteTopic(null)}
+      />
     </div>
   );
 }

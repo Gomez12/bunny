@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import DocumentComposer from "../components/DocumentComposer";
+import ConfirmDialog from "../components/ConfirmDialog";
+import { Trash2 } from "../lib/icons";
 import ContactDialog, { type ContactDialogValue } from "../components/ContactDialog";
 import ContactImportDialog from "../components/ContactImportDialog";
 import type { ParsedVCard } from "../lib/vcard";
@@ -47,6 +49,7 @@ export default function ContactsTab({ project, currentUser, onOpenInChat }: Prop
   const [error, setError] = useState<string | null>(null);
   const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
   const [editGroupName, setEditGroupName] = useState("");
+  const [confirmDeleteGroup, setConfirmDeleteGroup] = useState<{ id: number; name: string } | null>(null);
   const editGroupRef = useRef<HTMLInputElement>(null);
 
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -164,14 +167,20 @@ export default function ContactsTab({ project, currentUser, onOpenInChat }: Prop
     }
   };
 
-  const handleDeleteGroup = async (id: number, name: string) => {
-    if (!confirm(`Delete group "${name}"? Contacts in this group will not be deleted.`)) return;
+  const handleDeleteGroup = (id: number, name: string) => {
+    setConfirmDeleteGroup({ id, name });
+  };
+
+  const confirmDeleteGroupAction = async () => {
+    const g = confirmDeleteGroup;
+    setConfirmDeleteGroup(null);
+    if (!g) return;
     try {
-      await deleteContactGroup(project, id);
-      if (activeGroupId === id) setActiveGroupId(null);
+      await deleteContactGroup(project, g.id);
+      if (activeGroupId === g.id) setActiveGroupId(null);
       await refresh();
     } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -327,10 +336,10 @@ export default function ContactsTab({ project, currentUser, onOpenInChat }: Prop
                         title="Delete"
                         onClick={(e) => {
                           e.stopPropagation();
-                          void handleDeleteGroup(g.id, g.name);
+                          handleDeleteGroup(g.id, g.name);
                         }}
                       >
-                        &times;
+                        <Trash2 size={12} strokeWidth={1.75} />
                       </button>
                     </span>
                   </div>
@@ -513,6 +522,14 @@ export default function ContactsTab({ project, currentUser, onOpenInChat }: Prop
           onImport={handleImport}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmDeleteGroup !== null}
+        message={`Delete group "${confirmDeleteGroup?.name}"? Contacts in this group will not be deleted.`}
+        confirmLabel="Delete"
+        onConfirm={() => void confirmDeleteGroupAction()}
+        onCancel={() => setConfirmDeleteGroup(null)}
+      />
     </div>
   );
 }

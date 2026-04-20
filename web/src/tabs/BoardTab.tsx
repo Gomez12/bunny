@@ -33,6 +33,7 @@ import BoardColumn from "../components/BoardColumn";
 import { BoardCardPreview } from "../components/BoardCard";
 import CardDialog, { type CardDialogValue } from "../components/CardDialog";
 import SwimlaneDialog, { type SwimlaneDialogValue } from "../components/SwimlaneDialog";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 interface Props {
   project: string;
@@ -57,6 +58,7 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
     | { kind: "create" }
     | { kind: "edit"; lane: Swimlane }
   >({ kind: "closed" });
+  const [confirmDeleteLane, setConfirmDeleteLane] = useState<Swimlane | null>(null);
   const [activeGroupTab, setActiveGroupTab] = useState<string | null>(null);
   const [dragging, setDragging] = useState<
     | { kind: "card"; card: BoardCardModel }
@@ -137,13 +139,19 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
     }
   };
 
-  const handleDeleteLane = async (lane: Swimlane) => {
-    if (!confirm(`Delete swimlane '${lane.name}'?`)) return;
+  const handleDeleteLane = (lane: Swimlane) => {
+    setConfirmDeleteLane(lane);
+  };
+
+  const confirmDeleteLaneAction = async () => {
+    const lane = confirmDeleteLane;
+    setConfirmDeleteLane(null);
+    if (!lane) return;
     try {
       await deleteSwimlane(lane.id);
       await refresh();
     } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -452,6 +460,14 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
           onSubmit={handleSubmitLane}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmDeleteLane !== null}
+        message={`Delete swimlane "${confirmDeleteLane?.name}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        onConfirm={() => void confirmDeleteLaneAction()}
+        onCancel={() => setConfirmDeleteLane(null)}
+      />
     </div>
   );
 }
