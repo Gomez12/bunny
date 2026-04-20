@@ -116,8 +116,13 @@ function multilineTomlString(v: string): string {
   if (!v.includes("\n")) {
     return `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
   }
+  // Bun's TOML parser does not trim the newline immediately following the
+  // opening `"""` delimiter, so we emit the body starting on the same line
+  // to preserve the round-trip. A body that happens to start with a
+  // newline still round-trips because we never strip a leading newline
+  // that the user put there.
   const escaped = v.replace(/\\/g, "\\\\").replace(/"""/g, '""\\"');
-  return `"""\n${escaped}"""`;
+  return `"""${escaped}"""`;
 }
 
 /** Test helper. */

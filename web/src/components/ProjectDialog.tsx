@@ -4,6 +4,7 @@ import type { Agent, Project, ProjectVisibility } from "../api";
 // can pin itself to the backend's validation rule instead of drifting.
 import { PROJECT_NAME_RE } from "../../../src/memory/project_name";
 import { validateOverride } from "../lib/forms";
+import ProjectPromptsSection from "./ProjectPromptsSection";
 
 export interface ProjectDialogValue {
   name: string;
@@ -318,6 +319,10 @@ export default function ProjectDialog({
               Checked agents can be mentioned with <code>@name</code> in this project's chats.
             </span>
           </label>
+
+          {mode === "edit" && initial && (
+            <ProjectPromptsSection project={initial.name} />
+          )}
 
           {error && <div className="project-form__error">{error}</div>}
 

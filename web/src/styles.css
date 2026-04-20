@@ -6053,3 +6053,26 @@ button {
 }
 .chip--ghost { opacity: 0.75; font-family: var(--font-mono, monospace); font-size: 11px; }
 
+.project-prompts {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated, transparent);
+}
+.project-prompts__toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  padding: 12px 14px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+.project-prompts__toggle:hover { background: var(--bg); }
+.project-prompts__body { padding: 0 14px 14px; }
+

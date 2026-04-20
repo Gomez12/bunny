@@ -252,3 +252,114 @@ describe("PUT /api/config/prompts", () => {
     expect(res.status).toBe(413);
   });
 });
+
+describe("GET /api/projects/:name/prompts", () => {
+  test("401 without auth", async () => {
+    const { res } = await req("GET", "/api/projects/alpha/prompts");
+    expect(res.status).toBe(401);
+  });
+
+  test("viewer (non-creator, non-admin) gets 403", async () => {
+    const { res } = await req("GET", "/api/projects/alpha/prompts", {
+      cookie: viewerCookie,
+    });
+    expect(res.status).toBe(403);
+  });
+
+  test("project creator can GET", async () => {
+    const { res, body } = await req("GET", "/api/projects/alpha/prompts", {
+      cookie: creatorCookie,
+    });
+    expect(res.status).toBe(200);
+    const prompts = (body as { prompts: Array<{ key: string; scope: string }> })
+      .prompts;
+    // Only projectOverridable keys are returned.
+    for (const p of prompts) {
+      expect(p.scope).toBe("projectOverridable");
+    }
+  });
+
+  test("admin can GET any project's prompts", async () => {
+    const { res } = await req("GET", "/api/projects/alpha/prompts", {
+      cookie: adminCookie,
+    });
+    expect(res.status).toBe(200);
+  });
+
+  test("unknown project returns 404", async () => {
+    const { res } = await req("GET", "/api/projects/zzzz/prompts", {
+      cookie: adminCookie,
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("PUT /api/projects/:name/prompts", () => {
+  test("project creator can set + effective reflects override", async () => {
+    const put = await req("PUT", "/api/projects/alpha/prompts", {
+      cookie: creatorCookie,
+      body: { key: "kb.definition", text: "ALPHA KB" },
+    });
+    expect(put.res.status).toBe(200);
+    const list = await req("GET", "/api/projects/alpha/prompts", {
+      cookie: creatorCookie,
+    });
+    const hit = (list.body as { prompts: Array<{ key: string; override: string | null; effective: string }> })
+      .prompts.find((p) => p.key === "kb.definition")!;
+    expect(hit.override).toBe("ALPHA KB");
+    expect(hit.effective).toBe("ALPHA KB");
+  });
+
+  test("project override beats global override", async () => {
+    await req("PUT", "/api/config/prompts", {
+      cookie: adminCookie,
+      body: { key: "kb.definition", text: "GLOBAL" },
+    });
+    await req("PUT", "/api/projects/alpha/prompts", {
+      cookie: adminCookie,
+      body: { key: "kb.definition", text: "PROJECT" },
+    });
+    const list = await req("GET", "/api/projects/alpha/prompts", {
+      cookie: adminCookie,
+    });
+    const hit = (list.body as { prompts: Array<{ key: string; effective: string; global: string | null; override: string | null }> })
+      .prompts.find((p) => p.key === "kb.definition")!;
+    expect(hit.effective).toBe("PROJECT");
+    expect(hit.global).toBe("GLOBAL");
+    expect(hit.override).toBe("PROJECT");
+  });
+
+  test("non-creator non-admin gets 403 on PUT", async () => {
+    const { res } = await req("PUT", "/api/projects/alpha/prompts", {
+      cookie: viewerCookie,
+      body: { key: "kb.definition", text: "NOPE" },
+    });
+    expect(res.status).toBe(403);
+  });
+
+  test("rejects global-only keys", async () => {
+    const { res } = await req("PUT", "/api/projects/alpha/prompts", {
+      cookie: adminCookie,
+      body: { key: "tools.ask_user.description", text: "x" },
+    });
+    expect(res.status).toBe(400);
+  });
+
+  test("text=null clears the project override", async () => {
+    await req("PUT", "/api/projects/alpha/prompts", {
+      cookie: adminCookie,
+      body: { key: "kb.definition", text: "X" },
+    });
+    const clear = await req("PUT", "/api/projects/alpha/prompts", {
+      cookie: adminCookie,
+      body: { key: "kb.definition", text: null },
+    });
+    expect(clear.res.status).toBe(200);
+    const list = await req("GET", "/api/projects/alpha/prompts", {
+      cookie: adminCookie,
+    });
+    const hit = (list.body as { prompts: Array<{ key: string; override: string | null }> })
+      .prompts.find((p) => p.key === "kb.definition")!;
+    expect(hit.override).toBe(null);
+  });
+});
