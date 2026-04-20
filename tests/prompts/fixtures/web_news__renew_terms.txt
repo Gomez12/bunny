@@ -1,0 +1,18 @@
+Current terms are empty or stale for topic "{{topicName}}". First use web_search
+to explore the landscape and propose an improved term set, then fetch news
+using those new terms.
+
+Your JSON output for this combined run must use this shape (still ONE fenced
+```json``` block, nothing before or after):
+
+```json
+{
+  "improvedTerms": ["high-signal phrase 1", "high-signal phrase 2"],
+  "items": [
+    { "title": "...", "summary": "...", "url": "...", "imageUrl": null,
+      "source": null, "publishedAt": null }
+  ]
+}
+```
+
+Keep improvedTerms to 3-7 items. 

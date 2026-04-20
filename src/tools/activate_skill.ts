@@ -11,11 +11,12 @@
 
 import type { JsonSchemaObject } from "../llm/types.ts";
 import type { ToolHandler, ToolResult } from "./registry.ts";
+import { resolvePrompt } from "../prompts/resolve.ts";
 
 export const ACTIVATE_SKILL_TOOL_NAME = "activate_skill";
 
-export const ACTIVATE_SKILL_DESCRIPTION =
-  "Load the full instructions for a named skill. Call this before following a skill's workflow.";
+// Tool description resolved per build through the prompt registry so admins
+// can rewrite it in Settings → Prompts.
 
 export const ACTIVATE_SKILL_SCHEMA: JsonSchemaObject = {
   type: "object",
@@ -71,7 +72,7 @@ export function makeActivateSkillTool(ctx: ActivateSkillContext): {
   };
   return {
     name: ACTIVATE_SKILL_TOOL_NAME,
-    description: ACTIVATE_SKILL_DESCRIPTION,
+    description: resolvePrompt("tools.activate_skill.description"),
     parameters: ACTIVATE_SKILL_SCHEMA,
     handler,
   };

@@ -19,6 +19,7 @@ import {
   finishSse,
 } from "../agent/render_sse.ts";
 import { registry as toolsRegistry } from "../tools/index.ts";
+import { resolvePrompt } from "../prompts/resolve.ts";
 import {
   bulkCreateContacts,
   canEditContact,
@@ -479,17 +480,8 @@ function handleDeleteGroup(
 
 // ── Edit mode (agent loop) ───────────────────────────────────────────────────
 
-const EDIT_SYSTEM_PROMPT = `You are a contacts manager assistant. The user will provide:
-1. A summary of their current contacts
-2. An instruction describing what to do
-
-Your task: analyze the contacts and respond with helpful suggestions, analysis, or organized information.
-
-Rules:
-- Be concise and actionable.
-- If asked to organize, categorize, or analyze contacts, provide clear structured output.
-- If asked to suggest changes (tags, groups, deduplication), list specific recommendations.
-- Format your response in clear markdown.`;
+// Prompt text resolved per-request through `resolvePrompt("contact.edit")`
+// so admins and project owners can edit it in the UI.
 
 async function handleEdit(
   req: Request,
@@ -541,7 +533,9 @@ async function handleEdit(
           db: ctx.db,
           queue: ctx.queue,
           renderer,
-          systemPromptOverride: EDIT_SYSTEM_PROMPT,
+          systemPromptOverride: resolvePrompt("contact.edit", {
+            project: r.project,
+          }),
         });
       } catch (e) {
         renderer.onError(errorMessage(e));

@@ -9,6 +9,7 @@ import type { ChatMessage } from "../llm/types.ts";
 import type { RecallResult } from "../memory/recall.ts";
 import type { ProjectAssets } from "../memory/project_assets.ts";
 import type { AgentAssets } from "../memory/agent_assets.ts";
+import { resolvePrompt, interpolate } from "../prompts/resolve.ts";
 
 /**
  * Fallback base system prompt used when callers don't pass one explicitly. In
@@ -99,7 +100,9 @@ export function buildSystemMessage(
       .map((a) => `- @${a.name} — ${a.description || "(no description)"}`)
       .join("\n");
     if (lines) {
-      content += `\n\n## Other agents\nYou can delegate by prefixing a question with @name in your text, or — if you have access to the call_agent tool — by invoking it. Available agents:\n${lines}`;
+      content += interpolate(resolvePrompt("agent.peer_agents_hint"), {
+        lines,
+      });
     }
   }
 
@@ -107,11 +110,13 @@ export function buildSystemMessage(
     const lines = opts.skillCatalog
       .map((s) => `- **${s.name}**: ${s.description}`)
       .join("\n");
-    content += `\n\n## Available skills\nUse the \`activate_skill\` tool to load a skill's full instructions before following its workflow.\n${lines}`;
+    content += interpolate(resolvePrompt("agent.skill_catalog_hint"), {
+      lines,
+    });
   }
 
   if (opts.askUserAvailable) {
-    content += `\n\n## Asking the user\nYou have an \`ask_user\` tool that pauses the turn and shows the human a multiple-choice card. Prefer calling it — instead of guessing or giving a generic answer — whenever ANY of these apply:\n- The user's request hinges on a personal preference, constraint, or piece of context you don't have (e.g. "help me choose between X and Y", "which should I pick", "what fits me best").\n- There are 2–5 sensible branches you could take and the right one depends on the user.\n- You'd otherwise need to hedge with "it depends" or enumerate every possibility.\nCall it with a short, specific \`question\` and 2–5 short \`options\` that cover the realistic branches. Leave \`allow_custom\` on the default (true) so the user can still write their own answer. Do NOT use \`ask_user\` for trivia, for rhetorical questions inside your own reasoning, or when you already have enough to act.`;
+    content += resolvePrompt("agent.ask_user_hint");
   }
 
   if (recall.length > 0) {

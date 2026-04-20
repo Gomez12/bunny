@@ -19,11 +19,14 @@ import type { JsonSchemaObject } from "../llm/types.ts";
 import type { ToolHandler, ToolResult, ToolDescriptor } from "./registry.ts";
 import type { SseAskUserQuestionEvent } from "../agent/sse_events.ts";
 import { waitForAnswer } from "../agent/ask_user_registry.ts";
+import { resolvePrompt } from "../prompts/resolve.ts";
 
 export const ASK_USER_TOOL_NAME = "ask_user";
 
-export const ASK_USER_DESCRIPTION =
-  "Pause the turn and ask the human a multiple-choice question. Prefer this over guessing whenever the right answer depends on the user's personal preference, context, or a constraint you don't have — e.g. 'help me choose between X and Y', 'which fits me best', or any prompt where you'd otherwise hedge with 'it depends'. Provide 2–5 short 'options' covering the realistic branches; the user can pick one, edit an option inline, or write their own answer. Returns the user's answer as a plain string — use it as the authoritative input for the rest of the turn. Do NOT use for trivia or purely informational questions you can answer directly.";
+// Tool description resolved per tool-build through the prompt registry, so
+// admins can trim / rewrite it in Settings → Prompts. Reads per factory
+// invocation — `buildRunRegistry` calls the factory once per turn, so the
+// mtime-cached override takes effect on the very next turn.
 
 export const ASK_USER_SCHEMA: JsonSchemaObject = {
   type: "object",
@@ -135,7 +138,7 @@ export function makeAskUserTool(ctx: AskUserContext): ToolDescriptor {
   };
   return {
     name: ASK_USER_TOOL_NAME,
-    description: ASK_USER_DESCRIPTION,
+    description: resolvePrompt("tools.ask_user.description"),
     parameters: ASK_USER_SCHEMA,
     handler,
   };

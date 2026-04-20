@@ -1,0 +1,5 @@
+
+
+## Other agents
+You can delegate by prefixing a question with @name in your text, or — if you have access to the call_agent tool — by invoking it. Available agents:
+{{lines}}

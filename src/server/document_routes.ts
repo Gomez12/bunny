@@ -28,6 +28,7 @@ import {
   finishSse,
 } from "../agent/render_sse.ts";
 import { registry as toolsRegistry } from "../tools/index.ts";
+import { resolvePrompt } from "../prompts/resolve.ts";
 
 export interface DocumentRouteCtx {
   db: Database;
@@ -248,22 +249,8 @@ function handleSaveAsTemplate(
 
 // ── Edit mode (agent loop) ──────────────────────────────────────────────
 
-const EDIT_SYSTEM_PROMPT = `You are a document editor. The user will provide:
-1. The current document content in markdown
-2. An instruction describing what to change
-
-Your task: modify the document according to the instruction and return the complete, updated markdown.
-
-Rules:
-- Return ONLY a markdown code block with the complete document. No explanations.
-- Preserve all existing content that should not change.
-- Use standard markdown syntax including GFM tables, task lists, and fenced code blocks.
-- Maintain the document's structure and formatting conventions.
-
-Return the full document wrapped in a markdown code block:
-\`\`\`markdown
-...document content...
-\`\`\``;
+// Prompt text resolved per-request through `resolvePrompt("document.edit")`
+// so admins and project owners can edit it in the UI.
 
 async function handleEdit(
   req: Request,
@@ -317,7 +304,9 @@ async function handleEdit(
           db: ctx.db,
           queue: ctx.queue,
           renderer,
-          systemPromptOverride: EDIT_SYSTEM_PROMPT,
+          systemPromptOverride: resolvePrompt("document.edit", {
+            project: doc.project,
+          }),
         });
       } catch (e) {
         renderer.onError(errorMessage(e));

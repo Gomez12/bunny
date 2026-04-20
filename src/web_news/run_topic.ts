@@ -26,6 +26,7 @@ import { silentRenderer } from "../agent/render.ts";
 import { setSessionHiddenFromChat } from "../memory/session_visibility.ts";
 import { errorMessage } from "../util/error.ts";
 import { computeNextRun } from "../scheduler/cron.ts";
+import { resolvePrompt, interpolate } from "../prompts/resolve.ts";
 import {
   claimTopicForRun,
   getTopic,
@@ -107,6 +108,7 @@ export async function runTopic(opts: RunTopicOpts): Promise<RunTopicResult> {
   const prompt = buildUserMessage(topic, {
     renewTerms,
     previousItems: listRecentItemsForTopic(db, topicId, 30),
+    project: topic.project,
   });
 
   const result: RunTopicResult = {
@@ -284,8 +286,18 @@ function safeNext(expr: string, now: number): number {
 interface BuildUserMessageOpts {
   renewTerms: boolean;
   previousItems: ReturnType<typeof listRecentItemsForTopic>;
+  /** Project name used to scope prompt registry overrides. */
+  project: string;
 }
 
+/**
+ * Build the user message for a Web News run. Both the fetch instructions
+ * and the renew-terms preamble come from the prompt registry
+ * (`web_news.fetch`, `web_news.renew_terms`) so they are UI-editable. The
+ * `{{topicName}}` / `{{termsText}}` / `{{known}}` / `{{maxItemsPerRun}}` /
+ * `{{description}}` placeholders are interpolated here — the call site
+ * composes renew+fetch by concatenation, same as the old inline template.
+ */
 function buildUserMessage(
   topic: NewsTopic,
   opts: BuildUserMessageOpts,
@@ -307,58 +319,24 @@ function buildUserMessage(
 
   const description = topic.description.trim() || "(no description)";
 
-  const fetchInstructions = `Gather the latest news on topic "${topic.name}".
-Description: ${description}
-Search terms to use: ${termsText}
-
-Previous items already known — DO NOT repeat these; only return items whose
-titles and URLs differ meaningfully:
-${known}
-
-Use web_search (and web_fetch when a hit looks promising) to find items
-published in the last few days that are NOT in the known list. Prefer primary
-sources. Cap at ${topic.maxItemsPerRun} truly-novel items.
-
-Output format — return EXACTLY ONE fenced \`\`\`json\`\`\` block and nothing else:
-
-\`\`\`json
-{
-  "items": [
+  const fetchInstructions = interpolate(
+    resolvePrompt("web_news.fetch", { project: opts.project }),
     {
-      "title": "string",
-      "summary": "1-3 sentences in plain text",
-      "url": "https://... or null",
-      "imageUrl": "https://... or null",
-      "source": "publication or site name, or null",
-      "publishedAt": "ISO-8601 date/time or null"
-    }
-  ]
-}
-\`\`\`
-
-Do not add prose before or after the JSON block. Return an empty items array if
-you cannot find anything new.`;
+      topicName: topic.name,
+      description,
+      termsText,
+      known,
+      maxItemsPerRun: topic.maxItemsPerRun,
+    },
+  );
 
   if (!opts.renewTerms) return fetchInstructions;
 
-  return `Current terms are empty or stale for topic "${topic.name}". First use web_search
-to explore the landscape and propose an improved term set, then fetch news
-using those new terms.
-
-Your JSON output for this combined run must use this shape (still ONE fenced
-\`\`\`json\`\`\` block, nothing before or after):
-
-\`\`\`json
-{
-  "improvedTerms": ["high-signal phrase 1", "high-signal phrase 2"],
-  "items": [
-    { "title": "...", "summary": "...", "url": "...", "imageUrl": null,
-      "source": null, "publishedAt": null }
-  ]
-}
-\`\`\`
-
-Keep improvedTerms to 3-7 items. ${fetchInstructions}`;
+  const renewPreamble = interpolate(
+    resolvePrompt("web_news.renew_terms", { project: opts.project }),
+    { topicName: topic.name },
+  );
+  return renewPreamble + fetchInstructions;
 }
 
 /**

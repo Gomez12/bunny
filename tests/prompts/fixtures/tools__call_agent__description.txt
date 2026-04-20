@@ -1,0 +1,1 @@
+Delegate a task to one of your allowed subagents. The named agent runs with its own system prompt and tools and returns a single final answer.

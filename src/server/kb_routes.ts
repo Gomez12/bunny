@@ -26,6 +26,7 @@ import {
 } from "../agent/render_sse.ts";
 import type { SseEvent } from "../agent/sse_events.ts";
 import { registry as toolsRegistry } from "../tools/index.ts";
+import { resolvePrompt } from "../prompts/resolve.ts";
 import {
   canEditDefinition,
   clearLlmFields,
@@ -350,39 +351,9 @@ function handleClearLlm(
 
 // ── LLM generation (SSE) ─────────────────────────────────────────────────────
 
-const DEFINITION_SYSTEM_PROMPT = `You are a Knowledge Base assistant. The user gives you a single term to define for a project glossary.
-
-Your job, in this order:
-1. Use the web_search tool (and web_fetch if a hit looks promising) to gather
-   facts about the term. Prefer authoritative sources (Wikipedia, official
-   documentation, reputable industry sites).
-2. When the user message says "Project context" is active, blend the term
-   with the project domain before searching. Example — in a project about
-   cars, a term like 'chair' should be searched as 'car seat' (the project
-   domain meaning), not bare 'chair'. Bare term searches only when no project
-   context is given.
-3. Draft a short description (1–2 sentences) and a long description
-   (2–4 paragraphs, no heading). The long description may cite the sources
-   inline.
-4. Collect 2–5 external source links you actually used. Each source needs a
-   title and a valid http(s) URL.
-
-Output format — return EXACTLY ONE fenced \`\`\`json\`\`\` block and nothing else,
-with this shape:
-
-\`\`\`json
-{
-  "shortDescription": "string",
-  "longDescription": "string",
-  "sources": [
-    { "title": "string", "url": "https://..." }
-  ]
-}
-\`\`\`
-
-Do not add any prose before or after the JSON block. If you cannot find
-reliable information, still return the block with best-effort values and an
-empty \`sources\` array.`;
+// Prompt text resolved per-request through the prompt registry
+// (`src/prompts/registry.ts`) so admins and project owners can override it
+// from the UI without a rebuild.
 
 async function handleGenerate(
   ctx: KbRouteCtx,
@@ -442,7 +413,9 @@ async function handleGenerate(
           db: ctx.db,
           queue: ctx.queue,
           renderer,
-          systemPromptOverride: DEFINITION_SYSTEM_PROMPT,
+          systemPromptOverride: resolvePrompt("kb.definition", {
+            project: r.project,
+          }),
         });
 
         const parsed = extractDefinitionJson(finalAnswer);
@@ -564,16 +537,8 @@ export function extractDefinitionJson(raw: string): {
 
 const ILLUSTRATION_MAX_BYTES = 200 * 1024;
 
-const ILLUSTRATION_SYSTEM_PROMPT = `You are a Knowledge Base illustrator. The user gives you a single glossary term (optionally accompanied by one or more descriptions) and you produce a professional SVG illustration that purely visually conveys what the term means.
-
-Rules:
-- Return exactly one SVG illustration. It must be clear, precise, and accurate — double-check every element before replying.
-- Use as little text as possible. Only include text where it is absolutely necessary to disambiguate the meaning.
-- Use clean, geometric shapes, reasonable proportions, and a readable colour palette. Prefer a neutral background.
-- The SVG must be self-contained (no external images, no external fonts). Do not include <script> elements or event handler attributes.
-- Include a viewBox and an xmlns attribute.
-
-Output format — return EXACTLY ONE fenced \`\`\`svg\`\`\` block containing a valid <svg>…</svg> document, and NOTHING ELSE (no prose before or after).`;
+// Illustration prompt text resolved per-request through the prompt registry
+// so it is editable from the UI (see `src/prompts/registry.ts`).
 
 const ILLUSTRATION_DESC_MAX = 1000;
 
@@ -661,7 +626,9 @@ async function handleGenerateIllustration(
           db: ctx.db,
           queue: ctx.queue,
           renderer,
-          systemPromptOverride: ILLUSTRATION_SYSTEM_PROMPT,
+          systemPromptOverride: resolvePrompt("kb.illustration", {
+            project: r.project,
+          }),
         });
 
         const svg = extractSvgBlock(finalAnswer);

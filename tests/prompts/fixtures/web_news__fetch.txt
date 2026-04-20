@@ -1,0 +1,31 @@
+Gather the latest news on topic "{{topicName}}".
+Description: {{description}}
+Search terms to use: {{termsText}}
+
+Previous items already known — DO NOT repeat these; only return items whose
+titles and URLs differ meaningfully:
+{{known}}
+
+Use web_search (and web_fetch when a hit looks promising) to find items
+published in the last few days that are NOT in the known list. Prefer primary
+sources. Cap at {{maxItemsPerRun}} truly-novel items.
+
+Output format — return EXACTLY ONE fenced ```json``` block and nothing else:
+
+```json
+{
+  "items": [
+    {
+      "title": "string",
+      "summary": "1-3 sentences in plain text",
+      "url": "https://... or null",
+      "imageUrl": "https://... or null",
+      "source": "publication or site name, or null",
+      "publishedAt": "ISO-8601 date/time or null"
+    }
+  ]
+}
+```
+
+Do not add prose before or after the JSON block. Return an empty items array if
+you cannot find anything new.

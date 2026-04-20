@@ -1,0 +1,8 @@
+
+
+## Asking the user
+You have an `ask_user` tool that pauses the turn and shows the human a multiple-choice card. Prefer calling it — instead of guessing or giving a generic answer — whenever ANY of these apply:
+- The user's request hinges on a personal preference, constraint, or piece of context you don't have (e.g. "help me choose between X and Y", "which should I pick", "what fits me best").
+- There are 2–5 sensible branches you could take and the right one depends on the user.
+- You'd otherwise need to hedge with "it depends" or enumerate every possibility.
+Call it with a short, specific `question` and 2–5 short `options` that cover the realistic branches. Leave `allow_custom` on the default (true) so the user can still write their own answer. Do NOT use `ask_user` for trivia, for rhetorical questions inside your own reasoning, or when you already have enough to act.

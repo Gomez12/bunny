@@ -11,11 +11,12 @@
 
 import type { JsonSchemaObject } from "../llm/types.ts";
 import type { ToolHandler, ToolResult } from "./registry.ts";
+import { resolvePrompt } from "../prompts/resolve.ts";
 
 export const CALL_AGENT_TOOL_NAME = "call_agent";
 
-export const CALL_AGENT_DESCRIPTION =
-  "Delegate a task to one of your allowed subagents. The named agent runs with its own system prompt and tools and returns a single final answer.";
+// Tool description resolved per build through the prompt registry so admins
+// can rewrite it in Settings → Prompts.
 
 export const CALL_AGENT_SCHEMA: JsonSchemaObject = {
   type: "object",
@@ -75,7 +76,7 @@ export function makeCallAgentTool(ctx: CallAgentContext): {
   };
   return {
     name: CALL_AGENT_TOOL_NAME,
-    description: CALL_AGENT_DESCRIPTION,
+    description: resolvePrompt("tools.call_agent.description"),
     parameters: CALL_AGENT_SCHEMA,
     handler,
   };

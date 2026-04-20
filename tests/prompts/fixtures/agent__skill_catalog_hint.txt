@@ -1,0 +1,5 @@
+
+
+## Available skills
+Use the `activate_skill` tool to load a skill's full instructions before following its workflow.
+{{lines}}
