@@ -90,6 +90,7 @@ A Tauri v2 desktop app (`client/`) wraps the web UI in a native window. It conne
 - [ADR 0026 — Interactive user questions (`ask_user` tool)](./adr/0026-ask-user-question-tool.md)
 - [ADR 0027 — User notifications](./adr/0027-user-notifications.md)
 - [ADR 0028 — Per-project Telegram integration](./adr/0028-telegram-integration.md)
+- [ADR 0029 — Prompt registry with two-tier overrides](./adr/0029-prompt-registry-and-two-tier-overrides.md)
 - [Agent tools reference](./tools.md)
 - [HTTP API reference](./http-api.md)
 - [Styleguide](./styleguide.md)
