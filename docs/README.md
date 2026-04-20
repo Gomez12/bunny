@@ -6,6 +6,8 @@ Bunny is a Bun-native AI agent. Three design principles:
 2. **Queue is the spine** — every LLM call, tool call and memory write is a job on [bunqueue](https://github.com/egeominotti/bunqueue). Middleware logs input/output/duration to SQLite. Nothing disappears unseen.
 3. **Portable state** — everything relative to cwd under `./.bunny/` (override via `$BUNNY_HOME`). No `$HOME/.config`. A project directory is a complete, relocatable agent.
 
+> **Working on Bunny?** Start with the developer handbook: [**docs/dev/**](./dev/). Onboarding walkthrough, per-entity reference, UI surface, extension recipes — the human-oriented counterpart to the ADR corpus.
+
 ## Data-flow (one turn)
 
 ```
