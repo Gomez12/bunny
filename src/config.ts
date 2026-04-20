@@ -102,6 +102,15 @@ export interface TranslationConfig {
   systemPrompt: string;
 }
 
+export interface CodeConfig {
+  /** Abort a clone if it hasn't finished within this many ms. */
+  cloneTimeoutMs: number;
+  /** Post-clone directory-size cap; anything larger is wiped + marked error. */
+  maxRepoSizeMb: number;
+  /** Shallow-clone depth; smaller = faster + less disk. */
+  defaultCloneDepth: number;
+}
+
 export interface TelegramConfig {
   /** Lease TTL on a project's poll slot (ms). */
   pollLeaseMs: number;
@@ -129,6 +138,7 @@ export interface BunnyConfig {
   web: WebConfig;
   translation: TranslationConfig;
   telegram: TelegramConfig;
+  code: CodeConfig;
   sessionId: string | undefined;
 }
 
@@ -174,6 +184,11 @@ interface TomlShape {
     chunk_chars: number;
     document_fallback_bytes: number;
     public_base_url: string;
+  }>;
+  code?: Partial<{
+    clone_timeout_ms: number;
+    max_repo_size_mb: number;
+    default_clone_depth: number;
   }>;
 }
 
@@ -230,6 +245,11 @@ When you are done, reply with your final answer without making any more tool cal
     chunkChars: 4000,
     documentFallbackBytes: 16 * 1024,
     publicBaseUrl: "",
+  },
+  code: {
+    cloneTimeoutMs: 5 * 60 * 1000,
+    maxRepoSizeMb: 500,
+    defaultCloneDepth: 50,
   },
 } as const;
 
@@ -400,6 +420,18 @@ export function loadConfig(
       DEFAULTS.telegram.publicBaseUrl,
   };
 
+  const code: CodeConfig = {
+    cloneTimeoutMs: Number(
+      toml.code?.clone_timeout_ms ?? DEFAULTS.code.cloneTimeoutMs,
+    ),
+    maxRepoSizeMb: Number(
+      toml.code?.max_repo_size_mb ?? DEFAULTS.code.maxRepoSizeMb,
+    ),
+    defaultCloneDepth: Number(
+      toml.code?.default_clone_depth ?? DEFAULTS.code.defaultCloneDepth,
+    ),
+  };
+
   return {
     llm,
     embed,
@@ -412,6 +444,7 @@ export function loadConfig(
     web,
     translation,
     telegram,
+    code,
     sessionId: env["BUNNY_SESSION"],
   };
 }

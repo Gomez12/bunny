@@ -6076,3 +6076,539 @@ button {
 .project-prompts__toggle:hover { background: var(--bg); }
 .project-prompts__body { padding: 0 14px 14px; }
 
+
+/* ── Code sub-application ──────────────────────────────────────────────────
+   A second icon rail sits immediately after the primary nav rail whenever the
+   Code tab is active. Mirrors .nav's 56→240 hover-expand geometry so the UX
+   feels continuous. */
+
+.code-shell {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  height: 100%;
+  min-height: 0;
+  position: relative;
+}
+.code-shell__main {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.code-rail {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 56px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 10;
+  transition: width 0.18s ease, box-shadow 0.18s ease;
+}
+.code-rail:hover,
+.code-rail:focus-within {
+  width: 240px;
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.25);
+}
+.code-rail__header {
+  padding: 14px 14px 10px 14px;
+  min-height: 44px;
+  min-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+  color: var(--text-faint);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.code-rail__title {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.code-rail:hover .code-rail__title,
+.code-rail:focus-within .code-rail__title {
+  opacity: 1;
+}
+.code-rail__groups {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 8px 16px 8px;
+}
+.code-rail__group {
+  margin-top: 10px;
+}
+.code-rail__group-label {
+  padding: 6px 10px 4px 10px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.code-rail:hover .code-rail__group-label,
+.code-rail:focus-within .code-rail__group-label {
+  opacity: 1;
+}
+.code-rail__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-dim);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.code-rail__item:hover {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+.code-rail__item--active {
+  background: var(--accent-soft, rgba(255, 255, 255, 0.08));
+  color: var(--text);
+}
+.code-rail__item-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+}
+.code-rail__item-label {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.code-rail:hover .code-rail__item-label,
+.code-rail:focus-within .code-rail__item-label {
+  opacity: 1;
+}
+
+/* Projects sub-tab ------------------------------------------------------- */
+
+/* "Show Code" feature pane — single flex column: header, file tree (fills),
+   composer pinned to the bottom like Documents / Whiteboards. */
+.code-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 20px;
+  gap: 14px;
+}
+.code-view__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+}
+.code-view__title {
+  margin: 0 0 6px 0;
+  font-size: 20px;
+  color: var(--text);
+}
+.code-view__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-faint);
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.code-view__url {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 11px;
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.code-view__header-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.code-view__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.code-view__tree-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 24px;
+  color: var(--text-faint);
+  font-size: 13px;
+}
+.code-view__tree {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.code-view__breadcrumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 0;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+.code-view__breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.code-view__breadcrumb-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.code-view__breadcrumb-btn:hover:enabled {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+.code-view__breadcrumb-btn:disabled {
+  color: var(--text);
+  cursor: default;
+}
+.code-view__tree-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.code-view__tree-row {
+  border-bottom: 1px solid transparent;
+}
+.code-view__tree-empty {
+  padding: 16px 4px;
+  color: var(--text-faint);
+  font-style: italic;
+}
+.code-view__tree-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.code-view__tree-button:hover:enabled {
+  background: var(--bg-elevated);
+}
+.code-view__tree-button:disabled {
+  cursor: default;
+}
+.code-view__tree-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.code-view__tree-size {
+  color: var(--text-faint);
+  font-size: 11px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+}
+.code-view__stream-log {
+  max-height: 220px;
+  overflow: auto;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 12px;
+  color: var(--text);
+  white-space: pre-wrap;
+  margin: 0;
+  flex-shrink: 0;
+}
+.code-view__composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.code-view__composer-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+.code-view__composer-send {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn--icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.btn--icon:hover {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.mode-chip {
+  padding: 5px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+}
+.mode-chip:hover {
+  color: var(--text);
+}
+.mode-chip--active {
+  background: var(--accent-soft, rgba(255, 255, 255, 0.08));
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.status-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--text-faint);
+}
+.status-dot--ok { color: var(--ok, #22c55e); }
+.status-dot--err { color: var(--err, #ef4444); }
+.status-dot--busy { color: var(--accent, #60a5fa); animation: code-spin 1.2s linear infinite; }
+
+.badge--idle { background: var(--bg-elevated); color: var(--text-dim); }
+.badge--cloning { background: var(--accent-soft, rgba(96,165,250,0.15)); color: var(--accent, #60a5fa); }
+.badge--ready { background: rgba(34,197,94,0.15); color: var(--ok, #22c55e); }
+.badge--error { background: rgba(239,68,68,0.15); color: var(--err, #ef4444); }
+
+@keyframes code-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Code sub-app: rail picker, picker dialog, chat view ──────────────────
+   Extensions on top of the baseline .code-shell / .code-rail / .code-view
+   rules. Keeps the code-spin keyframe + utility classes shared. */
+
+.code-rail__picker {
+  display: grid;
+  grid-template-columns: 28px 1fr 16px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  min-width: 240px;
+  background: var(--bg);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: background 0.15s;
+}
+.code-rail__picker:hover {
+  background: var(--bg-elevated);
+}
+.code-rail__picker-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  color: var(--accent, #60a5fa);
+  flex-shrink: 0;
+}
+.code-rail__picker-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.code-rail:hover .code-rail__picker-labels,
+.code-rail:focus-within .code-rail__picker-labels {
+  opacity: 1;
+}
+.code-rail__picker-label {
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+}
+.code-rail__picker-value {
+  color: var(--text);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.code-rail__picker-chevron {
+  display: inline-flex;
+  color: var(--text-faint);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.code-rail:hover .code-rail__picker-chevron,
+.code-rail:focus-within .code-rail__picker-chevron {
+  opacity: 1;
+}
+.code-rail__item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Picker dialog (inside .modal) ------------------------------------------ */
+
+.code-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 440px;
+}
+.code-picker__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.code-picker__title {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text);
+}
+.code-picker__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 50vh;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.code-picker__empty {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 13px;
+}
+.code-picker__row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.code-picker__row:last-child {
+  border-bottom: none;
+}
+.code-picker__row--active {
+  background: var(--accent-soft, rgba(96, 165, 250, 0.12));
+}
+.code-picker__pick {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 8px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.code-picker__pick:hover {
+  background: var(--bg-elevated);
+}
+.code-picker__name {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
+}
+.code-picker__desc {
+  font-size: 11px;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
+}
+.code-picker__status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.code-picker__footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Chat view -------------------------------------------------------------- */
+
+/* Chat feature pane — sidebar of conversations + main pane. Users can have
+   multiple code-chat sessions per code project (list is filtered server-side
+   by the `code-chat-<codeProjectId>-` session-id prefix). */
+/* The only bit of the old .code-chat namespace the new (ChatTab-style) view
+   still uses — a fade-in for the per-row hide button in the code-chat sidebar.
+   The rest of the pane now relies on .chat / .sidebar / .turn / .bubble
+   classes (same as ChatTab) so the UX stays aligned with the main chat. */
+.code-chat__sidebar-delete {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.sidebar__row:hover .code-chat__sidebar-delete,
+.sidebar__row .sidebar__item--active ~ .code-chat__sidebar-delete {
+  opacity: 1;
+}

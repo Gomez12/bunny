@@ -55,6 +55,7 @@ import { handleBoardRoute } from "./board_routes.ts";
 import { handleWhiteboardRoute } from "./whiteboard_routes.ts";
 import { handleDocumentRoute } from "./document_routes.ts";
 import { handleContactRoute } from "./contact_routes.ts";
+import { handleCodeRoute } from "./code_routes.ts";
 import { handleKbRoute } from "./kb_routes.ts";
 import { handleWebNewsRoute } from "./web_news_routes.ts";
 import { handleWorkspaceRoute } from "./workspace_routes.ts";
@@ -174,6 +175,15 @@ export async function handleApi(
     user,
   );
   if (contactResponse) return contactResponse;
+
+  // ── Code projects (per-project source-code areas) ────────────────────────
+  const codeResponse = await handleCodeRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg },
+    user,
+  );
+  if (codeResponse) return codeResponse;
 
   // ── Knowledge Base (per-project definitions) ─────────────────────────────
   const kbResponse = await handleKbRoute(

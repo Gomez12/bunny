@@ -57,7 +57,7 @@ export function workspaceDir(name: string): string {
 }
 
 /** Default subdirectories created inside every workspace. */
-export const WORKSPACE_DEFAULT_SUBDIRS = ["input", "output"] as const;
+export const WORKSPACE_DEFAULT_SUBDIRS = ["input", "output", "code"] as const;
 
 /** Create the on-disk project directory (and a stub systemprompt.toml) if missing. */
 export function ensureProjectDir(

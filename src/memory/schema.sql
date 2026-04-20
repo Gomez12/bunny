@@ -241,6 +241,33 @@ CREATE TABLE IF NOT EXISTS board_card_runs (
 CREATE INDEX IF NOT EXISTS idx_card_runs_card    ON board_card_runs(card_id, started_at);
 CREATE INDEX IF NOT EXISTS idx_card_runs_session ON board_card_runs(session_id);
 
+-- ── Code projects ───────────────────────────────────────────────────────────
+-- Per-Bunny-project source-code areas. Each row maps 1:1 to a directory under
+-- `<projectDir>/workspace/code/<name>/`. `git_url` is optional; when set, the
+-- initial clone runs asynchronously via isomorphic-git and the status machine
+-- progresses idle → cloning → ready | error. Public repos only in v1 — scheme
+-- is validated at the route boundary (https:// and git:// accepted, others
+-- rejected up-front). Soft-delete via deleted_at/deleted_by like documents.
+CREATE TABLE IF NOT EXISTS code_projects (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  project         TEXT    NOT NULL,
+  name            TEXT    NOT NULL,                 -- slug, doubles as directory name
+  description     TEXT    NOT NULL DEFAULT '',
+  git_url         TEXT,                             -- NULL = no remote, local-only scratch area
+  git_ref         TEXT,                             -- branch/tag/ref; NULL = remote HEAD
+  git_status      TEXT    NOT NULL DEFAULT 'idle',  -- 'idle' | 'cloning' | 'ready' | 'error'
+  git_error       TEXT,
+  last_cloned_at  INTEGER,
+  created_by      TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at      INTEGER NOT NULL,
+  updated_at      INTEGER NOT NULL,
+  deleted_at      INTEGER,                          -- ms; non-null ⇒ soft-deleted (trash bin)
+  deleted_by      TEXT,
+  UNIQUE(project, name)
+);
+CREATE INDEX IF NOT EXISTS idx_code_projects_project ON code_projects(project, updated_at);
+CREATE INDEX IF NOT EXISTS idx_code_projects_trash   ON code_projects(deleted_at) WHERE deleted_at IS NOT NULL;
+
 -- ── Scheduled tasks ──────────────────────────────────────────────────────────
 -- Generiek scheduler-subsysteem: rijen representeren periodiek werk waarvan de
 -- naam van de handler de enige koppeling is naar de code. De ticker

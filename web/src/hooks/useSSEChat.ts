@@ -1,6 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { streamChat, type ChatAttachment, type ServerEvent, type TurnStats } from "../api";
 
+/** Same shape as the default `streamChat` return — lets callers swap in a
+ *  different transport (e.g. `/api/code/:id/chat`) without touching the rest
+ *  of the chat machinery. */
+export type ChatStreamer = (
+  body: {
+    sessionId: string;
+    prompt: string;
+    project?: string;
+    agent?: string;
+    attachments?: ChatAttachment[];
+  },
+  onEvent: (ev: ServerEvent) => void,
+) => { done: Promise<void>; abort: () => void };
+
 /** One rendered turn in the Chat tab (user prompt + assistant streaming output). */
 export interface Turn {
   id: string;
@@ -56,7 +70,13 @@ function approxTokens(text: string): number {
   return Math.max(1, Math.round(text.length / CHARS_PER_TOKEN));
 }
 
-export function useSSEChat(sessionId: string, project: string, onTurnComplete?: () => void) {
+export function useSSEChat(
+  sessionId: string,
+  project: string,
+  onTurnComplete?: () => void,
+  opts?: { streamer?: ChatStreamer },
+) {
+  const streamer: ChatStreamer = opts?.streamer ?? streamChat;
   type MaybeAuthored = { author?: string };
   const readAuthor = (ev: unknown): string | null => {
     const a = (ev as MaybeAuthored | null)?.author;
@@ -200,7 +220,7 @@ export function useSSEChat(sessionId: string, project: string, onTurnComplete?: 
         updateLast((t) => ({ ...t, author: t.author ?? candidate }));
       }
 
-      const { done, abort } = streamChat(
+      const { done, abort } = streamer(
         { sessionId, prompt, project, attachments: attachments.length > 0 ? attachments : undefined },
         handler,
       );
@@ -213,7 +233,7 @@ export function useSSEChat(sessionId: string, project: string, onTurnComplete?: 
         abortRef.current = null;
       });
     },
-    [sessionId, project, updateLast, onTurnComplete],
+    [sessionId, project, updateLast, onTurnComplete, streamer],
   );
 
   const abort = useCallback(() => {

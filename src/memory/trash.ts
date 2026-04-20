@@ -24,7 +24,12 @@
 import type { Database } from "bun:sqlite";
 import { createTranslationSlots, getKind } from "./translatable.ts";
 
-export type TrashKind = "document" | "whiteboard" | "contact" | "kb_definition";
+export type TrashKind =
+  | "document"
+  | "whiteboard"
+  | "contact"
+  | "kb_definition"
+  | "code_project";
 
 export type RestoreOutcome = "ok" | "not_found" | "name_conflict";
 

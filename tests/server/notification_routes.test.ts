@@ -52,6 +52,7 @@ const cfg: BunnyConfig = {
     documentFallbackBytes: 16 * 1024,
     publicBaseUrl: "",
   },
+  code: { cloneTimeoutMs: 300_000, maxRepoSizeMb: 500, defaultCloneDepth: 50 },
   sessionId: undefined,
 };
 

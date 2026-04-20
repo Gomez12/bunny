@@ -23,6 +23,9 @@ export {
   Package,
   Library,
   Newspaper,
+  Code,
+  GitBranch,
+  FolderGit2,
   LayoutDashboard,
   Settings,
 

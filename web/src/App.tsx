@@ -26,6 +26,7 @@ const DocumentTab = lazy(() => import("./tabs/DocumentTab"));
 const ContactsTab = lazy(() => import("./tabs/ContactsTab"));
 const KnowledgeBaseTab = lazy(() => import("./tabs/KnowledgeBaseTab"));
 const WebNewsTab = lazy(() => import("./tabs/WebNewsTab"));
+const CodeTab = lazy(() => import("./tabs/CodeTab"));
 const WorkspaceTab = lazy(() => import("./tabs/WorkspaceTab"));
 const NotificationsTab = lazy(() => import("./tabs/NotificationsTab"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
@@ -70,6 +71,7 @@ const VALID_TABS: ReadonlySet<string> = new Set<Tab>([
   "contacts",
   "knowledge-base",
   "news",
+  "code",
   "workspace",
   "dashboard",
   "notifications",
@@ -381,6 +383,9 @@ function AuthenticatedShell({ user, setUser, theme, setTheme }: ShellProps) {
           )}
           {tab === "news" && (
             <WebNewsTab project={activeProject} currentUser={user} />
+          )}
+          {tab === "code" && (
+            <CodeTab project={activeProject} currentUser={user} />
           )}
           {tab === "files" && (
             <FilesTab project={activeProject} currentUser={user} />

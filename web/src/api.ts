@@ -2317,3 +2317,166 @@ export async function updateProjectPrompt(
     { method: "PUT", body: JSON.stringify({ key, text }) },
   );
 }
+
+// ── Code projects ─────────────────────────────────────────────────────────
+
+export type CodeGitStatus = "idle" | "cloning" | "ready" | "error";
+
+export interface CodeProject {
+  id: number;
+  project: string;
+  name: string;
+  description: string;
+  gitUrl: string | null;
+  gitRef: string | null;
+  gitStatus: CodeGitStatus;
+  gitError: string | null;
+  lastClonedAt: number | null;
+  createdBy: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface CodeTreeEntry {
+  name: string;
+  path: string;
+  kind: "file" | "dir";
+  size: number;
+  mtime: number;
+}
+
+export async function listCodeProjects(project: string): Promise<CodeProject[]> {
+  const data = await jsonFetch<{ codeProjects: CodeProject[] }>(
+    `/api/projects/${encodeURIComponent(project)}/code`,
+  );
+  return data.codeProjects;
+}
+
+export async function fetchCodeProject(id: number): Promise<CodeProject> {
+  const data = await jsonFetch<{ codeProject: CodeProject }>(`/api/code/${id}`);
+  return data.codeProject;
+}
+
+export async function createCodeProject(
+  project: string,
+  body: { name: string; description?: string; gitUrl?: string; gitRef?: string },
+): Promise<CodeProject> {
+  const data = await jsonFetch<{ codeProject: CodeProject }>(
+    `/api/projects/${encodeURIComponent(project)}/code`,
+    { method: "POST", body: JSON.stringify(body) },
+  );
+  return data.codeProject;
+}
+
+export async function patchCodeProject(
+  id: number,
+  patch: { description?: string; gitRef?: string | null },
+): Promise<CodeProject> {
+  const data = await jsonFetch<{ codeProject: CodeProject }>(`/api/code/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  return data.codeProject;
+}
+
+export async function deleteCodeProject(id: number): Promise<void> {
+  await jsonFetch<{ ok: true }>(`/api/code/${id}`, { method: "DELETE" });
+}
+
+export async function triggerCodeProjectClone(
+  id: number,
+): Promise<CodeProject> {
+  const data = await jsonFetch<{ codeProject: CodeProject }>(
+    `/api/code/${id}/clone`,
+    { method: "POST" },
+  );
+  return data.codeProject;
+}
+
+export async function listCodeProjectTree(
+  id: number,
+  path = "",
+): Promise<{ entries: CodeTreeEntry[]; path: string }> {
+  const qs = new URLSearchParams({ path });
+  const data = await jsonFetch<{ entries: CodeTreeEntry[]; path: string }>(
+    `/api/code/${id}/tree?${qs}`,
+  );
+  return { entries: data.entries, path: data.path };
+}
+
+export async function readCodeProjectFile(
+  id: number,
+  path: string,
+): Promise<{ path: string; content: string; size: number; truncated?: boolean }> {
+  const qs = new URLSearchParams({ path, encoding: "utf8" });
+  return jsonFetch(`/api/code/${id}/file?${qs}`);
+}
+
+export async function askCodeProject(
+  id: number,
+  question: string,
+): Promise<{ sessionId: string; project: string; prompt: string; isQuickChat: boolean }> {
+  return jsonFetch(`/api/code/${id}/ask`, {
+    method: "POST",
+    body: JSON.stringify({ question }),
+  });
+}
+
+/** Kick off an edit stream against /api/code/:id/edit. Caller receives a
+ *  `done` promise + `abort`, same shape as `streamChat` / `streamCodeChat`. */
+export function streamCodeEdit(
+  codeProjectId: number,
+  instruction: string,
+  onEvent: (ev: ServerEvent) => void,
+): { done: Promise<void>; abort: () => void } {
+  return openSseStream(
+    `/api/code/${codeProjectId}/edit`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ instruction }),
+    },
+    onEvent,
+  );
+}
+
+export async function chatCodeProject(
+  id: number,
+  body: { sessionId?: string; prompt: string },
+): Promise<Response> {
+  return fetch(`/api/code/${id}/chat`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+/**
+ * SSE streamer for the embedded Code chat that matches `streamChat`'s shape —
+ * so `useSSEChat` can drive it via a streamer override and the Code tab can
+ * reuse every chat UI primitive (MessageBubble, Composer, stats, etc.).
+ * Only `sessionId` + `prompt` are consumed by the server; other fields are
+ * accepted but ignored.
+ */
+export function streamCodeChat(
+  codeProjectId: number,
+  body: {
+    sessionId: string;
+    prompt: string;
+    project?: string;
+    agent?: string;
+    attachments?: ChatAttachment[];
+  },
+  onEvent: (ev: ServerEvent) => void,
+): { done: Promise<void>; abort: () => void } {
+  return openSseStream(
+    `/api/code/${codeProjectId}/chat`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: body.sessionId, prompt: body.prompt }),
+    },
+    onEvent,
+  );
+}

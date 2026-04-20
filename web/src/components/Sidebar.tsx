@@ -10,6 +10,7 @@ import {
   Users,
   Library,
   Newspaper,
+  Code,
   LayoutDashboard,
   Settings,
   LogOut,
@@ -32,6 +33,7 @@ export type NavTabId =
   | "contacts"
   | "knowledge-base"
   | "news"
+  | "code"
   | "workspace"
   | "dashboard"
   | "notifications"
@@ -68,6 +70,7 @@ const NAV: NavGroup[] = [
       { id: "documents", label: "Documents", icon: FileText },
       { id: "whiteboard", label: "Whiteboard", icon: Palette },
       { id: "files", label: "Files", icon: Folder },
+      { id: "code", label: "Code", icon: Code },
       { id: "contacts", label: "Contacts", icon: Users },
       { id: "knowledge-base", label: "Knowledge Base", icon: Library },
       { id: "news", label: "News", icon: Newspaper },

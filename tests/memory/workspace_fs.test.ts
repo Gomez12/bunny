@@ -84,8 +84,13 @@ describe("workspace fs", () => {
     mkdirWorkspace("alpha", "zdir");
     const entries = listWorkspace("alpha", "");
     const names = entries.map((e) => `${e.kind}:${e.name}`);
-    expect(names.slice(0, 3)).toEqual(["dir:input", "dir:output", "dir:zdir"]);
-    expect(names.slice(3)).toEqual(["file:a.txt", "file:b.txt"]);
+    expect(names.slice(0, 4)).toEqual([
+      "dir:code",
+      "dir:input",
+      "dir:output",
+      "dir:zdir",
+    ]);
+    expect(names.slice(4)).toEqual(["file:a.txt", "file:b.txt"]);
   });
 
   test("rejects path traversal via ..", () => {
@@ -134,7 +139,11 @@ describe("workspace fs", () => {
   test("list on empty root returns only seeded subdirs", () => {
     ensureProjectDir("beta");
     const entries = listWorkspace("beta", "");
-    expect(entries.map((e) => e.name).sort()).toEqual(["input", "output"]);
+    expect(entries.map((e) => e.name).sort()).toEqual([
+      "code",
+      "input",
+      "output",
+    ]);
   });
 
   test("stray workspace file from outside ensureProjectDir is still listed", () => {

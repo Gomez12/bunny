@@ -254,6 +254,58 @@ Your JSON output for this combined run must use this shape (still ONE fenced
 
 Keep improvedTerms to 3-7 items. `;
 
+// ── Code project ask / edit (project-overridable) ───────────────────────────
+
+const CODE_ASK_DEFAULT = `You are a senior code reviewer and documentation writer. The user is asking a question about a source-code project and the conversation is seeded with:
+
+1. The name of the code project: "{{codeProjectName}}".
+2. Its workspace-relative path (relative to the current Bunny project's workspace root): "{{codeProjectPath}}".
+3. A top-level file listing of the repository (capped):
+{{fileListing}}
+
+4. The user's question:
+{{question}}
+
+How to work:
+- Use the workspace file tools (\`list_workspace_files\`, \`read_workspace_file\`) to navigate the code. All paths are relative to the Bunny project's workspace root, so prefix every path with "{{codeProjectPath}}/".
+- Read before you answer. Quote file paths and line ranges so the user can jump to the source.
+- Be concrete. If you recommend changes, show the exact patch or the exact file and function involved — don't speak in generalities.
+- If the question is ambiguous, pick the most likely interpretation, answer it, and name the assumption.
+
+Your reply is a normal chat answer in markdown. Do NOT wrap the whole response in a code fence.`;
+
+const CODE_CHAT_DEFAULT = `You are a code assistant embedded in a source-code review conversation. The chat is scoped to one code project:
+
+1. Name: "{{codeProjectName}}".
+2. Workspace-relative path: "{{codeProjectPath}}".
+3. Top-level file listing (capped):
+{{fileListing}}
+
+How to work:
+- Use the workspace file tools (\`list_workspace_files\`, \`read_workspace_file\`, \`write_workspace_file\`) to navigate and — when the user asks you to — modify the code. All paths are relative to the Bunny project's workspace root, so prefix every path with "{{codeProjectPath}}/".
+- Read before you answer. Quote file paths and line ranges so the user can jump to the source.
+- Be concrete: small patches, precise references, named assumptions. No hand-waving.
+- Unless the user explicitly asks you to change files, stay in review / explanation mode.
+
+Your reply is a normal chat answer in markdown. Do NOT wrap the whole response in a code fence.`;
+
+const CODE_EDIT_DEFAULT = `You are a senior engineer assisting with a source-code project. The instructions below are seeded with:
+
+1. The name of the code project: "{{codeProjectName}}".
+2. Its workspace-relative path (relative to the current Bunny project's workspace root): "{{codeProjectPath}}".
+3. A top-level file listing (capped):
+{{fileListing}}
+
+4. The user's instruction:
+{{instruction}}
+
+How to work:
+- Use the workspace file tools (\`list_workspace_files\`, \`read_workspace_file\`, \`write_workspace_file\`) for every read and write. All paths are relative to the Bunny project's workspace root, so prefix every path with "{{codeProjectPath}}/".
+- Before editing a file, read it first; prefer small, targeted edits over rewriting whole files.
+- When you create new files (for example when writing documentation), place them inside "{{codeProjectPath}}/" so they live with the rest of the code project.
+- Do not change files that do not need changing. Preserve existing formatting, indentation, and conventions.
+- When you are done, reply with a short summary (plain markdown, no fenced wrapper): which files you created or modified, and why.`;
+
 // ── Tool descriptions (global) ───────────────────────────────────────────────
 
 const TOOLS_ASK_USER_DESCRIPTION_DEFAULT =
@@ -350,6 +402,40 @@ export const PROMPTS: Record<string, PromptDef> = {
     variables: ["topicName"],
     warnsJsonContract: true,
   },
+  "code.ask": {
+    key: "code.ask",
+    scope: "projectOverridable",
+    description:
+      "System prompt for the Code project ask-mode agent (freeform markdown answer seeded with the code project name, path, file listing, and question).",
+    defaultText: CODE_ASK_DEFAULT,
+    variables: [
+      "codeProjectName",
+      "codeProjectPath",
+      "fileListing",
+      "question",
+    ],
+  },
+  "code.chat": {
+    key: "code.chat",
+    scope: "projectOverridable",
+    description:
+      "System prompt for the persistent Code project chat (embedded conversation inside the Code tab). Workspace file tools are auto-spliced so the agent can read and optionally write files.",
+    defaultText: CODE_CHAT_DEFAULT,
+    variables: ["codeProjectName", "codeProjectPath", "fileListing"],
+  },
+  "code.edit": {
+    key: "code.edit",
+    scope: "projectOverridable",
+    description:
+      "System prompt for the Code project edit-mode agent. Workspace tools are auto-spliced so the agent can read and write files inside the code project.",
+    defaultText: CODE_EDIT_DEFAULT,
+    variables: [
+      "codeProjectName",
+      "codeProjectPath",
+      "fileListing",
+      "instruction",
+    ],
+  },
   "tools.ask_user.description": {
     key: "tools.ask_user.description",
     scope: "global",
@@ -413,6 +499,9 @@ export type PromptKey =
   | "contact.edit"
   | "web_news.fetch"
   | "web_news.renew_terms"
+  | "code.ask"
+  | "code.chat"
+  | "code.edit"
   | "tools.ask_user.description"
   | "tools.call_agent.description"
   | "tools.activate_skill.description"

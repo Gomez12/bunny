@@ -39,6 +39,9 @@ test("registry covers every known prompt key exactly once", () => {
       "agent.ask_user_hint",
       "agent.peer_agents_hint",
       "agent.skill_catalog_hint",
+      "code.ask",
+      "code.chat",
+      "code.edit",
       "contact.edit",
       "document.edit",
       "kb.definition",
@@ -53,7 +56,7 @@ test("registry covers every known prompt key exactly once", () => {
   );
 });
 
-test("project-overridable set is exactly the seven content-flow prompts", () => {
+test("project-overridable set is exactly the ten content-flow prompts", () => {
   const keys: string[] = [...PROJECT_OVERRIDABLE_KEYS].sort();
   expect(keys).toEqual(
     [
@@ -64,6 +67,9 @@ test("project-overridable set is exactly the seven content-flow prompts", () => 
       "contact.edit",
       "web_news.fetch",
       "web_news.renew_terms",
+      "code.ask",
+      "code.chat",
+      "code.edit",
     ].sort(),
   );
 });
