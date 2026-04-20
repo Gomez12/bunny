@@ -7,8 +7,9 @@ import TelegramLinkCard from "../components/TelegramLinkCard";
 
 const LogsTab = lazy(() => import("../tabs/LogsTab"));
 const TrashTab = lazy(() => import("../tabs/TrashTab"));
+const PromptsAdminTab = lazy(() => import("../tabs/PromptsAdminTab"));
 
-type Tab = "profile" | "keys" | "users" | "trash" | "logs";
+type Tab = "profile" | "keys" | "users" | "prompts" | "trash" | "logs";
 
 export default function SettingsPage({
   user,
@@ -37,6 +38,11 @@ export default function SettingsPage({
           </button>
         )}
         {user.role === "admin" && (
+          <button className={tab === "prompts" ? "active" : ""} onClick={() => setTab("prompts")}>
+            Prompts
+          </button>
+        )}
+        {user.role === "admin" && (
           <button className={tab === "trash" ? "active" : ""} onClick={() => setTab("trash")}>
             Trash
           </button>
@@ -51,6 +57,11 @@ export default function SettingsPage({
         {tab === "profile" && <ProfileForm user={user} onUpdated={onUserUpdated} />}
         {tab === "keys" && <ApiKeyList />}
         {tab === "users" && user.role === "admin" && <UserList currentUserId={user.id} />}
+        {tab === "prompts" && user.role === "admin" && (
+          <Suspense fallback={<div className="app-loading">Loading…</div>}>
+            <PromptsAdminTab />
+          </Suspense>
+        )}
         {tab === "trash" && user.role === "admin" && (
           <Suspense fallback={<div className="app-loading">Loading…</div>}>
             <TrashTab />

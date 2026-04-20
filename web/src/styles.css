@@ -5987,4 +5987,69 @@ button {
   color: var(--text);
 }
 
+/* ── Prompt registry admin + project editor ───────────────────────────── */
+.prompts-admin {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 8px 4px 40px;
+}
+.prompts-admin__intro h2 { margin: 0 0 6px; }
+.prompts-admin__intro p { margin: 0; max-width: 72ch; }
+.prompts-group { display: flex; flex-direction: column; gap: 10px; }
+.prompts-group h3 { margin: 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-faint); }
+.prompts-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 16px; }
+.prompts-row {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: var(--bg-elevated, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.prompts-row__head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.prompts-row__key { font-family: var(--font-mono, monospace); font-size: 13px; background: var(--bg); padding: 2px 6px; border-radius: 4px; }
+.prompts-row__desc { margin: 0; font-size: 13px; }
+.prompts-row__textarea {
+  width: 100%;
+  font-family: var(--font-mono, monospace);
+  font-size: 12.5px;
+  line-height: 1.5;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  resize: vertical;
+  min-height: 120px;
+}
+.prompts-row__textarea::placeholder { color: var(--text-faint); opacity: 0.7; }
+.prompts-row__actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.prompts-row__actions button.ghost { background: transparent; }
+.prompts-warn {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.prompts-warn--red {
+  background: color-mix(in srgb, var(--err, #ff6b6b) 10%, transparent);
+  color: var(--err, #ff6b6b);
+  border: 1px solid color-mix(in srgb, var(--err, #ff6b6b) 30%, transparent);
+}
+.prompts-warn--yellow {
+  background: color-mix(in srgb, #f1c40f 14%, transparent);
+  color: color-mix(in srgb, #f1c40f 60%, var(--text));
+  border: 1px solid color-mix(in srgb, #f1c40f 40%, transparent);
+}
+.chip--ghost { opacity: 0.75; font-family: var(--font-mono, monospace); font-size: 11px; }
 

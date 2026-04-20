@@ -63,6 +63,7 @@ import { handleTranslationRoute } from "./translation_routes.ts";
 import { handleChatRoute } from "./chat_routes.ts";
 import { handleNotificationRoute } from "./notification_routes.ts";
 import { handleTrashRoute } from "./trash_routes.ts";
+import { handlePromptRoute } from "./prompt_routes.ts";
 import {
   handleTelegramPublicRoute,
   handleTelegramRoute,
@@ -255,6 +256,15 @@ export async function handleApi(
     user,
   );
   if (trashResponse) return trashResponse;
+
+  // ── Prompt registry (admin globals + per-project overrides) ──────────────
+  const promptResponse = await handlePromptRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue },
+    user,
+  );
+  if (promptResponse) return promptResponse;
 
   // ── UI config (public subset of bunny.config.toml) ────────────────────────
   if (pathname === "/api/config/ui" && req.method === "GET") {

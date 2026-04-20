@@ -2264,3 +2264,56 @@ export async function setNewsTopicSubscribers(
     { method: "PUT", body: JSON.stringify({ userIds }) },
   );
 }
+
+// ── Prompts registry ───────────────────────────────────────────────────────
+
+export type PromptScope = "global" | "projectOverridable";
+
+export interface PromptDto {
+  key: string;
+  scope: PromptScope;
+  description: string;
+  defaultText: string;
+  variables?: string[];
+  warnsJsonContract?: boolean;
+  warnsTokenCost?: boolean;
+  global: string | null;
+  override: string | null;
+  effective: string;
+  isOverridden: boolean;
+}
+
+export async function listGlobalPrompts(): Promise<PromptDto[]> {
+  const { prompts } = await jsonFetch<{ prompts: PromptDto[] }>(
+    "/api/config/prompts",
+  );
+  return prompts;
+}
+
+export async function updateGlobalPrompt(
+  key: string,
+  text: string | null,
+): Promise<void> {
+  await jsonFetch<{ ok: true }>("/api/config/prompts", {
+    method: "PUT",
+    body: JSON.stringify({ key, text }),
+  });
+}
+
+export async function listProjectPrompts(project: string): Promise<PromptDto[]> {
+  const { prompts } = await jsonFetch<{ prompts: PromptDto[] }>(
+    `/api/projects/${encodeURIComponent(project)}/prompts`,
+  );
+  return prompts;
+}
+
+export async function updateProjectPrompt(
+  project: string,
+  key: string,
+  text: string | null,
+): Promise<void> {
+  await jsonFetch<{ ok: true }>(
+    `/api/projects/${encodeURIComponent(project)}/prompts`,
+    { method: "PUT", body: JSON.stringify({ key, text }) },
+  );
+}
