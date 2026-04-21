@@ -29,7 +29,8 @@ export type TrashKind =
   | "whiteboard"
   | "contact"
   | "kb_definition"
-  | "code_project";
+  | "code_project"
+  | "workflow";
 
 export type RestoreOutcome = "ok" | "not_found" | "name_conflict";
 

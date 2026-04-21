@@ -2116,7 +2116,13 @@ export async function deleteNewsItem(project: string, id: number): Promise<void>
 
 // ── Trash (admin-only) ────────────────────────────────────────────────────
 
-export type TrashKind = "document" | "whiteboard" | "contact" | "kb_definition";
+export type TrashKind =
+  | "document"
+  | "whiteboard"
+  | "contact"
+  | "kb_definition"
+  | "code_project"
+  | "workflow";
 
 export interface TrashItem {
   kind: TrashKind;
@@ -2488,5 +2494,226 @@ export function streamCodeChat(
       body: JSON.stringify({ sessionId: body.sessionId, prompt: body.prompt }),
     },
     onEvent,
+  );
+}
+
+// ── Workflows ────────────────────────────────────────────────────────────────
+
+export interface WorkflowDto {
+  id: number;
+  project: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  tomlSha256: string;
+  layoutJson: string | null;
+  bashApprovals: Record<string, string>;
+  createdBy: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface WorkflowWithToml {
+  workflow: WorkflowDto;
+  tomlText: string | null;
+}
+
+export type WorkflowRunStatus =
+  | "queued"
+  | "running"
+  | "done"
+  | "error"
+  | "cancelled"
+  | "paused";
+
+export interface WorkflowRunDto {
+  id: number;
+  workflowId: number;
+  project: string;
+  sessionId: string;
+  status: WorkflowRunStatus;
+  triggerKind: "manual" | "scheduled" | "api";
+  triggeredBy: string | null;
+  startedAt: number;
+  finishedAt: number | null;
+  error: string | null;
+}
+
+export type WorkflowStepKind = "text" | "tool" | "bash" | "script";
+export interface WorkflowRunStep {
+  kind: WorkflowStepKind;
+  /** "content" | "reasoning" for text; tool name for tool; "bash" for bash. */
+  label?: string;
+  summary?: string;
+  output?: string;
+  ok?: boolean;
+  error?: string;
+  startedAt: number;
+  durationMs?: number;
+}
+
+export interface WorkflowRunNodeDto {
+  id: number;
+  runId: number;
+  nodeId: string;
+  kind: string;
+  status:
+    | "pending"
+    | "running"
+    | "waiting"
+    | "done"
+    | "error"
+    | "skipped";
+  iteration: number;
+  childSessionId: string | null;
+  startedAt: number | null;
+  finishedAt: number | null;
+  resultText: string | null;
+  logText: string | null;
+  error: string | null;
+  steps: WorkflowRunStep[];
+}
+
+export async function listWorkflows(project: string): Promise<WorkflowDto[]> {
+  const r = await jsonFetch<{ workflows: WorkflowDto[] }>(
+    `/api/projects/${encodeURIComponent(project)}/workflows`,
+  );
+  return r.workflows;
+}
+
+export async function getWorkflow(id: number): Promise<WorkflowWithToml> {
+  return jsonFetch<WorkflowWithToml>(`/api/workflows/${id}`);
+}
+
+export interface CreateWorkflowBody {
+  slug?: string;
+  tomlText: string;
+  layout?: unknown;
+}
+
+export async function createWorkflow(
+  project: string,
+  body: CreateWorkflowBody,
+): Promise<WorkflowWithToml> {
+  return jsonFetch<WorkflowWithToml>(
+    `/api/projects/${encodeURIComponent(project)}/workflows`,
+    { method: "POST", body: JSON.stringify(body) },
+  );
+}
+
+export interface UpdateWorkflowBody {
+  tomlText?: string;
+  layout?: unknown;
+}
+
+export async function updateWorkflow(
+  id: number,
+  body: UpdateWorkflowBody,
+): Promise<WorkflowWithToml> {
+  return jsonFetch<WorkflowWithToml>(`/api/workflows/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteWorkflow(id: number): Promise<void> {
+  await jsonFetch(`/api/workflows/${id}`, { method: "DELETE" });
+}
+
+export async function startWorkflowRun(
+  id: number,
+): Promise<{ run: WorkflowRunDto; sessionId: string }> {
+  return jsonFetch<{ run: WorkflowRunDto; sessionId: string }>(
+    `/api/workflows/${id}/run`,
+    { method: "POST", body: JSON.stringify({}) },
+  );
+}
+
+export async function cancelWorkflowRun(runId: number): Promise<void> {
+  await jsonFetch(`/api/workflows/runs/${runId}/cancel`, { method: "POST" });
+}
+
+export async function listWorkflowRuns(
+  id: number,
+  limit = 50,
+): Promise<WorkflowRunDto[]> {
+  const r = await jsonFetch<{ runs: WorkflowRunDto[] }>(
+    `/api/workflows/${id}/runs?limit=${limit}`,
+  );
+  return r.runs;
+}
+
+export async function getWorkflowRun(runId: number): Promise<{
+  run: WorkflowRunDto;
+  nodes: WorkflowRunNodeDto[];
+}> {
+  return jsonFetch(`/api/workflows/runs/${runId}`);
+}
+
+export async function fetchWorkflowRunNodeLog(
+  runId: number,
+  nodeId: string,
+): Promise<{ node: WorkflowRunNodeDto }> {
+  return jsonFetch(
+    `/api/workflows/runs/${runId}/nodes/${encodeURIComponent(nodeId)}/log`,
+  );
+}
+
+/**
+ * Open an SSE stream for a live workflow run. Returns an `AbortController`
+ * so the caller can cancel the stream (e.g. on unmount). Events are the
+ * shared SSE events + the workflow-specific ones from `sse_events.ts`.
+ */
+export function streamWorkflowRun(
+  runId: number,
+  onEvent: (data: unknown) => void,
+): AbortController {
+  const controller = new AbortController();
+  void (async () => {
+    try {
+      const res = await fetch(`/api/workflows/runs/${runId}/stream`, {
+        credentials: "include",
+        signal: controller.signal,
+      });
+      if (!res.ok || !res.body) return;
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let idx: number;
+        while ((idx = buf.indexOf("\n\n")) !== -1) {
+          const frame = buf.slice(0, idx);
+          buf = buf.slice(idx + 2);
+          const line = frame
+            .split("\n")
+            .find((l) => l.startsWith("data: "));
+          if (!line) continue;
+          try {
+            onEvent(JSON.parse(line.slice(6)));
+          } catch {
+            /* ignore malformed frame */
+          }
+        }
+      }
+    } catch {
+      /* aborted or network error — caller handles via onEvent timing */
+    }
+  })();
+  return controller;
+}
+
+export async function answerSessionQuestion(
+  sessionId: string,
+  questionId: string,
+  answer: string,
+): Promise<void> {
+  await jsonFetch(
+    `/api/sessions/${encodeURIComponent(sessionId)}/questions/${encodeURIComponent(
+      questionId,
+    )}/answer`,
+    { method: "POST", body: JSON.stringify({ answer }) },
   );
 }

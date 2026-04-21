@@ -101,6 +101,12 @@ pub fn run() {
             .title("Bunny")
             .inner_size(1200.0, 800.0)
             .min_inner_size(800.0, 600.0)
+            // Disable Tauri's native OS-level drop handler so HTML5
+            // drag-and-drop inside the webview fires cleanly. Without this,
+            // WKWebView on macOS never sees `dragenter`/`drop` because the
+            // native window swallows the event first. We don't need the
+            // native file-drop handler anywhere in the app.
+            .disable_drag_drop_handler()
             .initialization_script(EXTERNAL_LINK_INTERCEPT)
             .on_navigation(move |url| {
                 let server = saved_server_url(&nav_handle);

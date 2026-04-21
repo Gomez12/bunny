@@ -19,6 +19,8 @@ const KIND_LABEL: Record<TrashKind, string> = {
   whiteboard: "Whiteboard",
   contact: "Contact",
   kb_definition: "Definition",
+  code_project: "Code project",
+  workflow: "Workflow",
 };
 
 /** Seconds a "Confirm?" state stays armed before reverting. */

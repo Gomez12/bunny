@@ -1,0 +1,6 @@
+Workflow node "{{nodeId}}" wants to execute the following shell command:
+
+{{command}}
+
+This is the first time this command is run for this node. Approve to allow it
+now and remember the approval (future edits to the command will re-prompt).

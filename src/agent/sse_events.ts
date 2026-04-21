@@ -154,6 +154,53 @@ export interface SseAskUserQuestionEvent {
   author?: string;
 }
 
+/** Emitted by the workflow engine the moment a run kicks off. */
+export interface SseWorkflowRunStartedEvent {
+  type: "workflow_run_started";
+  runId: number;
+  workflowId: number;
+  sessionId: string;
+}
+
+/** Emitted just before the engine dispatches work to a single node. All
+ *  subsequent `content`/`reasoning`/`tool_call`/`tool_result` events belong
+ *  to this node until the matching `workflow_node_finished` arrives. */
+export interface SseWorkflowNodeStartedEvent {
+  type: "workflow_node_started";
+  runId: number;
+  runNodeId: number;
+  nodeId: string;
+  kind:
+    | "prompt"
+    | "bash"
+    | "script"
+    | "loop"
+    | "interactive"
+    | "for_each"
+    | "if_then_else";
+  iteration: number;
+}
+
+/** Emitted when a node reaches a terminal state. */
+export interface SseWorkflowNodeFinishedEvent {
+  type: "workflow_node_finished";
+  runId: number;
+  runNodeId: number;
+  nodeId: string;
+  iteration: number;
+  status: "done" | "error" | "skipped";
+  resultText?: string;
+  error?: string;
+}
+
+/** Emitted once when the run ends (success, error, or cancel). */
+export interface SseWorkflowRunFinishedEvent {
+  type: "workflow_run_finished";
+  runId: number;
+  status: "done" | "error" | "cancelled";
+  error?: string;
+}
+
 /** Serialisable notification row shipped to the web UI. Matches the shape
  *  returned from `GET /api/notifications` and embedded in
  *  `SseNotificationCreatedEvent` so front-end and back-end stay in lock-step. */
@@ -207,5 +254,9 @@ export type SseEvent =
   | SseWebNewsRunFinishedEvent
   | SseWebNewsTopicStatusEvent
   | SseAskUserQuestionEvent
+  | SseWorkflowRunStartedEvent
+  | SseWorkflowNodeStartedEvent
+  | SseWorkflowNodeFinishedEvent
+  | SseWorkflowRunFinishedEvent
   | SseNotificationCreatedEvent
   | SseNotificationReadEvent;

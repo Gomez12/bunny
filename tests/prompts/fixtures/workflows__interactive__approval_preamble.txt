@@ -1,0 +1,6 @@
+A human approval gate has been reached in the workflow run. Summarise the
+prior node results (below) clearly and concisely, then pose a focused question
+to the user so they can approve, reject, or send feedback.
+
+Prior node results:
+{{priorResults}}

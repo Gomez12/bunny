@@ -1,0 +1,11 @@
+
+
+---
+Loop iteration {{iteration}} of at most {{maxIterations}}.
+Stop condition: **{{until}}**.
+
+When the loop's stop condition has been satisfied, end your final answer with the
+literal token `{{stopToken}}` on its own line. The workflow engine scans for
+this exact token to decide whether to iterate again. If the task is NOT yet
+complete, end your answer without the token and the engine will dispatch another
+iteration.

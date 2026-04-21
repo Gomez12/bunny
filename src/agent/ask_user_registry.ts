@@ -89,6 +89,28 @@ export function cancelPendingQuestion(
   return true;
 }
 
+/**
+ * Cancel every pending question for one session. Returns the number of
+ * waiters rejected. Used by subsystems (like workflow cancellation) that
+ * need to unblock in-flight `waitForAnswer` calls immediately instead of
+ * waiting for the 15-minute timeout.
+ */
+export function cancelPendingQuestionsForSession(
+  sessionId: string,
+  reason = "ask_user: session cancelled",
+): number {
+  const prefix = `${sessionId}::`;
+  let cancelled = 0;
+  for (const [key, entry] of pending.entries()) {
+    if (!key.startsWith(prefix)) continue;
+    clearTimeout(entry.timer);
+    pending.delete(key);
+    entry.reject(new Error(reason));
+    cancelled++;
+  }
+  return cancelled;
+}
+
 /** Testing helper — drop every pending waiter. */
 export function __resetPendingQuestionsForTests(): void {
   for (const entry of pending.values()) {

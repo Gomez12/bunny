@@ -334,6 +334,41 @@ const AGENT_SKILL_CATALOG_HINT_DEFAULT = `\n\n## Available skills
 Use the \`activate_skill\` tool to load a skill's full instructions before following its workflow.
 {{lines}}`;
 
+// ── Workflows (project-overridable, except bash confirmation) ───────────────
+
+const WORKFLOWS_SYSTEM_PROMPT_DEFAULT = `You are one node inside a Bunny workflow run.
+
+Workflow: "{{workflowName}}"
+Node id: "{{nodeId}}"
+Node kind: {{nodeKind}}
+
+Stay focused on the single task described below. Do not meander into the next
+workflow step — other nodes will handle follow-up work. When you are done,
+reply with your final answer without making further tool calls.`;
+
+const WORKFLOWS_LOOP_PREAMBLE_DEFAULT = `\n\n---\nLoop iteration {{iteration}} of at most {{maxIterations}}.
+Stop condition: **{{until}}**.
+
+When the loop's stop condition has been satisfied, end your final answer with the
+literal token \`{{stopToken}}\` on its own line. The workflow engine scans for
+this exact token to decide whether to iterate again. If the task is NOT yet
+complete, end your answer without the token and the engine will dispatch another
+iteration.`;
+
+const WORKFLOWS_INTERACTIVE_APPROVAL_DEFAULT = `A human approval gate has been reached in the workflow run. Summarise the
+prior node results (below) clearly and concisely, then pose a focused question
+to the user so they can approve, reject, or send feedback.
+
+Prior node results:
+{{priorResults}}`;
+
+const WORKFLOWS_BASH_CONFIRMATION_DEFAULT = `Workflow node "{{nodeId}}" wants to execute the following shell command:
+
+{{command}}
+
+This is the first time this command is run for this node. Approve to allow it
+now and remember the approval (future edits to the command will re-prompt).`;
+
 const AGENT_ASK_USER_HINT_DEFAULT = `\n\n## Asking the user
 You have an \`ask_user\` tool that pauses the turn and shows the human a multiple-choice card. Prefer calling it — instead of guessing or giving a generic answer — whenever ANY of these apply:
 - The user's request hinges on a personal preference, constraint, or piece of context you don't have (e.g. "help me choose between X and Y", "which should I pick", "what fits me best").
@@ -487,6 +522,38 @@ export const PROMPTS: Record<string, PromptDef> = {
       "System-prompt section appended when the `ask_user` tool is enabled. Tells the model when to reach for it.",
     defaultText: AGENT_ASK_USER_HINT_DEFAULT,
   },
+  "workflows.system_prompt": {
+    key: "workflows.system_prompt",
+    scope: "projectOverridable",
+    description:
+      "Per-node system prompt framing for workflow prompt/loop nodes. Prepended to the node's task instruction.",
+    defaultText: WORKFLOWS_SYSTEM_PROMPT_DEFAULT,
+    variables: ["workflowName", "nodeId", "nodeKind"],
+  },
+  "workflows.loop.preamble": {
+    key: "workflows.loop.preamble",
+    scope: "projectOverridable",
+    description:
+      "Appended to loop-node prompts to explain the `<<<stopToken>>>` convention. Shown on every iteration.",
+    defaultText: WORKFLOWS_LOOP_PREAMBLE_DEFAULT,
+    variables: ["stopToken", "iteration", "maxIterations", "until"],
+  },
+  "workflows.interactive.approval_preamble": {
+    key: "workflows.interactive.approval_preamble",
+    scope: "projectOverridable",
+    description:
+      "Framing for stand-alone `interactive: true` approval-gate nodes. Asks the model to summarise prior results and pose an approval question.",
+    defaultText: WORKFLOWS_INTERACTIVE_APPROVAL_DEFAULT,
+    variables: ["priorResults"],
+  },
+  "workflows.bash.confirmation_prompt": {
+    key: "workflows.bash.confirmation_prompt",
+    scope: "global",
+    description:
+      "Operator-facing approval dialog shown the first time a workflow bash node executes a given command. The hash of the command is remembered after approval.",
+    defaultText: WORKFLOWS_BASH_CONFIRMATION_DEFAULT,
+    variables: ["command", "nodeId"],
+  },
 };
 
 /**
@@ -511,7 +578,11 @@ export type PromptKey =
   | "tools.activate_skill.description"
   | "agent.peer_agents_hint"
   | "agent.skill_catalog_hint"
-  | "agent.ask_user_hint";
+  | "agent.ask_user_hint"
+  | "workflows.system_prompt"
+  | "workflows.loop.preamble"
+  | "workflows.interactive.approval_preamble"
+  | "workflows.bash.confirmation_prompt";
 
 /** All registered prompt keys, in declaration order. */
 export const PROMPT_KEYS: PromptKey[] = Object.keys(PROMPTS) as PromptKey[];

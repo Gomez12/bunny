@@ -33,6 +33,7 @@ const ContactsTab = lazy(() => import("./tabs/ContactsTab"));
 const KnowledgeBaseTab = lazy(() => import("./tabs/KnowledgeBaseTab"));
 const WebNewsTab = lazy(() => import("./tabs/WebNewsTab"));
 const CodeTab = lazy(() => import("./tabs/CodeTab"));
+const WorkflowsTab = lazy(() => import("./tabs/WorkflowsTab"));
 const WorkspaceTab = lazy(() => import("./tabs/WorkspaceTab"));
 const NotificationsTab = lazy(() => import("./tabs/NotificationsTab"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
@@ -70,6 +71,7 @@ if (typeof document !== "undefined") {
 const VALID_TABS: ReadonlySet<string> = new Set<Tab>([
   "chat",
   "board",
+  "workflows",
   "tasks",
   "documents",
   "whiteboard",
@@ -455,6 +457,9 @@ function AuthenticatedShell({
           )}
           {tab === "code" && (
             <CodeTab project={activeProject} currentUser={user} />
+          )}
+          {tab === "workflows" && (
+            <WorkflowsTab project={activeProject} currentUser={user} />
           )}
           {tab === "files" && (
             <FilesTab project={activeProject} currentUser={user} />

@@ -26,6 +26,9 @@ export {
   Code,
   GitBranch,
   FolderGit2,
+  Workflow,
+  Terminal,
+  MessageSquareMore,
   LayoutDashboard,
   Settings,
 

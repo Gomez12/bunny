@@ -56,6 +56,7 @@ import { handleWhiteboardRoute } from "./whiteboard_routes.ts";
 import { handleDocumentRoute } from "./document_routes.ts";
 import { handleContactRoute } from "./contact_routes.ts";
 import { handleCodeRoute } from "./code_routes.ts";
+import { handleWorkflowRoute } from "./workflow_routes.ts";
 import { handleKbRoute } from "./kb_routes.ts";
 import { handleWebNewsRoute } from "./web_news_routes.ts";
 import { handleWorkspaceRoute } from "./workspace_routes.ts";
@@ -188,6 +189,15 @@ export async function handleApi(
     user,
   );
   if (codeResponse) return codeResponse;
+
+  // ── Workflows (per-project DAG pipelines) ─────────────────────────────────
+  const workflowResponse = await handleWorkflowRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg },
+    user,
+  );
+  if (workflowResponse) return workflowResponse;
 
   // ── Knowledge Base (per-project definitions) ─────────────────────────────
   const kbResponse = await handleKbRoute(

@@ -176,6 +176,8 @@ function migrateColumns(db: Database): void {
       `CREATE INDEX IF NOT EXISTS idx_${t}_trash ON ${t}(deleted_at) WHERE deleted_at IS NOT NULL`,
     );
   }
+  // Workflows — structured per-node step records for the run timeline UI.
+  addColumn("ALTER TABLE workflow_run_nodes ADD COLUMN steps_json TEXT");
   // Backfill original_lang once for legacy rows.
   db.run(
     `UPDATE kb_definitions

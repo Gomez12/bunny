@@ -24,6 +24,13 @@ import {
   finishSse,
   type SseSink,
 } from "../agent/render_sse.ts";
+import {
+  createFanout,
+  createFanoutRegistry,
+  sendSseEvent,
+  subscribeFanout,
+  type Fanout,
+} from "../agent/run_fanout.ts";
 import { errorMessage } from "../util/error.ts";
 import {
   clearAutoRun,
@@ -43,54 +50,18 @@ import {
 } from "../memory/board_runs.ts";
 import { sendTelegramToUser } from "../telegram/outbound.ts";
 
-/** One subscriber's view of a fanout. */
-export interface RunFanout {
-  runId: number;
-  /** Replay buffer (raw SSE-encoded chunks). */
-  buffer: Uint8Array[];
-  subscribers: Set<SseSink>;
-  closed: boolean;
-}
+/** Public alias for `Fanout<{}>` so existing consumers (board_routes, tests) keep their import. */
+export type RunFanout = Fanout<Record<string, never>>;
 
-const fanouts = new Map<number, RunFanout>();
+const fanouts = createFanoutRegistry<Record<string, never>>();
 
 export function getRunFanout(runId: number): RunFanout | undefined {
   return fanouts.get(runId);
 }
 
-/** Subscribe to a live run. The buffered history is flushed first. Returns
- * an unsubscribe fn. If the run has already finished, the buffer is replayed
- * and the sink is closed immediately by the caller after the flush. */
+/** Subscribe to a live run. Thin facade around the shared fanout module. */
 export function subscribeToRun(runId: number, sink: SseSink): () => void {
-  const fan = fanouts.get(runId);
-  if (!fan) return () => undefined;
-  for (const chunk of fan.buffer) sink.enqueue(chunk);
-  if (fan.closed) {
-    sink.close();
-    return () => undefined;
-  }
-  fan.subscribers.add(sink);
-  return () => fan.subscribers.delete(sink);
-}
-
-function makeFanoutSink(fan: RunFanout): SseSink {
-  return {
-    enqueue(chunk) {
-      if (fan.closed) return;
-      fan.buffer.push(chunk);
-      for (const sub of fan.subscribers) sub.enqueue(chunk);
-    },
-    close() {
-      if (fan.closed) return;
-      fan.closed = true;
-      for (const sub of fan.subscribers) sub.close();
-      fan.subscribers.clear();
-      // Drop fanout from the registry after a short grace window so brand-new
-      // subscribers (e.g. UI that opens the stream right after the response)
-      // can still replay the buffer once.
-      setTimeout(() => fanouts.delete(fan.runId), 60_000).unref?.();
-    },
-  };
+  return subscribeFanout(fanouts, runId, sink);
 }
 
 function autoMoveToNextLane(db: Database, cardId: number): void {
@@ -110,10 +81,6 @@ function autoMoveToNextLane(db: Database, cardId: number): void {
   }
 }
 
-const encoder = new TextEncoder();
-function sendCardEvent(sink: SseSink, payload: object): void {
-  sink.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
-}
 
 export interface RunCardOpts {
   db: Database;
@@ -163,15 +130,11 @@ export async function runCard(opts: RunCardOpts): Promise<RunCardResult> {
     status: "running",
   });
 
-  const fan: RunFanout = {
+  const { sink } = createFanout(fanouts, {
     runId: run.id,
-    buffer: [],
-    subscribers: new Set(),
-    closed: false,
-  };
-  fanouts.set(run.id, fan);
-  const sink = makeFanoutSink(fan);
-  sendCardEvent(sink, {
+    meta: {},
+  });
+  sendSseEvent(sink, {
     type: "card_run_started",
     cardId: card.id,
     runId: run.id,
@@ -204,7 +167,7 @@ export async function runCard(opts: RunCardOpts): Promise<RunCardResult> {
       });
       markRunDone(opts.db, run.id, { finalAnswer });
       autoMoveToNextLane(opts.db, card.id);
-      sendCardEvent(sink, {
+      sendSseEvent(sink, {
         type: "card_run_finished",
         cardId: card.id,
         runId: run.id,
@@ -240,7 +203,7 @@ export async function runCard(opts: RunCardOpts): Promise<RunCardResult> {
       const msg = errorMessage(e);
       markRunError(opts.db, run.id, msg);
       renderer.onError(msg);
-      sendCardEvent(sink, {
+      sendSseEvent(sink, {
         type: "card_run_finished",
         cardId: card.id,
         runId: run.id,

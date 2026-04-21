@@ -117,6 +117,28 @@ export interface CodeConfig {
   defaultCloneDepth: number;
 }
 
+export interface WorkflowsConfig {
+  /**
+   * Allow workflow `bash` nodes to execute shell commands. Default false —
+   * admin opts in per install. When false, attempting to run a workflow that
+   * contains a bash node returns 403.
+   */
+  bashEnabled: boolean;
+  /** Default per-bash-node timeout (ms). Clamped at runtime to [1, 600_000]. */
+  bashDefaultTimeoutMs: number;
+  /** Output cap per bash node (bytes). Stdout+stderr combined. */
+  bashMaxOutputBytes: number;
+  /**
+   * Allow workflow `script` nodes (JS/TS code via `bun -e`). Mirrors the
+   * bash trust model — default off, first-run approval per (workflow, node).
+   */
+  scriptEnabled: boolean;
+  scriptDefaultTimeoutMs: number;
+  scriptMaxOutputBytes: number;
+  /** Default max iterations for a loop node. Clamped to [1, 100]. */
+  loopDefaultMaxIterations: number;
+}
+
 export interface TelegramConfig {
   /** Lease TTL on a project's poll slot (ms). */
   pollLeaseMs: number;
@@ -145,6 +167,7 @@ export interface BunnyConfig {
   translation: TranslationConfig;
   telegram: TelegramConfig;
   code: CodeConfig;
+  workflows: WorkflowsConfig;
   sessionId: string | undefined;
 }
 
@@ -199,6 +222,15 @@ interface TomlShape {
     clone_timeout_ms: number;
     max_repo_size_mb: number;
     default_clone_depth: number;
+  }>;
+  workflows?: Partial<{
+    bash_enabled: boolean;
+    bash_default_timeout_ms: number;
+    bash_max_output_bytes: number;
+    script_enabled: boolean;
+    script_default_timeout_ms: number;
+    script_max_output_bytes: number;
+    loop_default_max_iterations: number;
   }>;
 }
 
@@ -261,6 +293,15 @@ When you are done, reply with your final answer without making any more tool cal
     cloneTimeoutMs: 5 * 60 * 1000,
     maxRepoSizeMb: 500,
     defaultCloneDepth: 50,
+  },
+  workflows: {
+    bashEnabled: false,
+    bashDefaultTimeoutMs: 120_000,
+    bashMaxOutputBytes: 256 * 1024,
+    scriptEnabled: false,
+    scriptDefaultTimeoutMs: 120_000,
+    scriptMaxOutputBytes: 256 * 1024,
+    loopDefaultMaxIterations: 10,
   },
 } as const;
 
@@ -447,6 +488,33 @@ export function loadConfig(
     ),
   };
 
+  const workflows: WorkflowsConfig = {
+    bashEnabled:
+      toml.workflows?.bash_enabled ?? DEFAULTS.workflows.bashEnabled,
+    bashDefaultTimeoutMs: Number(
+      toml.workflows?.bash_default_timeout_ms ??
+        DEFAULTS.workflows.bashDefaultTimeoutMs,
+    ),
+    bashMaxOutputBytes: Number(
+      toml.workflows?.bash_max_output_bytes ??
+        DEFAULTS.workflows.bashMaxOutputBytes,
+    ),
+    scriptEnabled:
+      toml.workflows?.script_enabled ?? DEFAULTS.workflows.scriptEnabled,
+    scriptDefaultTimeoutMs: Number(
+      toml.workflows?.script_default_timeout_ms ??
+        DEFAULTS.workflows.scriptDefaultTimeoutMs,
+    ),
+    scriptMaxOutputBytes: Number(
+      toml.workflows?.script_max_output_bytes ??
+        DEFAULTS.workflows.scriptMaxOutputBytes,
+    ),
+    loopDefaultMaxIterations: Number(
+      toml.workflows?.loop_default_max_iterations ??
+        DEFAULTS.workflows.loopDefaultMaxIterations,
+    ),
+  };
+
   return {
     llm,
     embed,
@@ -460,6 +528,7 @@ export function loadConfig(
     translation,
     telegram,
     code,
+    workflows,
     sessionId: env["BUNNY_SESSION"],
   };
 }

@@ -682,6 +682,69 @@ CREATE TABLE IF NOT EXISTS telegram_seen_updates (
 CREATE INDEX IF NOT EXISTS idx_telegram_seen_updates_time
   ON telegram_seen_updates(seen_at);
 
+-- ── Workflows ────────────────────────────────────────────────────────────────
+-- Per-project TOML-defined DAG pipelines. The definition lives on disk at
+-- $BUNNY_HOME/projects/<project>/workflows/<slug>.toml; this row is the DB
+-- index + stores the xyflow layout + per-(workflow,node) first-run bash
+-- approval hashes. Soft-delete via deleted_at/deleted_by (see trash.ts).
+CREATE TABLE IF NOT EXISTS workflows (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  project         TEXT    NOT NULL,
+  slug            TEXT    NOT NULL,                 -- filename stem; immutable
+  name            TEXT    NOT NULL,
+  description     TEXT,
+  toml_sha256     TEXT    NOT NULL,                 -- detects on-disk drift
+  layout_json     TEXT,                             -- xyflow node x/y positions
+  bash_approvals  TEXT,                             -- JSON map nodeId -> sha256(cmd)
+  created_by      TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at      INTEGER NOT NULL,
+  updated_at      INTEGER NOT NULL,
+  deleted_at      INTEGER,                          -- ms; non-null = soft-deleted
+  deleted_by      TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  UNIQUE(project, slug)
+);
+CREATE INDEX IF NOT EXISTS idx_workflows_project ON workflows(project, deleted_at);
+CREATE INDEX IF NOT EXISTS idx_workflows_trash   ON workflows(deleted_at) WHERE deleted_at IS NOT NULL;
+
+-- One row per workflow execution. The umbrella session_id is the SSE fanout
+-- key and the ask_user registry key. toml_snapshot freezes the definition at
+-- run start so mid-run edits never contaminate a running run.
+CREATE TABLE IF NOT EXISTS workflow_runs (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  workflow_id    INTEGER NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+  project        TEXT    NOT NULL,
+  session_id     TEXT    NOT NULL,                  -- umbrella session for the run
+  status         TEXT    NOT NULL,                  -- queued | running | done | error | cancelled | paused
+  trigger_kind   TEXT    NOT NULL DEFAULT 'manual', -- manual | scheduled | api
+  triggered_by   TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  started_at     INTEGER NOT NULL,
+  finished_at    INTEGER,
+  error          TEXT,
+  toml_snapshot  TEXT    NOT NULL                   -- frozen definition for replay
+);
+CREATE INDEX IF NOT EXISTS idx_workflow_runs_workflow ON workflow_runs(workflow_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_workflow_runs_status   ON workflow_runs(status, started_at);
+
+-- Per-node execution records. iteration = 0 for non-loop nodes; loop nodes
+-- get one row per iteration, monotonically increasing.
+CREATE TABLE IF NOT EXISTS workflow_run_nodes (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  run_id            INTEGER NOT NULL REFERENCES workflow_runs(id) ON DELETE CASCADE,
+  node_id           TEXT    NOT NULL,               -- matches toml [[nodes]].id
+  kind              TEXT    NOT NULL,               -- prompt | bash | loop | interactive
+  status            TEXT    NOT NULL,               -- pending | running | waiting | done | error | skipped
+  iteration         INTEGER NOT NULL DEFAULT 0,
+  child_session_id  TEXT,                           -- runAgent session (prompt/loop) or null
+  started_at        INTEGER,
+  finished_at       INTEGER,
+  result_text       TEXT,                           -- final answer / bash stdout tail / answer text
+  log_text          TEXT,                           -- accumulated per-node buffer, persisted on finish
+  error             TEXT,
+  steps_json        TEXT,                           -- structured per-step records for the timeline UI
+  UNIQUE(run_id, node_id, iteration)
+);
+CREATE INDEX IF NOT EXISTS idx_workflow_run_nodes_run ON workflow_run_nodes(run_id, id);
+
 -- ── Embeddings ───────────────────────────────────────────────────────────────
 -- Created dynamically by db.ts using the configured dimension (default 1536)
 -- because the dimension must be baked into the vec0 CREATE statement.

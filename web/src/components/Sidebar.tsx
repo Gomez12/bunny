@@ -11,6 +11,7 @@ import {
   Library,
   Newspaper,
   Code,
+  Workflow,
   LayoutDashboard,
   Settings,
   LogOut,
@@ -27,6 +28,7 @@ import NotificationBell from "./NotificationBell";
 export type NavTabId =
   | "chat"
   | "board"
+  | "workflows"
   | "tasks"
   | "documents"
   | "whiteboard"
@@ -63,6 +65,7 @@ const NAV: NavGroup[] = [
     items: [
       { id: "chat", label: "Chat", icon: MessageCircle },
       { id: "board", label: "Board", icon: Kanban },
+      { id: "workflows", label: "Workflows", icon: Workflow },
     ],
   },
   {

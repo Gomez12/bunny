@@ -52,11 +52,15 @@ test("registry covers every known prompt key exactly once", () => {
       "web_news.fetch",
       "web_news.renew_terms",
       "whiteboard.edit",
+      "workflows.bash.confirmation_prompt",
+      "workflows.interactive.approval_preamble",
+      "workflows.loop.preamble",
+      "workflows.system_prompt",
     ].sort(),
   );
 });
 
-test("project-overridable set is exactly the ten content-flow prompts", () => {
+test("project-overridable set is exactly the content-flow prompts", () => {
   const keys: string[] = [...PROJECT_OVERRIDABLE_KEYS].sort();
   expect(keys).toEqual(
     [
@@ -70,6 +74,9 @@ test("project-overridable set is exactly the ten content-flow prompts", () => {
       "code.ask",
       "code.chat",
       "code.edit",
+      "workflows.system_prompt",
+      "workflows.loop.preamble",
+      "workflows.interactive.approval_preamble",
     ].sort(),
   );
 });
