@@ -428,6 +428,28 @@ export function releaseTopic(
   return getTopic(db, id)!;
 }
 
+/**
+ * Reset topics stuck in 'running' for longer than `stuckThresholdMs` (default 1 h).
+ * Called at server startup so a crash during a run never permanently blocks a topic.
+ * Returns the number of rows reclaimed.
+ */
+export function releaseStuckTopics(
+  db: Database,
+  stuckThresholdMs = 60 * 60 * 1000,
+): number {
+  const cutoff = Date.now() - stuckThresholdMs;
+  const info = db
+    .prepare(
+      `UPDATE web_news_topics
+          SET run_status = 'idle', last_run_status = 'error',
+              last_run_error = 'run was interrupted — stuck reclaim on startup',
+              updated_at = ?
+        WHERE run_status = 'running' AND updated_at < ?`,
+    )
+    .run(Date.now(), cutoff);
+  return info.changes;
+}
+
 /** Select due topics: update_at has passed OR renew_at has passed. Only idle + enabled rows. */
 export interface DueTopic {
   id: number;

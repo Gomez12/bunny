@@ -89,7 +89,9 @@ export function setGlobalPromptOverride(
   const parsed = existing
     ? ((Bun.TOML.parse(existing) as Record<string, unknown>) ?? {})
     : {};
-  const prompts = { ...((parsed["prompts"] as Record<string, unknown> | undefined) ?? {}) };
+  const prompts = {
+    ...((parsed["prompts"] as Record<string, unknown> | undefined) ?? {}),
+  };
   if (text === null) {
     delete prompts[key];
   } else {

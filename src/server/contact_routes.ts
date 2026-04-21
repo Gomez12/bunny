@@ -480,7 +480,6 @@ function handleDeleteGroup(
 
 // ── Edit mode (agent loop) ───────────────────────────────────────────────────
 
-
 async function handleEdit(
   req: Request,
   ctx: ContactRouteCtx,

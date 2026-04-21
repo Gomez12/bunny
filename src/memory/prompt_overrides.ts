@@ -55,7 +55,8 @@ export function loadProjectPromptOverrides(
   try {
     const text = readFileSync(file, "utf8");
     const parsed = Bun.TOML.parse(text) as Record<string, unknown>;
-    const raw = (parsed["prompts"] as Record<string, unknown> | undefined) ?? {};
+    const raw =
+      (parsed["prompts"] as Record<string, unknown> | undefined) ?? {};
     const overrides: ProjectPromptOverrides = {};
     for (const [k, v] of Object.entries(raw)) {
       if (typeof v === "string") overrides[k] = v;

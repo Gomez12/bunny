@@ -72,7 +72,11 @@ import {
 import type { SchedulerHandle } from "../scheduler/ticker.ts";
 import type { HandlerRegistry } from "../scheduler/handlers.ts";
 import { parseMention } from "../agent/mention.ts";
-import { getAgent, isAgentLinkedToProject } from "../memory/agents.ts";
+import {
+  getAgent,
+  isAgentLinkedToProject,
+  linkAgentToProject,
+} from "../memory/agents.ts";
 
 export interface RouteCtx {
   db: Database;
@@ -534,18 +538,24 @@ async function handleChat(
     return json({ error: errorMessage(e) }, 400);
   }
 
-  // Validate agent (if any) — must exist and be linked to this project.
-  if (agentName) {
-    const a = getAgent(ctx.db, agentName);
-    if (!a) return json({ error: `agent '${agentName}' does not exist` }, 404);
-    if (!isAgentLinkedToProject(ctx.db, project, agentName)) {
-      return json(
-        {
-          error: `agent '${agentName}' is not available in project '${project}'`,
-        },
-        403,
-      );
-    }
+  // Fall back to the configured default agent when the caller didn't name one
+  // and the prompt had no leading @mention. The seeder guarantees this agent
+  // exists and is linked to every project; the validation below still
+  // protects against an operator-deleted row.
+  if (!agentName) {
+    agentName = ctx.cfg.agent.defaultAgent;
+  }
+
+  // Validate the resolved agent — must exist and be linked to this project.
+  const a = getAgent(ctx.db, agentName);
+  if (!a) return json({ error: `agent '${agentName}' does not exist` }, 404);
+  if (!isAgentLinkedToProject(ctx.db, project, agentName)) {
+    return json(
+      {
+        error: `agent '${agentName}' is not available in project '${project}'`,
+      },
+      403,
+    );
   }
 
   const stream = new ReadableStream<Uint8Array>({
@@ -700,6 +710,21 @@ async function handleCreateProject(
         recallK: parseMemoryOverride(body.recallK),
       },
     );
+    // Auto-link the configured default agent so every new project has a
+    // resolvable fallback author for chat turns. Best-effort: if the agent
+    // is missing (operator deleted it), the boot seeder heals the link on
+    // next restart.
+    try {
+      linkAgentToProject(ctx.db, name, ctx.cfg.agent.defaultAgent);
+      void ctx.queue.log({
+        topic: "agent",
+        kind: "link.default",
+        userId: user.id,
+        data: { project: name, agent: ctx.cfg.agent.defaultAgent },
+      });
+    } catch {
+      // ignore — next boot heals
+    }
     void ctx.queue.log({
       topic: "project",
       kind: "create",

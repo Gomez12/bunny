@@ -91,6 +91,20 @@ session_ttl_hours = 168                # 7 days
 
 Manage users in the web UI under **Settings → Users** (admin-only). Regular users only see their own sessions; admins see everything.
 
+## Agents
+
+Every chat turn is bound to a named agent. A default agent called `bunny` is seeded at boot and auto-linked to every project, so fresh installs chat out of the box. You can rename it or point to a different seeded persona:
+
+```toml
+[agent]
+default_project = "general"             # override via BUNNY_DEFAULT_PROJECT
+default_agent   = "bunny"               # override via BUNNY_DEFAULT_AGENT
+```
+
+The Composer has a per-session agent picker (remembered in `localStorage["bunny.activeAgent.<sessionId>"]`) and the sidebar has a **New chat with…** entry that starts a fresh session pre-bound to a picked agent. Assistant bubbles render as `@<agent>`; user bubbles render as the user's display name.
+
+See [`docs/adr/0031-every-chat-is-agent-bound.md`](./docs/adr/0031-every-chat-is-agent-bound.md) for the details.
+
 ### CLI with an API key
 
 Any user can create a key with a name + optional expiry under **Settings → API keys**. The plaintext secret is shown once — save it right away.

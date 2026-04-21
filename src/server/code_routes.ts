@@ -39,8 +39,15 @@ import {
   readWorkspaceFile,
   resolveForDownload,
 } from "../memory/workspace_fs.ts";
-import { cloneCodeProject, validateGitUrl, workspaceRelForCode } from "../code/clone.ts";
-import { setSessionHiddenFromChat, setSessionQuickChat } from "../memory/session_visibility.ts";
+import {
+  cloneCodeProject,
+  validateGitUrl,
+  workspaceRelForCode,
+} from "../code/clone.ts";
+import {
+  setSessionHiddenFromChat,
+  setSessionQuickChat,
+} from "../memory/session_visibility.ts";
 import { runAgent } from "../agent/loop.ts";
 import {
   createSseRenderer,
@@ -235,7 +242,8 @@ async function handlePatch(
   if (!cp) return json({ error: "not found" }, 404);
   const p = getProject(ctx.db, cp.project);
   if (!p) return json({ error: "project not found" }, 404);
-  if (!canEditCodeProject(user, cp, p)) return json({ error: "forbidden" }, 403);
+  if (!canEditCodeProject(user, cp, p))
+    return json({ error: "forbidden" }, 403);
 
   const body = await readJson<{ description?: string; gitRef?: string | null }>(
     req,
@@ -269,7 +277,8 @@ function handleDelete(ctx: CodeRouteCtx, user: User, id: number): Response {
   if (!cp) return json({ error: "not found" }, 404);
   const p = getProject(ctx.db, cp.project);
   if (!p) return json({ error: "project not found" }, 404);
-  if (!canEditCodeProject(user, cp, p)) return json({ error: "forbidden" }, 403);
+  if (!canEditCodeProject(user, cp, p))
+    return json({ error: "forbidden" }, 403);
 
   deleteCodeProject(ctx.db, id, user.id);
   void ctx.queue.log({
@@ -286,7 +295,8 @@ function handleClone(ctx: CodeRouteCtx, user: User, id: number): Response {
   if (!cp) return json({ error: "not found" }, 404);
   const p = getProject(ctx.db, cp.project);
   if (!p) return json({ error: "project not found" }, 404);
-  if (!canEditCodeProject(user, cp, p)) return json({ error: "forbidden" }, 403);
+  if (!canEditCodeProject(user, cp, p))
+    return json({ error: "forbidden" }, 403);
   if (cp.gitStatus === "cloning") {
     return json({ error: "clone already in progress" }, 409);
   }
@@ -309,7 +319,9 @@ function handleTree(
   const p = getProject(ctx.db, cp.project);
   if (!p || !canSeeProject(p, user)) return json({ error: "forbidden" }, 403);
   const sub = url.searchParams.get("path")?.replace(/^\/+/, "") ?? "";
-  const relPath = sub ? `${workspaceRelForCode(cp)}/${sub}` : workspaceRelForCode(cp);
+  const relPath = sub
+    ? `${workspaceRelForCode(cp)}/${sub}`
+    : workspaceRelForCode(cp);
   try {
     const entries = listWorkspace(cp.project, relPath).map((e) => ({
       ...e,
@@ -415,7 +427,8 @@ async function handleEdit(
   if (!cp) return json({ error: "not found" }, 404);
   const p = getProject(ctx.db, cp.project);
   if (!p) return json({ error: "project not found" }, 404);
-  if (!canEditCodeProject(user, cp, p)) return json({ error: "forbidden" }, 403);
+  if (!canEditCodeProject(user, cp, p))
+    return json({ error: "forbidden" }, 403);
 
   const body = await readJson<{ instruction?: string }>(req);
   const instruction = body?.instruction?.trim();
@@ -496,7 +509,8 @@ async function handleChat(
   if (!cp) return json({ error: "not found" }, 404);
   const p = getProject(ctx.db, cp.project);
   if (!p) return json({ error: "project not found" }, 404);
-  if (!canEditCodeProject(user, cp, p)) return json({ error: "forbidden" }, 403);
+  if (!canEditCodeProject(user, cp, p))
+    return json({ error: "forbidden" }, 403);
 
   const body = await readJson<{ sessionId?: string; prompt?: string }>(req);
   const prompt = body?.prompt?.trim();
@@ -572,7 +586,8 @@ function stripCodePrefix(name: string, workspacePath: string): string {
   const root = workspaceRelForCode({ name });
   if (workspacePath === root) return "";
   const prefix = `${root}/`;
-  if (workspacePath.startsWith(prefix)) return workspacePath.slice(prefix.length);
+  if (workspacePath.startsWith(prefix))
+    return workspacePath.slice(prefix.length);
   return workspacePath;
 }
 
@@ -586,7 +601,9 @@ function safeTopLevelListing(project: string, name: string): string {
     const entries = listWorkspace(project, root);
     const lines: string[] = [];
     for (const e of entries.slice(0, 200)) {
-      lines.push(`- ${stripCodePrefix(name, e.path) || e.name}${e.kind === "dir" ? "/" : ""}`);
+      lines.push(
+        `- ${stripCodePrefix(name, e.path) || e.name}${e.kind === "dir" ? "/" : ""}`,
+      );
     }
     if (entries.length > 200) lines.push(`- … (${entries.length - 200} more)`);
     return lines.join("\n") || "(empty)";

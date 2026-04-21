@@ -124,7 +124,13 @@ export async function handleTelegramUpdate(
   }
 
   if (message.chat.type !== "private") {
-    await replyToMessage(tgCfg.botToken, message, CANNED_UNSUPPORTED, queue, project);
+    await replyToMessage(
+      tgCfg.botToken,
+      message,
+      CANNED_UNSUPPORTED,
+      queue,
+      project,
+    );
     void queue.log({
       topic: "telegram",
       kind: "message.inbound.unsupported",
@@ -139,7 +145,13 @@ export async function handleTelegramUpdate(
 
   const text = (message.text ?? message.caption ?? "").trim();
   if (!text) {
-    await replyToMessage(tgCfg.botToken, message, CANNED_UNSUPPORTED, queue, project);
+    await replyToMessage(
+      tgCfg.botToken,
+      message,
+      CANNED_UNSUPPORTED,
+      queue,
+      project,
+    );
     void queue.log({
       topic: "telegram",
       kind: "message.inbound.unsupported",
@@ -165,7 +177,13 @@ export async function handleTelegramUpdate(
   // Non-command: require a link.
   const link = getLinkByChatId(db, project, message.chat.id);
   if (!link) {
-    await replyToMessage(tgCfg.botToken, message, CANNED_UNLINKED, queue, project);
+    await replyToMessage(
+      tgCfg.botToken,
+      message,
+      CANNED_UNLINKED,
+      queue,
+      project,
+    );
     void queue.log({
       topic: "telegram",
       kind: "message.inbound.unlinked",
@@ -217,6 +235,10 @@ export async function handleTelegramUpdate(
       sessionId,
       userId: link.userId,
       project,
+      // Bind every Telegram turn to the configured default agent, mirroring
+      // the /api/chat fallback. The boot seeder guarantees the agent is
+      // linked to every project.
+      agent: cfg.agent.defaultAgent,
       llmCfg: cfg.llm,
       embedCfg: cfg.embed,
       memoryCfg: cfg.memory,

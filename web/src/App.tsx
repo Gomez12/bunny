@@ -1,17 +1,23 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import {
   createSession,
-  fetchMe,
+  fetchMeInfo,
   logout,
   setSessionQuickChat,
   type AuthUser,
   type OpenInChatPayload,
   type Theme,
 } from "./api";
+import { DefaultAgentProvider } from "./contexts/DefaultAgentContext";
+import {
+  loadActiveAgent,
+  saveActiveAgent,
+} from "./lib/activeAgent";
 import LoginPage from "./pages/LoginPage";
 import ChangePasswordPage from "./pages/ChangePasswordPage";
 import Sidebar, { type NavTabId } from "./components/Sidebar";
 import ToastStack from "./components/ToastStack";
+import NewChatWithAgentDialog from "./components/NewChatWithAgentDialog";
 import { useNotifications } from "./hooks/useNotifications";
 
 // Tabs + pages are route-level — lazy-load so the initial bundle stays small
@@ -141,6 +147,7 @@ function readBootDeepLink(): BootDeepLink | null {
 
 export default function App() {
   const [user, setUser] = useState<AuthUser | null | undefined>(undefined);
+  const [defaultAgent, setDefaultAgent] = useState<string>("bunny");
   const [theme, setThemeRaw] = useState<Theme>(resolveStoredTheme);
   const setTheme = (t: Theme) => {
     localStorage.setItem(THEME_STORAGE_KEY, t);
@@ -162,7 +169,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    void fetchMe().then(setUser);
+    void fetchMeInfo().then((me) => {
+      if (!me) {
+        setUser(null);
+        return;
+      }
+      setUser(me.user);
+      setDefaultAgent(me.defaultAgent || "bunny");
+    });
   }, []);
 
   if (user === undefined) return <div className="app-loading">Loading…</div>;
@@ -176,12 +190,15 @@ export default function App() {
     );
 
   return (
-    <AuthenticatedShell
-      user={user}
-      setUser={setUser}
-      theme={theme}
-      setTheme={setTheme}
-    />
+    <DefaultAgentProvider value={defaultAgent}>
+      <AuthenticatedShell
+        user={user}
+        setUser={setUser}
+        theme={theme}
+        setTheme={setTheme}
+        defaultAgent={defaultAgent}
+      />
+    </DefaultAgentProvider>
   );
 }
 
@@ -190,9 +207,16 @@ interface ShellProps {
   setUser: (u: AuthUser | null) => void;
   theme: Theme;
   setTheme: (t: Theme) => void;
+  defaultAgent: string;
 }
 
-function AuthenticatedShell({ user, setUser, theme, setTheme }: ShellProps) {
+function AuthenticatedShell({
+  user,
+  setUser,
+  theme,
+  setTheme,
+  defaultAgent,
+}: ShellProps) {
   const [tab, setTabRaw] = useState<Tab>(resolveStoredTab);
   const [initialWorkspaceSub] = useState<"projects" | "agents" | "skills">(
     () => {
@@ -210,6 +234,23 @@ function AuthenticatedShell({ user, setUser, theme, setTheme }: ShellProps) {
   const [activeProject, setActiveProject] = useState<string>(
     () => localStorage.getItem(PROJECT_STORAGE_KEY) || DEFAULT_PROJECT,
   );
+  const [activeAgent, setActiveAgentRaw] = useState<string>(() =>
+    sessionId ? loadActiveAgent(sessionId, defaultAgent) : defaultAgent,
+  );
+  const setActiveAgent = useCallback(
+    (name: string) => {
+      setActiveAgentRaw(name);
+      if (sessionId) saveActiveAgent(sessionId, name);
+    },
+    [sessionId],
+  );
+  useEffect(() => {
+    if (!sessionId) {
+      setActiveAgentRaw(defaultAgent);
+      return;
+    }
+    setActiveAgentRaw(loadActiveAgent(sessionId, defaultAgent));
+  }, [sessionId, defaultAgent]);
   const [pendingChatSend, setPendingChatSend] = useState<
     (OpenInChatPayload & { sessionId: string }) | null
   >(null);
@@ -278,6 +319,23 @@ function AuthenticatedShell({ user, setUser, theme, setTheme }: ShellProps) {
     setSessionId(adoptSession(id));
   };
 
+  const [newChatWithAgentOpen, setNewChatWithAgentOpen] = useState(false);
+  const onNewChatWithAgent = () => {
+    setNewChatWithAgentOpen(true);
+  };
+  const onPickChatAgent = async (agent: string) => {
+    setNewChatWithAgentOpen(false);
+    try {
+      const id = await createSession();
+      saveActiveAgent(id, agent);
+      setSessionId(adoptSession(id));
+      setActiveAgentRaw(agent);
+      setTab("chat");
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const onPickSession = (id: string) => {
     setSessionId(adoptSession(id));
   };
@@ -326,6 +384,14 @@ function AuthenticatedShell({ user, setUser, theme, setTheme }: ShellProps) {
           onOpen: () => setTab("notifications"),
           onRequestPermission: notifications.requestOSPermission,
         }}
+        onNewChatWithAgent={onNewChatWithAgent}
+      />
+      <NewChatWithAgentDialog
+        open={newChatWithAgentOpen}
+        project={activeProject}
+        defaultAgent={defaultAgent}
+        onPick={onPickChatAgent}
+        onCancel={() => setNewChatWithAgentOpen(false)}
       />
 
       <main
@@ -339,6 +405,9 @@ function AuthenticatedShell({ user, setUser, theme, setTheme }: ShellProps) {
               sessionId={sessionId}
               project={activeProject}
               currentUser={user}
+              activeAgent={activeAgent}
+              defaultAgent={defaultAgent}
+              onChangeActiveAgent={setActiveAgent}
               onPickSession={onPickSession}
               onNewSession={onNewSession}
               onNewQuickChat={onNewQuickChat}

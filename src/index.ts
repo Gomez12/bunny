@@ -31,6 +31,8 @@ import {
   validateProjectName,
 } from "./memory/projects.ts";
 import { ensureProjectDir } from "./memory/project_assets.ts";
+import { ensureDefaultAgent } from "./memory/agents_seed.ts";
+import { linkAgentToProject } from "./memory/agents.ts";
 
 function parseArgs(argv: string[]): {
   prompt: string;
@@ -145,6 +147,16 @@ async function main(argv: string[]): Promise<number> {
   }
 
   const queue = createBunnyQueue(db);
+
+  // Seed the default agent (idempotent) and link it to the active project so
+  // every CLI turn resolves a named agent.
+  ensureDefaultAgent(db, cfg.agent, queue);
+  try {
+    linkAgentToProject(db, project, cfg.agent.defaultAgent);
+  } catch {
+    // Best-effort — the boot seed will catch this on the next run.
+  }
+
   const renderer = createRenderer({
     reasoningMode: hideReasoning ? "hidden" : cfg.render.reasoning,
     forceColor: cfg.render.color,
@@ -156,6 +168,7 @@ async function main(argv: string[]): Promise<number> {
       sessionId,
       userId,
       project,
+      agent: cfg.agent.defaultAgent,
       llmCfg: cfg.llm,
       embedCfg: cfg.embed,
       memoryCfg: cfg.memory,

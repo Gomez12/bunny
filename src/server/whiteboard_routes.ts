@@ -195,7 +195,6 @@ function handleDelete(
 
 // ── Edit mode (agent loop) ──────────────────────────────────────────────
 
-
 async function handleEdit(
   req: Request,
   ctx: WhiteboardRouteCtx,

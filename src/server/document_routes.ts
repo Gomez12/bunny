@@ -249,7 +249,6 @@ function handleSaveAsTemplate(
 
 // ── Edit mode (agent loop) ──────────────────────────────────────────────
 
-
 async function handleEdit(
   req: Request,
   ctx: DocumentRouteCtx,

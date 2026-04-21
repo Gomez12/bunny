@@ -15,6 +15,7 @@ import {
   type ChatAttachment,
   type DirectoryUser,
 } from "../api";
+import { Bot, ChevronDown, ICON_DEFAULTS } from "../lib/icons";
 
 interface Props {
   disabled: boolean;
@@ -22,6 +23,15 @@ interface Props {
   onAbort?: () => void;
   streaming: boolean;
   project: string;
+  /**
+   * Agent-picker props. When all three are set, the composer renders a
+   * per-session agent dropdown next to Send. Callers that don't need the
+   * picker (e.g. code chat, which pins a system prompt override) can omit
+   * them.
+   */
+  activeAgent?: string;
+  defaultAgent?: string;
+  onChangeActiveAgent?: (agent: string) => void;
 }
 
 export const ALLOWED_IMAGE_MIME = new Set([
@@ -106,11 +116,22 @@ function detectMention(value: string, caret: number): MentionState | null {
 
 
 const Composer = forwardRef<ComposerHandle, Props>(function Composer(
-  { disabled, streaming, onSubmit, onAbort, project },
+  {
+    disabled,
+    streaming,
+    onSubmit,
+    onAbort,
+    project,
+    activeAgent,
+    defaultAgent,
+    onChangeActiveAgent,
+  },
   ref,
 ) {
   const [value, setValue] = useState("");
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [agentPickerOpen, setAgentPickerOpen] = useState(false);
+  const agentPickerRef = useRef<HTMLDivElement>(null);
   const [users, setUsers] = useState<DirectoryUser[]>([]);
   const [mention, setMention] = useState<MentionState | null>(null);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -219,6 +240,31 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer(
     }),
     [addFiles],
   );
+
+  // Close the agent picker on outside click / Escape.
+  useEffect(() => {
+    if (!agentPickerOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (!agentPickerRef.current) return;
+      if (!agentPickerRef.current.contains(e.target as Node)) {
+        setAgentPickerOpen(false);
+      }
+    };
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") setAgentPickerOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [agentPickerOpen]);
+
+  const pickAgent = (name: string) => {
+    onChangeActiveAgent?.(name);
+    setAgentPickerOpen(false);
+  };
 
   const insertSuggestion = (s: Suggestion) => {
     if (!mention) return;
@@ -374,6 +420,75 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer(
           </ul>
         )}
       </div>
+      {!streaming && activeAgent && defaultAgent && onChangeActiveAgent && (
+        <div className="composer__agent-picker" ref={agentPickerRef}>
+          <button
+            type="button"
+            className="btn btn--ghost composer__agent-pill"
+            onClick={() => setAgentPickerOpen((v) => !v)}
+            disabled={disabled}
+            aria-haspopup="listbox"
+            aria-expanded={agentPickerOpen}
+            aria-label={`Chat agent — currently @${activeAgent}`}
+            title={`Chat agent — currently @${activeAgent}`}
+          >
+            <Bot {...ICON_DEFAULTS} />
+            <span className="composer__agent-pill-label">@{activeAgent}</span>
+            <ChevronDown {...ICON_DEFAULTS} size={14} />
+          </button>
+          {agentPickerOpen && (
+            <ul className="composer__agent-menu" role="listbox">
+              <li
+                role="option"
+                aria-selected={activeAgent === defaultAgent}
+                className={
+                  "composer__agent-menu-item" +
+                  (activeAgent === defaultAgent
+                    ? " composer__agent-menu-item--active"
+                    : "")
+                }
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  pickAgent(defaultAgent);
+                }}
+              >
+                <span className="composer__agent-menu-label">
+                  @{defaultAgent}
+                </span>
+                <span className="composer__agent-menu-hint">default</span>
+              </li>
+              {agents
+                .filter((a) => a.name !== defaultAgent)
+                .map((a) => (
+                  <li
+                    key={a.name}
+                    role="option"
+                    aria-selected={activeAgent === a.name}
+                    className={
+                      "composer__agent-menu-item" +
+                      (activeAgent === a.name
+                        ? " composer__agent-menu-item--active"
+                        : "")
+                    }
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      pickAgent(a.name);
+                    }}
+                  >
+                    <span className="composer__agent-menu-label">
+                      @{a.name}
+                    </span>
+                    {a.description && (
+                      <span className="composer__agent-menu-hint">
+                        {a.description}
+                      </span>
+                    )}
+                  </li>
+                ))}
+            </ul>
+          )}
+        </div>
+      )}
       {!streaming && (
         <button
           type="button"

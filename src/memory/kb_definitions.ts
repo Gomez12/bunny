@@ -354,6 +354,32 @@ export function deleteDefinition(
   softDelete(db, "kb_definition", id, deletedBy);
 }
 
+// ── Auto-generation candidate query ─────────────────────────────────────────
+
+export interface PendingDefinitionCandidate {
+  id: number;
+  project: string;
+  term: string;
+  is_project_dependent: number;
+  created_by: string | null;
+}
+
+/** Definitions that have never been generated and were not explicitly cleared. */
+export function selectPendingDefinitions(
+  db: Database,
+): PendingDefinitionCandidate[] {
+  return db
+    .prepare(
+      `SELECT id, project, term, is_project_dependent, created_by
+         FROM kb_definitions
+        WHERE llm_status = 'idle'
+          AND llm_cleared = 0
+          AND llm_short IS NULL
+          AND deleted_at IS NULL`,
+    )
+    .all() as PendingDefinitionCandidate[];
+}
+
 // ── LLM field state machine ─────────────────────────────────────────────────
 
 /**

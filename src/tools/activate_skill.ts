@@ -15,7 +15,6 @@ import { resolvePrompt } from "../prompts/resolve.ts";
 
 export const ACTIVATE_SKILL_TOOL_NAME = "activate_skill";
 
-
 export const ACTIVATE_SKILL_SCHEMA: JsonSchemaObject = {
   type: "object",
   properties: {

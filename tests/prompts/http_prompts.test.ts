@@ -14,12 +14,8 @@ import { ensureSeedUsers } from "../../src/auth/seed.ts";
 import { createUser } from "../../src/auth/users.ts";
 import { createProject } from "../../src/memory/projects.ts";
 import type { BunnyConfig } from "../../src/config.ts";
-import {
-  __clearGlobalPromptsCache,
-} from "../../src/prompts/global_overrides.ts";
-import {
-  __clearProjectPromptsCache,
-} from "../../src/memory/prompt_overrides.ts";
+import { __clearGlobalPromptsCache } from "../../src/prompts/global_overrides.ts";
+import { __clearProjectPromptsCache } from "../../src/memory/prompt_overrides.ts";
 
 let tmp: string;
 let db: Database;
@@ -31,7 +27,13 @@ const ORIGINAL_HOME = process.env["BUNNY_HOME"];
 const ORIGINAL_CWD = process.cwd();
 
 const cfg: BunnyConfig = {
-  llm: { baseUrl: "", apiKey: "", model: "x", modelReasoning: undefined, profile: undefined },
+  llm: {
+    baseUrl: "",
+    apiKey: "",
+    model: "x",
+    modelReasoning: undefined,
+    profile: undefined,
+  },
   embed: { baseUrl: "", apiKey: "", model: "x", dim: 1536 },
   memory: { indexReasoning: false, recallK: 8, lastN: 10 },
   render: { reasoning: "collapsed", color: undefined },
@@ -41,9 +43,18 @@ const cfg: BunnyConfig = {
     defaultAdminPassword: "pw-initial",
     sessionTtlHours: 1,
   },
-  agent: { systemPrompt: "You are Bunny.", defaultProject: "general" },
+  agent: {
+    systemPrompt: "You are Bunny.",
+    defaultProject: "general",
+    defaultAgent: "bunny",
+  },
   ui: { autosaveIntervalMs: 5000 },
-  web: { serpApiKey: "", serpProvider: "serper", serpBaseUrl: "", userAgent: "" },
+  web: {
+    serpApiKey: "",
+    serpProvider: "serper",
+    serpBaseUrl: "",
+    userAgent: "",
+  },
   translation: {
     maxPerTick: 20,
     maxDocumentBytes: 30_720,
@@ -157,14 +168,16 @@ describe("GET /api/config/prompts", () => {
       cookie: adminCookie,
     });
     expect(res.status).toBe(200);
-    const prompts = (body as {
-      prompts: Array<{
-        key: string;
-        effective: string;
-        defaultText: string;
-        isOverridden: boolean;
-      }>;
-    }).prompts;
+    const prompts = (
+      body as {
+        prompts: Array<{
+          key: string;
+          effective: string;
+          defaultText: string;
+          isOverridden: boolean;
+        }>;
+      }
+    ).prompts;
     expect(prompts.length).toBeGreaterThan(0);
     for (const p of prompts) {
       expect(p.effective).toBe(p.defaultText);
@@ -199,8 +212,16 @@ describe("PUT /api/config/prompts", () => {
     const list = await req("GET", "/api/config/prompts", {
       cookie: adminCookie,
     });
-    const hit = (list.body as { prompts: Array<{ key: string; effective: string; global: string | null; isOverridden: boolean }> })
-      .prompts.find((p) => p.key === "kb.definition")!;
+    const hit = (
+      list.body as {
+        prompts: Array<{
+          key: string;
+          effective: string;
+          global: string | null;
+          isOverridden: boolean;
+        }>;
+      }
+    ).prompts.find((p) => p.key === "kb.definition")!;
     expect(hit.effective).toBe("CUSTOM KB PROMPT");
     expect(hit.global).toBe("CUSTOM KB PROMPT");
     expect(hit.isOverridden).toBe(true);
@@ -223,8 +244,15 @@ describe("PUT /api/config/prompts", () => {
     const list = await req("GET", "/api/config/prompts", {
       cookie: adminCookie,
     });
-    const hit = (list.body as { prompts: Array<{ key: string; global: string | null; isOverridden: boolean }> })
-      .prompts.find((p) => p.key === "kb.definition")!;
+    const hit = (
+      list.body as {
+        prompts: Array<{
+          key: string;
+          global: string | null;
+          isOverridden: boolean;
+        }>;
+      }
+    ).prompts.find((p) => p.key === "kb.definition")!;
     expect(hit.global).toBe(null);
     expect(hit.isOverridden).toBe(false);
   });
@@ -305,8 +333,15 @@ describe("PUT /api/projects/:name/prompts", () => {
     const list = await req("GET", "/api/projects/alpha/prompts", {
       cookie: creatorCookie,
     });
-    const hit = (list.body as { prompts: Array<{ key: string; override: string | null; effective: string }> })
-      .prompts.find((p) => p.key === "kb.definition")!;
+    const hit = (
+      list.body as {
+        prompts: Array<{
+          key: string;
+          override: string | null;
+          effective: string;
+        }>;
+      }
+    ).prompts.find((p) => p.key === "kb.definition")!;
     expect(hit.override).toBe("ALPHA KB");
     expect(hit.effective).toBe("ALPHA KB");
   });
@@ -323,8 +358,16 @@ describe("PUT /api/projects/:name/prompts", () => {
     const list = await req("GET", "/api/projects/alpha/prompts", {
       cookie: adminCookie,
     });
-    const hit = (list.body as { prompts: Array<{ key: string; effective: string; global: string | null; override: string | null }> })
-      .prompts.find((p) => p.key === "kb.definition")!;
+    const hit = (
+      list.body as {
+        prompts: Array<{
+          key: string;
+          effective: string;
+          global: string | null;
+          override: string | null;
+        }>;
+      }
+    ).prompts.find((p) => p.key === "kb.definition")!;
     expect(hit.effective).toBe("PROJECT");
     expect(hit.global).toBe("GLOBAL");
     expect(hit.override).toBe("PROJECT");
@@ -359,8 +402,9 @@ describe("PUT /api/projects/:name/prompts", () => {
     const list = await req("GET", "/api/projects/alpha/prompts", {
       cookie: adminCookie,
     });
-    const hit = (list.body as { prompts: Array<{ key: string; override: string | null }> })
-      .prompts.find((p) => p.key === "kb.definition")!;
+    const hit = (
+      list.body as { prompts: Array<{ key: string; override: string | null }> }
+    ).prompts.find((p) => p.key === "kb.definition")!;
     expect(hit.override).toBe(null);
   });
 });

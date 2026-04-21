@@ -218,11 +218,7 @@ export function setGitReady(db: Database, id: number): void {
   ).run(now, now, id);
 }
 
-export function setGitError(
-  db: Database,
-  id: number,
-  error: string,
-): void {
+export function setGitError(db: Database, id: number, error: string): void {
   db.prepare(
     `UPDATE code_projects
         SET git_status = 'error',

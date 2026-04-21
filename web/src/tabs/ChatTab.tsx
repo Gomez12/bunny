@@ -37,6 +37,12 @@ interface Props {
   sessionId: string;
   project: string;
   currentUser: AuthUser;
+  /** Currently-selected agent for this session. */
+  activeAgent: string;
+  /** Configured default agent name. */
+  defaultAgent: string;
+  /** Called when the user picks a different agent from the composer dropdown. */
+  onChangeActiveAgent: (agent: string) => void;
   onPickSession: (id: string) => void;
   onNewSession: () => void;
   /** Optional: start a brand-new session AND mark it as a Quick Chat. */
@@ -56,6 +62,9 @@ export default function ChatTab({
   sessionId,
   project,
   currentUser,
+  activeAgent,
+  defaultAgent,
+  onChangeActiveAgent,
   onPickSession,
   onNewSession,
   onNewQuickChat,
@@ -264,9 +273,9 @@ export default function ChatTab({
         forkedFromSessionId: prev?.forkedFromSessionId ?? null,
       }));
     }
-    send(pendingChatSend.prompt, pendingChatSend.attachments ?? []);
+    send(pendingChatSend.prompt, pendingChatSend.attachments ?? [], activeAgent);
     onConsumePendingChatSend?.();
-  }, [pendingChatSend, sessionId, send, onConsumePendingChatSend]);
+  }, [pendingChatSend, sessionId, send, onConsumePendingChatSend, activeAgent]);
 
   // Toggles via the composer checkbox update activeSessionMeta directly. We
   // also re-run on `refreshKey` so the flag picks up the real DB row once a
@@ -479,6 +488,8 @@ export default function ChatTab({
               <div key={t.id} className="turn">
                 <MessageBubble
                   role="user"
+                  authorDisplayName={t.promptDisplayName}
+                  authorUsername={t.promptUsername}
                   rawContent={t.prompt}
                   edited={t.promptEdited}
                   actions={{
@@ -544,7 +555,11 @@ export default function ChatTab({
           })}
           {turns.map((t) => (
             <div key={t.id} className="turn">
-              <MessageBubble role="user">
+              <MessageBubble
+                role="user"
+                authorDisplayName={currentUser.displayName}
+                authorUsername={currentUser.username}
+              >
                 {t.attachments.length > 0 && (
                   <div className="bubble__attachments">
                     {t.attachments.map((a, i) => (
@@ -606,9 +621,14 @@ export default function ChatTab({
                 ref={composerRef}
                 disabled={streaming}
                 streaming={streaming}
-                onSubmit={send}
+                onSubmit={(prompt, attachments) =>
+                  send(prompt, attachments, activeAgent)
+                }
                 onAbort={abort}
                 project={project}
+                activeAgent={activeAgent}
+                defaultAgent={defaultAgent}
+                onChangeActiveAgent={onChangeActiveAgent}
               />
               <label className="chat__qctoggle" title="Mark this session as a Quick Chat (auto-hides after 15 min of inactivity)">
                 <input

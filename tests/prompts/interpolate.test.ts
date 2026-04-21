@@ -6,9 +6,9 @@ test("substitutes {{name}} placeholders", () => {
 });
 
 test("supports multiple placeholders including repeats", () => {
-  expect(
-    interpolate("{{a}} and {{a}} and {{b}}", { a: "x", b: "y" }),
-  ).toBe("x and x and y");
+  expect(interpolate("{{a}} and {{a}} and {{b}}", { a: "x", b: "y" })).toBe(
+    "x and x and y",
+  );
 });
 
 test("coerces non-string values via String()", () => {

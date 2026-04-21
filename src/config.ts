@@ -73,6 +73,12 @@ export interface AgentConfig {
   systemPrompt: string;
   /** Default project name used when the caller doesn't specify one. */
   defaultProject: string;
+  /**
+   * Name of the agent bound to a chat turn when the caller doesn't specify
+   * one and the prompt doesn't start with `@name`. Seeded at boot by
+   * `src/memory/agents_seed.ts` and auto-linked to every project.
+   */
+  defaultAgent: string;
 }
 
 export interface UiConfig {
@@ -165,7 +171,11 @@ interface TomlShape {
     default_admin_password: string;
     session_ttl_hours: number;
   }>;
-  agent?: Partial<{ system_prompt: string; default_project: string }>;
+  agent?: Partial<{
+    system_prompt: string;
+    default_project: string;
+    default_agent: string;
+  }>;
   ui?: Partial<{ autosave_interval_ms: number }>;
   web?: Partial<{
     serp_api_key: string;
@@ -224,6 +234,7 @@ You have access to tools for reading, listing, and editing files in the working 
 Use tools when you need to inspect or modify files. Think step-by-step before acting.
 When you are done, reply with your final answer without making any more tool calls.`,
     defaultProject: "general",
+    defaultAgent: "bunny",
   },
   ui: {
     autosaveIntervalMs: 5_000,
@@ -369,6 +380,10 @@ export function loadConfig(
       env["BUNNY_DEFAULT_PROJECT"] ??
       toml.agent?.default_project ??
       DEFAULTS.agent.defaultProject,
+    defaultAgent:
+      env["BUNNY_DEFAULT_AGENT"] ??
+      toml.agent?.default_agent ??
+      DEFAULTS.agent.defaultAgent,
   };
 
   const ui: UiConfig = {

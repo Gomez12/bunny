@@ -106,7 +106,7 @@ function buildDto(
   const globalText = globals[def.key] ?? null;
   const projectText =
     projectOverrides && def.scope === "projectOverridable"
-      ? projectOverrides[def.key] ?? null
+      ? (projectOverrides[def.key] ?? null)
       : null;
   const effective = projectText ?? globalText ?? def.defaultText;
   const dto: PromptDto = {

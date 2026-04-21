@@ -15,7 +15,6 @@ import { resolvePrompt } from "../prompts/resolve.ts";
 
 export const CALL_AGENT_TOOL_NAME = "call_agent";
 
-
 export const CALL_AGENT_SCHEMA: JsonSchemaObject = {
   type: "object",
   properties: {

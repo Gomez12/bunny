@@ -1,4 +1,5 @@
 Gather the latest news on topic "{{topicName}}".
+Today's date: {{today}}
 Description: {{description}}
 Search terms to use: {{termsText}}
 

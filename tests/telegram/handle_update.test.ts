@@ -59,7 +59,7 @@ const baseCfg: BunnyConfig = {
     defaultAdminPassword: "x",
     sessionTtlHours: 24,
   },
-  agent: { systemPrompt: "", defaultProject: "general" },
+  agent: { systemPrompt: "", defaultProject: "general", defaultAgent: "bunny" },
   ui: { autosaveIntervalMs: 5_000 },
   web: {
     serpApiKey: "",

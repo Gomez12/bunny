@@ -100,9 +100,17 @@ describe("createCodeProject", () => {
 
   test("UNIQUE(project, name) is enforced", async () => {
     const { db } = await setup();
-    createCodeProject(db, { project: "alpha", name: "dup", createdBy: "owner" });
+    createCodeProject(db, {
+      project: "alpha",
+      name: "dup",
+      createdBy: "owner",
+    });
     expect(() =>
-      createCodeProject(db, { project: "alpha", name: "dup", createdBy: "owner" }),
+      createCodeProject(db, {
+        project: "alpha",
+        name: "dup",
+        createdBy: "owner",
+      }),
     ).toThrow();
     // Same name in another project is fine.
     const cp = createCodeProject(db, {
@@ -117,7 +125,11 @@ describe("createCodeProject", () => {
   test("rejects invalid names before touching the db", async () => {
     const { db } = await setup();
     expect(() =>
-      createCodeProject(db, { project: "alpha", name: "../etc", createdBy: "owner" }),
+      createCodeProject(db, {
+        project: "alpha",
+        name: "../etc",
+        createdBy: "owner",
+      }),
     ).toThrow();
     expect(listCodeProjects(db, "alpha").length).toBe(0);
     db.close();
@@ -127,8 +139,16 @@ describe("createCodeProject", () => {
 describe("listCodeProjects / getCodeProject", () => {
   test("only returns live rows, newest first", async () => {
     const { db } = await setup();
-    const a = createCodeProject(db, { project: "alpha", name: "a", createdBy: "owner" });
-    const b = createCodeProject(db, { project: "alpha", name: "b", createdBy: "owner" });
+    const a = createCodeProject(db, {
+      project: "alpha",
+      name: "a",
+      createdBy: "owner",
+    });
+    const b = createCodeProject(db, {
+      project: "alpha",
+      name: "b",
+      createdBy: "owner",
+    });
     // Wait a tick so updated_at is strictly newer, then touch a.
     await new Promise((r) => setTimeout(r, 5));
     updateCodeProject(db, a.id, { description: "tweak" });
@@ -160,7 +180,9 @@ describe("soft-delete + trash integration", () => {
       createdBy: "owner",
     });
     deleteCodeProject(db, cp.id, "owner");
-    expect(listCodeProjects(db, "alpha").find((c) => c.id === cp.id)).toBeUndefined();
+    expect(
+      listCodeProjects(db, "alpha").find((c) => c.id === cp.id),
+    ).toBeUndefined();
     const trash = listTrash(db).filter((t) => t.kind === "code_project");
     expect(trash.length).toBe(1);
     expect(trash[0]!.name).toBe("trashed");
@@ -243,7 +265,9 @@ describe("canEditCodeProject", () => {
       createdBy: "other",
     });
     const fresh = getCodeProject(db, cp.id)!;
-    const project = { createdBy: "owner" } as unknown as Parameters<typeof canEditCodeProject>[2];
+    const project = { createdBy: "owner" } as unknown as Parameters<
+      typeof canEditCodeProject
+    >[2];
     const owner = { id: "owner", role: "admin" } as unknown as User;
     const other = { id: "other", role: "user" } as unknown as User;
     const stranger = { id: "third", role: "user" } as unknown as User;

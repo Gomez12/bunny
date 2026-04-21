@@ -242,6 +242,8 @@ export default function CodeChatView({ codeProject, currentUser }: Props) {
             <div key={t.id} className="turn">
               <MessageBubble
                 role="user"
+                authorDisplayName={t.promptDisplayName}
+                authorUsername={t.promptUsername}
                 rawContent={t.prompt}
                 edited={t.promptEdited}
               >
@@ -276,7 +278,13 @@ export default function CodeChatView({ codeProject, currentUser }: Props) {
           ))}
           {turns.map((t) => (
             <div key={t.id} className="turn">
-              <MessageBubble role="user">{t.prompt}</MessageBubble>
+              <MessageBubble
+                role="user"
+                authorDisplayName={currentUser.displayName}
+                authorUsername={currentUser.username}
+              >
+                {t.prompt}
+              </MessageBubble>
               <MessageBubble role="assistant" author={t.author}>
                 {t.reasoning && (
                   <ReasoningBlock

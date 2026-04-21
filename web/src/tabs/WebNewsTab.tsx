@@ -167,6 +167,13 @@ export default function WebNewsTab({ project, currentUser }: Props) {
     return items.filter((i) => enabledIds.has(i.topicId));
   }, [items, enabledTopics]);
 
+  // Topics shown in the sidebar: enabled + (has items OR has never been run yet).
+  // Topics that have run but returned nothing are hidden until they do.
+  const sidebarTopics = useMemo(() => {
+    const topicsWithItems = new Set(visibleItems.map((i) => i.topicId));
+    return topics.filter((t) => topicsWithItems.has(t.id) || !t.lastRunAt);
+  }, [topics, visibleItems]);
+
   return (
     <div className="news-tab">
       <aside className="news-tab__sidebar">
@@ -193,7 +200,7 @@ export default function WebNewsTab({ project, currentUser }: Props) {
           />
         ) : (
           <ul className="news-tab__topics">
-            {topics.map((topic) => {
+            {sidebarTopics.map((topic) => {
               const canEdit =
                 currentUser.role === "admin" ||
                 topic.createdBy === currentUser.id;

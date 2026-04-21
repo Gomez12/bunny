@@ -19,6 +19,7 @@ import {
   X,
   Sun,
   Moon,
+  Plus,
 } from "../lib/icons";
 import type { AuthUser, Theme } from "../api";
 import NotificationBell from "./NotificationBell";
@@ -99,6 +100,9 @@ type Props = {
   theme: Theme;
   onToggleTheme: () => void;
   notifications: SidebarNotificationsProps;
+  /** Open the "New chat with…" modal — starts a fresh session bound to a
+   *  chosen agent. */
+  onNewChatWithAgent: () => void;
 };
 
 export default function Sidebar({
@@ -111,6 +115,7 @@ export default function Sidebar({
   theme,
   onToggleTheme,
   notifications,
+  onNewChatWithAgent,
 }: Props) {
   const [open, setOpen] = useState(false);
   const closeDrawer = () => setOpen(false);
@@ -157,21 +162,36 @@ export default function Sidebar({
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
                 return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={`nav__item ${isActive ? "nav__item--active" : ""}`}
-                    aria-current={isActive ? "page" : undefined}
-                    onClick={() => {
-                      onPickTab(item.id);
-                      closeDrawer();
-                    }}
-                  >
-                    <span className="nav__item-icon">
-                      <Icon {...ICON_DEFAULTS} />
-                    </span>
-                    <span className="nav__item-label">{item.label}</span>
-                  </button>
+                  <div key={item.id} className="nav__item-row">
+                    <button
+                      type="button"
+                      className={`nav__item ${isActive ? "nav__item--active" : ""}`}
+                      aria-current={isActive ? "page" : undefined}
+                      onClick={() => {
+                        onPickTab(item.id);
+                        closeDrawer();
+                      }}
+                    >
+                      <span className="nav__item-icon">
+                        <Icon {...ICON_DEFAULTS} />
+                      </span>
+                      <span className="nav__item-label">{item.label}</span>
+                    </button>
+                    {item.id === "chat" && (
+                      <button
+                        type="button"
+                        className="nav__item-extra"
+                        title="New chat with…"
+                        aria-label="New chat with…"
+                        onClick={() => {
+                          onNewChatWithAgent();
+                          closeDrawer();
+                        }}
+                      >
+                        <Plus size={14} />
+                      </button>
+                    )}
+                  </div>
                 );
               })}
             </div>

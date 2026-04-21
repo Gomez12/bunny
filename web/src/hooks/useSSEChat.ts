@@ -96,7 +96,7 @@ export function useSSEChat(
   }, []);
 
   const send = useCallback(
-    (prompt: string, attachments: ChatAttachment[] = []) => {
+    (prompt: string, attachments: ChatAttachment[] = [], agent?: string) => {
       const turnId = crypto.randomUUID();
       const startedAt = performance.now();
       setTurns((prev) => [
@@ -112,7 +112,7 @@ export function useSSEChat(
           serverStats: null,
           startedAt,
           done: false,
-          author: null,
+          author: agent ?? null,
           userQuestions: [],
         },
       ]);
@@ -213,15 +213,25 @@ export function useSSEChat(
       };
 
       // Pre-tag the turn if the user prefixed @name — gives the UI an instant
-      // badge without waiting for the first content delta.
-      const m = prompt.match(/^\s*@([a-z0-9][a-z0-9_-]{0,62})(?:\s+|$)/i);
-      if (m) {
-        const candidate = m[1]!.toLowerCase();
-        updateLast((t) => ({ ...t, author: t.author ?? candidate }));
+      // badge without waiting for the first content delta. The explicit
+      // `agent` argument already wins; we only fall back to the parsed
+      // mention when the caller didn't supply one.
+      if (!agent) {
+        const m = prompt.match(/^\s*@([a-z0-9][a-z0-9_-]{0,62})(?:\s+|$)/i);
+        if (m) {
+          const candidate = m[1]!.toLowerCase();
+          updateLast((t) => ({ ...t, author: t.author ?? candidate }));
+        }
       }
 
       const { done, abort } = streamer(
-        { sessionId, prompt, project, attachments: attachments.length > 0 ? attachments : undefined },
+        {
+          sessionId,
+          prompt,
+          project,
+          agent,
+          attachments: attachments.length > 0 ? attachments : undefined,
+        },
         handler,
       );
       abortRef.current = abort;

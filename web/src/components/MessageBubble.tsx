@@ -1,4 +1,6 @@
 import { useState, type ReactNode } from "react";
+import { resolveBubbleLabel } from "../lib/messageLabel";
+import { useDefaultAgent } from "../contexts/DefaultAgentContext";
 
 export interface RegenChainEntry {
   id: number;
@@ -31,8 +33,12 @@ interface Props {
   role: "user" | "assistant" | "tool" | "system";
   children: ReactNode;
   timestamp?: number;
-  /** Agent name — when set, the bubble shows @name instead of "assistant". */
+  /** Agent name — when set, the bubble shows @name instead of the default. */
   author?: string | null;
+  /** Speaker display name for user rows. Falls back to `authorUsername`, then "you". */
+  authorDisplayName?: string | null;
+  /** Speaker username for user rows (used when displayName is empty). */
+  authorUsername?: string | null;
   /**
    * The textual content backing this bubble. Required when actions are wired
    * (powers the inline edit textarea); ignored otherwise.
@@ -56,6 +62,8 @@ export default function MessageBubble({
   children,
   timestamp,
   author,
+  authorDisplayName,
+  authorUsername,
   rawContent,
   edited,
   actions,
@@ -63,8 +71,15 @@ export default function MessageBubble({
   selectedIndex,
   onSelectIndex,
 }: Props) {
-  const label = role === "assistant" && author ? `@${author}` : role;
-  const agentClass = role === "assistant" && author ? " bubble--agent" : "";
+  const defaultAgent = useDefaultAgent();
+  const { label, kind } = resolveBubbleLabel({
+    role,
+    author,
+    displayName: authorDisplayName,
+    username: authorUsername,
+    defaultAgent,
+  });
+  const agentClass = kind === "agent" ? " bubble--agent" : "";
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);

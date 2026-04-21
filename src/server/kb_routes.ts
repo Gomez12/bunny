@@ -351,7 +351,6 @@ function handleClearLlm(
 
 // ── LLM generation (SSE) ─────────────────────────────────────────────────────
 
-
 async function handleGenerate(
   ctx: KbRouteCtx,
   user: User,
@@ -533,7 +532,6 @@ export function extractDefinitionJson(raw: string): {
 // ── Illustration (SVG) generation (SSE) ──────────────────────────────────────
 
 const ILLUSTRATION_MAX_BYTES = 200 * 1024;
-
 
 const ILLUSTRATION_DESC_MAX = 1000;
 

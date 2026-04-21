@@ -7,7 +7,11 @@ import { join } from "node:path";
 // only at first-user-click time — catches packaging or API-shape drift.
 import git from "isomorphic-git";
 import http from "isomorphic-git/http/node";
-import { cloneCodeProject, validateGitUrl, workspaceRelForCode } from "../../src/code/clone.ts";
+import {
+  cloneCodeProject,
+  validateGitUrl,
+  workspaceRelForCode,
+} from "../../src/code/clone.ts";
 import { openDb } from "../../src/memory/db.ts";
 import { createProject } from "../../src/memory/projects.ts";
 import {
@@ -39,7 +43,9 @@ describe("validateGitUrl", () => {
   });
 
   test("rejects ssh:// and scp-style urls", () => {
-    expect(() => validateGitUrl("ssh://git@github.com/user/repo.git")).toThrow();
+    expect(() =>
+      validateGitUrl("ssh://git@github.com/user/repo.git"),
+    ).toThrow();
     expect(() => validateGitUrl("git@github.com:user/repo.git")).toThrow();
   });
 
@@ -121,7 +127,12 @@ describe("cloneCodeProject (local + failure paths)", () => {
       createdBy: null as unknown as string,
     });
     const ok = await cloneCodeProject(
-      { db, queue: noopQueue, cfg: { ...codeCfg, cloneTimeoutMs: 2_000 }, userId: null },
+      {
+        db,
+        queue: noopQueue,
+        cfg: { ...codeCfg, cloneTimeoutMs: 2_000 },
+        userId: null,
+      },
       cp.id,
     );
     expect(ok).toBe(false);
@@ -149,11 +160,17 @@ describe("cloneCodeProject (local + failure paths)", () => {
       name: "twice",
       createdBy: null as unknown as string,
     });
-    await cloneCodeProject({ db, queue: noopQueue, cfg: codeCfg, userId: null }, cp.id);
+    await cloneCodeProject(
+      { db, queue: noopQueue, cfg: codeCfg, userId: null },
+      cp.id,
+    );
     // Drop a file so we can confirm second-call doesn't wipe local-only state.
     const dir = join(tmp, "projects", "alpha", "workspace", "code", "twice");
     writeFileSync(join(dir, "marker.txt"), "stay", "utf8");
-    await cloneCodeProject({ db, queue: noopQueue, cfg: codeCfg, userId: null }, cp.id);
+    await cloneCodeProject(
+      { db, queue: noopQueue, cfg: codeCfg, userId: null },
+      cp.id,
+    );
     expect(existsSync(join(dir, "marker.txt"))).toBe(true);
     const after = getCodeProject(db, cp.id);
     expect(after?.gitStatus).toBe("ready");

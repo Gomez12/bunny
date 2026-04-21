@@ -390,6 +390,28 @@ export function findPriorUserMessage(
 }
 
 /**
+ * Find the author of the first assistant content row after `afterMessageId`
+ * in `sessionId`. Used by regenerate on a user target to inherit the agent
+ * that originally answered this prompt. Returns null when no subsequent
+ * assistant row exists.
+ */
+export function findNextAssistantAuthor(
+  db: Database,
+  sessionId: string,
+  afterMessageId: number,
+): string | null {
+  const row = db
+    .prepare(
+      `SELECT author FROM messages
+         WHERE session_id = ? AND role = 'assistant' AND channel = 'content'
+           AND id > ?
+         ORDER BY id ASC LIMIT 1`,
+    )
+    .get(sessionId, afterMessageId) as { author: string | null } | undefined;
+  return row?.author ?? null;
+}
+
+/**
  * Permission check for message edit / trim / regenerate. Admins always pass;
  * otherwise the caller must own the message. Anonymous (legacy) rows have no
  * owner and can only be touched by admins. Mirrors `canEditCard` /

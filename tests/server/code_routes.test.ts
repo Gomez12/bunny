@@ -38,7 +38,11 @@ const cfg: BunnyConfig = {
     defaultAdminPassword: "pw-initial",
     sessionTtlHours: 1,
   },
-  agent: { systemPrompt: "You are Bunny.", defaultProject: "general" },
+  agent: {
+    systemPrompt: "You are Bunny.",
+    defaultProject: "general",
+    defaultAgent: "bunny",
+  },
   ui: { autosaveIntervalMs: 5000 },
   web: {
     serpApiKey: "",
@@ -118,7 +122,9 @@ async function req(
   });
   const res = await handleApi(r, new URL(r.url), ctx);
   const ct = res.headers.get("content-type") ?? "";
-  const body = ct.includes("application/json") ? await res.json() : await res.text();
+  const body = ct.includes("application/json")
+    ? await res.json()
+    : await res.text();
   return { res, body };
 }
 
@@ -194,8 +200,15 @@ describe("code routes", () => {
       body: { description: "new desc", gitRef: "main" },
     });
     expect(res.status).toBe(200);
-    const updated = (body as { codeProject: { description: string; gitRef: string | null; name: string } })
-      .codeProject;
+    const updated = (
+      body as {
+        codeProject: {
+          description: string;
+          gitRef: string | null;
+          name: string;
+        };
+      }
+    ).codeProject;
     expect(updated.description).toBe("new desc");
     expect(updated.gitRef).toBe("main");
     expect(updated.name).toBe("editable");

@@ -30,7 +30,11 @@ const cfg: BunnyConfig = {
     defaultAdminPassword: "pw-initial",
     sessionTtlHours: 1,
   },
-  agent: { systemPrompt: "You are Bunny.", defaultProject: "general" },
+  agent: {
+    systemPrompt: "You are Bunny.",
+    defaultProject: "general",
+    defaultAgent: "bunny",
+  },
   ui: { autosaveIntervalMs: 5000 },
   web: {
     serpApiKey: "",

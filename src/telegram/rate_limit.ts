@@ -36,10 +36,7 @@ const limiters = new Map<string, TokenLimiter>();
  */
 const PERCHAT_IDLE_EVICT_MS = 24 * 60 * 60 * 1000;
 
-function ensureLimiter(
-  tokenTail: string,
-  globalPerSec: number,
-): TokenLimiter {
+function ensureLimiter(tokenTail: string, globalPerSec: number): TokenLimiter {
   let l = limiters.get(tokenTail);
   if (l) return l;
   l = {

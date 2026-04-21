@@ -30,6 +30,7 @@ import { createUser } from "../../src/auth/users.ts";
 import { createProject } from "../../src/memory/projects.ts";
 import type { BunnyConfig } from "../../src/config.ts";
 import { listForUser } from "../../src/memory/notifications.ts";
+import { ensureDefaultAgent } from "../../src/memory/agents_seed.ts";
 
 // ---------------------------------------------------------------------------
 // Mock LLM — returns a one-shot final answer so runAgent completes quickly.
@@ -93,7 +94,11 @@ function buildCfg(): BunnyConfig {
       defaultAdminPassword: "pw-initial",
       sessionTtlHours: 1,
     },
-    agent: { systemPrompt: "You are Bunny.", defaultProject: "general" },
+    agent: {
+      systemPrompt: "You are Bunny.",
+      defaultProject: "general",
+      defaultAgent: "bunny",
+    },
     ui: { autosaveIntervalMs: 5000 },
     web: {
       serpApiKey: "",
@@ -113,7 +118,11 @@ function buildCfg(): BunnyConfig {
       documentFallbackBytes: 16 * 1024,
       publicBaseUrl: "",
     },
-    code: { cloneTimeoutMs: 300_000, maxRepoSizeMb: 500, defaultCloneDepth: 50 },
+    code: {
+      cloneTimeoutMs: 300_000,
+      maxRepoSizeMb: 500,
+      defaultCloneDepth: 50,
+    },
     sessionId: undefined,
   };
 }
@@ -153,6 +162,8 @@ beforeEach(async () => {
       reset: () => {},
     },
   };
+  // Boot-time invariant: seed the default agent + link to projects.
+  ensureDefaultAgent(db, cfg.agent, ctx.queue);
 });
 
 afterEach(() => {
@@ -255,6 +266,9 @@ describe("POST /api/chat with @user mentions", () => {
       visibility: "private",
       createdBy: bobId,
     });
+    // Mirror the POST /api/projects auto-link: every project has the default
+    // agent linked so /api/chat can resolve it.
+    ensureDefaultAgent(db, ctx.cfg.agent, ctx.queue);
     const cookie = await login("bob", "pw-bob");
     const res = await chat(cookie, {
       prompt: "psst @alice secret",

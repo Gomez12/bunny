@@ -13,6 +13,15 @@ export default function NewsTemplateNewspaper({ items, topics }: Props) {
     bucket.push(item);
     grouped.set(item.topicId, bucket);
   }
+
+  // Sort topics by their most recent item so the freshest section leads.
+  const newestItemDate = (topicId: number): number => {
+    const bucket = grouped.get(topicId);
+    if (!bucket?.length) return 0;
+    const first = bucket[0];
+    return first.publishedAt ?? first.firstSeenAt ?? 0;
+  };
+
   const today = new Date().toLocaleDateString(undefined, {
     weekday: "long",
     day: "numeric",
@@ -28,6 +37,7 @@ export default function NewsTemplateNewspaper({ items, topics }: Props) {
       </header>
       {topics
         .filter((t) => (grouped.get(t.id) ?? []).length > 0)
+        .sort((a, b) => newestItemDate(b.id) - newestItemDate(a.id))
         .map((topic) => {
           const topicItems = grouped.get(topic.id) ?? [];
           const [hero, ...rest] = topicItems;

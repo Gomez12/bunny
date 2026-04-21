@@ -9,10 +9,12 @@ import type { BunnyQueue } from "../queue/bunqueue.ts";
 import {
   canEditMessage,
   editMessageContent,
+  findNextAssistantAuthor,
   findPriorUserMessage,
   getMessageOwner,
   trimSessionAfter,
 } from "../memory/messages.ts";
+import { getAgent, isAgentLinkedToProject } from "../memory/agents.ts";
 import { forkSession } from "../memory/sessions.ts";
 import { setSessionQuickChat } from "../memory/session_visibility.ts";
 import { getSessionProject } from "../memory/projects.ts";
@@ -214,7 +216,7 @@ async function handleRegenerate(
 ): Promise<Response> {
   const target = ctx.db
     .prepare(
-      `SELECT id, session_id, ts, role, content, user_id
+      `SELECT id, session_id, ts, role, content, user_id, author
          FROM messages WHERE id = ? AND trimmed_at IS NULL`,
     )
     .get(messageId) as
@@ -225,6 +227,7 @@ async function handleRegenerate(
         role: string;
         content: string | null;
         user_id: string | null;
+        author: string | null;
       }
     | undefined;
   if (!target) return json({ error: "not found" }, 404);
@@ -259,18 +262,40 @@ async function handleRegenerate(
 
   const project = getSessionProject(ctx.db, target.session_id) ?? "general";
 
+  // Inherit the responding agent from the row being regenerated:
+  //   - assistant target: the target's own author
+  //   - user target:      the next assistant row after it (if any)
+  // Fallback: configured default agent. If the inherited agent has since
+  // been deleted or unlinked from the project, fall back as well.
+  let regenAgent: string | undefined;
+  if (target.role === "assistant") {
+    regenAgent = target.author ?? undefined;
+  } else {
+    regenAgent =
+      findNextAssistantAuthor(ctx.db, target.session_id, target.id) ??
+      undefined;
+  }
+  if (regenAgent) {
+    const row = getAgent(ctx.db, regenAgent);
+    if (!row || !isAgentLinkedToProject(ctx.db, project, regenAgent)) {
+      regenAgent = undefined;
+    }
+  }
+  regenAgent ??= ctx.cfg.agent.defaultAgent;
+
   await req.text().catch(() => "");
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const sink = controllerSink(controller);
-      const renderer = createSseRenderer(sink);
+      const renderer = createSseRenderer(sink, { author: regenAgent });
       try {
         await runAgent({
           prompt,
           sessionId: target.session_id,
           userId: user.id,
           project,
+          agent: regenAgent,
           llmCfg: ctx.cfg.llm,
           embedCfg: ctx.cfg.embed,
           memoryCfg: ctx.cfg.memory,

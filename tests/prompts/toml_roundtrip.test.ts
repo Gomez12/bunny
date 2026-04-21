@@ -50,7 +50,7 @@ test("project prompts.toml round-trips a single-line override", () => {
 
 test("project prompts.toml round-trips a multi-line override with backticks", () => {
   ensureProjectDir("alpha");
-  const body = "Line 1\nLine 2\n```json\n{\"x\": 1}\n```\nDone";
+  const body = 'Line 1\nLine 2\n```json\n{"x": 1}\n```\nDone';
   setProjectPromptOverride("alpha", "kb.definition", body);
   __clearProjectPromptsCache();
   expect(loadProjectPromptOverrides("alpha")).toEqual({

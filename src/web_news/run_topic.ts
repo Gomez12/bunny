@@ -109,6 +109,7 @@ export async function runTopic(opts: RunTopicOpts): Promise<RunTopicResult> {
     renewTerms,
     previousItems: listRecentItemsForTopic(db, topicId, 30),
     project: topic.project,
+    today: new Date(now).toISOString().slice(0, 10),
   });
 
   const result: RunTopicResult = {
@@ -288,6 +289,8 @@ interface BuildUserMessageOpts {
   previousItems: ReturnType<typeof listRecentItemsForTopic>;
   /** Project name used to scope prompt registry overrides. */
   project: string;
+  /** Current date as YYYY-MM-DD, injected into the prompt so the LLM knows what "recent" means. */
+  today: string;
 }
 
 /**
@@ -323,6 +326,7 @@ function buildUserMessage(
     resolvePrompt("web_news.fetch", { project: opts.project }),
     {
       topicName: topic.name,
+      today: opts.today,
       description,
       termsText,
       known,

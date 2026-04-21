@@ -23,6 +23,7 @@ import { webBundle } from "./web_bundle.ts";
 import { ensureSeedUsers } from "../auth/seed.ts";
 import { ensureProject, validateProjectName } from "../memory/projects.ts";
 import { ensureProjectDir } from "../memory/project_assets.ts";
+import { ensureDefaultAgent } from "../memory/agents_seed.ts";
 import { backfillAllTranslationSlots } from "../memory/translatable.ts";
 import { defaultHandlerRegistry } from "../scheduler/handlers.ts";
 import { startScheduler } from "../scheduler/ticker.ts";
@@ -48,11 +49,16 @@ import {
   WEB_NEWS_AUTO_RUN_HANDLER,
   registerWebNewsAutoRun,
 } from "../web_news/auto_run_handler.ts";
+import { releaseStuckTopics } from "../memory/web_news.ts";
 import {
   TELEGRAM_POLL_HANDLER,
   registerTelegramPoll,
 } from "../telegram/poll_handler.ts";
 import { reapplyAllTransports } from "../telegram/webhook_setup.ts";
+import {
+  KB_AUTO_GENERATE_HANDLER,
+  registerKbAutoGenerate,
+} from "../kb/auto_generate_handler.ts";
 
 const DEFAULT_PORT = 3000;
 
@@ -122,7 +128,22 @@ export async function startServer(
   } catch (e) {
     console.warn("[bunny] translation backfill failed:", errorMessage(e));
   }
+  // Reclaim web_news topics stuck in 'running' from a prior crash.
+  try {
+    const released = releaseStuckTopics(db);
+    if (released > 0)
+      console.warn(`[bunny] reclaimed ${released} stuck web_news topic(s)`);
+  } catch (e) {
+    console.warn(
+      "[bunny] failed to release stuck web_news topics:",
+      errorMessage(e),
+    );
+  }
   const queue = createBunnyQueue(db);
+
+  // Seed the configured default agent and link it to every existing project
+  // so `/api/chat` can always resolve a named agent. See ADR 0031.
+  ensureDefaultAgent(db, cfg.agent, queue);
 
   registerBoardAutoRun(defaultHandlerRegistry);
   registerAutoTranslate(defaultHandlerRegistry);
@@ -130,6 +151,7 @@ export async function startServer(
   registerQuickChatHide(defaultHandlerRegistry);
   registerWebNewsAutoRun(defaultHandlerRegistry);
   registerTelegramPoll(defaultHandlerRegistry);
+  registerKbAutoGenerate(defaultHandlerRegistry);
   const bootNow = Date.now();
   const boardAutoRunCron = "*/5 * * * *";
   try {
@@ -207,6 +229,21 @@ export async function startServer(
   // was offline (token rotation, transport flip, …). Errors are swallowed —
   // individual failures log via the queue.
   void reapplyAllTransports(db, queue, cfg.telegram.publicBaseUrl || undefined);
+  const kbAutoGenerateCron = "* * * * *";
+  try {
+    ensureSystemTask(db, KB_AUTO_GENERATE_HANDLER, {
+      name: "KB definition auto-generate",
+      description:
+        "Auto-generate AI descriptions for KB definitions that have never been generated (every minute, up to 3 per tick).",
+      cronExpr: kbAutoGenerateCron,
+      nextRunAt: computeNextRun(kbAutoGenerateCron, bootNow),
+    });
+  } catch (e) {
+    console.warn(
+      "[bunny] failed to seed kb.auto_generate_scan:",
+      errorMessage(e),
+    );
+  }
   const quickChatHideCron = "*/5 * * * *";
   try {
     ensureSystemTask(db, QUICK_CHAT_HIDE_HANDLER, {

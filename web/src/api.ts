@@ -185,6 +185,10 @@ export interface HistoryTurn {
   stats: TurnStats | null;
   /** Agent name that answered, or null for the default assistant. */
   author: string | null;
+  /** Display name of the user who sent the prompt (null for legacy rows). */
+  promptDisplayName: string | null;
+  /** Username of the user who sent the prompt (null for legacy rows). */
+  promptUsername: string | null;
   /** Attachments sent by the user on this turn. */
   attachments: ChatAttachment[];
 }
@@ -240,6 +244,8 @@ export function groupTurns(messages: StoredMessage[]): HistoryTurn[] {
         toolCalls: [],
         stats: null,
         author: null,
+        promptDisplayName: m.displayName,
+        promptUsername: m.username,
         attachments: m.attachments ?? [],
       };
       turns.push(current);
@@ -555,10 +561,14 @@ export async function logout(): Promise<void> {
   await jsonFetch<{ ok: true }>("/api/auth/logout", { method: "POST" });
 }
 
-export async function fetchMe(): Promise<AuthUser | null> {
+export interface MeInfo {
+  user: AuthUser;
+  defaultAgent: string;
+}
+
+export async function fetchMeInfo(): Promise<MeInfo | null> {
   try {
-    const { user } = await jsonFetch<{ user: AuthUser }>("/api/auth/me");
-    return user;
+    return await jsonFetch<MeInfo>("/api/auth/me");
   } catch {
     return null;
   }

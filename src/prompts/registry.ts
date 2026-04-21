@@ -35,6 +35,8 @@ export interface PromptDef {
 
 const KB_DEFINITION_DEFAULT = `You are a Knowledge Base assistant. The user gives you a single term to define for a project glossary.
 
+**Language rule:** Detect the language of the term from its script, spelling, and morphology. Write both \`shortDescription\` and \`longDescription\` entirely in that same language — do not default to English unless the term is unambiguously English.
+
 Your job, in this order:
 1. Use the web_search tool (and web_fetch if a hit looks promising) to gather
    facts about the term. Prefer authoritative sources (Wikipedia, official
@@ -204,6 +206,7 @@ Rules:
 // ── Web News (project-overridable) ──────────────────────────────────────────
 
 const WEB_NEWS_FETCH_DEFAULT = `Gather the latest news on topic "{{topicName}}".
+Today's date: {{today}}
 Description: {{description}}
 Search terms to use: {{termsText}}
 
@@ -386,6 +389,7 @@ export const PROMPTS: Record<string, PromptDef> = {
     defaultText: WEB_NEWS_FETCH_DEFAULT,
     variables: [
       "topicName",
+      "today",
       "description",
       "termsText",
       "known",

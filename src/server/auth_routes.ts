@@ -97,7 +97,10 @@ export async function handleAuthRoute(
   }
 
   if (pathname === "/api/auth/me" && req.method === "GET") {
-    return json({ user: publicUser(user) });
+    return json({
+      user: publicUser(user),
+      defaultAgent: ctx.cfg.agent.defaultAgent,
+    });
   }
 
   if (pathname === "/api/auth/password" && req.method === "POST") {
