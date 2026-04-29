@@ -30,6 +30,16 @@
     <div id="error" style="display:none">
       <p class="error-text"></p>
     </div>
+
+    <div id="error-screen" style="display:none">
+      <h2 class="error-title">Can't reach server</h2>
+      <p class="error-url" id="error-screen-url"></p>
+      <p class="error-detail" id="error-screen-detail"></p>
+      <button type="button" id="error-retry">Retry</button>
+      <button type="button" id="error-change" class="btn-secondary">
+        Change server address
+      </button>
+    </div>
   </div>
 
   <script src="setup.js" type="module"></script>
