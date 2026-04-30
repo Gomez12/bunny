@@ -201,6 +201,40 @@ export interface SseWorkflowRunFinishedEvent {
   error?: string;
 }
 
+/** Emitted the moment the code-graph pipeline kicks off. */
+export interface SseCodeGraphRunStartedEvent {
+  type: "code_graph_run_started";
+  codeProjectId: number;
+}
+
+/** Emitted when the pipeline transitions between phases — drives the status
+ *  chip and the "extracting 4/120 files" counter in the UI. */
+export interface SseCodeGraphPhaseEvent {
+  type: "code_graph_phase";
+  codeProjectId: number;
+  phase: "extracting" | "clustering" | "rendering";
+  /** Set during extraction only. */
+  filesTotal?: number;
+  filesDone?: number;
+}
+
+/** One raw log line from the pipeline — typically "extracted foo/bar.ts (12 nodes, 8 edges)". */
+export interface SseCodeGraphLogEvent {
+  type: "code_graph_log";
+  codeProjectId: number;
+  text: string;
+}
+
+/** Terminal event. `status: "ready"` means graph.json + GRAPH_REPORT.md are on disk. */
+export interface SseCodeGraphRunFinishedEvent {
+  type: "code_graph_run_finished";
+  codeProjectId: number;
+  status: "ready" | "error";
+  nodes?: number;
+  edges?: number;
+  error?: string;
+}
+
 /** Serialisable notification row shipped to the web UI. Matches the shape
  *  returned from `GET /api/notifications` and embedded in
  *  `SseNotificationCreatedEvent` so front-end and back-end stay in lock-step. */
@@ -259,4 +293,8 @@ export type SseEvent =
   | SseWorkflowNodeFinishedEvent
   | SseWorkflowRunFinishedEvent
   | SseNotificationCreatedEvent
-  | SseNotificationReadEvent;
+  | SseNotificationReadEvent
+  | SseCodeGraphRunStartedEvent
+  | SseCodeGraphPhaseEvent
+  | SseCodeGraphLogEvent
+  | SseCodeGraphRunFinishedEvent;

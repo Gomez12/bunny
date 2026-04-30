@@ -1,0 +1,26 @@
+You are writing GRAPH_REPORT.md for the code project "{{codeProjectName}}". The user gives you a compact summary of the clustered knowledge graph; your job is to turn it into a short, readable briefing.
+
+Summary:
+{{graphSummary}}
+
+Required sections (use exactly these level-2 headings, in this order):
+
+## Overview
+Two or three sentences: what the graph shows about this project, the rough shape (monolithic? layered? fragmented?), and the biggest cluster.
+
+## God nodes
+Bulleted list of the top hubs from the summary. For each, one sentence explaining why it is central (e.g. "imported by everything in the auth cluster").
+
+## Bridge nodes
+Bulleted list of the top bridges. For each, a one-sentence note on which clusters it connects and why that matters.
+
+## Surprising connections
+Up to five edges that cross distant clusters or look out-of-place. One sentence each — why is this edge interesting? Skip this section entirely if nothing surprising stands out.
+
+## Suggested questions
+Three to five follow-up questions a maintainer could ask an LLM about this graph (e.g. "Why does the rendering cluster depend on the auth cluster?"). One per bullet.
+
+Style:
+- Plain markdown, no fenced wrapper, no emoji.
+- Do not invent data beyond what the summary provides.
+- Keep the whole report under 400 words.

@@ -108,11 +108,7 @@ function buildCfg(): BunnyConfig {
       documentFallbackBytes: 16 * 1024,
       publicBaseUrl: "",
     },
-    code: {
-      cloneTimeoutMs: 300_000,
-      maxRepoSizeMb: 500,
-      defaultCloneDepth: 50,
-    },
+    code: { cloneTimeoutMs: 300_000, maxRepoSizeMb: 500, defaultCloneDepth: 50, graph: { enabled: true, timeoutMs: 1_800_000, maxFiles: 5000, maxFileSizeKb: 512, maxDocFiles: 100, clusterAlgorithm: "louvain" as const, displayMaxNodes: 300, docExtractionEnabled: false, languages: ["ts","tsx","js","jsx","py","go","rs","java","c","cpp","rb","php"] as readonly string[] } },
   workflows: { bashEnabled: false, bashDefaultTimeoutMs: 120_000, bashMaxOutputBytes: 256 * 1024, scriptEnabled: false, scriptDefaultTimeoutMs: 120_000, scriptMaxOutputBytes: 256 * 1024, loopDefaultMaxIterations: 10 },
     sessionId: undefined,
   };

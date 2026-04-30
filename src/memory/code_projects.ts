@@ -28,6 +28,23 @@ registerTrashable({
 
 export type GitStatus = "idle" | "cloning" | "ready" | "error";
 
+export type GraphStatus =
+  | "idle"
+  | "extracting"
+  | "clustering"
+  | "rendering"
+  | "ready"
+  | "error";
+
+const GRAPH_STATUSES: readonly GraphStatus[] = [
+  "idle",
+  "extracting",
+  "clustering",
+  "rendering",
+  "ready",
+  "error",
+];
+
 export interface CodeProject {
   id: number;
   project: string;
@@ -38,6 +55,11 @@ export interface CodeProject {
   gitStatus: GitStatus;
   gitError: string | null;
   lastClonedAt: number | null;
+  graphStatus: GraphStatus;
+  graphError: string | null;
+  graphNodeCount: number | null;
+  graphEdgeCount: number | null;
+  lastGraphedAt: number | null;
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
@@ -53,6 +75,11 @@ interface CodeProjectRow {
   git_status: string;
   git_error: string | null;
   last_cloned_at: number | null;
+  graph_status: string | null;
+  graph_error: string | null;
+  graph_node_count: number | null;
+  graph_edge_count: number | null;
+  last_graphed_at: number | null;
   created_by: string | null;
   created_at: number;
   updated_at: number;
@@ -65,6 +92,10 @@ function rowToCodeProject(r: CodeProjectRow): CodeProject {
     r.git_status === "error"
       ? r.git_status
       : "idle";
+  const graphStatus: GraphStatus =
+    r.graph_status && (GRAPH_STATUSES as readonly string[]).includes(r.graph_status)
+      ? (r.graph_status as GraphStatus)
+      : "idle";
   return {
     id: r.id,
     project: r.project,
@@ -75,6 +106,11 @@ function rowToCodeProject(r: CodeProjectRow): CodeProject {
     gitStatus: status,
     gitError: r.git_error,
     lastClonedAt: r.last_cloned_at,
+    graphStatus,
+    graphError: r.graph_error,
+    graphNodeCount: r.graph_node_count,
+    graphEdgeCount: r.graph_edge_count,
+    lastGraphedAt: r.last_graphed_at,
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -83,6 +119,8 @@ function rowToCodeProject(r: CodeProjectRow): CodeProject {
 
 const SELECT_COLS = `id, project, name, description, git_url, git_ref,
                      git_status, git_error, last_cloned_at,
+                     graph_status, graph_error, graph_node_count,
+                     graph_edge_count, last_graphed_at,
                      created_by, created_at, updated_at`;
 
 export function listCodeProjects(db: Database, project: string): CodeProject[] {
@@ -236,4 +274,71 @@ export function setGitIdle(db: Database, id: number): void {
             updated_at = ?
       WHERE id = ?`,
   ).run(Date.now(), id);
+}
+
+// ── Graph status setters ────────────────────────────────────────────────────
+
+/**
+ * Advance the graph pipeline to `phase`. The claim on `'extracting'` is
+ * race-safe: it only applies when the row is NOT already on a mid-flight phase
+ * (extracting / clustering / rendering), so two concurrent POSTs yield exactly
+ * one run. Transitions to later phases (`clustering`, `rendering`) are written
+ * unconditionally — they're only called from within a run that already won the
+ * claim.
+ */
+export function setGraphPhase(
+  db: Database,
+  id: number,
+  phase: Exclude<GraphStatus, "ready" | "error">,
+): boolean {
+  const now = Date.now();
+  if (phase === "extracting") {
+    const info = db
+      .prepare(
+        `UPDATE code_projects
+            SET graph_status = 'extracting',
+                graph_error  = NULL,
+                updated_at   = ?
+          WHERE id = ?
+            AND deleted_at IS NULL
+            AND graph_status NOT IN ('extracting', 'clustering', 'rendering')`,
+      )
+      .run(now, id);
+    return info.changes > 0;
+  }
+  db.prepare(
+    `UPDATE code_projects
+        SET graph_status = ?,
+            updated_at   = ?
+      WHERE id = ?`,
+  ).run(phase, now, id);
+  return true;
+}
+
+export function setGraphReady(
+  db: Database,
+  id: number,
+  counts: { nodes: number; edges: number },
+): void {
+  const now = Date.now();
+  db.prepare(
+    `UPDATE code_projects
+        SET graph_status      = 'ready',
+            graph_error       = NULL,
+            graph_node_count  = ?,
+            graph_edge_count  = ?,
+            last_graphed_at   = ?,
+            updated_at        = ?
+      WHERE id = ?`,
+  ).run(counts.nodes, counts.edges, now, now, id);
+}
+
+export function setGraphError(db: Database, id: number, error: string): void {
+  db.prepare(
+    `UPDATE code_projects
+        SET graph_status = 'error',
+            graph_error  = ?,
+            updated_at   = ?
+      WHERE id = ?`,
+  ).run(error, Date.now(), id);
 }

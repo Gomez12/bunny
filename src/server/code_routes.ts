@@ -44,6 +44,9 @@ import {
   validateGitUrl,
   workspaceRelForCode,
 } from "../code/clone.ts";
+import { runGraph, graphFanouts } from "../code/graph/run.ts";
+import { subscribeFanout } from "../agent/run_fanout.ts";
+import { existsSync, readFileSync } from "node:fs";
 import {
   setSessionHiddenFromChat,
   setSessionQuickChat,
@@ -120,6 +123,30 @@ export async function handleCodeRoute(
   if (chatMatch) {
     const id = Number(chatMatch[1]);
     if (req.method === "POST") return handleChat(req, ctx, user, id);
+  }
+
+  const graphRunMatch = pathname.match(/^\/api\/code\/(\d+)\/graph\/run$/);
+  if (graphRunMatch) {
+    const id = Number(graphRunMatch[1]);
+    if (req.method === "POST") return handleGraphRun(ctx, user, id);
+  }
+
+  const graphStreamMatch = pathname.match(/^\/api\/code\/(\d+)\/graph\/stream$/);
+  if (graphStreamMatch) {
+    const id = Number(graphStreamMatch[1]);
+    if (req.method === "GET") return handleGraphStream(ctx, user, id);
+  }
+
+  const graphDataMatch = pathname.match(/^\/api\/code\/(\d+)\/graph\/data$/);
+  if (graphDataMatch) {
+    const id = Number(graphDataMatch[1]);
+    if (req.method === "GET") return handleGraphData(ctx, user, id);
+  }
+
+  const graphReportMatch = pathname.match(/^\/api\/code\/(\d+)\/graph\/report$/);
+  if (graphReportMatch) {
+    const id = Number(graphReportMatch[1]);
+    if (req.method === "GET") return handleGraphReport(ctx, user, id);
   }
 
   return null;
@@ -387,12 +414,14 @@ async function handleAsk(
 
   const sessionId = randomUUID();
   const listing = safeTopLevelListing(cp.project, cp.name);
+  const graphSummary = safeGraphSummary(cp.project, cp.name);
   const prompt = renderPrompt(
     "code.ask",
     {
       codeProjectName: cp.name,
       codeProjectPath: workspaceRelForCode(cp),
       fileListing: listing,
+      graphSummary,
       question,
     },
     { project: cp.project },
@@ -522,12 +551,14 @@ async function handleChat(
     body?.sessionId?.trim() || `code-chat-${id}-${randomUUID()}`;
 
   const listing = safeTopLevelListing(cp.project, cp.name);
+  const graphSummary = safeGraphSummary(cp.project, cp.name);
   const systemPrompt = renderPrompt(
     "code.chat",
     {
       codeProjectName: cp.name,
       codeProjectPath: workspaceRelForCode(cp),
       fileListing: listing,
+      graphSummary,
     },
     { project: cp.project },
   );
@@ -580,6 +611,153 @@ async function handleChat(
   });
 }
 
+// ── Graph feature (ADR 0033) ──────────────────────────────────────────────
+
+async function handleGraphRun(
+  ctx: CodeRouteCtx,
+  user: User,
+  id: number,
+): Promise<Response> {
+  if (!ctx.cfg.code.graph.enabled) {
+    return json({ error: "code graph disabled" }, 503);
+  }
+  const cp = getCodeProject(ctx.db, id);
+  if (!cp) return json({ error: "not found" }, 404);
+  const p = getProject(ctx.db, cp.project);
+  if (!p) return json({ error: "project not found" }, 404);
+  if (!canEditCodeProject(user, cp, p))
+    return json({ error: "forbidden" }, 403);
+  if (cp.gitStatus !== "ready") {
+    return json({ error: "code project is not ready" }, 409);
+  }
+
+  const result = await runGraph(
+    { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg, userId: user.id },
+    id,
+  );
+  if (!result.ok) {
+    return json({ error: "graph run already in progress" }, 409);
+  }
+
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const sink = controllerSink(controller);
+      const unsubscribe = subscribeFanout(graphFanouts, id, sink);
+      void unsubscribe;
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
+}
+
+function handleGraphStream(
+  ctx: CodeRouteCtx,
+  user: User,
+  id: number,
+): Response {
+  const cp = getCodeProject(ctx.db, id);
+  if (!cp) return json({ error: "not found" }, 404);
+  const p = getProject(ctx.db, cp.project);
+  if (!p || !canSeeProject(p, user)) return json({ error: "forbidden" }, 403);
+
+  const fan = graphFanouts.get(id);
+  if (!fan) return json({ error: "no active graph run" }, 404);
+
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const sink = controllerSink(controller);
+      const unsubscribe = subscribeFanout(graphFanouts, id, sink);
+      if (fan.closed) finishSse(sink);
+      void unsubscribe;
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
+}
+
+function handleGraphData(
+  ctx: CodeRouteCtx,
+  user: User,
+  id: number,
+): Response {
+  const cp = getCodeProject(ctx.db, id);
+  if (!cp) return json({ error: "not found" }, 404);
+  const p = getProject(ctx.db, cp.project);
+  if (!p || !canSeeProject(p, user)) return json({ error: "forbidden" }, 403);
+
+  let abs: string;
+  try {
+    abs = graphOutFile(cp.project, cp.name, "graph.json");
+  } catch (e) {
+    return json({ error: errorMessage(e) }, 400);
+  }
+  if (!existsSync(abs)) {
+    return json({ error: "graph not generated yet" }, 404);
+  }
+  try {
+    const text = readFileSync(abs, "utf8");
+    return new Response(text, {
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-cache",
+      },
+    });
+  } catch (e) {
+    return json({ error: errorMessage(e) }, 500);
+  }
+}
+
+function handleGraphReport(
+  ctx: CodeRouteCtx,
+  user: User,
+  id: number,
+): Response {
+  const cp = getCodeProject(ctx.db, id);
+  if (!cp) return json({ error: "not found" }, 404);
+  const p = getProject(ctx.db, cp.project);
+  if (!p || !canSeeProject(p, user)) return json({ error: "forbidden" }, 403);
+
+  let abs: string;
+  try {
+    abs = graphOutFile(cp.project, cp.name, "GRAPH_REPORT.md");
+  } catch (e) {
+    return json({ error: errorMessage(e) }, 400);
+  }
+  if (!existsSync(abs)) {
+    return json({ error: "report not generated yet" }, 404);
+  }
+  try {
+    const text = readFileSync(abs, "utf8");
+    return new Response(text, {
+      headers: {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Cache-Control": "no-cache",
+      },
+    });
+  } catch (e) {
+    return json({ error: errorMessage(e) }, 500);
+  }
+}
+
+function graphOutFile(project: string, name: string, filename: string): string {
+  // `code/.graph-out/<name>/` sits beside the cloned repo (not inside it) so
+  // the working tree stays clean across re-clones. `resolveForDownload`
+  // enforces the protected-root check and rejects traversal.
+  const rel = `code/.graph-out/${name}/${filename}`;
+  const { abs } = resolveForDownload(project, rel);
+  return abs;
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function stripCodePrefix(name: string, workspacePath: string): string {
@@ -589,6 +767,25 @@ function stripCodePrefix(name: string, workspacePath: string): string {
   if (workspacePath.startsWith(prefix))
     return workspacePath.slice(prefix.length);
   return workspacePath;
+}
+
+/**
+ * Returns the current `GRAPH_REPORT.md` for this code project so the chat /
+ * ask prompts can ground their answers in it. Falls back to a neutral
+ * placeholder when no graph has been generated yet — the prompt then nudges
+ * the user toward running the Graph feature.
+ */
+function safeGraphSummary(project: string, name: string): string {
+  try {
+    const abs = graphOutFile(project, name, "GRAPH_REPORT.md");
+    if (existsSync(abs)) {
+      const text = readFileSync(abs, "utf8").trim();
+      if (text.length > 0) return text;
+    }
+  } catch {
+    /* fall through to placeholder */
+  }
+  return "_No knowledge graph has been generated for this project yet. If a structural overview would help, suggest the user run the Graph feature in the Code tab; otherwise rely on the file listing above and read files directly._";
 }
 
 /**

@@ -2338,6 +2338,14 @@ export async function updateProjectPrompt(
 
 export type CodeGitStatus = "idle" | "cloning" | "ready" | "error";
 
+export type CodeGraphStatus =
+  | "idle"
+  | "extracting"
+  | "clustering"
+  | "rendering"
+  | "ready"
+  | "error";
+
 export interface CodeProject {
   id: number;
   project: string;
@@ -2348,9 +2356,45 @@ export interface CodeProject {
   gitStatus: CodeGitStatus;
   gitError: string | null;
   lastClonedAt: number | null;
+  graphStatus: CodeGraphStatus;
+  graphError: string | null;
+  graphNodeCount: number | null;
+  graphEdgeCount: number | null;
+  lastGraphedAt: number | null;
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
+}
+
+export interface CodeGraphNode {
+  id: string;
+  kind: "module" | "function" | "class" | "method" | "concept";
+  name: string;
+  filePath: string | null;
+  lineStart?: number;
+  lineEnd?: number;
+  cluster?: number;
+}
+
+export interface CodeGraphEdge {
+  from: string;
+  to: string;
+  kind: "imports" | "calls" | "extends" | "implements" | "mentions";
+  confidence: number;
+}
+
+export interface CodeGraphCluster {
+  id: number;
+  size: number;
+  topNodes: string[];
+}
+
+export interface CodeGraphData {
+  nodes: CodeGraphNode[];
+  edges: CodeGraphEdge[];
+  clusters: CodeGraphCluster[];
+  godNodes: string[];
+  bridgeNodes: string[];
 }
 
 export interface CodeTreeEntry {
@@ -2454,6 +2498,40 @@ export function streamCodeEdit(
     },
     onEvent,
   );
+}
+
+/** Kick off a graph run against /api/code/:id/graph/run. Mirrors streamCodeEdit. */
+export function streamCodeGraph(
+  codeProjectId: number,
+  onEvent: (ev: ServerEvent) => void,
+): { done: Promise<void>; abort: () => void } {
+  return openSseStream(
+    `/api/code/${codeProjectId}/graph/run`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    },
+    onEvent,
+  );
+}
+
+export async function fetchCodeGraphData(
+  id: number,
+): Promise<CodeGraphData> {
+  const res = await fetch(`/api/code/${id}/graph/data`, {
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`graph data ${res.status}`);
+  return (await res.json()) as CodeGraphData;
+}
+
+export async function fetchCodeGraphReport(id: number): Promise<string> {
+  const res = await fetch(`/api/code/${id}/graph/report`, {
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`graph report ${res.status}`);
+  return res.text();
 }
 
 export async function chatCodeProject(

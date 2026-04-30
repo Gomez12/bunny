@@ -27,6 +27,7 @@ export {
   GitBranch,
   FolderGit2,
   Workflow,
+  Network,
   Terminal,
   MessageSquareMore,
   LayoutDashboard,

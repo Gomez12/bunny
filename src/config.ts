@@ -108,6 +108,27 @@ export interface TranslationConfig {
   systemPrompt: string;
 }
 
+export interface CodeGraphConfig {
+  /** Master kill-switch. When false, graph endpoints return 503. */
+  enabled: boolean;
+  /** Abort a run if all phases combined run longer than this. */
+  timeoutMs: number;
+  /** Cap the number of source files that walk will emit. */
+  maxFiles: number;
+  /** Skip single files larger than this. */
+  maxFileSizeKb: number;
+  /** Cap the number of docs (MD/PDF/DOCX) passed to the LLM extractor. */
+  maxDocFiles: number;
+  /** Community-detection algorithm. Only 'louvain' is wired today. */
+  clusterAlgorithm: "louvain";
+  /** Hard cap for xyflow to stay performant. */
+  displayMaxNodes: number;
+  /** Default off — flips on per-run via UI toggle or [code.graph] override. */
+  docExtractionEnabled: boolean;
+  /** Extensions to extract AST from; the rest fall back to module-only nodes. */
+  languages: readonly string[];
+}
+
 export interface CodeConfig {
   /** Abort a clone if it hasn't finished within this many ms. */
   cloneTimeoutMs: number;
@@ -115,6 +136,8 @@ export interface CodeConfig {
   maxRepoSizeMb: number;
   /** Shallow-clone depth; smaller = faster + less disk. */
   defaultCloneDepth: number;
+  /** Knowledge-graph pipeline (ADR 0033). */
+  graph: CodeGraphConfig;
 }
 
 export interface WorkflowsConfig {
@@ -222,6 +245,17 @@ interface TomlShape {
     clone_timeout_ms: number;
     max_repo_size_mb: number;
     default_clone_depth: number;
+    graph: Partial<{
+      enabled: boolean;
+      timeout_ms: number;
+      max_files: number;
+      max_file_size_kb: number;
+      max_doc_files: number;
+      cluster_algorithm: string;
+      display_max_nodes: number;
+      doc_extraction_enabled: boolean;
+      languages: string[];
+    }>;
   }>;
   workflows?: Partial<{
     bash_enabled: boolean;
@@ -293,6 +327,30 @@ When you are done, reply with your final answer without making any more tool cal
     cloneTimeoutMs: 5 * 60 * 1000,
     maxRepoSizeMb: 500,
     defaultCloneDepth: 50,
+    graph: {
+      enabled: true,
+      timeoutMs: 30 * 60 * 1000,
+      maxFiles: 5000,
+      maxFileSizeKb: 512,
+      maxDocFiles: 100,
+      clusterAlgorithm: "louvain" as const,
+      displayMaxNodes: 150,
+      docExtractionEnabled: false,
+      languages: [
+        "ts",
+        "tsx",
+        "js",
+        "jsx",
+        "py",
+        "go",
+        "rs",
+        "java",
+        "c",
+        "cpp",
+        "rb",
+        "php",
+      ] as readonly string[],
+    },
   },
   workflows: {
     bashEnabled: false,
@@ -476,6 +534,11 @@ export function loadConfig(
       DEFAULTS.telegram.publicBaseUrl,
   };
 
+  const graphToml = toml.code?.graph;
+  const clusterAlg =
+    graphToml?.cluster_algorithm === "louvain"
+      ? "louvain"
+      : DEFAULTS.code.graph.clusterAlgorithm;
   const code: CodeConfig = {
     cloneTimeoutMs: Number(
       toml.code?.clone_timeout_ms ?? DEFAULTS.code.cloneTimeoutMs,
@@ -486,6 +549,25 @@ export function loadConfig(
     defaultCloneDepth: Number(
       toml.code?.default_clone_depth ?? DEFAULTS.code.defaultCloneDepth,
     ),
+    graph: {
+      enabled: graphToml?.enabled ?? DEFAULTS.code.graph.enabled,
+      timeoutMs: Number(graphToml?.timeout_ms ?? DEFAULTS.code.graph.timeoutMs),
+      maxFiles: Number(graphToml?.max_files ?? DEFAULTS.code.graph.maxFiles),
+      maxFileSizeKb: Number(
+        graphToml?.max_file_size_kb ?? DEFAULTS.code.graph.maxFileSizeKb,
+      ),
+      maxDocFiles: Number(
+        graphToml?.max_doc_files ?? DEFAULTS.code.graph.maxDocFiles,
+      ),
+      clusterAlgorithm: clusterAlg,
+      displayMaxNodes: Number(
+        graphToml?.display_max_nodes ?? DEFAULTS.code.graph.displayMaxNodes,
+      ),
+      docExtractionEnabled:
+        graphToml?.doc_extraction_enabled ??
+        DEFAULTS.code.graph.docExtractionEnabled,
+      languages: graphToml?.languages ?? DEFAULTS.code.graph.languages,
+    },
   };
 
   const workflows: WorkflowsConfig = {

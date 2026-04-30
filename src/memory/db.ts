@@ -178,6 +178,14 @@ function migrateColumns(db: Database): void {
   }
   // Workflows — structured per-node step records for the run timeline UI.
   addColumn("ALTER TABLE workflow_run_nodes ADD COLUMN steps_json TEXT");
+  // Code sub-app: per-project knowledge-graph status (ADR 0033).
+  addColumn(
+    "ALTER TABLE code_projects ADD COLUMN graph_status TEXT NOT NULL DEFAULT 'idle'",
+  );
+  addColumn("ALTER TABLE code_projects ADD COLUMN graph_error TEXT");
+  addColumn("ALTER TABLE code_projects ADD COLUMN graph_node_count INTEGER");
+  addColumn("ALTER TABLE code_projects ADD COLUMN graph_edge_count INTEGER");
+  addColumn("ALTER TABLE code_projects ADD COLUMN last_graphed_at INTEGER");
   // Backfill original_lang once for legacy rows.
   db.run(
     `UPDATE kb_definitions

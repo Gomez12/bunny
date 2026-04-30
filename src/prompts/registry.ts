@@ -266,12 +266,16 @@ const CODE_ASK_DEFAULT = `You are a senior code reviewer and documentation write
 3. A top-level file listing of the repository (capped):
 {{fileListing}}
 
-4. The user's question:
+4. Knowledge-graph context (auto-generated architectural overview — use this as your map of the codebase before reading individual files):
+{{graphSummary}}
+
+5. The user's question:
 {{question}}
 
 How to work:
-- Use the workspace file tools (\`list_workspace_files\`, \`read_workspace_file\`) to navigate the code. All paths are relative to the Bunny project's workspace root, so prefix every path with "{{codeProjectPath}}/".
+- This question is about the code in this repository. Treat the repository + the knowledge graph above as your primary source of truth. Use the workspace tools (\`list_workspace_files\`, \`read_workspace_file\`) to confirm specifics. All workspace paths are relative to the Bunny project's workspace root, so prefix every path with "{{codeProjectPath}}/".
 - Read before you answer. Quote file paths and line ranges so the user can jump to the source.
+- The web tools (\`web_search\`, \`web_fetch\`) are available, but **only for external lookups** — third-party library docs, API references for external services, the meaning of an unfamiliar runtime error, the changelog of a dependency. Do **not** reach for the web to answer general questions about this codebase, this project's structure, design choices, or how its modules fit together: answer those from the repository and the knowledge graph.
 - Be concrete. If you recommend changes, show the exact patch or the exact file and function involved — don't speak in generalities.
 - If the question is ambiguous, pick the most likely interpretation, answer it, and name the assumption.
 
@@ -284,9 +288,13 @@ const CODE_CHAT_DEFAULT = `You are a code assistant embedded in a source-code re
 3. Top-level file listing (capped):
 {{fileListing}}
 
+4. Knowledge-graph context (auto-generated architectural overview — use this as your map of the codebase before reading individual files):
+{{graphSummary}}
+
 How to work:
-- Use the workspace file tools (\`list_workspace_files\`, \`read_workspace_file\`, \`write_workspace_file\`) to navigate and — when the user asks you to — modify the code. All paths are relative to the Bunny project's workspace root, so prefix every path with "{{codeProjectPath}}/".
+- Every question in this chat is about the code in this repository. Treat the repository + the knowledge graph above as your primary source of truth. Use the workspace tools (\`list_workspace_files\`, \`read_workspace_file\`, \`write_workspace_file\`) to navigate and — when the user asks you to — modify the code. All paths are relative to the Bunny project's workspace root, so prefix every path with "{{codeProjectPath}}/".
 - Read before you answer. Quote file paths and line ranges so the user can jump to the source.
+- The web tools (\`web_search\`, \`web_fetch\`) are available, but **only for external lookups** — third-party library docs, API references for external services, the meaning of an unfamiliar runtime error, the changelog of a dependency. Do **not** reach for the web to answer general questions about this codebase, this project's structure, design choices, or how its modules fit together: answer those from the repository and the knowledge graph.
 - Be concrete: small patches, precise references, named assumptions. No hand-waving.
 - Unless the user explicitly asks you to change files, stay in review / explanation mode.
 
@@ -308,6 +316,65 @@ How to work:
 - When you create new files (for example when writing documentation), place them inside "{{codeProjectPath}}/" so they live with the rest of the code project.
 - Do not change files that do not need changing. Preserve existing formatting, indentation, and conventions.
 - When you are done, reply with a short summary (plain markdown, no fenced wrapper): which files you created or modified, and why.`;
+
+// ── Code graph (project-overridable) ─────────────────────────────────────────
+
+const CODE_GRAPH_DOC_EXTRACT_DEFAULT = `You are a knowledge-graph extractor. The user gives you a single document from a source-code project; return a JSON object describing the entities and relationships it introduces.
+
+Inputs:
+- Path of the document inside the code project: "{{filePath}}".
+- Plain-text content of the document:
+
+{{fileContent}}
+
+How to work:
+1. Treat the document as prose, not code. Extract named concepts the author is describing — APIs, modules, services, roles, data structures, external systems, architectural decisions. Skip generic English words (\`the user\`, \`a function\`) that aren't proper names.
+2. Extract edges that are actually asserted by the text: "X imports Y", "X depends on Y", "X extends Y", "X calls Y". When the text only hints at a relationship, lower the confidence.
+3. Every node must have a stable \`id\` (use the same string as its \`name\`), a \`kind\` from the allowed set, and a short \`name\` a reader would recognise.
+4. Every edge must name nodes that you also emitted. Do not invent ids.
+5. Keep the output small — at most 30 nodes and 60 edges per document. Skip the rest.
+
+Output format — return EXACTLY ONE fenced \`\`\`json\`\`\` block and nothing else, matching this shape:
+
+\`\`\`json
+{
+  "nodes": [
+    { "id": "string", "kind": "module|function|class|method|concept", "name": "string" }
+  ],
+  "edges": [
+    { "from": "string", "to": "string", "kind": "imports|calls|extends|implements|mentions", "confidence": 0.5 }
+  ]
+}
+\`\`\`
+
+\`confidence\` ranges from 0.1 (very speculative) to 0.9 (explicitly stated). Never emit 1.0 — that value is reserved for deterministic AST extraction. If the document has no useful entities, return an object with empty arrays.`;
+
+const CODE_GRAPH_REPORT_DEFAULT = `You are writing GRAPH_REPORT.md for the code project "{{codeProjectName}}". The user gives you a compact summary of the clustered knowledge graph; your job is to turn it into a short, readable briefing.
+
+Summary:
+{{graphSummary}}
+
+Required sections (use exactly these level-2 headings, in this order):
+
+## Overview
+Two or three sentences: what the graph shows about this project, the rough shape (monolithic? layered? fragmented?), and the biggest cluster.
+
+## God nodes
+Bulleted list of the top hubs from the summary. For each, one sentence explaining why it is central (e.g. "imported by everything in the auth cluster").
+
+## Bridge nodes
+Bulleted list of the top bridges. For each, a one-sentence note on which clusters it connects and why that matters.
+
+## Surprising connections
+Up to five edges that cross distant clusters or look out-of-place. One sentence each — why is this edge interesting? Skip this section entirely if nothing surprising stands out.
+
+## Suggested questions
+Three to five follow-up questions a maintainer could ask an LLM about this graph (e.g. "Why does the rendering cluster depend on the auth cluster?"). One per bullet.
+
+Style:
+- Plain markdown, no fenced wrapper, no emoji.
+- Do not invent data beyond what the summary provides.
+- Keep the whole report under 400 words.`;
 
 // ── Tool descriptions (global) ───────────────────────────────────────────────
 
@@ -445,12 +512,13 @@ export const PROMPTS: Record<string, PromptDef> = {
     key: "code.ask",
     scope: "projectOverridable",
     description:
-      "System prompt for the Code project ask-mode agent (freeform markdown answer seeded with the code project name, path, file listing, and question).",
+      "System prompt for the Code project ask-mode agent (freeform markdown answer seeded with the code project name, path, file listing, knowledge-graph summary, and question).",
     defaultText: CODE_ASK_DEFAULT,
     variables: [
       "codeProjectName",
       "codeProjectPath",
       "fileListing",
+      "graphSummary",
       "question",
     ],
   },
@@ -458,9 +526,14 @@ export const PROMPTS: Record<string, PromptDef> = {
     key: "code.chat",
     scope: "projectOverridable",
     description:
-      "System prompt for the persistent Code project chat (embedded conversation inside the Code tab). Workspace file tools are auto-spliced so the agent can read and optionally write files.",
+      "System prompt for the persistent Code project chat (embedded conversation inside the Code tab). Workspace file tools are auto-spliced so the agent can read and optionally write files. Includes the knowledge-graph summary when one has been generated.",
     defaultText: CODE_CHAT_DEFAULT,
-    variables: ["codeProjectName", "codeProjectPath", "fileListing"],
+    variables: [
+      "codeProjectName",
+      "codeProjectPath",
+      "fileListing",
+      "graphSummary",
+    ],
   },
   "code.edit": {
     key: "code.edit",
@@ -474,6 +547,23 @@ export const PROMPTS: Record<string, PromptDef> = {
       "fileListing",
       "instruction",
     ],
+  },
+  "code.graph.doc_extract": {
+    key: "code.graph.doc_extract",
+    scope: "projectOverridable",
+    description:
+      "Extracts entities and relationships from a single document (Markdown, PDF, DOCX) during code-graph generation. Output is parsed as JSON; malformed edits break extraction.",
+    defaultText: CODE_GRAPH_DOC_EXTRACT_DEFAULT,
+    variables: ["filePath", "fileContent"],
+    warnsJsonContract: true,
+  },
+  "code.graph.report": {
+    key: "code.graph.report",
+    scope: "projectOverridable",
+    description:
+      "Writes GRAPH_REPORT.md — the human-facing summary of the clustered code knowledge graph (overview, god nodes, bridges, surprising connections, follow-up questions).",
+    defaultText: CODE_GRAPH_REPORT_DEFAULT,
+    variables: ["codeProjectName", "graphSummary"],
   },
   "tools.ask_user.description": {
     key: "tools.ask_user.description",
@@ -573,6 +663,8 @@ export type PromptKey =
   | "code.ask"
   | "code.chat"
   | "code.edit"
+  | "code.graph.doc_extract"
+  | "code.graph.report"
   | "tools.ask_user.description"
   | "tools.call_agent.description"
   | "tools.activate_skill.description"

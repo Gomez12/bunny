@@ -30,6 +30,30 @@ const codeCfg = {
   cloneTimeoutMs: 5_000,
   maxRepoSizeMb: 500,
   defaultCloneDepth: 50,
+  graph: {
+    enabled: true,
+    timeoutMs: 1_800_000,
+    maxFiles: 5000,
+    maxFileSizeKb: 512,
+    maxDocFiles: 100,
+    clusterAlgorithm: "louvain" as const,
+    displayMaxNodes: 300,
+    docExtractionEnabled: false,
+    languages: [
+      "ts",
+      "tsx",
+      "js",
+      "jsx",
+      "py",
+      "go",
+      "rs",
+      "java",
+      "c",
+      "cpp",
+      "rb",
+      "php",
+    ] as readonly string[],
+  },
 };
 
 describe("validateGitUrl", () => {

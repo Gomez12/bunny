@@ -249,20 +249,25 @@ CREATE INDEX IF NOT EXISTS idx_card_runs_session ON board_card_runs(session_id);
 -- is validated at the route boundary (https:// and git:// accepted, others
 -- rejected up-front). Soft-delete via deleted_at/deleted_by like documents.
 CREATE TABLE IF NOT EXISTS code_projects (
-  id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  project         TEXT    NOT NULL,
-  name            TEXT    NOT NULL,                 -- slug, doubles as directory name
-  description     TEXT    NOT NULL DEFAULT '',
-  git_url         TEXT,                             -- NULL = no remote, local-only scratch area
-  git_ref         TEXT,                             -- branch/tag/ref; NULL = remote HEAD
-  git_status      TEXT    NOT NULL DEFAULT 'idle',  -- 'idle' | 'cloning' | 'ready' | 'error'
-  git_error       TEXT,
-  last_cloned_at  INTEGER,
-  created_by      TEXT    REFERENCES users(id) ON DELETE SET NULL,
-  created_at      INTEGER NOT NULL,
-  updated_at      INTEGER NOT NULL,
-  deleted_at      INTEGER,                          -- ms; non-null ⇒ soft-deleted (trash bin)
-  deleted_by      TEXT,
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  project           TEXT    NOT NULL,
+  name              TEXT    NOT NULL,                 -- slug, doubles as directory name
+  description       TEXT    NOT NULL DEFAULT '',
+  git_url           TEXT,                             -- NULL = no remote, local-only scratch area
+  git_ref           TEXT,                             -- branch/tag/ref; NULL = remote HEAD
+  git_status        TEXT    NOT NULL DEFAULT 'idle',  -- 'idle' | 'cloning' | 'ready' | 'error'
+  git_error         TEXT,
+  last_cloned_at    INTEGER,
+  graph_status      TEXT    NOT NULL DEFAULT 'idle',  -- 'idle' | 'extracting' | 'clustering' | 'rendering' | 'ready' | 'error'
+  graph_error       TEXT,
+  graph_node_count  INTEGER,
+  graph_edge_count  INTEGER,
+  last_graphed_at   INTEGER,
+  created_by        TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at        INTEGER NOT NULL,
+  updated_at        INTEGER NOT NULL,
+  deleted_at        INTEGER,                          -- ms; non-null ⇒ soft-deleted (trash bin)
+  deleted_by        TEXT,
   UNIQUE(project, name)
 );
 CREATE INDEX IF NOT EXISTS idx_code_projects_project ON code_projects(project, updated_at);
