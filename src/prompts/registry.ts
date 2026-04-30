@@ -379,7 +379,7 @@ Style:
 // ── Tool descriptions (global) ───────────────────────────────────────────────
 
 const TOOLS_ASK_USER_DESCRIPTION_DEFAULT =
-  "Pause the turn and ask the human a multiple-choice question. Prefer this over guessing whenever the right answer depends on the user's personal preference, context, or a constraint you don't have — e.g. 'help me choose between X and Y', 'which fits me best', or any prompt where you'd otherwise hedge with 'it depends'. Provide 2–5 short 'options' covering the realistic branches; the user can pick one, edit an option inline, or write their own answer. Returns the user's answer as a plain string — use it as the authoritative input for the rest of the turn. Do NOT use for trivia or purely informational questions you can answer directly.";
+  "Pause the turn and ask the human a multiple-choice question. Prefer this over guessing whenever the right answer depends on the user's personal preference, context, or a constraint you don't have. Provide 2–24 short 'options' (more for a menu, fewer for a typical decision); the user can pick, edit inline, or write their own. Set 'multi_select' to true when picking more than one is sensible (orders, tag lists). Returns the answer as a plain string. Do NOT use for trivia you can answer directly.";
 
 const TOOLS_CALL_AGENT_DESCRIPTION_DEFAULT =
   "Delegate a task to one of your allowed subagents. The named agent runs with its own system prompt and tools and returns a single final answer.";
@@ -437,11 +437,11 @@ This is the first time this command is run for this node. Approve to allow it
 now and remember the approval (future edits to the command will re-prompt).`;
 
 const AGENT_ASK_USER_HINT_DEFAULT = `\n\n## Asking the user
-You have an \`ask_user\` tool that pauses the turn and shows the human a multiple-choice card. Prefer calling it — instead of guessing or giving a generic answer — whenever ANY of these apply:
-- The user's request hinges on a personal preference, constraint, or piece of context you don't have (e.g. "help me choose between X and Y", "which should I pick", "what fits me best").
-- There are 2–5 sensible branches you could take and the right one depends on the user.
-- You'd otherwise need to hedge with "it depends" or enumerate every possibility.
-Call it with a short, specific \`question\` and 2–5 short \`options\` that cover the realistic branches. Leave \`allow_custom\` on the default (true) so the user can still write their own answer. Do NOT use \`ask_user\` for trivia, for rhetorical questions inside your own reasoning, or when you already have enough to act.`;
+You have an \`ask_user\` tool that pauses the turn and shows a multiple-choice card. Prefer it over guessing or hedging when ANY of these apply:
+- The right answer depends on the user's preference, constraint, or context you don't have.
+- Sensible branches exist and the choice is the user's to make.
+- You'd otherwise hedge with "it depends".
+Call it with a short \`question\` and 2–24 short \`options\` (more for a menu, fewer for a typical decision). Set \`multi_select\` to true when picking more than one is sensible (orders, tag lists, ingredients). Leave \`allow_custom\` on (default true). Do NOT use it for trivia, rhetorical reasoning, or when you have enough to act.`;
 
 export const PROMPTS: Record<string, PromptDef> = {
   "kb.definition": {

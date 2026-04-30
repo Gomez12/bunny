@@ -1101,11 +1101,30 @@ button {
 .askuser--answered {
   opacity: 0.75;
 }
+.askuser__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
 .askuser__question {
   font-weight: 600;
   color: var(--text);
   font-size: 14px;
   line-height: 1.4;
+  flex: 1;
+  min-width: 0;
+}
+.askuser__mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .askuser__options {
   list-style: none;
@@ -1114,6 +1133,8 @@ button {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
 }
 .askuser__option {
   border: 1px solid var(--border);
@@ -1134,7 +1155,8 @@ button {
   width: 100%;
 }
 .askuser__option-label input[type="radio"],
-.askuser__option-label input[type="checkbox"] {
+.askuser__option-label input[type="checkbox"],
+.askuser__mode-toggle input[type="checkbox"] {
   flex-shrink: 0;
   margin: 0;
   accent-color: var(--accent);

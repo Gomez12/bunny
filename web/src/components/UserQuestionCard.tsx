@@ -18,7 +18,13 @@ interface Props {
  * visible in the transcript so the conversation reads back cleanly.
  */
 export default function UserQuestionCard({ question, onSubmit }: Props) {
-  const { options, allowCustom, multiSelect, submittedAnswer } = question;
+  const { options, allowCustom, submittedAnswer } = question;
+
+  // The LLM-supplied `multiSelect` is a hint, not a hard contract. We let the
+  // user override it locally via the "Pick multiple" toggle so a single-choice
+  // question can be relaxed when the realistic answer is a list (e.g. "which
+  // milkshakes?") — and vice versa.
+  const [multiSelect, setMultiSelect] = useState<boolean>(question.multiSelect);
 
   // Inline-edited copies of the supplied options. Keyed by index so the
   // corresponding radio / checkbox stays selected if the user tweaks the
@@ -39,6 +45,24 @@ export default function UserQuestionCard({ question, onSubmit }: Props) {
   }, [initialDrafts]);
 
   const disabled = Boolean(submittedAnswer) || busy;
+  const showModeToggle = options.length >= 2 && !submittedAnswer;
+
+  function toggleMode() {
+    if (disabled) return;
+    setMultiSelect((prev) => {
+      const next = !prev;
+      if (!next) {
+        // multi → single: keep at most one selection (the first picked) so
+        // the radio invariant holds and `resolveAnswer` doesn't join multi.
+        setSelected((current) => {
+          if (current.size <= 1) return current;
+          const first = Math.min(...current);
+          return new Set([first]);
+        });
+      }
+      return next;
+    });
+  }
 
   function toggleOption(i: number) {
     if (disabled) return;
@@ -110,7 +134,20 @@ export default function UserQuestionCard({ question, onSubmit }: Props) {
 
   return (
     <div className="askuser">
-      <div className="askuser__question">{question.question}</div>
+      <div className="askuser__header">
+        <div className="askuser__question">{question.question}</div>
+        {showModeToggle && (
+          <label className="askuser__mode-toggle" title="Allow picking more than one option">
+            <input
+              type="checkbox"
+              checked={multiSelect}
+              onChange={toggleMode}
+              disabled={disabled}
+            />
+            <span>Pick multiple</span>
+          </label>
+        )}
+      </div>
       {options.length > 0 && (
         <ul className="askuser__options">
           {options.map((_, i) => {

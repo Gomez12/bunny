@@ -78,14 +78,17 @@ describe("ask_user tool", () => {
     expect(result.error).toMatch(/timed out/);
   });
 
-  test("caps options at 6 and drops empty entries", async () => {
+  test("caps options at 24 and drops empty entries", async () => {
     const { tool, emitted } = makeTool("s1");
+    const surplus = Array.from({ length: 30 }, (_, i) => `O${i + 1}`);
     const pending = tool.handler({
       question: "Pick one",
-      options: ["", "A", "B", "C", "D", "E", "F", "G", "   "],
+      options: ["", ...surplus, "   "],
     });
     await Promise.resolve();
-    expect(emitted[0]!.options).toEqual(["A", "B", "C", "D", "E", "F"]);
+    expect(emitted[0]!.options).toHaveLength(24);
+    expect(emitted[0]!.options[0]).toBe("O1");
+    expect(emitted[0]!.options[23]).toBe("O24");
     cancelPendingQuestion("s1", "qid-1");
     const result = await pending;
     expect(result.ok).toBe(false);

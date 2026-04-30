@@ -24,7 +24,7 @@ where it left off. We want the same primitive in the web UI.
 Introduce a single closure-bound tool `ask_user` with a blocking handler.
 
 1. **Tool** (`src/tools/ask_user.ts`). Args: `question` (required),
-   `options` (array of suggested answers, 0–6 items), `allow_custom` (default
+   `options` (array of suggested answers, 0–24 items — see change log), `allow_custom` (default
    `true`), `multi_select` (default `false`). The handler generates a
    `questionId`, calls an `emit` callback (wired to the renderer), registers a
    pending promise in an in-memory map, and `await`s it. On resolve the
@@ -105,3 +105,21 @@ Introduce a single closure-bound tool `ask_user` with a blocking handler.
   survive restarts but the blocking promise lives in-process regardless, so
   a new connection after a restart still can't resume the original run.
   Reserved for a later revision.
+
+## Change log
+
+- **2026-04-30** — Raised the option cap from 6 to 24 and added scrolling
+  (`max-height: 320px; overflow-y: auto`) to `.askuser__options` so longer
+  menus fit without pushing the composer off-screen. Also added a
+  client-side "Pick multiple" toggle on `UserQuestionCard` so the user can
+  override the LLM-supplied `multi_select` flag locally — useful when the
+  realistic answer is a list (e.g. ordering several milkshakes from a menu)
+  even though the model picked single-choice. Trade-off: the toggle lets
+  users multi-pick on questions where the LLM intended a single answer
+  (e.g. "pick a primary key column"); accepted because `ask_user` options
+  are advisory anyway and a free-form answer was always available. The
+  multi→single transition reduces `selected` to its first element so the
+  radio invariant holds and answer composition stays sane. The tool
+  description (`tools.ask_user.description`) and the system-prompt hint
+  (`agent.ask_user_hint`) now mention the longer-menu and `multi_select`
+  affordances; both fixtures regenerated.

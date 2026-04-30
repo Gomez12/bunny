@@ -37,7 +37,7 @@ export const ASK_USER_SCHEMA: JsonSchemaObject = {
     options: {
       type: "array",
       description:
-        "Suggested answers (0–6 items). The user can pick, edit, or ignore them. Leave empty for pure free-form input.",
+        "Suggested answers (0–24 items). The user can pick, edit, or ignore them. Leave empty for pure free-form input.",
       items: { type: "string" },
     },
     allow_custom: {
@@ -54,7 +54,7 @@ export const ASK_USER_SCHEMA: JsonSchemaObject = {
   required: ["question"],
 };
 
-const MAX_OPTIONS = 6;
+const MAX_OPTIONS = 24;
 const MAX_QUESTION_LEN = 2000;
 const MAX_OPTION_LEN = 500;
 
