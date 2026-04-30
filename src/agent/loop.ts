@@ -79,6 +79,21 @@ import {
 
 const MAX_TOOL_ITERATIONS = 20;
 
+/** Synthetic user-message inserted after the first reasoning-only turn so
+ *  the model commits to a real answer or tool call on its retry. */
+const EMPTY_RESPONSE_NUDGE =
+  "(Note from the runtime: your previous turn produced no visible answer and no tool call. Please respond now with either a final answer in the normal output channel, or a real tool call via the tools API. Do not embed your answer or tool calls inside reasoning / <think> blocks.)";
+
+/** Operator-facing message when the model still produces nothing after a
+ *  nudge. The optional reasoning preview hints at what the model "thought"
+ *  while staying silent. */
+function emptyResponseError(reasoningPreview: string): string {
+  const suffix = reasoningPreview
+    ? ` Reasoning preview: ${reasoningPreview}…`
+    : "";
+  return `Model returned no visible answer in this turn — try regenerating or rephrasing.${suffix}`;
+}
+
 const SKILL_CATALOG_TTL_MS = 30_000;
 const skillCatalogCache = new Map<
   string,
@@ -360,6 +375,10 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
 
   let iterations = 0;
   let pendingRegenOfMessageId: number | null = opts.regenOfMessageId ?? null;
+  // True after we've already nudged the model once for emitting an empty
+  // response with no tool calls. A second empty turn surfaces an error
+  // instead of looping forever.
+  let emptyResponseNudged = false;
 
   while (iterations++ < MAX_TOOL_ITERATIONS) {
     const toolSchemas = runTools.list();
@@ -444,12 +463,33 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
 
     messages.push(llmRes.message);
 
-    if (!llmRes.message.tool_calls || llmRes.message.tool_calls.length === 0) {
+    const toolCalls = llmRes.message.tool_calls ?? [];
+    if (toolCalls.length === 0 && assistantContent.trim()) {
       renderer.onTurnEnd();
       return assistantContent;
     }
+    if (toolCalls.length === 0) {
+      // Reasoning-mode models occasionally route their entire turn —
+      // would-be answer + any tool call — through the reasoning channel,
+      // leaving us with empty content and no tool calls. Pop the empty
+      // turn we just pushed, nudge once, and retry. Still empty next
+      // time → surface a clear error so the chat doesn't hang silent.
+      messages.pop();
+      if (!emptyResponseNudged) {
+        emptyResponseNudged = true;
+        messages.push({ role: "user", content: EMPTY_RESPONSE_NUDGE });
+        continue;
+      }
+      const preview = (llmRes.message.reasoning ?? "").trim().slice(0, 240);
+      renderer.onError(emptyResponseError(preview));
+      renderer.onTurnEnd();
+      return "";
+    }
+    // Non-empty turn — reset the flag so a later empty turn in the same
+    // run still gets its one retry.
+    emptyResponseNudged = false;
 
-    for (const tc of llmRes.message.tool_calls) {
+    for (const tc of toolCalls) {
       insertMessage(db, {
         sessionId,
         userId,
@@ -464,7 +504,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
     }
 
     const toolResults = await Promise.all(
-      llmRes.message.tool_calls.map(async (tc) => {
+      toolCalls.map(async (tc) => {
         void queue.log({
           topic: "tool",
           kind: "call",
