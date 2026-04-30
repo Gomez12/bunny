@@ -17,8 +17,10 @@ import {
   listUsers,
   normalisePreferredLanguage,
   setPassword,
+  setUserSoulManual,
   updateUser,
 } from "../auth/users.ts";
+import { MEMORY_FIELD_CHAR_LIMIT } from "../memory/memory_constants.ts";
 import { verifyPassword } from "../auth/password.ts";
 import {
   issueSession,
@@ -46,6 +48,11 @@ function publicUser(u: User) {
     expandThinkBubbles: u.expandThinkBubbles,
     expandToolBubbles: u.expandToolBubbles,
     preferredLanguage: u.preferredLanguage,
+    soul: u.soul,
+    soulStatus: u.soulStatus,
+    soulError: u.soulError,
+    soulRefreshedAt: u.soulRefreshedAt,
+    soulManualEditedAt: u.soulManualEditedAt,
     createdAt: u.createdAt,
     updatedAt: u.updatedAt,
   };
@@ -113,6 +120,24 @@ export async function handleAuthRoute(
 
   if (pathname === "/api/users/me" && req.method === "PATCH") {
     return patchOwnProfile(req, ctx, user);
+  }
+
+  // Per-user "soul" — auto-curated personality + style. Edited manually here
+  // and re-curated hourly by the `memory.refresh` scheduled handler.
+  if (pathname === "/api/users/me/soul" && req.method === "GET") {
+    const u = getUserById(ctx.db, user.id);
+    if (!u) return json({ error: "not found" }, 404);
+    return json({
+      soul: u.soul,
+      status: u.soulStatus,
+      error: u.soulError,
+      refreshedAt: u.soulRefreshedAt,
+      manualEditedAt: u.soulManualEditedAt,
+      maxChars: MEMORY_FIELD_CHAR_LIMIT,
+    });
+  }
+  if (pathname === "/api/users/me/soul" && req.method === "PUT") {
+    return putOwnSoul(req, ctx, user);
   }
 
   // Lightweight directory for @mention autocomplete — exposes username + display
@@ -332,6 +357,47 @@ async function patchOwnProfile(
   return updated
     ? json({ user: publicUser(updated) })
     : json({ error: "not found" }, 404);
+}
+
+async function putOwnSoul(
+  req: Request,
+  ctx: AuthRouteCtx,
+  user: User,
+): Promise<Response> {
+  const body = await readJson<{ soul?: string }>(req);
+  if (!body || typeof body.soul !== "string") {
+    return json({ error: "soul (string) is required" }, 400);
+  }
+  if (body.soul.length > MEMORY_FIELD_CHAR_LIMIT) {
+    return json(
+      { error: `soul exceeds ${MEMORY_FIELD_CHAR_LIMIT}-char cap` },
+      400,
+    );
+  }
+  let updated;
+  try {
+    updated = setUserSoulManual(ctx.db, user.id, body.soul);
+  } catch (e) {
+    return json(
+      { error: e instanceof Error ? e.message : "invalid soul" },
+      400,
+    );
+  }
+  if (!updated) return json({ error: "not found" }, 404);
+  void ctx.queue.log({
+    topic: "memory",
+    kind: "soul.update",
+    userId: user.id,
+    data: { length: body.soul.length },
+  });
+  return json({
+    soul: updated.soul,
+    status: updated.soulStatus,
+    error: updated.soulError,
+    refreshedAt: updated.soulRefreshedAt,
+    manualEditedAt: updated.soulManualEditedAt,
+    maxChars: MEMORY_FIELD_CHAR_LIMIT,
+  });
 }
 
 async function createApiKeyRoute(

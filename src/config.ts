@@ -48,6 +48,16 @@ export interface MemoryConfig {
    * alone can miss. 0 disables verbatim replay (recall-only mode).
    */
   lastN: number;
+  /**
+   * Max LLM-call budget per `memory.refresh` tick (combined across user,
+   * agent, and soul refreshes). Default 50. Excess rows wait for the next tick.
+   * Optional in the type only — `loadConfig` always populates it.
+   */
+  refreshBatchSize?: number;
+  /** How many new messages we feed to the analyser per refresh row. */
+  refreshMaxMessagesPerRow?: number;
+  /** Sweep window (ms) after which a `'refreshing'` row is considered stuck. */
+  refreshStuckThresholdMs?: number;
 }
 
 export interface RenderConfig {
@@ -209,6 +219,9 @@ interface TomlShape {
     index_reasoning: boolean;
     recall_k: number;
     last_n: number;
+    refresh_batch_size: number;
+    refresh_max_messages_per_row: number;
+    refresh_stuck_threshold_ms: number;
   }>;
   render?: Partial<{ reasoning: string; color: boolean }>;
   queue?: Partial<{ topics: string[] }>;
@@ -282,7 +295,14 @@ const DEFAULTS = {
     model: "text-embedding-3-small",
     dim: 1536,
   },
-  memory: { indexReasoning: false, recallK: 8, lastN: 10 },
+  memory: {
+    indexReasoning: false,
+    recallK: 8,
+    lastN: 10,
+    refreshBatchSize: 50,
+    refreshMaxMessagesPerRow: 200,
+    refreshStuckThresholdMs: 30 * 60 * 1000,
+  },
   render: {
     reasoning: "collapsed" as ReasoningRenderMode,
     color: undefined as boolean | undefined,
@@ -442,6 +462,17 @@ export function loadConfig(
       toml.memory?.index_reasoning ?? DEFAULTS.memory.indexReasoning,
     recallK: toml.memory?.recall_k ?? DEFAULTS.memory.recallK,
     lastN: toml.memory?.last_n ?? DEFAULTS.memory.lastN,
+    refreshBatchSize: Number(
+      toml.memory?.refresh_batch_size ?? DEFAULTS.memory.refreshBatchSize,
+    ),
+    refreshMaxMessagesPerRow: Number(
+      toml.memory?.refresh_max_messages_per_row ??
+        DEFAULTS.memory.refreshMaxMessagesPerRow,
+    ),
+    refreshStuckThresholdMs: Number(
+      toml.memory?.refresh_stuck_threshold_ms ??
+        DEFAULTS.memory.refreshStuckThresholdMs,
+    ),
   };
 
   const render: RenderConfig = {

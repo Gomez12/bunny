@@ -97,6 +97,7 @@ A Tauri v2 desktop app (`client/`) wraps the web UI in a native window. It conne
 - [ADR 0031 — Every chat is agent-bound](./adr/0031-every-chat-is-agent-bound.md)
 - [ADR 0032 — Workflows subsystem](./adr/0032-workflows-subsystem.md)
 - [ADR 0033 — Bun-native code knowledge graph](./adr/0033-bun-native-code-graph.md)
+- [ADR 0034 — Per-user / per-agent memory + per-user soul](./adr/0034-per-user-agent-memory.md)
 - [Agent tools reference](./tools.md)
 - [HTTP API reference](./http-api.md)
 - [Styleguide](./styleguide.md)

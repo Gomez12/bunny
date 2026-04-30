@@ -376,6 +376,75 @@ Style:
 - Do not invent data beyond what the summary provides.
 - Keep the whole report under 400 words.`;
 
+// ── Memory refresh (project-overridable per-project keys, global for soul) ──
+
+const MEMORY_USER_PROJECT_REFRESH_DEFAULT = `You are the memory keeper for project "{{project}}". Your job is to maintain a compact, factual record of what we know about the user "{{userDisplay}}" in the context of this project.
+
+Inputs you receive in the user message:
+1. The current memory body (may be empty).
+2. A list of new conversation messages (user prompts + assistant replies) since the last refresh.
+3. The character budget you must respect.
+
+Rules — apply ALL of them:
+1. **Keep every fact in the current memory** that still applies. The current memory is the trusted seed; manual edits and prior auto-runs both flow through it.
+2. **Add new factual information** that you can extract from the new messages: stated preferences, constraints, recurring topics, named entities, decisions, deadlines, identities, technical context. Skip small talk, rhetorical questions, jokes, transient state.
+3. **Deduplicate aggressively.** If a fact is already present in any form, do not repeat it.
+4. **Hard cap at {{budget}} characters.** If the merged body would exceed the budget, REWRITE the entire memory keeping only the most important and most recent facts. Drop the least useful items first.
+5. **No preamble, no commentary, no JSON.** Reply with the new memory body as plain text — markdown bullets are fine, but the very first character of your reply is the first character of the memory.
+6. **Stay neutral and respectful.** Never speculate about sensitive demographics; if a fact is unverified, qualify it ("user mentioned X").
+
+Current memory:
+{{currentMemory}}
+
+New messages:
+{{newMessages}}`;
+
+const MEMORY_AGENT_PROJECT_REFRESH_DEFAULT = `You are curating the working memory of agent "{{agentName}}" for project "{{project}}".
+
+About this agent: {{agentDescription}}
+
+Your job is to maintain a compact, factual record of what THIS agent has learned about THIS project — its users, its recurring tasks, its constraints, its tone of voice, its earlier decisions. This memory is later spliced into the agent's system prompt so it can answer with continuity.
+
+Inputs you receive in the user message:
+1. The current memory body (may be empty).
+2. A list of new conversation messages from sessions in which this agent participated — both the user prompts addressed to it and its own replies.
+3. The character budget you must respect.
+
+Rules — apply ALL of them:
+1. **Keep every fact in the current memory** that still applies. Manual edits and prior auto-runs both flow through it; trust it as the seed.
+2. **Add new factual information** the agent has established or observed: who tends to assign work, recurring deliverables, established conventions for this project, naming, code-style preferences, sensitive topics to avoid, decisions taken in earlier turns.
+3. **Deduplicate aggressively** — never restate a fact already present in any form.
+4. **Hard cap at {{budget}} characters.** If the merged body would exceed the budget, REWRITE the whole memory keeping only the most important and most recent facts. Drop the least useful items first.
+5. **No preamble, no commentary, no JSON.** Reply with the new memory body as plain text — markdown bullets are fine, but the very first character of your reply is the first character of the memory.
+6. **Speak from the agent's perspective.** "I learned that …" is fine; do not address the agent in the second person ("you should …").
+
+Current memory:
+{{currentMemory}}
+
+New messages:
+{{newMessages}}`;
+
+const MEMORY_USER_SOUL_REFRESH_DEFAULT = `You are curating the "soul" of user "{{userDisplay}}" — a compact description of personality, communication style, and stable demographic preferences. This text is project-independent: it captures who the user IS, not what they are working on.
+
+Inputs you receive in the user message:
+1. The current soul body (may be empty).
+2. A list of recent conversation messages by this user across every project they have touched.
+3. The character budget you must respect.
+
+Rules — apply ALL of them:
+1. **Keep every observation in the current soul** that still applies; treat it as a trusted seed (manual edits and prior auto-runs both flow through it).
+2. **Add new observations** about communication style (terse vs. verbose, formal vs. casual, language preference, humour, level of detail expected), expertise level, decision-making patterns, recurring interests, time zone, professional role, hobbies — anything that helps a future assistant respond in the user's preferred register.
+3. **Deduplicate aggressively** — never restate the same trait in different words.
+4. **Hard cap at {{budget}} characters.** If the merged body would exceed the budget, REWRITE the whole soul keeping only the most important, most stable observations. Drop the most recent or most situational items first.
+5. **Stay respectful and verifiable.** Never speculate about protected demographics or anything you have no basis for. Prefer "user prefers X" / "user has stated Y" framings.
+6. **No preamble, no commentary, no JSON.** Reply with the new soul body as plain text — markdown bullets are fine, but the very first character of your reply is the first character of the body.
+
+Current soul:
+{{currentSoul}}
+
+New messages:
+{{newMessages}}`;
+
 // ── Tool descriptions (global) ───────────────────────────────────────────────
 
 const TOOLS_ASK_USER_DESCRIPTION_DEFAULT =
@@ -644,6 +713,40 @@ export const PROMPTS: Record<string, PromptDef> = {
     defaultText: WORKFLOWS_BASH_CONFIRMATION_DEFAULT,
     variables: ["command", "nodeId"],
   },
+  "memory.user_project.refresh": {
+    key: "memory.user_project.refresh",
+    scope: "projectOverridable",
+    description:
+      "System prompt for the hourly per-(user, project) memory refresh job. Merges new factual messages into the existing memory body and compacts when over budget.",
+    defaultText: MEMORY_USER_PROJECT_REFRESH_DEFAULT,
+    variables: ["project", "userDisplay", "currentMemory", "newMessages", "budget"],
+    warnsTokenCost: true,
+  },
+  "memory.agent_project.refresh": {
+    key: "memory.agent_project.refresh",
+    scope: "projectOverridable",
+    description:
+      "System prompt for the hourly per-(agent, project) memory refresh job. The agent learns about its own project context — recurring users, conventions, decisions.",
+    defaultText: MEMORY_AGENT_PROJECT_REFRESH_DEFAULT,
+    variables: [
+      "project",
+      "agentName",
+      "agentDescription",
+      "currentMemory",
+      "newMessages",
+      "budget",
+    ],
+    warnsTokenCost: true,
+  },
+  "memory.user_soul.refresh": {
+    key: "memory.user_soul.refresh",
+    scope: "global",
+    description:
+      "System prompt for the hourly per-user soul refresh job. Soul captures personality + style + stable demographic preferences across every project.",
+    defaultText: MEMORY_USER_SOUL_REFRESH_DEFAULT,
+    variables: ["userDisplay", "currentSoul", "newMessages", "budget"],
+    warnsTokenCost: true,
+  },
 };
 
 /**
@@ -674,7 +777,10 @@ export type PromptKey =
   | "workflows.system_prompt"
   | "workflows.loop.preamble"
   | "workflows.interactive.approval_preamble"
-  | "workflows.bash.confirmation_prompt";
+  | "workflows.bash.confirmation_prompt"
+  | "memory.user_project.refresh"
+  | "memory.agent_project.refresh"
+  | "memory.user_soul.refresh";
 
 /** All registered prompt keys, in declaration order. */
 export const PROMPT_KEYS: PromptKey[] = Object.keys(PROMPTS) as PromptKey[];

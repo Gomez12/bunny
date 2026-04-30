@@ -750,6 +750,51 @@ CREATE TABLE IF NOT EXISTS workflow_run_nodes (
 );
 CREATE INDEX IF NOT EXISTS idx_workflow_run_nodes_run ON workflow_run_nodes(run_id, id);
 
+-- ── Per-(user, project) and per-(agent, project) memory ─────────────────────
+-- Compact, LLM-curated text fields (max 4 000 chars) that capture facts the
+-- system has learned about a user — or facts an agent has accumulated — in the
+-- context of one project. The hourly `memory.refresh` handler walks every row
+-- whose `watermark_message_id` is older than the project's newest content
+-- message and asks an LLM to merge new facts in / compact when over budget.
+-- Manual edits coexist with auto-refreshes (see ADR 0034).
+--
+-- `users.soul` lives on the users table directly because soul is intrinsic to
+-- the person (personality, communication style, demographic preferences) and
+-- doesn't shard per project.
+CREATE TABLE IF NOT EXISTS user_project_memory (
+  user_id              TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  project              TEXT    NOT NULL REFERENCES projects(name) ON DELETE CASCADE,
+  memory               TEXT    NOT NULL DEFAULT '',
+  status               TEXT    NOT NULL DEFAULT 'idle',   -- 'idle' | 'refreshing' | 'error'
+  error                TEXT,
+  watermark_message_id INTEGER NOT NULL DEFAULT 0,
+  manual_edited_at     INTEGER,
+  refreshed_at         INTEGER,
+  refreshing_at        INTEGER,                            -- lock-time; sweep stale > 30 min
+  created_at           INTEGER NOT NULL,
+  updated_at           INTEGER NOT NULL,
+  PRIMARY KEY (user_id, project)
+);
+CREATE INDEX IF NOT EXISTS idx_user_proj_mem_status
+  ON user_project_memory(status, refreshed_at);
+
+CREATE TABLE IF NOT EXISTS agent_project_memory (
+  agent                TEXT    NOT NULL REFERENCES agents(name) ON DELETE CASCADE,
+  project              TEXT    NOT NULL REFERENCES projects(name) ON DELETE CASCADE,
+  memory               TEXT    NOT NULL DEFAULT '',
+  status               TEXT    NOT NULL DEFAULT 'idle',
+  error                TEXT,
+  watermark_message_id INTEGER NOT NULL DEFAULT 0,
+  manual_edited_at     INTEGER,
+  refreshed_at         INTEGER,
+  refreshing_at        INTEGER,
+  created_at           INTEGER NOT NULL,
+  updated_at           INTEGER NOT NULL,
+  PRIMARY KEY (agent, project)
+);
+CREATE INDEX IF NOT EXISTS idx_agent_proj_mem_status
+  ON agent_project_memory(status, refreshed_at);
+
 -- ── Embeddings ───────────────────────────────────────────────────────────────
 -- Created dynamically by db.ts using the configured dimension (default 1536)
 -- because the dimension must be baked into the vec0 CREATE statement.

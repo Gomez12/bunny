@@ -426,6 +426,145 @@ export function canEditMessage(
   return ownerId === user.id;
 }
 
+/**
+ * Compact projection of a content message for the memory.refresh handler. We
+ * select id + ts + role + author + content only — attachments and tool rows
+ * are explicitly skipped so the analyser sees plain text deltas without
+ * having to filter them out itself.
+ */
+export interface MemoryRefreshMessage {
+  id: number;
+  ts: number;
+  role: "user" | "assistant";
+  author: string | null;
+  content: string;
+}
+
+interface MemoryRefreshRow {
+  id: number;
+  ts: number;
+  role: string;
+  author: string | null;
+  content: string | null;
+}
+
+/**
+ * Content messages authored by a user inside a project, after the watermark.
+ * Only `role IN ('user','assistant')` rows on the `content` channel — tool
+ * calls, tool results, and reasoning are filtered out.
+ *
+ * NOTE: bunny stamps `user_id` on assistant rows too (the user owning the
+ * session), so this returns both halves of the conversation. That matches
+ * what we want for user-memory: facts the user expressed AND facts the
+ * assistant established about them.
+ */
+export function getUserProjectMessagesAfter(
+  db: Database,
+  userId: string,
+  project: string,
+  afterMessageId: number,
+  limit: number,
+): MemoryRefreshMessage[] {
+  if (limit <= 0) return [];
+  const rows = prep(
+    db,
+    `SELECT id, ts, role, author, content FROM messages
+       WHERE user_id = ?
+         AND COALESCE(project, 'general') = ?
+         AND id > ?
+         AND channel = 'content'
+         AND role IN ('user', 'assistant')
+         AND content IS NOT NULL AND content != ''
+         AND trimmed_at IS NULL
+       ORDER BY id ASC
+       LIMIT ?`,
+  ).all(userId, project, afterMessageId, limit) as MemoryRefreshRow[];
+  return rows.map((r) => ({
+    id: r.id,
+    ts: r.ts,
+    role: r.role as "user" | "assistant",
+    author: r.author,
+    content: r.content!,
+  }));
+}
+
+/**
+ * All content messages from sessions in `project` where the named agent ever
+ * authored an assistant turn, after the watermark. Returns both user prompts
+ * and assistant replies so the analyser can see the full conversation the
+ * agent participated in. Tool rows / reasoning are dropped.
+ */
+export function getProjectAgentMessagesAfter(
+  db: Database,
+  agent: string,
+  project: string,
+  afterMessageId: number,
+  limit: number,
+): MemoryRefreshMessage[] {
+  if (limit <= 0) return [];
+  const rows = prep(
+    db,
+    `SELECT id, ts, role, author, content FROM messages
+       WHERE COALESCE(project, 'general') = ?
+         AND id > ?
+         AND channel = 'content'
+         AND role IN ('user', 'assistant')
+         AND content IS NOT NULL AND content != ''
+         AND trimmed_at IS NULL
+         AND session_id IN (
+           SELECT DISTINCT session_id FROM messages
+           WHERE author = ? AND COALESCE(project, 'general') = ?
+         )
+       ORDER BY id ASC
+       LIMIT ?`,
+  ).all(
+    project,
+    afterMessageId,
+    agent,
+    project,
+    limit,
+  ) as MemoryRefreshRow[];
+  return rows.map((r) => ({
+    id: r.id,
+    ts: r.ts,
+    role: r.role as "user" | "assistant",
+    author: r.author,
+    content: r.content!,
+  }));
+}
+
+/**
+ * Recent content messages by a user across every project — used for soul
+ * refresh, where personality observations cut across project context.
+ */
+export function getUserMessagesAfter(
+  db: Database,
+  userId: string,
+  afterMessageId: number,
+  limit: number,
+): MemoryRefreshMessage[] {
+  if (limit <= 0) return [];
+  const rows = prep(
+    db,
+    `SELECT id, ts, role, author, content FROM messages
+       WHERE user_id = ?
+         AND id > ?
+         AND channel = 'content'
+         AND role IN ('user', 'assistant')
+         AND content IS NOT NULL AND content != ''
+         AND trimmed_at IS NULL
+       ORDER BY id ASC
+       LIMIT ?`,
+  ).all(userId, afterMessageId, limit) as MemoryRefreshRow[];
+  return rows.map((r) => ({
+    id: r.id,
+    ts: r.ts,
+    role: r.role as "user" | "assistant",
+    author: r.author,
+    content: r.content!,
+  }));
+}
+
 function parseAttachments(raw: string | null): ChatAttachment[] | null {
   if (!raw) return null;
   try {

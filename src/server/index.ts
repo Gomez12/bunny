@@ -63,6 +63,10 @@ import {
   KB_SWEEP_STUCK_HANDLER,
   registerKbSweepStuck,
 } from "../kb/sweep_stuck_handler.ts";
+import {
+  MEMORY_REFRESH_HANDLER,
+  registerMemoryRefresh,
+} from "../memory/refresh_handler.ts";
 
 const DEFAULT_PORT = 3000;
 
@@ -157,6 +161,7 @@ export async function startServer(
   registerTelegramPoll(defaultHandlerRegistry);
   registerKbAutoGenerate(defaultHandlerRegistry);
   registerKbSweepStuck(defaultHandlerRegistry);
+  registerMemoryRefresh(defaultHandlerRegistry);
   const bootNow = Date.now();
   const boardAutoRunCron = "*/5 * * * *";
   try {
@@ -263,6 +268,18 @@ export async function startServer(
       "[bunny] failed to seed kb.sweep_stuck:",
       errorMessage(e),
     );
+  }
+  const memoryRefreshCron = "0 * * * *";
+  try {
+    ensureSystemTask(db, MEMORY_REFRESH_HANDLER, {
+      name: "Memory refresh",
+      description:
+        "Hourly per-(user, project) and per-(agent, project) memory refresh + per-user soul refresh.",
+      cronExpr: memoryRefreshCron,
+      nextRunAt: computeNextRun(memoryRefreshCron, bootNow),
+    });
+  } catch (e) {
+    console.warn("[bunny] failed to seed memory.refresh:", errorMessage(e));
   }
   const quickChatHideCron = "*/5 * * * *";
   try {

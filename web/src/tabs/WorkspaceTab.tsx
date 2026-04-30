@@ -5,8 +5,9 @@ const ProjectsTab = lazy(() => import("./ProjectsTab"));
 const AgentsTab = lazy(() => import("./AgentsTab"));
 const SkillsTab = lazy(() => import("./SkillsTab"));
 const IntegrationsTab = lazy(() => import("./IntegrationsTab"));
+const MemoryPanel = lazy(() => import("./MemoryPanel"));
 
-type Sub = "projects" | "agents" | "skills" | "integrations";
+type Sub = "projects" | "agents" | "skills" | "memory" | "integrations";
 
 type Props = {
   currentUser: AuthUser;
@@ -52,6 +53,14 @@ export default function WorkspaceTab({
         </button>
         <button
           type="button"
+          className={`subtab ${sub === "memory" ? "subtab--active" : ""}`}
+          aria-current={sub === "memory" ? "page" : undefined}
+          onClick={() => setSub("memory")}
+        >
+          Memory
+        </button>
+        <button
+          type="button"
           className={`subtab ${sub === "integrations" ? "subtab--active" : ""}`}
           aria-current={sub === "integrations" ? "page" : undefined}
           onClick={() => setSub("integrations")}
@@ -72,6 +81,12 @@ export default function WorkspaceTab({
         )}
         {sub === "skills" && (
           <SkillsTab currentUser={currentUser} activeProject={activeProject} />
+        )}
+        {sub === "memory" && (
+          <MemoryPanel
+            currentUser={currentUser}
+            activeProject={activeProject}
+          />
         )}
         {sub === "integrations" && (
           <IntegrationsTab

@@ -162,6 +162,18 @@ function migrateColumns(db: Database): void {
     "ALTER TABLE projects ADD COLUMN default_language TEXT NOT NULL DEFAULT 'en'",
   );
   addColumn("ALTER TABLE users ADD COLUMN preferred_language TEXT");
+  // Per-user "soul" (personality + style) — auto-curated by memory.refresh.
+  addColumn("ALTER TABLE users ADD COLUMN soul TEXT NOT NULL DEFAULT ''");
+  addColumn(
+    "ALTER TABLE users ADD COLUMN soul_status TEXT NOT NULL DEFAULT 'idle'",
+  );
+  addColumn("ALTER TABLE users ADD COLUMN soul_error TEXT");
+  addColumn(
+    "ALTER TABLE users ADD COLUMN soul_watermark_message_id INTEGER NOT NULL DEFAULT 0",
+  );
+  addColumn("ALTER TABLE users ADD COLUMN soul_refreshed_at INTEGER");
+  addColumn("ALTER TABLE users ADD COLUMN soul_refreshing_at INTEGER");
+  addColumn("ALTER TABLE users ADD COLUMN soul_manual_edited_at INTEGER");
   for (const t of ["kb_definitions", "documents", "contacts", "board_cards"]) {
     addColumn(`ALTER TABLE ${t} ADD COLUMN original_lang TEXT`);
     addColumn(

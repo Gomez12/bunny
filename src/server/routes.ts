@@ -66,6 +66,7 @@ import { handleChatRoute } from "./chat_routes.ts";
 import { handleNotificationRoute } from "./notification_routes.ts";
 import { handleTrashRoute } from "./trash_routes.ts";
 import { handlePromptRoute } from "./prompt_routes.ts";
+import { handleMemoryRoute } from "./memory_routes.ts";
 import {
   handleTelegramPublicRoute,
   handleTelegramRoute,
@@ -289,6 +290,15 @@ export async function handleApi(
     user,
   );
   if (promptResponse) return promptResponse;
+
+  // ── Memory (per-(user, project) + per-(agent, project) memory) ───────────
+  const memoryResponse = await handleMemoryRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg },
+    user,
+  );
+  if (memoryResponse) return memoryResponse;
 
   // ── UI config (public subset of bunny.config.toml) ────────────────────────
   if (pathname === "/api/config/ui" && req.method === "GET") {

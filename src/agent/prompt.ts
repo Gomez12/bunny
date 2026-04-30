@@ -54,6 +54,19 @@ export interface BuildSystemMessageOpts {
    *  Adds a short instruction block so the model actually reaches for it on
    *  ambiguous / preference-driven prompts instead of guessing and going on. */
   askUserAvailable?: boolean;
+  /** Free-text personality + style profile of the user this run is serving.
+   *  Auto-curated hourly by `memory.refresh`; may be empty. */
+  userSoul?: string;
+  /** What we know about the user IN THIS PROJECT — facts, preferences, decisions.
+   *  Auto-curated hourly; may be empty. */
+  userMemory?: string;
+  /** What this AGENT has accumulated about THIS PROJECT — its conventions,
+   *  recurring users, prior decisions. Empty when no agent is active. */
+  agentProjectMemory?: string;
+  /** Display name to address the user by. Falls back to "the user" when missing. */
+  userDisplay?: string;
+  /** Active project name — used in the memory-section heading. */
+  project?: string;
 }
 
 /**
@@ -119,6 +132,9 @@ export function buildSystemMessage(
     content += resolvePrompt("agent.ask_user_hint");
   }
 
+  const memoryBlock = buildMemoryBlock(opts);
+  if (memoryBlock) content += memoryBlock;
+
   if (recall.length > 0) {
     const lines = recall
       .filter((r) => r.content)
@@ -128,6 +144,30 @@ export function buildSystemMessage(
   }
 
   return { role: "system", content };
+}
+
+function buildMemoryBlock(opts: BuildSystemMessageOpts): string {
+  const soul = opts.userSoul?.trim() ?? "";
+  const userMem = opts.userMemory?.trim() ?? "";
+  const agentMem = opts.agentProjectMemory?.trim() ?? "";
+  if (!soul && !userMem && !agentMem) return "";
+  const display = opts.userDisplay?.trim() || "the user";
+  const project = opts.project?.trim() || "this project";
+  const sections: string[] = [];
+  if (soul) {
+    sections.push(`### About ${display} (personality + style)\n${soul}`);
+  }
+  if (userMem) {
+    sections.push(
+      `### What you know about ${display} in project '${project}'\n${userMem}`,
+    );
+  }
+  if (agentMem) {
+    sections.push(
+      `### Your accumulated notes for project '${project}'\n${agentMem}`,
+    );
+  }
+  return `\n\n## Persistent context\n${sections.join("\n\n")}`;
 }
 
 function buildAgentHeader(

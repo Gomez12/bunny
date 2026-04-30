@@ -43,6 +43,7 @@ import { hybridRecall } from "../memory/recall.ts";
 import { DEFAULT_PROJECT, getSessionProject } from "../memory/projects.ts";
 import { truncate } from "../util/log.ts";
 import { loadProjectAssets } from "../memory/project_assets.ts";
+import { loadMemoryContext } from "../memory/refresh_helpers.ts";
 import {
   getAgent,
   isAgentLinkedToProject,
@@ -260,6 +261,24 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
   const askUserAvailable = Boolean(
     opts.askUserEnabled && renderer.onAskUserQuestion,
   );
+  // Load the speaking user once, then reuse for memory injection, the prompt
+  // section header, and the mention scanner below. systemPromptOverride
+  // callers (KB generation, doc edit, code edit, the memory-refresh handler
+  // itself, …) bypass memory injection so their fixed prompts stay
+  // deterministic and the soul of the system user doesn't feed back into a
+  // memory-curation run.
+  const currentUser =
+    userId && !opts.systemPromptOverride ? getUserById(db, userId) : null;
+  const memoryContext = opts.systemPromptOverride
+    ? { userSoul: "", userMemory: "", agentProjectMemory: "" }
+    : loadMemoryContext(db, {
+        userId: userId ?? null,
+        project,
+        agent: agentName,
+        userRow: currentUser,
+      });
+  const userDisplay =
+    currentUser?.displayName?.trim() || currentUser?.username || undefined;
   const systemMsg = opts.systemPromptOverride
     ? { role: "system" as const, content: opts.systemPromptOverride }
     : buildSystemMessage({
@@ -272,6 +291,11 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
         otherAgents,
         skillCatalog,
         askUserAvailable,
+        userSoul: memoryContext.userSoul,
+        userMemory: memoryContext.userMemory,
+        agentProjectMemory: memoryContext.agentProjectMemory,
+        userDisplay,
+        project,
       });
 
   if (!opts.skipUserInsert) {
@@ -298,9 +322,11 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
 
     // Scan for @username mentions and fire notifications. Gated by
     // `mentionsEnabled` so only /api/chat does this (regenerate + every
-    // background path leave it off — see ADR 0027).
+    // background path leave it off — see ADR 0027). Reuses `currentUser`
+    // when it was already loaded for memory injection above; falls back to a
+    // direct lookup for systemPromptOverride callers (which skip memory).
     if (opts.mentionsEnabled && userId) {
-      const sender = getUserById(db, userId);
+      const sender = currentUser ?? getUserById(db, userId);
       if (sender) {
         try {
           dispatchMentionNotifications({

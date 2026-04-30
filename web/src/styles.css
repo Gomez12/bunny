@@ -1513,6 +1513,8 @@ button {
   margin: 0 auto;
   width: 100%;
   overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 .projects__header h1 { margin: 0 0 4px 0; font-size: 20px; }
 .projects__header p { margin: 0 0 20px 0; color: var(--text-dim); font-size: 13px; }
@@ -4651,6 +4653,84 @@ button {
 .subtab--active {
   color: var(--text);
   border-bottom-color: var(--accent);
+}
+
+/* ── Workspace sub-tab body ─────────────────────────────────── */
+/* Make `.workspace-tab` a flex column so each sub-tab body fills the
+   remaining height and can host its own scroll container. */
+.workspace-tab {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.workspace-tab > .subtabs {
+  flex: none;
+}
+
+/* ── Memory sub-tab ─────────────────────────────────────────── */
+.memory-panel {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 32px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.memory-panel h2 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+.memory-panel h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.memory-panel header p {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.memory-panel section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.memory-panel ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.memory-panel li {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.memory-panel textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+}
+.memory-panel__meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.memory-panel__agent-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-dim);
 }
 
 /* ── Auth hero (login / change password) ────────────────────── */

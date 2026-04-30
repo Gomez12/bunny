@@ -4,8 +4,12 @@
 
 import type { Database } from "bun:sqlite";
 import { hashPassword } from "./password.ts";
+import { MEMORY_FIELD_CHAR_LIMIT } from "../memory/memory_constants.ts";
 
 export type UserRole = "admin" | "user";
+
+/** Status of the per-user soul-refresh state machine. */
+export type SoulStatus = "idle" | "refreshing" | "error";
 
 export interface User {
   id: string;
@@ -17,6 +21,18 @@ export interface User {
   expandThinkBubbles: boolean;
   expandToolBubbles: boolean;
   preferredLanguage: string | null;
+  /**
+   * Free-text personality + style + demographics. Auto-curated hourly; max
+   * 4 000 chars. Optional in the type only — `rowToUser` always populates it
+   * (DB column is `NOT NULL DEFAULT ''`). Test fixtures may omit them.
+   */
+  soul?: string;
+  soulStatus?: SoulStatus;
+  soulError?: string | null;
+  soulWatermarkMessageId?: number;
+  soulRefreshedAt?: number | null;
+  soulRefreshingAt?: number | null;
+  soulManualEditedAt?: number | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -32,6 +48,13 @@ interface UserRow {
   expand_think_bubbles: number;
   expand_tool_bubbles: number;
   preferred_language: string | null;
+  soul: string | null;
+  soul_status: string | null;
+  soul_error: string | null;
+  soul_watermark_message_id: number | null;
+  soul_refreshed_at: number | null;
+  soul_refreshing_at: number | null;
+  soul_manual_edited_at: number | null;
   created_at: number;
   updated_at: number;
 }
@@ -54,6 +77,10 @@ export function normalisePreferredLanguage(
   return code;
 }
 
+function normaliseSoulStatus(raw: string | null | undefined): SoulStatus {
+  return raw === "refreshing" || raw === "error" ? raw : "idle";
+}
+
 function rowToUser(r: UserRow): User {
   return {
     id: r.id,
@@ -65,6 +92,13 @@ function rowToUser(r: UserRow): User {
     expandThinkBubbles: r.expand_think_bubbles === 1,
     expandToolBubbles: r.expand_tool_bubbles === 1,
     preferredLanguage: r.preferred_language,
+    soul: r.soul ?? "",
+    soulStatus: normaliseSoulStatus(r.soul_status),
+    soulError: r.soul_error ?? null,
+    soulWatermarkMessageId: r.soul_watermark_message_id ?? 0,
+    soulRefreshedAt: r.soul_refreshed_at ?? null,
+    soulRefreshingAt: r.soul_refreshing_at ?? null,
+    soulManualEditedAt: r.soul_manual_edited_at ?? null,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -110,6 +144,13 @@ export async function createUser(
     expandThinkBubbles: false,
     expandToolBubbles: false,
     preferredLanguage: null,
+    soul: "",
+    soulStatus: "idle",
+    soulError: null,
+    soulWatermarkMessageId: 0,
+    soulRefreshedAt: null,
+    soulRefreshingAt: null,
+    soulManualEditedAt: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -260,4 +301,152 @@ export async function setPassword(
 
 export function deleteUser(db: Database, id: string): void {
   db.prepare(`DELETE FROM users WHERE id = ?`).run(id);
+}
+
+// ── Soul (per-user personality) ──────────────────────────────────────────────
+
+/**
+ * Replace the soul body via the manual-edit affordance. Stamps
+ * `soul_manual_edited_at` so the next auto-refresh treats the new value as a
+ * trustworthy seed. Throws when the input exceeds the field cap.
+ */
+export function setUserSoulManual(
+  db: Database,
+  id: string,
+  soul: string,
+): User | null {
+  if (soul.length > MEMORY_FIELD_CHAR_LIMIT) {
+    throw new Error(
+      `soul exceeds ${MEMORY_FIELD_CHAR_LIMIT}-char cap (got ${soul.length})`,
+    );
+  }
+  const now = Date.now();
+  const info = db
+    .prepare(
+      `UPDATE users
+       SET soul = ?, soul_manual_edited_at = ?, updated_at = ?
+       WHERE id = ?`,
+    )
+    .run(soul, now, now, id);
+  if (info.changes === 0) return null;
+  return getUserById(db, id);
+}
+
+/**
+ * Persist the LLM-merged soul and advance the watermark. Truncates if the
+ * model overshot the budget; never stores more than the cap.
+ */
+export function setUserSoulAuto(
+  db: Database,
+  id: string,
+  soul: string,
+  watermarkMessageId: number,
+): User | null {
+  const trimmed =
+    soul.length > MEMORY_FIELD_CHAR_LIMIT
+      ? soul.slice(0, MEMORY_FIELD_CHAR_LIMIT)
+      : soul;
+  const now = Date.now();
+  const info = db
+    .prepare(
+      `UPDATE users
+       SET soul = ?, soul_watermark_message_id = ?, soul_status = 'idle',
+           soul_error = NULL, soul_refreshing_at = NULL,
+           soul_refreshed_at = ?, updated_at = ?
+       WHERE id = ?`,
+    )
+    .run(trimmed, watermarkMessageId, now, now, id);
+  if (info.changes === 0) return null;
+  return getUserById(db, id);
+}
+
+/** Advance the watermark only — no body change (e.g. nothing new to learn). */
+export function bumpUserSoulWatermark(
+  db: Database,
+  id: string,
+  watermarkMessageId: number,
+): void {
+  const now = Date.now();
+  db.prepare(
+    `UPDATE users
+     SET soul_watermark_message_id = ?, soul_status = 'idle',
+         soul_error = NULL, soul_refreshing_at = NULL,
+         soul_refreshed_at = ?, updated_at = ?
+     WHERE id = ?`,
+  ).run(watermarkMessageId, now, now, id);
+}
+
+/**
+ * Atomically claim the user's soul row for this tick. Returns false when
+ * another tick is already refreshing it, so callers can move on.
+ */
+export function claimUserSoulForRefresh(
+  db: Database,
+  id: string,
+  now: number = Date.now(),
+): boolean {
+  const info = db
+    .prepare(
+      `UPDATE users
+       SET soul_status = 'refreshing', soul_refreshing_at = ?,
+           soul_error = NULL, updated_at = ?
+       WHERE id = ? AND soul_status != 'refreshing'`,
+    )
+    .run(now, now, id);
+  return info.changes > 0;
+}
+
+export function setUserSoulError(
+  db: Database,
+  id: string,
+  error: string,
+): void {
+  const now = Date.now();
+  db.prepare(
+    `UPDATE users
+     SET soul_status = 'error', soul_error = ?, soul_refreshing_at = NULL,
+         updated_at = ?
+     WHERE id = ?`,
+  ).run(error, now, id);
+}
+
+/** Reclaim user.soul rows stuck in `'refreshing'` longer than `thresholdMs`. */
+export function releaseStuckUserSoul(
+  db: Database,
+  thresholdMs: number,
+  now: number = Date.now(),
+): string[] {
+  const cutoff = now - thresholdMs;
+  return (
+    db
+      .prepare(
+        `UPDATE users
+         SET soul_status = 'idle', soul_error = NULL, soul_refreshing_at = NULL,
+             updated_at = ?
+         WHERE soul_status = 'refreshing'
+           AND soul_refreshing_at IS NOT NULL
+           AND soul_refreshing_at < ?
+         RETURNING id`,
+      )
+      .all(now, cutoff) as Array<{ id: string }>
+  ).map((r) => r.id);
+}
+
+/**
+ * List users with `soul_status='idle'`, ordered by oldest soul refresh first.
+ * Used by the hourly refresh handler to walk every user once per cycle.
+ */
+export function listUserSoulRefreshCandidates(
+  db: Database,
+  limit: number,
+): User[] {
+  const rows = db
+    .prepare(
+      `SELECT * FROM users
+       WHERE soul_status = 'idle'
+       ORDER BY COALESCE(soul_refreshed_at, 0) ASC
+       LIMIT ?`,
+    )
+    .all(limit) as UserRow[];
+  return rows.map(rowToUser);
 }

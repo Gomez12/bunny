@@ -511,8 +511,38 @@ export interface AuthUser {
   expandThinkBubbles: boolean;
   expandToolBubbles: boolean;
   preferredLanguage: string | null;
+  /** Auto-curated personality + style. Populated since the soul subsystem (ADR 0034). */
+  soul?: string;
+  soulStatus?: "idle" | "refreshing" | "error";
+  soulError?: string | null;
+  soulRefreshedAt?: number | null;
+  soulManualEditedAt?: number | null;
   createdAt: number;
   updatedAt: number;
+}
+
+export interface SoulInfo {
+  soul: string;
+  status: "idle" | "refreshing" | "error";
+  error: string | null;
+  refreshedAt: number | null;
+  manualEditedAt: number | null;
+  maxChars: number;
+}
+
+export interface ProjectMemoryInfo {
+  project: string;
+  memory: string;
+  status: "idle" | "refreshing" | "error";
+  error: string | null;
+  refreshedAt: number | null;
+  manualEditedAt: number | null;
+  watermarkMessageId: number;
+  maxChars: number;
+}
+
+export interface AgentProjectMemoryInfo extends ProjectMemoryInfo {
+  agent: string;
 }
 
 export interface ApiKeyMeta {
@@ -593,6 +623,55 @@ export async function updateOwnProfile(patch: {
     body: JSON.stringify(patch),
   });
   return user;
+}
+
+export async function fetchOwnSoul(): Promise<SoulInfo> {
+  return jsonFetch<SoulInfo>("/api/users/me/soul");
+}
+
+export async function updateOwnSoul(soul: string): Promise<SoulInfo> {
+  return jsonFetch<SoulInfo>("/api/users/me/soul", {
+    method: "PUT",
+    body: JSON.stringify({ soul }),
+  });
+}
+
+export async function fetchOwnProjectMemory(
+  project: string,
+): Promise<ProjectMemoryInfo & { userId: string }> {
+  return jsonFetch<ProjectMemoryInfo & { userId: string }>(
+    `/api/projects/${encodeURIComponent(project)}/memory/me`,
+  );
+}
+
+export async function updateOwnProjectMemory(
+  project: string,
+  memory: string,
+): Promise<ProjectMemoryInfo & { userId: string }> {
+  return jsonFetch<ProjectMemoryInfo & { userId: string }>(
+    `/api/projects/${encodeURIComponent(project)}/memory/me`,
+    { method: "PUT", body: JSON.stringify({ memory }) },
+  );
+}
+
+export async function fetchAgentProjectMemory(
+  project: string,
+  agent: string,
+): Promise<AgentProjectMemoryInfo> {
+  return jsonFetch<AgentProjectMemoryInfo>(
+    `/api/projects/${encodeURIComponent(project)}/memory/agents/${encodeURIComponent(agent)}`,
+  );
+}
+
+export async function updateAgentProjectMemory(
+  project: string,
+  agent: string,
+  memory: string,
+): Promise<AgentProjectMemoryInfo> {
+  return jsonFetch<AgentProjectMemoryInfo>(
+    `/api/projects/${encodeURIComponent(project)}/memory/agents/${encodeURIComponent(agent)}`,
+    { method: "PUT", body: JSON.stringify({ memory }) },
+  );
 }
 
 export interface DirectoryUser {
