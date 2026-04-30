@@ -23,6 +23,10 @@ export interface Turn {
   content: string;
   reasoning: string;
   toolCalls: ToolCallState[];
+  /** Ordered timeline of every reasoning/content/tool/question segment in
+   *  arrival order. Drives the visible bubble layout so multi-question
+   *  turns don't clump every card at the top. */
+  items: TurnItem[];
   /** Displayed stats — wall-clock + token estimate while streaming, frozen
    * to the authoritative server sum once the turn is done. */
   stats: TurnStats | null;
@@ -30,6 +34,10 @@ export interface Turn {
   serverStats: TurnStats | null;
   /** performance.now() at which the user sent the prompt — used for live timer. */
   startedAt: number;
+  /** performance.now() when the most recent ask_user pause started, else null. */
+  pausedAtMs: number | null;
+  /** Accumulated time spent paused on user questions, subtracted from elapsed. */
+  pausedTotalMs: number;
   error?: string;
   done: boolean;
   /** Responding agent name. Null = default assistant. Set from SSE events. */
@@ -39,6 +47,12 @@ export interface Turn {
    *  last one is currently awaiting input. */
   userQuestions: PendingUserQuestion[];
 }
+
+export type TurnItem =
+  | { kind: "reasoning"; text: string }
+  | { kind: "content"; text: string }
+  | { kind: "tool"; tool: ToolCallState }
+  | { kind: "question"; question: PendingUserQuestion };
 
 export interface ToolCallState {
   callIndex: number;
@@ -108,9 +122,12 @@ export function useSSEChat(
           content: "",
           reasoning: "",
           toolCalls: [],
+          items: [],
           stats: { durationMs: 0, completionTokens: 0 },
           serverStats: null,
           startedAt,
+          pausedAtMs: null,
+          pausedTotalMs: 0,
           done: false,
           author: agent ?? null,
           userQuestions: [],
@@ -121,51 +138,99 @@ export function useSSEChat(
       const handler = (ev: ServerEvent) => {
         switch (ev.type) {
           case "content":
-            updateLast((t) => ({
-              ...t,
-              content: t.content + ev.text,
-              author: t.author ?? readAuthor(ev),
-            }));
+            updateLast((t) => {
+              const last = t.items[t.items.length - 1];
+              const items: TurnItem[] =
+                last && last.kind === "content"
+                  ? [
+                      ...t.items.slice(0, -1),
+                      { kind: "content", text: last.text + ev.text },
+                    ]
+                  : [...t.items, { kind: "content", text: ev.text }];
+              return {
+                ...t,
+                content: t.content + ev.text,
+                items,
+                author: t.author ?? readAuthor(ev),
+              };
+            });
             break;
           case "reasoning":
-            updateLast((t) => ({
-              ...t,
-              reasoning: t.reasoning + ev.text,
-              author: t.author ?? readAuthor(ev),
-            }));
+            updateLast((t) => {
+              const last = t.items[t.items.length - 1];
+              const items: TurnItem[] =
+                last && last.kind === "reasoning"
+                  ? [
+                      ...t.items.slice(0, -1),
+                      { kind: "reasoning", text: last.text + ev.text },
+                    ]
+                  : [...t.items, { kind: "reasoning", text: ev.text }];
+              return {
+                ...t,
+                reasoning: t.reasoning + ev.text,
+                items,
+                author: t.author ?? readAuthor(ev),
+              };
+            });
             break;
           case "tool_call": {
             updateLast((t) => {
               const existing = t.toolCalls.find((tc) => tc.callIndex === ev.callIndex);
               if (existing) {
+                const updated: ToolCallState = {
+                  ...existing,
+                  args: existing.args + ev.argsDelta,
+                  name: ev.name ?? existing.name,
+                };
                 return {
                   ...t,
                   toolCalls: t.toolCalls.map((tc) =>
-                    tc.callIndex === ev.callIndex
-                      ? { ...tc, args: tc.args + ev.argsDelta, name: ev.name ?? tc.name }
-                      : tc,
+                    tc.callIndex === ev.callIndex ? updated : tc,
+                  ),
+                  items: t.items.map((it) =>
+                    it.kind === "tool" && it.tool.callIndex === ev.callIndex
+                      ? { kind: "tool", tool: updated }
+                      : it,
                   ),
                 };
               }
+              const fresh: ToolCallState = {
+                callIndex: ev.callIndex,
+                name: ev.name ?? "",
+                args: ev.argsDelta,
+              };
               return {
                 ...t,
-                toolCalls: [
-                  ...t.toolCalls,
-                  { callIndex: ev.callIndex, name: ev.name ?? "", args: ev.argsDelta },
-                ],
+                toolCalls: [...t.toolCalls, fresh],
+                items: [...t.items, { kind: "tool", tool: fresh }],
               };
             });
             break;
           }
           case "tool_result":
-            updateLast((t) => ({
-              ...t,
-              toolCalls: t.toolCalls.map((tc) =>
-                tc.name === ev.name && tc.ok === undefined
-                  ? { ...tc, ok: ev.ok, output: ev.output, error: ev.error }
-                  : tc,
-              ),
-            }));
+            updateLast((t) => {
+              const target = t.toolCalls.find(
+                (tc) => tc.name === ev.name && tc.ok === undefined,
+              );
+              if (!target) return t;
+              const updated: ToolCallState = {
+                ...target,
+                ok: ev.ok,
+                output: ev.output,
+                error: ev.error,
+              };
+              return {
+                ...t,
+                toolCalls: t.toolCalls.map((tc) =>
+                  tc.callIndex === target.callIndex ? updated : tc,
+                ),
+                items: t.items.map((it) =>
+                  it.kind === "tool" && it.tool.callIndex === target.callIndex
+                    ? { kind: "tool", tool: updated }
+                    : it,
+                ),
+              };
+            });
             break;
           case "stats":
             updateLast((t) => {
@@ -179,22 +244,22 @@ export function useSSEChat(
               return { ...t, serverStats: summed };
             });
             break;
-          case "ask_user_question":
+          case "ask_user_question": {
+            const fresh: PendingUserQuestion = {
+              questionId: ev.questionId,
+              question: ev.question,
+              options: ev.options,
+              allowCustom: ev.allowCustom,
+              multiSelect: ev.multiSelect,
+            };
             updateLast((t) => ({
               ...t,
-              userQuestions: [
-                ...t.userQuestions,
-                {
-                  questionId: ev.questionId,
-                  question: ev.question,
-                  options: ev.options,
-                  allowCustom: ev.allowCustom,
-                  multiSelect: ev.multiSelect,
-                },
-              ],
+              userQuestions: [...t.userQuestions, fresh],
+              items: [...t.items, { kind: "question", question: fresh }],
               author: t.author ?? readAuthor(ev),
             }));
             break;
+          }
           case "error":
             updateLast((t) => ({ ...t, error: ev.message }));
             break;
@@ -266,18 +331,20 @@ export function useSSEChat(
   const markUserQuestionAnswered = useCallback(
     (turnId: string, questionId: string, answer: string) => {
       setTurns((prev) =>
-        prev.map((t) =>
-          t.id === turnId
-            ? {
-                ...t,
-                userQuestions: t.userQuestions.map((q) =>
-                  q.questionId === questionId
-                    ? { ...q, submittedAnswer: answer }
-                    : q,
-                ),
-              }
-            : t,
-        ),
+        prev.map((t) => {
+          if (t.id !== turnId) return t;
+          const updateQ = (q: PendingUserQuestion) =>
+            q.questionId === questionId ? { ...q, submittedAnswer: answer } : q;
+          return {
+            ...t,
+            userQuestions: t.userQuestions.map(updateQ),
+            items: t.items.map((it) =>
+              it.kind === "question" && it.question.questionId === questionId
+                ? { kind: "question", question: updateQ(it.question) }
+                : it,
+            ),
+          };
+        }),
       );
     },
     [],
@@ -296,15 +363,40 @@ export function useSSEChat(
         if (prev.length === 0) return prev;
         const last = prev[prev.length - 1]!;
         if (last.done) return prev;
-        const elapsed = performance.now() - last.startedAt;
-        const approx = approxTokens(last.content);
+
+        const awaiting = last.userQuestions.some((q) => !q.submittedAnswer);
+
+        if (awaiting) {
+          // Stamp the pause start on the first paused tick. Subsequent paused
+          // ticks are no-ops — freezes the displayed value AND avoids burning
+          // re-renders at 150ms while the user thinks.
+          if (last.pausedAtMs == null) {
+            const copy = prev.slice();
+            copy[copy.length - 1] = { ...last, pausedAtMs: performance.now() };
+            return copy;
+          }
+          return prev;
+        }
+
+        // Resuming after a pause — roll the just-ended pause window into
+        // pausedTotalMs so the displayed elapsed continues from where it
+        // stopped instead of jumping forward by the wait duration.
+        let pausedTotalMs = last.pausedTotalMs;
+        let working: Turn = last;
+        if (last.pausedAtMs != null) {
+          pausedTotalMs += performance.now() - last.pausedAtMs;
+          working = { ...last, pausedAtMs: null, pausedTotalMs };
+        }
+
+        const elapsed = performance.now() - working.startedAt - pausedTotalMs;
+        const approx = approxTokens(working.content);
         const displayed: TurnStats = {
           durationMs: elapsed,
-          promptTokens: last.serverStats?.promptTokens,
-          completionTokens: Math.max(last.serverStats?.completionTokens ?? 0, approx),
+          promptTokens: working.serverStats?.promptTokens,
+          completionTokens: Math.max(working.serverStats?.completionTokens ?? 0, approx),
         };
         const copy = prev.slice();
-        copy[copy.length - 1] = { ...last, stats: displayed };
+        copy[copy.length - 1] = { ...working, stats: displayed };
         return copy;
       });
     }, 150);

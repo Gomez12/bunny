@@ -103,9 +103,20 @@ export default function ChatTab({
   const [adminScope, setAdminScope] = useState<"mine" | "all">("mine");
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Sticky-bottom: auto-scroll only follows the stream when the user is
+  // already near the bottom. Scrolling up to read or answer an off-screen
+  // question card unsticks; the 150ms timer tick can no longer yank.
+  const stickToBottomRef = useRef(true);
   const composerRef = useRef<ComposerHandle>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const dragDepthRef = useRef(0);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    stickToBottomRef.current =
+      el.scrollHeight - el.scrollTop - el.clientHeight < 32;
+  }, []);
 
   // Safari hides `items[i].type` during dragenter/dragover for privacy, so
   // detecting "is this a file drag?" via item types is unreliable. The
@@ -253,6 +264,7 @@ export default function ChatTab({
     // into the new one — the pending-consume effect may seed it, and
     // fetchSessions will populate it once the session row exists.
     setActiveSessionMeta(null);
+    stickToBottomRef.current = true;
     setLoadingHistory(true);
     fetchMessages(sessionId)
       .then((msgs) => setHistory(groupTurns(reorderReasoning(msgs))))
@@ -313,7 +325,7 @@ export default function ChatTab({
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    el.scrollTop = el.scrollHeight;
+    if (stickToBottomRef.current) el.scrollTop = el.scrollHeight;
   }, [history, turns]);
 
   const isEmpty = !loadingHistory && history.length === 0 && turns.length === 0;
@@ -474,7 +486,7 @@ export default function ChatTab({
             )}
           </div>
         )}
-        <div className="chat__scroll" ref={scrollRef}>
+        <div className="chat__scroll" ref={scrollRef} onScroll={handleScroll}>
           {isEmpty && (
             <EmptyState
               title="How can I help you today?"
@@ -570,31 +582,55 @@ export default function ChatTab({
                 {t.prompt}
               </MessageBubble>
               <MessageBubble role="assistant" author={t.author}>
-                {t.reasoning && <ReasoningBlock text={t.reasoning} defaultOpen={expandThink} />}
-                {t.toolCalls.map((tc) => (
-                  <ToolCallCard
-                    key={tc.callIndex}
-                    name={tc.name}
-                    args={tc.args}
-                    ok={tc.ok}
-                    output={tc.output}
-                    error={tc.error}
-                    defaultOpen={expandTool}
-                  />
-                ))}
-                {t.userQuestions.map((q) => (
-                  <UserQuestionCard
-                    key={q.questionId}
-                    question={q}
-                    onSubmit={async (answer) => {
-                      await answerUserQuestion(sessionId, q.questionId, answer);
-                      markUserQuestionAnswered(t.id, q.questionId, answer);
-                    }}
-                  />
-                ))}
-                {t.content && <MarkdownContent text={t.content} />}
-                {!t.content && !t.reasoning && t.toolCalls.length === 0 && !t.done && (
-                  <div className="bubble__pending"><span className="spinner" /> waiting for model…</div>
+                {t.items.map((it, i) => {
+                  switch (it.kind) {
+                    case "reasoning":
+                      return (
+                        <ReasoningBlock
+                          key={`r-${i}`}
+                          text={it.text}
+                          defaultOpen={expandThink}
+                        />
+                      );
+                    case "tool":
+                      return (
+                        <ToolCallCard
+                          key={`t-${it.tool.callIndex}`}
+                          name={it.tool.name}
+                          args={it.tool.args}
+                          ok={it.tool.ok}
+                          output={it.tool.output}
+                          error={it.tool.error}
+                          defaultOpen={expandTool}
+                        />
+                      );
+                    case "question":
+                      return (
+                        <UserQuestionCard
+                          key={`q-${it.question.questionId}`}
+                          question={it.question}
+                          onSubmit={async (answer) => {
+                            await answerUserQuestion(
+                              sessionId,
+                              it.question.questionId,
+                              answer,
+                            );
+                            markUserQuestionAnswered(
+                              t.id,
+                              it.question.questionId,
+                              answer,
+                            );
+                          }}
+                        />
+                      );
+                    case "content":
+                      return <MarkdownContent key={`c-${i}`} text={it.text} />;
+                  }
+                })}
+                {t.items.length === 0 && !t.done && (
+                  <div className="bubble__pending">
+                    <span className="spinner" /> waiting for model…
+                  </div>
                 )}
                 {t.error && <div className="bubble__error">error: {t.error}</div>}
                 <StatsFooter stats={t.stats} />
@@ -621,9 +657,10 @@ export default function ChatTab({
                 ref={composerRef}
                 disabled={streaming}
                 streaming={streaming}
-                onSubmit={(prompt, attachments) =>
-                  send(prompt, attachments, activeAgent)
-                }
+                onSubmit={(prompt, attachments) => {
+                  stickToBottomRef.current = true;
+                  send(prompt, attachments, activeAgent);
+                }}
                 onAbort={abort}
                 project={project}
                 activeAgent={activeAgent}

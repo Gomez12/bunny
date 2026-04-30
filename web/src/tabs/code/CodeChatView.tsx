@@ -101,6 +101,7 @@ export default function CodeChatView({ codeProject, currentUser }: Props) {
   // Load persisted history whenever the active session changes.
   useEffect(() => {
     reset();
+    stickToBottomRef.current = true;
     if (!activeSessionId) {
       setHistory([]);
       return;
@@ -114,11 +115,22 @@ export default function CodeChatView({ codeProject, currentUser }: Props) {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<ComposerHandle>(null);
+  // Sticky-bottom: only follow the stream while the user is already near the
+  // bottom. Without this the 150ms timer tick in useSSEChat would yank the
+  // viewport down on every update, making the transcript unreadable.
+  const stickToBottomRef = useRef(true);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    stickToBottomRef.current =
+      el.scrollHeight - el.scrollTop - el.clientHeight < 32;
+  }, []);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    el.scrollTop = el.scrollHeight;
+    if (stickToBottomRef.current) el.scrollTop = el.scrollHeight;
   }, [history, turns]);
 
   const handleNewChat = () => {
@@ -216,7 +228,7 @@ export default function CodeChatView({ codeProject, currentUser }: Props) {
       </aside>
 
       <div className="chat__main">
-        <div className="chat__scroll" ref={scrollRef}>
+        <div className="chat__scroll" ref={scrollRef} onScroll={handleScroll}>
           {isEmpty && !activeSessionId && (
             <EmptyState
               title="No conversation selected"
@@ -327,7 +339,10 @@ export default function CodeChatView({ codeProject, currentUser }: Props) {
               ref={composerRef}
               disabled={composerDisabled}
               streaming={streaming}
-              onSubmit={(prompt, attachments) => send(prompt, attachments)}
+              onSubmit={(prompt, attachments) => {
+                stickToBottomRef.current = true;
+                send(prompt, attachments);
+              }}
               onAbort={abort}
               project={codeProject.project}
             />
