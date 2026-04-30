@@ -351,6 +351,39 @@ function handleClearLlm(
 
 // ── LLM generation (SSE) ─────────────────────────────────────────────────────
 
+const DESC_CLIP_MAX = 1000;
+
+function clipDesc(s: string): string {
+  return s.length > DESC_CLIP_MAX ? `${s.slice(0, DESC_CLIP_MAX)}…` : s;
+}
+
+export function buildDefinitionPrompt(args: {
+  projectName: string;
+  projectContext: string;
+  term: string;
+  manualDescription: string;
+  isProjectDependent: boolean;
+  targetLang: string;
+}): string {
+  const parts: string[] = [
+    `Target language for shortDescription and longDescription: "${args.targetLang}" (ISO 639-1). Write both fields entirely in this language.`,
+  ];
+  if (args.isProjectDependent) {
+    parts.push(
+      `Project: ${args.projectName}\nProject context: ${args.projectContext}\n\nDefine the term (blend with project context when forming search queries): "${args.term}"`,
+    );
+  } else {
+    parts.push(`Define the term: "${args.term}"`);
+  }
+  const manual = args.manualDescription.trim();
+  if (manual) {
+    parts.push(
+      `Manual description (authored by the user, in the target language): ${clipDesc(manual)}`,
+    );
+  }
+  return parts.join("\n\n");
+}
+
 async function handleGenerate(
   ctx: KbRouteCtx,
   user: User,
@@ -366,6 +399,8 @@ async function handleGenerate(
     return json({ error: "generation already in progress" }, 409);
   }
 
+  const targetLang = r.def.originalLang ?? r.p.defaultLanguage ?? "en";
+
   void ctx.queue.log({
     topic: "kb",
     kind: "definition.generate",
@@ -375,6 +410,7 @@ async function handleGenerate(
       project: r.project,
       term: r.def.term,
       projectDependent: r.def.isProjectDependent,
+      targetLang,
     },
   });
 
@@ -384,9 +420,14 @@ async function handleGenerate(
   const projectContext = (
     r.p.description?.trim() ? r.p.description.trim() : r.p.name
   ).trim();
-  const userPrompt = r.def.isProjectDependent
-    ? `Project: ${r.p.name}\nProject context: ${projectContext}\n\nDefine the term (blend with project context when forming search queries): "${r.def.term}"`
-    : `Define the term: "${r.def.term}"`;
+  const userPrompt = buildDefinitionPrompt({
+    projectName: r.p.name,
+    projectContext,
+    term: r.def.term,
+    manualDescription: r.def.manualDescription,
+    isProjectDependent: r.def.isProjectDependent,
+    targetLang,
+  });
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -533,14 +574,6 @@ export function extractDefinitionJson(raw: string): {
 
 const ILLUSTRATION_MAX_BYTES = 200 * 1024;
 
-const ILLUSTRATION_DESC_MAX = 1000;
-
-function clip(s: string): string {
-  return s.length > ILLUSTRATION_DESC_MAX
-    ? `${s.slice(0, ILLUSTRATION_DESC_MAX)}…`
-    : s;
-}
-
 function buildIllustrationPrompt(def: {
   term: string;
   manualDescription: string;
@@ -556,17 +589,17 @@ function buildIllustrationPrompt(def: {
   const long = def.llmLong?.trim();
   if (short) {
     parts.push(
-      `The following is a short description that indicates what is meant by the definition: ${clip(short)}`,
+      `The following is a short description that indicates what is meant by the definition: ${clipDesc(short)}`,
     );
   }
   if (long) {
     parts.push(
-      `The following is a longer description that indicates what is meant by the definition: ${clip(long)}`,
+      `The following is a longer description that indicates what is meant by the definition: ${clipDesc(long)}`,
     );
   }
   if (manual) {
     parts.push(
-      `The following is a manual description (written by the user) that indicates what is meant by the definition: ${clip(manual)}`,
+      `The following is a manual description (written by the user) that indicates what is meant by the definition: ${clipDesc(manual)}`,
     );
   }
   return parts.join("\n\n");

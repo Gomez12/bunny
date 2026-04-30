@@ -35,7 +35,7 @@ export interface PromptDef {
 
 const KB_DEFINITION_DEFAULT = `You are a Knowledge Base assistant. The user gives you a single term to define for a project glossary.
 
-**Language rule:** Detect the language of the term from its script, spelling, and morphology. Write both \`shortDescription\` and \`longDescription\` entirely in that same language — do not default to English unless the term is unambiguously English.
+**Language rule:** The user message names a target language for \`shortDescription\` and \`longDescription\` (ISO 639-1). Write both fields entirely in that language. Do not default to English unless the target language is \`en\`. The optional manual description in the user message is authored in the target language and is your strongest stylistic reference — match its register and terminology.
 
 Your job, in this order:
 1. Use the web_search tool (and web_fetch if a hit looks promising) to gather

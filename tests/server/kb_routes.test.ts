@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  buildDefinitionPrompt,
   extractDefinitionJson,
   extractSvgBlock,
 } from "../../src/server/kb_routes.ts";
@@ -116,5 +117,69 @@ describe("extractSvgBlock", () => {
       300 * 1024,
     )}</svg>`;
     expect(extractSvgBlock(huge)).toBeNull();
+  });
+});
+
+describe("buildDefinitionPrompt", () => {
+  const base = {
+    projectName: "demo",
+    projectContext: "demo",
+    term: "EN 342",
+    manualDescription: "",
+    isProjectDependent: false,
+    targetLang: "nl",
+  };
+
+  test("includes the explicit ISO 639-1 language directive", () => {
+    const out = buildDefinitionPrompt(base);
+    expect(out).toContain(
+      `Target language for shortDescription and longDescription: "nl" (ISO 639-1).`,
+    );
+    expect(out).toContain("Write both fields entirely in this language.");
+  });
+
+  test("includes a labelled manual description when non-empty", () => {
+    const out = buildDefinitionPrompt({
+      ...base,
+      manualDescription:
+        "  Beschermende kleding tegen koude omgevingen volgens norm.  ",
+    });
+    expect(out).toContain(
+      "Manual description (authored by the user, in the target language):",
+    );
+    expect(out).toContain(
+      "Beschermende kleding tegen koude omgevingen volgens norm.",
+    );
+  });
+
+  test("omits the manual description when empty or whitespace-only", () => {
+    const out = buildDefinitionPrompt({ ...base, manualDescription: "   " });
+    expect(out).not.toContain("Manual description");
+  });
+
+  test("truncates an overly long manual description", () => {
+    const long = "x".repeat(5000);
+    const out = buildDefinitionPrompt({ ...base, manualDescription: long });
+    expect(out).toContain("…");
+    expect(out.length).toBeLessThan(5000);
+  });
+
+  test("includes the project-context preamble only when isProjectDependent", () => {
+    const without = buildDefinitionPrompt(base);
+    expect(without).not.toContain("Project context:");
+    expect(without).toContain('Define the term: "EN 342"');
+
+    const withCtx = buildDefinitionPrompt({
+      ...base,
+      isProjectDependent: true,
+      projectContext: "industrial cold-weather workwear",
+    });
+    expect(withCtx).toContain("Project: demo");
+    expect(withCtx).toContain(
+      "Project context: industrial cold-weather workwear",
+    );
+    expect(withCtx).toContain(
+      'Define the term (blend with project context when forming search queries): "EN 342"',
+    );
   });
 });

@@ -94,6 +94,8 @@ POST /generate { definitionId }
 
 **Project-dependent mode** blends the term with the project description before searching. Example: in a project about cars, the term "chair" is searched as "car seat", not bare "chair".
 
+**Source language** is explicit, not inferred. The user prompt (`buildDefinitionPrompt`) names a `targetLang` for `shortDescription` / `longDescription`, resolved as `definition.original_lang ?? project.default_language ?? "en"` — mirroring the translation pipeline's source-language precedence. The system prompt instructs the model to write in that language and treat the manual description as its strongest stylistic reference. This avoids language-from-script guesses (e.g. a code-shaped term like `EN 342` in a Dutch project would otherwise be answered in English).
+
 ## SVG illustration flow
 
 Parallel column set + handlers so text and illustration generation cannot collide:
