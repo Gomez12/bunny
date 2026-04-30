@@ -59,6 +59,10 @@ import {
   KB_AUTO_GENERATE_HANDLER,
   registerKbAutoGenerate,
 } from "../kb/auto_generate_handler.ts";
+import {
+  KB_SWEEP_STUCK_HANDLER,
+  registerKbSweepStuck,
+} from "../kb/sweep_stuck_handler.ts";
 
 const DEFAULT_PORT = 3000;
 
@@ -152,6 +156,7 @@ export async function startServer(
   registerWebNewsAutoRun(defaultHandlerRegistry);
   registerTelegramPoll(defaultHandlerRegistry);
   registerKbAutoGenerate(defaultHandlerRegistry);
+  registerKbSweepStuck(defaultHandlerRegistry);
   const bootNow = Date.now();
   const boardAutoRunCron = "*/5 * * * *";
   try {
@@ -241,6 +246,21 @@ export async function startServer(
   } catch (e) {
     console.warn(
       "[bunny] failed to seed kb.auto_generate_scan:",
+      errorMessage(e),
+    );
+  }
+  const kbSweepStuckCron = "*/5 * * * *";
+  try {
+    ensureSystemTask(db, KB_SWEEP_STUCK_HANDLER, {
+      name: "KB definition stuck-row sweep",
+      description:
+        "Reset KB definitions stuck in 'generating' (LLM or SVG) back to idle so auto-generate retries them (every 5 minutes).",
+      cronExpr: kbSweepStuckCron,
+      nextRunAt: computeNextRun(kbSweepStuckCron, bootNow),
+    });
+  } catch (e) {
+    console.warn(
+      "[bunny] failed to seed kb.sweep_stuck:",
       errorMessage(e),
     );
   }

@@ -15,6 +15,7 @@ import {
   listDefinitions,
   setActiveDescription,
   setLlmError,
+  resetStuckGenerating,
   setLlmGenerating,
   setLlmResult,
   setSvgError,
@@ -456,6 +457,90 @@ describe("SVG illustration state machine", () => {
     expect(cleared.llmShort).toBe("s");
     expect(cleared.llmLong).toBe("l");
     expect(cleared.llmSources).toHaveLength(1);
+    db.close();
+  });
+});
+
+describe("resetStuckGenerating", () => {
+  test("flips llm_status='generating' rows older than threshold back to idle", async () => {
+    const { db } = await setup();
+    const d = createDefinition(db, {
+      project: "alpha",
+      term: "stuck",
+      createdBy: "owner",
+    });
+    setLlmGenerating(db, d.id);
+    // Backdate updated_at so the row looks stuck.
+    db.run(`UPDATE kb_definitions SET updated_at = ? WHERE id = ?`, [
+      Date.now() - 60 * 60 * 1000,
+      d.id,
+    ]);
+    const summary = resetStuckGenerating(db, 30 * 60 * 1000);
+    expect(summary.llmReset).toEqual([d.id]);
+    expect(summary.svgReset).toEqual([]);
+    const after = getDefinition(db, d.id)!;
+    expect(after.llmStatus).toBe("idle");
+    expect(after.llmError).toBeNull();
+    db.close();
+  });
+
+  test("leaves rows below threshold alone", async () => {
+    const { db } = await setup();
+    const d = createDefinition(db, {
+      project: "alpha",
+      term: "fresh",
+      createdBy: "owner",
+    });
+    setLlmGenerating(db, d.id);
+    const summary = resetStuckGenerating(db, 30 * 60 * 1000);
+    expect(summary.llmReset).toEqual([]);
+    expect(getDefinition(db, d.id)!.llmStatus).toBe("generating");
+    db.close();
+  });
+
+  test("flips stuck svg_status='generating' rows back to idle", async () => {
+    const { db } = await setup();
+    const d = createDefinition(db, {
+      project: "alpha",
+      term: "stuck-svg",
+      createdBy: "owner",
+    });
+    setSvgGenerating(db, d.id);
+    db.run(`UPDATE kb_definitions SET updated_at = ? WHERE id = ?`, [
+      Date.now() - 60 * 60 * 1000,
+      d.id,
+    ]);
+    const summary = resetStuckGenerating(db, 30 * 60 * 1000);
+    expect(summary.svgReset).toEqual([d.id]);
+    const after = getDefinition(db, d.id)!;
+    expect(after.svgStatus).toBe("idle");
+    expect(after.svgError).toBeNull();
+    db.close();
+  });
+
+  test("ignores soft-deleted rows", async () => {
+    const { db } = await setup();
+    const d = createDefinition(db, {
+      project: "alpha",
+      term: "trashed",
+      createdBy: "owner",
+    });
+    setLlmGenerating(db, d.id);
+    db.run(`UPDATE kb_definitions SET updated_at = ? WHERE id = ?`, [
+      Date.now() - 60 * 60 * 1000,
+      d.id,
+    ]);
+    deleteDefinition(db, d.id);
+    const summary = resetStuckGenerating(db, 30 * 60 * 1000);
+    expect(summary.llmReset).toEqual([]);
+    expect(summary.svgReset).toEqual([]);
+    db.close();
+  });
+
+  test("returns empty lists when nothing is stuck", async () => {
+    const { db } = await setup();
+    const summary = resetStuckGenerating(db, 30 * 60 * 1000);
+    expect(summary).toEqual({ llmReset: [], svgReset: [] });
     db.close();
   });
 });

@@ -380,6 +380,54 @@ export function selectPendingDefinitions(
     .all() as PendingDefinitionCandidate[];
 }
 
+export interface StuckResetSummary {
+  llmReset: number[];
+  svgReset: number[];
+}
+
+/**
+ * Flip `kb_definitions` rows stuck in `llm_status='generating'` /
+ * `svg_status='generating'` back to `'idle'`. A row is stuck when its
+ * `updated_at` predates `now - thresholdMs` while still in `'generating'` —
+ * usually the result of process death mid-call. The auto-generate handler
+ * picks idle rows up on the next tick, so this also re-runs them.
+ */
+export function resetStuckGenerating(
+  db: Database,
+  thresholdMs: number,
+  now: number = Date.now(),
+): StuckResetSummary {
+  const cutoff = now - thresholdMs;
+
+  const llmReset = (
+    db
+      .prepare(
+        `UPDATE kb_definitions
+            SET llm_status = 'idle', llm_error = NULL, updated_at = ?
+          WHERE llm_status = 'generating'
+            AND updated_at < ?
+            AND deleted_at IS NULL
+        RETURNING id`,
+      )
+      .all(now, cutoff) as { id: number }[]
+  ).map((r) => r.id);
+
+  const svgReset = (
+    db
+      .prepare(
+        `UPDATE kb_definitions
+            SET svg_status = 'idle', svg_error = NULL, updated_at = ?
+          WHERE svg_status = 'generating'
+            AND updated_at < ?
+            AND deleted_at IS NULL
+        RETURNING id`,
+      )
+      .all(now, cutoff) as { id: number }[]
+  ).map((r) => r.id);
+
+  return { llmReset, svgReset };
+}
+
 // ── LLM field state machine ─────────────────────────────────────────────────
 
 /**
