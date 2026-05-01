@@ -87,6 +87,7 @@ function cfg(extra?: Partial<LlmConfig>): LlmConfig {
     model: "test-model",
     modelReasoning: undefined,
     profile: "openai",
+    maxConcurrentRequests: 1,
     ...extra,
   };
 }

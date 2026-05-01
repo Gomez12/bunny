@@ -74,6 +74,7 @@ function buildCfg(): BunnyConfig {
       model: "test",
       modelReasoning: undefined,
       profile: "openai",
+      maxConcurrentRequests: 1,
     },
     embed: { baseUrl, apiKey: "", model: "text-embedding-3-small", dim: 4 },
     memory: { indexReasoning: false, recallK: 4, lastN: 10 },

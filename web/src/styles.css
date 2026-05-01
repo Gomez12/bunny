@@ -956,6 +956,11 @@ button {
   font-size: 13px;
   font-style: italic;
 }
+.bubble__pending--queued {
+  color: var(--text-faint);
+  font-style: normal;
+  letter-spacing: 0.01em;
+}
 
 /* ── Spinner ───────────────────────────────────────────────── */
 .spinner {

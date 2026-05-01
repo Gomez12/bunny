@@ -101,6 +101,41 @@ describe("SSE renderer", () => {
     expect(frames[0]).toMatch(/^data: /);
   });
 
+  test("emits llm_queue_wait with position and a server timestamp", () => {
+    const s = collectingSink();
+    const r = createSseRenderer(s.sink);
+    const before = Date.now();
+    r.onQueueWait?.({ position: 3 });
+    const after = Date.now();
+    expect(s.events).toHaveLength(1);
+    const ev = s.events[0]!;
+    expect(ev["type"]).toBe("llm_queue_wait");
+    expect(ev["position"]).toBe(3);
+    expect(typeof ev["since"]).toBe("number");
+    expect(ev["since"] as number).toBeGreaterThanOrEqual(before);
+    expect(ev["since"] as number).toBeLessThanOrEqual(after);
+  });
+
+  test("emits llm_queue_release with waitedMs", () => {
+    const s = collectingSink();
+    const r = createSseRenderer(s.sink);
+    r.onQueueRelease?.({ waitedMs: 1500 });
+    expect(s.events).toEqual([{ type: "llm_queue_release", waitedMs: 1500 }]);
+  });
+
+  test("queue events do not carry the agent author tag", () => {
+    // Queue state is a transport concern, not an agent's utterance — the SSE
+    // pair must stay author-free so the front-end never confuses a wait
+    // notice for content from a specific agent.
+    const s = collectingSink();
+    const r = createSseRenderer(s.sink, { author: "bunny" });
+    r.onQueueWait?.({ position: 1 });
+    r.onQueueRelease?.({ waitedMs: 0 });
+    for (const ev of s.events) {
+      expect(ev["author"]).toBeUndefined();
+    }
+  });
+
   test("swallows errors when controller already closed (via controllerSink)", async () => {
     // Simulate a closed controller by creating one and cancelling immediately.
     const { controllerSink } = await import("../../src/agent/render_sse.ts");

@@ -76,6 +76,7 @@ const cfg = {
     model: "x",
     modelReasoning: undefined,
     profile: undefined,
+    maxConcurrentRequests: 1,
   },
   embed: { baseUrl: "", apiKey: "", model: "x", dim: 1536 },
   memory: { indexReasoning: false, recallK: 8, lastN: 10 },

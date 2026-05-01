@@ -23,6 +23,7 @@ import ToolCallCard from "../components/ToolCallCard";
 import UserQuestionCard from "../components/UserQuestionCard";
 import SessionSidebar from "../components/SessionSidebar";
 import EmptyState from "../components/EmptyState";
+import QueueWaitBadge from "../components/QueueWaitBadge";
 import StatsFooter from "../components/StatsFooter";
 import {
   fetchMessages,
@@ -627,10 +628,16 @@ export default function ChatTab({
                       return <MarkdownContent key={`c-${i}`} text={it.text} />;
                   }
                 })}
-                {t.items.length === 0 && !t.done && (
+                {t.items.length === 0 && !t.done && t.queueState !== "waiting" && (
                   <div className="bubble__pending">
                     <span className="spinner" /> waiting for model…
                   </div>
+                )}
+                {!t.done && t.queueState === "waiting" && (
+                  <QueueWaitBadge
+                    position={t.queuePosition}
+                    waitedTotalMs={t.queueWaitTotalMs}
+                  />
                 )}
                 {t.error && <div className="bubble__error">error: {t.error}</div>}
                 <StatsFooter stats={t.stats} />

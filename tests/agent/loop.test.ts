@@ -145,6 +145,7 @@ function makeLlmCfg(): LlmConfig {
     model: "test",
     modelReasoning: undefined,
     profile: "openai",
+    maxConcurrentRequests: 1,
   };
 }
 

@@ -140,6 +140,18 @@ export function createSseRenderer(
     send(sink, tag(ev));
   }
 
+  function onQueueWait(ev: { position: number }): void {
+    send(sink, {
+      type: "llm_queue_wait",
+      position: ev.position,
+      since: Date.now(),
+    });
+  }
+
+  function onQueueRelease(ev: { waitedMs: number }): void {
+    send(sink, { type: "llm_queue_release", waitedMs: ev.waitedMs });
+  }
+
   return {
     onDelta,
     onToolResult,
@@ -147,6 +159,8 @@ export function createSseRenderer(
     onError,
     onTurnEnd,
     onAskUserQuestion,
+    onQueueWait,
+    onQueueRelease,
   };
 }
 

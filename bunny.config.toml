@@ -7,6 +7,12 @@ model = "gpt-4o-mini"
 # profile = "openai"         # auto-detect if omitted
 # model_reasoning = "deepseek-reasoner"
 
+# Max upstream chat-completion requests in flight at once. Excess calls queue
+# and the chat UI shows "In wachtrij (positie X)" until released. Default 1
+# (safest for a single-GPU llama.cpp). Raise for multi-user installations
+# whose upstream supports parallel decoding. Env: LLM_MAX_CONCURRENT_REQUESTS.
+max_concurrent_requests = 1
+
 [embed]
 base_url = "https://api.openai.com/v1"
 model = "text-embedding-3-small"

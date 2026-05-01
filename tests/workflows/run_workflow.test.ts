@@ -56,6 +56,7 @@ const CFG: BunnyConfig = {
     model: "test",
     modelReasoning: undefined,
     profile: "openai",
+    maxConcurrentRequests: 1,
   },
   embed: {
     baseUrl: "http://127.0.0.1:0",

@@ -95,6 +95,7 @@ function makeCfg(): BunnyConfig {
       model: "test",
       modelReasoning: undefined,
       profile: "openai",
+      maxConcurrentRequests: 1,
     },
     embed: { baseUrl, apiKey: "", model: "test-embed", dim: 4 },
     memory: { indexReasoning: false, recallK: 4, lastN: 10 },

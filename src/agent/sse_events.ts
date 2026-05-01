@@ -136,6 +136,30 @@ export interface SseWebNewsTopicStatusEvent {
   status: "idle" | "running" | "error";
 }
 
+/** Emitted just before an upstream LLM call has to wait on the
+ *  `[llm] max_concurrent_requests` gate (ADR 0035). The frontend uses this
+ *  to show "In wachtrij (positie X)" and to pause the elapsed-time counter
+ *  via the same paused-time mechanism that handles `ask_user_question`. */
+export interface SseLlmQueueWaitEvent {
+  type: "llm_queue_wait";
+  /** 1-based position at the moment the request joined the queue (= number
+   *  of waiters ahead + 1). 1 means "next up after the current in-flight
+   *  call". */
+  position: number;
+  /** Server clock (`Date.now()`) when the wait started. */
+  since: number;
+}
+
+/** Emitted just after the gate releases this request and right before the
+ *  HTTP `fetch()` to the upstream begins. Pairs with the most recent
+ *  `llm_queue_wait` event. The frontend uses `waitedMs` to subtract the
+ *  queue time from the live elapsed timer. */
+export interface SseLlmQueueReleaseEvent {
+  type: "llm_queue_release";
+  /** Wall-clock time spent in the queue, in ms. */
+  waitedMs: number;
+}
+
 /** Emitted by the `ask_user` tool. The handler blocks until the user submits an
  * answer via `POST /api/sessions/:sessionId/questions/:questionId/answer`, then
  * the answer is returned as the tool result. */
@@ -288,6 +312,8 @@ export type SseEvent =
   | SseWebNewsRunFinishedEvent
   | SseWebNewsTopicStatusEvent
   | SseAskUserQuestionEvent
+  | SseLlmQueueWaitEvent
+  | SseLlmQueueReleaseEvent
   | SseWorkflowRunStartedEvent
   | SseWorkflowNodeStartedEvent
   | SseWorkflowNodeFinishedEvent

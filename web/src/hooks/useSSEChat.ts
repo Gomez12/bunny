@@ -38,6 +38,16 @@ export interface Turn {
   pausedAtMs: number | null;
   /** Accumulated time spent paused on user questions, subtracted from elapsed. */
   pausedTotalMs: number;
+  /** Upstream concurrency-gate state for the most recent LLM call iteration:
+   *  - "waiting" — queued behind another in-flight request; timer is paused.
+   *  - "active"  — released; the request is in flight (or this turn never queued).
+   *  - null      — turn is done, or queue events haven't been observed yet. */
+  queueState: "waiting" | "active" | null;
+  /** 1-based position when the most recent llm_queue_wait fired (1 = next-up).
+   *  0 when not waiting. Drives the "In wachtrij (positie X)" badge. */
+  queuePosition: number;
+  /** Accumulated queue wait across all LLM-call iterations in this turn. */
+  queueWaitTotalMs: number;
   error?: string;
   done: boolean;
   /** Responding agent name. Null = default assistant. Set from SSE events. */
@@ -128,6 +138,9 @@ export function useSSEChat(
           startedAt,
           pausedAtMs: null,
           pausedTotalMs: 0,
+          queueState: null,
+          queuePosition: 0,
+          queueWaitTotalMs: 0,
           done: false,
           author: agent ?? null,
           userQuestions: [],
@@ -244,6 +257,21 @@ export function useSSEChat(
               return { ...t, serverStats: summed };
             });
             break;
+          case "llm_queue_wait":
+            updateLast((t) => ({
+              ...t,
+              queueState: "waiting",
+              queuePosition: ev.position,
+            }));
+            break;
+          case "llm_queue_release":
+            updateLast((t) => ({
+              ...t,
+              queueState: "active",
+              queuePosition: 0,
+              queueWaitTotalMs: t.queueWaitTotalMs + ev.waitedMs,
+            }));
+            break;
           case "ask_user_question": {
             const fresh: PendingUserQuestion = {
               questionId: ev.questionId,
@@ -265,7 +293,13 @@ export function useSSEChat(
             break;
           case "turn_end":
             // Freeze to authoritative server sums once the agent loop is done.
-            updateLast((t) => ({ ...t, done: true, stats: t.serverStats ?? t.stats }));
+            updateLast((t) => ({
+              ...t,
+              done: true,
+              queueState: null,
+              queuePosition: 0,
+              stats: t.serverStats ?? t.stats,
+            }));
             break;
           case "done":
             setStreaming(false);
@@ -365,8 +399,10 @@ export function useSSEChat(
         if (last.done) return prev;
 
         const awaiting = last.userQuestions.some((q) => !q.submittedAnswer);
+        const inQueue = last.queueState === "waiting";
+        const shouldPause = awaiting || inQueue;
 
-        if (awaiting) {
+        if (shouldPause) {
           // Stamp the pause start on the first paused tick. Subsequent paused
           // ticks are no-ops — freezes the displayed value AND avoids burning
           // re-renders at 150ms while the user thinks.

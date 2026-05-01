@@ -30,6 +30,15 @@ export interface LlmConfig {
   model: string;
   modelReasoning: string | undefined;
   profile: LlmProfile | undefined;
+  /**
+   * Maximum number of in-flight upstream chat-completion requests. Excess
+   * calls queue and emit `llm_queue_wait` SSE events; the front-end timer
+   * pauses until `llm_queue_release`. Default 1 — single-request-at-a-time
+   * is the safest baseline for a llama.cpp / single-GPU upstream. Raise it
+   * for multi-user installations or when the upstream supports parallel
+   * decoding. See ADR 0035.
+   */
+  maxConcurrentRequests: number;
 }
 
 export interface EmbedConfig {
@@ -213,6 +222,7 @@ interface TomlShape {
     model: string;
     model_reasoning: string;
     profile: string;
+    max_concurrent_requests: number;
   }>;
   embed?: Partial<{ base_url: string; model: string; dim: number }>;
   memory?: Partial<{
@@ -288,6 +298,7 @@ const DEFAULTS = {
     model: "gpt-4o-mini",
     modelReasoning: undefined as string | undefined,
     profile: undefined as LlmProfile | undefined,
+    maxConcurrentRequests: 1,
   },
   embed: {
     baseUrl: "https://api.openai.com/v1",
@@ -403,6 +414,26 @@ function parseProfile(raw: string | undefined): LlmProfile | undefined {
     : undefined;
 }
 
+/**
+ * Coerce env / TOML to a positive integer ≥1, falling back to the default with
+ * a stderr warn when the input is malformed.
+ */
+function parseMaxConcurrent(
+  envRaw: string | undefined,
+  tomlRaw: number | undefined,
+): number {
+  const fallback = DEFAULTS.llm.maxConcurrentRequests;
+  const candidate = envRaw !== undefined ? Number(envRaw) : tomlRaw;
+  if (candidate === undefined) return fallback;
+  if (!Number.isFinite(candidate) || !Number.isInteger(candidate) || candidate < 1) {
+    process.stderr.write(
+      `[bunny/config] invalid llm.max_concurrent_requests=${candidate}; using default ${fallback}\n`,
+    );
+    return fallback;
+  }
+  return candidate;
+}
+
 function parseReasoningMode(
   raw: string | undefined,
 ): ReasoningRenderMode | undefined {
@@ -447,6 +478,10 @@ export function loadConfig(
     model: env["LLM_MODEL"] ?? toml.llm?.model ?? DEFAULTS.llm.model,
     modelReasoning: env["LLM_MODEL_REASONING"] ?? toml.llm?.model_reasoning,
     profile: parseProfile(env["LLM_PROFILE"] ?? toml.llm?.profile),
+    maxConcurrentRequests: parseMaxConcurrent(
+      env["LLM_MAX_CONCURRENT_REQUESTS"],
+      toml.llm?.max_concurrent_requests,
+    ),
   };
 
   const embed: EmbedConfig = {

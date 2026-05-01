@@ -38,6 +38,21 @@ A handful of endpoints stream Server-Sent Events. Event shapes are defined in
 frontend. Use `fetch` with a body reader — not `EventSource` — because the
 streaming endpoints are POSTs.
 
+Chat-bound streams (`/api/chat`, `/api/messages/:id/regenerate`, plus the
+edit/ask SSE flows) can emit two queue-state events when the upstream
+concurrency gate (ADR 0035) makes the call wait:
+
+- `llm_queue_wait { type, position, since }` — fires before the await.
+  `position` is 1-based (1 = next-up); `since` is `Date.now()` when the
+  wait started.
+- `llm_queue_release { type, waitedMs }` — fires after the gate releases
+  the call, just before the upstream `fetch()`. `waitedMs` is the wall-
+  clock queue time. Pairs with the most recent `llm_queue_wait`.
+
+The frontend uses these to show "In wachtrij (positie X)" and to pause the
+elapsed-time counter while queued. Calls that slip in below the cap don't
+emit either event — UIs only see queue state when there was an actual wait.
+
 Streaming endpoints:
 
 - `POST /api/chat`
@@ -93,7 +108,7 @@ Source: [`src/server/routes.ts`](../src/server/routes.ts) + [`src/server/chat_ro
 | PATCH  | `/api/sessions/:id`                     | owner / admin       | Body `{ hiddenFromChat }` — per-user visibility flag in `session_visibility`.                                                                                   |
 | PATCH  | `/api/sessions/:id/quick-chat`          | owner / admin       | Body `{ isQuickChat }` — toggles the auto-hide-after-idle Quick Chat flag for the caller.                                                                        |
 | POST   | `/api/sessions/:id/fork`                | viewer              | Body `{ untilMessageId?, asQuickChat?, project?, editLastMessageContent? }` — clones the non-trimmed history into a new session.                                 |
-| GET    | `/api/sessions/:id/messages`            | owner / admin       | Full message list for a session (content + reasoning + tool_result rows).                                                                                       |
+| GET    | `/api/sessions/:id/messages`            | owner / admin       | Full message list for a session (content + reasoning + tool_result rows). Optional `?limit=<n>&before_id=<id>` cursor: with `limit` returns the latest `n` rows ascending; combine with `before_id` to page backwards. Hard-capped at 5000.                              |
 | PATCH  | `/api/messages/:id`                     | owner / admin       | Body `{ content }` — edits a user or assistant message in place.                                                                                                |
 | POST   | `/api/messages/:id/trim-after`          | owner / admin       | Deletes every message after the referenced one.                                                                                                                 |
 | POST   | `/api/messages/:id/regenerate`          | owner / admin       | **SSE.** Regenerates an answer; chains via `messages.regen_of_message_id` so the UI can offer `< n/m >` navigation.                                             |

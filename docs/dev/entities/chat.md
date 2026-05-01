@@ -25,7 +25,7 @@ Key invariants:
 - `POST /api/chat` — streaming SSE endpoint. Body: `{ prompt, sessionId?, project?, agent? }`. Flips `askUserEnabled = true` and `mentionsEnabled = true`.
 - `GET /api/sessions` — list (filtered to own sessions for non-admins).
 - `GET /api/sessions?project=<name>` — filter by project.
-- `GET /api/sessions/:id/messages` — paginated message history.
+- `GET /api/sessions/:id/messages` — message history. With no query params returns the whole (untrimmed) session in chronological order. Optional `?limit=<n>&before_id=<id>` cursor — when `limit` is set, returns the latest `limit` rows in ascending order; combine with `before_id` to page backwards in chunks. Hard cap on `limit` is 5000. Backward compatible: existing front-end calls without params keep their behaviour.
 - `PATCH /api/messages/:id` — edit content (owner only). Sets `edited_at`.
 - `POST /api/messages/:id/regenerate` — regenerate as alt-version. Chains via `regen_of_message_id`. Sets `askUserEnabled = true`.
 - `POST /api/sessions/:sessionId/questions/:questionId/answer` — resolves a pending `ask_user`.
@@ -52,7 +52,23 @@ Key invariants:
 - `web/src/components/ToolCallCard.tsx` — tool call + result pair.
 - `web/src/components/UserQuestionCard.tsx` — `ask_user` interactive card.
 - `web/src/components/Composer.tsx` — input + send.
-- `web/src/hooks/useSSEChat.ts` — streams a turn, accumulates into `Turn`.
+- `web/src/hooks/useSSEChat.ts` — streams a turn, accumulates into `Turn`. Maintains a `Turn.items[]` chronological timeline (every reasoning / content / tool / question segment in arrival order) plus paused-time accounting (`pausedAtMs`, `pausedTotalMs`) so the live elapsed timer subtracts time spent waiting on `ask_user` answers.
+
+## Streaming UI: chronological items + sticky-bottom autoscroll
+
+`useSSEChat` no longer renders reasoning / content / tool calls / question cards as four parallel buckets at fixed positions in the bubble. Instead each SSE segment is appended to `Turn.items[]` in arrival order, and `ChatTab` (plus `CodeChatView`) walks that array to lay out the bubble. Multi-question turns therefore interleave correctly with the assistant's text and tool calls — every card sits at the point where the agent emitted it, not clustered at the top.
+
+Both views also implement a **sticky-bottom autoscroll guard**:
+
+- The viewport only follows the stream while the user is already near the bottom (within ~24 px). Scrolling up to read an earlier section or to answer an off-screen `UserQuestionCard` *unsticks* the viewport.
+- The 150 ms timer-tick that would otherwise yank the viewport down on every elapsed-time refresh is suppressed once unstuck.
+- Sending a new prompt re-arms stickiness so the next turn auto-scrolls into view.
+
+## Upstream queue badge
+
+When `cfg.llm.maxConcurrentRequests` (default 1) is below the number of in-flight chat-completion requests, a turn that has to wait surfaces an `llm_queue_wait { position }` SSE event. `useSSEChat` flips `Turn.queueState` to `"waiting"`, sets `queuePosition`, and the bubble shows **"⏸ In wachtrij (positie X)"** in place of the usual "waiting for model…" pending label. The 150 ms tick that drives the live elapsed timer treats `queueState === "waiting"` as a pause condition (same machinery as an unanswered `ask_user_question`), so the timer freezes while queued and resumes from where it stopped.
+
+When the gate releases the request, `llm_queue_release { waitedMs }` flips state back to `"active"` and accumulates `Turn.queueWaitTotalMs`. A turn can re-queue between LLM-call iterations (multi-step tool turns); each cycle adds to the total. See [ADR 0035](../../adr/0035-llm-concurrency-gate.md) for the design and [`../concepts/streaming-and-renderers.md`](../concepts/streaming-and-renderers.md) for the renderer hooks.
 
 ## Extension hooks
 

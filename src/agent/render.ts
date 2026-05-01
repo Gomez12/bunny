@@ -69,6 +69,14 @@ export interface Renderer {
    *  client (CLI, subagent silent renderer) leave this undefined, which
    *  signals to `runAgent` that the `ask_user` tool should NOT be spliced in. */
   onAskUserQuestion?(ev: SseAskUserQuestionEvent): void;
+  /** Optional — fires when an LLM call has to wait on the upstream
+   *  concurrency gate (ADR 0035). `position` is 1-based (1 = next-in-line).
+   *  Renderers that don't surface queue state (silent, collecting) should
+   *  leave this undefined. */
+  onQueueWait?(ev: { position: number }): void;
+  /** Optional — fires when the gate releases this request, just before
+   *  `fetch()` runs. Pairs with the most recent `onQueueWait`. */
+  onQueueRelease?(ev: { waitedMs: number }): void;
 }
 
 /** Renderer that discards every event. Used e.g. to silence subagent runs. */
@@ -217,5 +225,25 @@ export function createRenderer(opts: RendererOptions): Renderer {
     contentStarted = false;
   }
 
-  return { onDelta, onToolResult, onStats, onError, onTurnEnd };
+  function onQueueWait(ev: { position: number }): void {
+    out.write(fmt.dim(`  ⏸  queued (#${ev.position})\n`));
+  }
+
+  function onQueueRelease(ev: { waitedMs: number }): void {
+    if (ev.waitedMs >= 100) {
+      out.write(
+        fmt.dim(`  ▶  sending to model (waited ${(ev.waitedMs / 1000).toFixed(1)}s)\n`),
+      );
+    }
+  }
+
+  return {
+    onDelta,
+    onToolResult,
+    onStats,
+    onError,
+    onTurnEnd,
+    onQueueWait,
+    onQueueRelease,
+  };
 }

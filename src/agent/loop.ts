@@ -34,6 +34,7 @@ import type { BunnyQueue } from "../queue/bunqueue.ts";
 import type { Renderer } from "./render.ts";
 
 import { chat } from "../llm/adapter.ts";
+import { ensureGlobalGate } from "../llm/concurrency_gate.ts";
 import { buildSystemMessage, type PeerAgentDescriptor } from "./prompt.ts";
 import { silentRenderer } from "./render.ts";
 import { insertMessage, getRecentTurns } from "../memory/messages.ts";
@@ -405,6 +406,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
   // response with no tool calls. A second empty turn surfaces an error
   // instead of looping forever.
   let emptyResponseNudged = false;
+  const gate = ensureGlobalGate(llmCfg.maxConcurrentRequests);
 
   while (iterations++ < MAX_TOOL_ITERATIONS) {
     const toolSchemas = runTools.list();
@@ -422,10 +424,19 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
       },
     });
     const t0 = Date.now();
-    const { deltas, response } = await chat(llmCfg, {
-      messages,
-      tools: toolSchemas.length > 0 ? toolSchemas : undefined,
-    });
+    const { deltas, response } = await chat(
+      llmCfg,
+      {
+        messages,
+        tools: toolSchemas.length > 0 ? toolSchemas : undefined,
+      },
+      {
+        gate,
+        onQueueWait: (ev) => renderer.onQueueWait?.({ position: ev.position }),
+        onQueueRelease: (ev) =>
+          renderer.onQueueRelease?.({ waitedMs: ev.waitedMs }),
+      },
+    );
 
     for await (const delta of deltas) {
       renderer.onDelta(delta);

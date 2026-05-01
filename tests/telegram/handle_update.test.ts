@@ -49,6 +49,7 @@ const baseCfg: BunnyConfig = {
     model: "",
     modelReasoning: undefined,
     profile: undefined,
+    maxConcurrentRequests: 1,
   },
   embed: { baseUrl: "", apiKey: "", model: "", dim: 1536 },
   memory: { indexReasoning: false, recallK: 0, lastN: 0 },

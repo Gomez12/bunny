@@ -5,6 +5,7 @@ import MessageBubble from "../../components/MessageBubble";
 import MarkdownContent from "../../components/MarkdownContent";
 import ReasoningBlock from "../../components/ReasoningBlock";
 import ToolCallCard from "../../components/ToolCallCard";
+import QueueWaitBadge from "../../components/QueueWaitBadge";
 import StatsFooter from "../../components/StatsFooter";
 import EmptyState from "../../components/EmptyState";
 import {
@@ -319,11 +320,18 @@ export default function CodeChatView({ codeProject, currentUser }: Props) {
                 {!t.content &&
                   !t.reasoning &&
                   t.toolCalls.length === 0 &&
-                  !t.done && (
+                  !t.done &&
+                  t.queueState !== "waiting" && (
                     <div className="bubble__pending">
                       <span className="spinner" /> waiting for model…
                     </div>
                   )}
+                {!t.done && t.queueState === "waiting" && (
+                  <QueueWaitBadge
+                    position={t.queuePosition}
+                    waitedTotalMs={t.queueWaitTotalMs}
+                  />
+                )}
                 {t.error && (
                   <div className="bubble__error">error: {t.error}</div>
                 )}

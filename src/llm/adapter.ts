@@ -21,12 +21,24 @@ import type {
 import { getProfile } from "./profiles.ts";
 import { parseStream } from "./stream.ts";
 import { DeltaAccumulator } from "./delta.ts";
+import type { ConcurrencyGate } from "./concurrency_gate.ts";
 
 export interface StreamResult {
   /** Live deltas for rendering. */
   deltas: AsyncIterable<StreamDelta>;
   /** Resolves once the stream is fully consumed. */
   response: Promise<LlmResponse>;
+}
+
+/**
+ * Optional knobs for `chat()`. `gate` is the upstream concurrency chokepoint
+ * (ADR 0035); the two callbacks surface queue state to the caller's renderer.
+ * Both callbacks fire only when the request actually had to wait.
+ */
+export interface ChatOpts {
+  gate?: ConcurrencyGate;
+  onQueueWait?: (ev: { position: number }) => void;
+  onQueueRelease?: (ev: { waitedMs: number }) => void;
 }
 
 /**
@@ -78,28 +90,61 @@ function buildRequestBody(req: ChatRequest, model: string): unknown {
 export async function chat(
   cfg: LlmConfig,
   req: ChatRequest,
+  opts: ChatOpts = {},
 ): Promise<StreamResult> {
   const url = cfg.baseUrl.replace(/\/$/, "") + "/chat/completions";
   const profile = getProfile(cfg.profile, cfg.baseUrl);
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(cfg.apiKey ? { Authorization: `Bearer ${cfg.apiKey}` } : {}),
-    },
-    body: JSON.stringify(buildRequestBody(req, cfg.model)),
-  });
+  // Acquire the upstream-concurrency gate BEFORE fetch so a queued request
+  // doesn't hold an HTTP socket while waiting. `initialPosition > 0` means
+  // the call had to queue — only then do the paired callbacks fire so the UI
+  // never shows a "queue" badge for unqueued calls.
+  if (opts.gate) {
+    const ticket = opts.gate.acquire();
+    if (ticket.initialPosition > 0) {
+      opts.onQueueWait?.({ position: ticket.initialPosition });
+      const { waitedMs } = await ticket.ready;
+      opts.onQueueRelease?.({ waitedMs });
+    } else {
+      await ticket.ready;
+    }
+  }
+
+  let released = false;
+  const release = (): void => {
+    if (released) return;
+    released = true;
+    opts.gate?.release();
+  };
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(cfg.apiKey ? { Authorization: `Bearer ${cfg.apiKey}` } : {}),
+      },
+      body: JSON.stringify(buildRequestBody(req, cfg.model)),
+    });
+  } catch (e) {
+    release();
+    throw e;
+  }
 
   if (!res.ok) {
     const text = await res.text().catch(() => "(no body)");
+    release();
     throw new LlmError(
       `LLM request failed: ${res.status} ${res.statusText} — ${text}`,
       res.status,
     );
   }
 
-  if (!res.body) throw new LlmError("LLM response has no body", 0);
+  if (!res.body) {
+    release();
+    throw new LlmError("LLM response has no body", 0);
+  }
 
   const startMs = Date.now();
   const accumulator = new DeltaAccumulator();
@@ -111,9 +156,9 @@ export async function chat(
     rejectResponse = rej;
   });
 
-  // The generator pushes into the accumulator on every yield.
-  // When exhausted it resolves `response` — so the caller just needs to
-  // iterate `deltas` and then await `response`.
+  // The generator pushes into the accumulator on every yield. The `finally`
+  // block releases the gate on both success and error. Callers that never
+  // iterate `deltas` would hold the gate forever — every caller must drain.
   async function* fanOut(): AsyncIterable<StreamDelta> {
     try {
       for await (const delta of parseStream(res.body!, profile)) {
@@ -124,6 +169,8 @@ export async function chat(
     } catch (e) {
       rejectResponse(e);
       throw e;
+    } finally {
+      release();
     }
   }
 
@@ -137,8 +184,9 @@ export async function chat(
 export async function chatSync(
   cfg: LlmConfig,
   req: ChatRequest,
+  opts: ChatOpts = {},
 ): Promise<LlmResponse> {
-  const { deltas, response } = await chat(cfg, req);
+  const { deltas, response } = await chat(cfg, req, opts);
   // Drain the deltas so the generator runs to completion and resolves `response`.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   for await (const _d of deltas) {
