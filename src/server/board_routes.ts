@@ -19,6 +19,7 @@ import type { BunnyQueue } from "../queue/bunqueue.ts";
 import { errorMessage } from "../util/error.ts";
 import { json } from "./http.ts";
 import { canEditProject, canSeeProject } from "./routes.ts";
+import { requireProjectAccess } from "./route_helpers.ts";
 import { runCard, subscribeToRun, getRunFanout } from "../board/run_card.ts";
 import { getRun } from "../memory/board_runs.ts";
 import { registry as toolsRegistry } from "../tools/index.ts";
@@ -195,15 +196,9 @@ function handleGetBoard(
   user: User,
   rawProject: string,
 ): Response {
-  let project: string;
-  try {
-    project = validateProjectName(rawProject);
-  } catch (e) {
-    return json({ error: errorMessage(e) }, 400);
-  }
-  const p = getProject(ctx.db, project);
-  if (!p) return json({ error: "project not found" }, 404);
-  if (!canSeeProject(p, user)) return json({ error: "forbidden" }, 403);
+  const access = requireProjectAccess(ctx.db, user, rawProject, "view");
+  if (!access.ok) return access.response;
+  const { project } = access;
 
   // Backfill default lanes for legacy projects that never had any.
   seedDefaultSwimlanes(ctx.db, project);
@@ -283,15 +278,9 @@ async function handleCreateSwimlane(
   user: User,
   rawProject: string,
 ): Promise<Response> {
-  let project: string;
-  try {
-    project = validateProjectName(rawProject);
-  } catch (e) {
-    return json({ error: errorMessage(e) }, 400);
-  }
-  const p = getProject(ctx.db, project);
-  if (!p) return json({ error: "project not found" }, 404);
-  if (!canEditProject(p, user)) return json({ error: "forbidden" }, 403);
+  const access = requireProjectAccess(ctx.db, user, rawProject, "edit");
+  if (!access.ok) return access.response;
+  const { project } = access;
   const body = (await readJson<SwimlaneBody>(req)) ?? {};
   const name = (body.name ?? "").trim();
   if (!name) return json({ error: "missing name" }, 400);
@@ -460,15 +449,9 @@ async function handleCreateCard(
   user: User,
   rawProject: string,
 ): Promise<Response> {
-  let project: string;
-  try {
-    project = validateProjectName(rawProject);
-  } catch (e) {
-    return json({ error: errorMessage(e) }, 400);
-  }
-  const p = getProject(ctx.db, project);
-  if (!p) return json({ error: "project not found" }, 404);
-  if (!canSeeProject(p, user)) return json({ error: "forbidden" }, 403);
+  const access = requireProjectAccess(ctx.db, user, rawProject, "view");
+  if (!access.ok) return access.response;
+  const { project } = access;
 
   const body = (await readJson<CardBody>(req)) ?? {};
   if (!body.swimlaneId) return json({ error: "missing swimlaneId" }, 400);

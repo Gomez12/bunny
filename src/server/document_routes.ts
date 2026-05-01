@@ -6,6 +6,7 @@ import type { BunnyQueue } from "../queue/bunqueue.ts";
 import { errorMessage } from "../util/error.ts";
 import { json, readJson } from "./http.ts";
 import { canSeeProject, canEditProject } from "./routes.ts";
+import { requireProjectAccess } from "./route_helpers.ts";
 import { getProject, validateProjectName } from "../memory/projects.ts";
 import { writeWorkspaceFile } from "../memory/workspace_fs.ts";
 import {
@@ -105,15 +106,9 @@ function handleList(
   rawProject: string,
   url: URL,
 ): Response {
-  let project: string;
-  try {
-    project = validateProjectName(rawProject);
-  } catch (e) {
-    return json({ error: errorMessage(e) }, 400);
-  }
-  const p = getProject(ctx.db, project);
-  if (!p) return json({ error: "project not found" }, 404);
-  if (!canSeeProject(p, user)) return json({ error: "forbidden" }, 403);
+  const access = requireProjectAccess(ctx.db, user, rawProject, "view");
+  if (!access.ok) return access.response;
+  const { project } = access;
   const templateParam = url.searchParams.get("template");
   const isTemplate =
     templateParam === "true"
@@ -130,15 +125,9 @@ async function handleCreate(
   user: User,
   rawProject: string,
 ): Promise<Response> {
-  let project: string;
-  try {
-    project = validateProjectName(rawProject);
-  } catch (e) {
-    return json({ error: errorMessage(e) }, 400);
-  }
-  const p = getProject(ctx.db, project);
-  if (!p) return json({ error: "project not found" }, 404);
-  if (!canSeeProject(p, user)) return json({ error: "forbidden" }, 403);
+  const access = requireProjectAccess(ctx.db, user, rawProject, "view");
+  if (!access.ok) return access.response;
+  const { project } = access;
 
   const body = await readJson<{ name?: string }>(req);
   const name = body?.name?.trim();

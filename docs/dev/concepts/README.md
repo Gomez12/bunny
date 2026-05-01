@@ -17,5 +17,7 @@ Skim the list; jump into the matching page when you touch the subsystem.
 - [**soft-delete-and-trash**](./soft-delete-and-trash.md) — `registerTrashable`, `__trash:` name-munging, restore semantics.
 - [**notifications-and-fanout**](./notifications-and-fanout.md) — mention scanner, per-user fanout, SSE events, OS toast shim.
 - [**telegram-integration**](./telegram-integration.md) — per-project bot, inbound poll/webhook, outbound hooks.
+- [**memory-and-soul**](./memory-and-soul.md) — per-(user, project), per-(agent, project), and per-user soul; hourly refresh.
+- [**response-envelopes**](./response-envelopes.md) — response-shape policy, `requireProjectAccess` helper, deferred reuse opportunities.
 
 The shell that holds the frontend together (sidebar, tokens, icons, rabbit) is in [`../ui/shell-and-navigation.md`](../ui/shell-and-navigation.md) — it's a frontend concern, not a backend concept.

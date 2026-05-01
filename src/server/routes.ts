@@ -30,6 +30,7 @@ import { errorMessage } from "../util/error.ts";
 import { authenticate } from "./auth_middleware.ts";
 import { handleAuthRoute } from "./auth_routes.ts";
 import { json } from "./http.ts";
+import { canSeeProject, canEditProject } from "./route_helpers.ts";
 import type { User } from "../auth/users.ts";
 import {
   createProject,
@@ -643,16 +644,7 @@ interface ProjectDto {
   recallK: number | null;
 }
 
-export function canSeeProject(p: Project, user: User): boolean {
-  if (p.visibility === "public") return true;
-  if (user.role === "admin") return true;
-  return p.createdBy === user.id;
-}
-
-export function canEditProject(p: Project, user: User): boolean {
-  if (user.role === "admin") return true;
-  return p.createdBy === user.id;
-}
+export { canSeeProject, canEditProject };
 
 function toProjectDto(p: Project): ProjectDto {
   let systemPrompt = "";

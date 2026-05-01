@@ -65,7 +65,8 @@ A new endpoint — `GET /api/foo`, `POST /api/foo/:id/bar`, whatever. The projec
 ## Rules
 
 - **`void ctx.queue.log({ … })` on every mutation.** Read routes don't log.
-- **Permission check before mutation.** `canSee*` for reads; `canEdit*` for writes.
+- **Permission check before mutation.** `canSee*` for reads; `canEdit*` for writes. For routes that take an **untrusted project name** from the URL or body, prefer `requireProjectAccess(ctx.db, user, rawProject, "view"|"edit")` from `src/server/route_helpers.ts` — it bundles `validateProjectName` (400) + `getProject` (404) + `canSee/canEditProject` (403) into one call. See [`../concepts/response-envelopes.md`](../concepts/response-envelopes.md).
+- **Response shapes:** errors as `{ error: "…" }`; successes as a named-payload object (`{ items: [...] }`, `{ <singular>: {...} }`, or `{ ok: true }` for confirmations). See [`../concepts/response-envelopes.md`](../concepts/response-envelopes.md) for the full policy.
 - **Auth is at the switch, not the handler.** `authenticate` runs before `handleApi`.
 - **Public endpoints mount *before* the auth gate.** See `src/server/routes.ts` for how the Telegram webhook is wired — constant-time secret compare, always returns 200, dispatch detached.
 
@@ -107,4 +108,5 @@ bun run src/index.ts --session <any> "list events for topic my_thing"
 
 - [`../concepts/queue-and-logging.md`](../concepts/queue-and-logging.md)
 - [`../concepts/auth.md`](../concepts/auth.md)
+- [`../concepts/response-envelopes.md`](../concepts/response-envelopes.md) — response-shape policy + access-check helper.
 - `docs/http-api.md` — the canonical endpoint reference.
