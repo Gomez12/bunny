@@ -247,6 +247,11 @@ function migrateColumns(db: Database): void {
   db.run(
     "CREATE INDEX IF NOT EXISTS idx_messages_regen_of ON messages(regen_of_message_id)",
   );
+  // Backs the cursor pagination on getMessagesBySession (limit + before_id).
+  // Without this the planner falls back to a temp B-tree for ORDER BY id DESC.
+  db.run(
+    "CREATE INDEX IF NOT EXISTS idx_messages_session_id ON messages(session_id, id)",
+  );
   db.run("CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts)");
 
   db.run(

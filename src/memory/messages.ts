@@ -173,10 +173,48 @@ export function getRecentTurns(
   });
 }
 
+export interface GetMessagesBySessionOpts {
+  /**
+   * Cap on the number of returned rows. When set, returns the **most recent**
+   * `limit` rows (by `id` DESC) and re-orders them ascending before return.
+   * Hard-capped at 5000 to keep one request from materialising an enormous
+   * heap allocation.
+   */
+  limit?: number;
+  /**
+   * Cursor: only return rows with `id < beforeId`. Combine with `limit` to
+   * page backwards in chunks (oldest-first within each page). Returned rows
+   * are still in ascending order so the caller can splice them onto the
+   * front of an existing list without re-sorting.
+   */
+  beforeId?: number;
+}
+
 export function getMessagesBySession(
   db: Database,
   sessionId: string,
+  opts: GetMessagesBySessionOpts = {},
 ): StoredMessage[] {
+  const clauses = ["m.session_id = ?", "m.trimmed_at IS NULL"];
+  const params: (string | number)[] = [sessionId];
+
+  if (typeof opts.beforeId === "number" && opts.beforeId > 0) {
+    clauses.push("m.id < ?");
+    params.push(opts.beforeId);
+  }
+
+  let orderClause = "ORDER BY m.ts ASC";
+  let limitClause = "";
+  let needReverse = false;
+  if (typeof opts.limit === "number" && opts.limit > 0) {
+    // Pull the latest N via id DESC + LIMIT, then reverse on the JS side so
+    // the caller still gets chronological order.
+    orderClause = "ORDER BY m.id DESC";
+    limitClause = "LIMIT ?";
+    params.push(Math.min(opts.limit, 5000));
+    needReverse = true;
+  }
+
   const rows = db
     .prepare(
       `SELECT m.id, m.session_id, m.ts, m.role, m.channel, m.content, m.tool_call_id,
@@ -187,9 +225,9 @@ export function getMessagesBySession(
               u.username AS username, u.display_name AS display_name
        FROM messages m
        LEFT JOIN users u ON u.id = m.user_id
-       WHERE m.session_id = ? AND m.trimmed_at IS NULL ORDER BY m.ts ASC`,
+       WHERE ${clauses.join(" AND ")} ${orderClause} ${limitClause}`,
     )
-    .all(sessionId) as Array<{
+    .all(...params) as Array<{
     id: number;
     session_id: string;
     ts: number;
@@ -212,6 +250,7 @@ export function getMessagesBySession(
     username: string | null;
     display_name: string | null;
   }>;
+  if (needReverse) rows.reverse();
   const chains = buildRegenChains(rows);
   return rows.map((r) => ({
     id: r.id,

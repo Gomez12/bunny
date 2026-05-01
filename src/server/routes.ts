@@ -405,13 +405,23 @@ export async function handleApi(
   }
 
   // GET /api/sessions/:id/messages
+  // Optional pagination: ?limit=<n>&before_id=<id>. With no params the caller
+  // gets the entire (untrimmed) session as before — kept that way so the
+  // existing chat tab keeps working without changes. Default cap inside the
+  // memory module is 5000; clients that need more must page.
   const msgMatch = pathname.match(/^\/api\/sessions\/([^/]+)\/messages$/);
   if (msgMatch && req.method === "GET") {
     const sessionId = decodeURIComponent(msgMatch[1]!);
     if (!canAccessSession(ctx, user, sessionId)) {
       return json({ error: "forbidden" }, 403);
     }
-    const messages = getMessagesBySession(ctx.db, sessionId);
+    const limitRaw = Number(url.searchParams.get("limit"));
+    const beforeRaw = Number(url.searchParams.get("before_id"));
+    const limit =
+      Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined;
+    const beforeId =
+      Number.isFinite(beforeRaw) && beforeRaw > 0 ? beforeRaw : undefined;
+    const messages = getMessagesBySession(ctx.db, sessionId, { limit, beforeId });
     return json({ sessionId, messages });
   }
 
