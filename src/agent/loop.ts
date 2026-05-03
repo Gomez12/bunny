@@ -421,6 +421,8 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
         messageCount: messages.length,
         toolCount: toolSchemas.length,
         systemPromptLength: (systemMsg.content ?? "").length,
+        messages,
+        tools: toolSchemas.length > 0 ? toolSchemas : undefined,
       },
     });
     const t0 = Date.now();
@@ -460,6 +462,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
         contentPreview: assistantContent
           ? truncate(assistantContent, 2048)
           : undefined,
+        message: llmRes.message,
       },
       durationMs,
     });
