@@ -20,6 +20,15 @@ export interface AcquireTicket {
   queuedSinceMs: number;
   /** Resolves with the wall-clock wait time once a permit is available. */
   ready: Promise<{ waitedMs: number }>;
+  /**
+   * Best-effort abort. If the caller never made it to `await ticket.ready`
+   * (e.g. a renderer callback threw between acquire and the await), call this
+   * so the gate doesn't leak the slot. Idempotent — also safe to call
+   * AFTER the slot is held; in that case it simply releases the slot back
+   * to the gate. Do NOT call this on the normal happy path — `release()`
+   * still runs from the consumer's `finally` and would double-release.
+   */
+  cancel(): void;
 }
 
 export interface ConcurrencyGate {
@@ -34,6 +43,7 @@ export interface ConcurrencyGate {
 interface Waiter {
   resolve: (r: { waitedMs: number }) => void;
   queuedSinceMs: number;
+  isCancelled: () => boolean;
 }
 
 let _globalGate: ConcurrencyGate | null = null;
@@ -71,9 +81,26 @@ export function createConcurrencyGate(initialCap: number): ConcurrencyGate {
   let inFlight = 0;
   const waiters: Waiter[] = [];
 
+  function releaseSlot(): void {
+    if (inFlight === 0) {
+      // Either a double-release or a release before acquire — surface to
+      // stderr so a caller bug isn't silent, but stay non-fatal.
+      process.stderr.write(
+        "[bunny/llm/concurrency_gate] release() called with inFlight=0\n",
+      );
+      return;
+    }
+    inFlight--;
+    pump();
+  }
+
   function pump(): void {
     while (inFlight < cap && waiters.length > 0) {
       const w = waiters.shift()!;
+      // Cancelled waiter: skip without consuming a slot. Caller already gave
+      // up; promoting them would inflate inFlight forever (no consumer to
+      // release).
+      if (w.isCancelled()) continue;
       inFlight++;
       w.resolve({ waitedMs: Date.now() - w.queuedSinceMs });
     }
@@ -82,32 +109,60 @@ export function createConcurrencyGate(initialCap: number): ConcurrencyGate {
   return {
     acquire(): AcquireTicket {
       const queuedSinceMs = Date.now();
+      let cancelled = false;
+      let gotSlot = false;
+      const cancel = (): void => {
+        if (cancelled) return;
+        cancelled = true;
+        // We already hold a slot — give it back so the next waiter wakes up.
+        // If we were still queued, pump() will skip us via isCancelled().
+        if (gotSlot) releaseSlot();
+      };
+
       if (inFlight < cap) {
         inFlight++;
+        gotSlot = true;
         return {
           initialPosition: 0,
           queuedSinceMs,
           ready: Promise.resolve({ waitedMs: 0 }),
+          cancel,
         };
       }
       const initialPosition = waiters.length + 1;
+      let waiterRef: Waiter | null = null;
       const ready = new Promise<{ waitedMs: number }>((resolve) => {
-        waiters.push({ resolve, queuedSinceMs });
+        waiterRef = {
+          resolve: (v) => {
+            gotSlot = true;
+            // Cancelled between pump's promotion and our resolver firing —
+            // hand the slot straight back; caller is gone.
+            if (cancelled) releaseSlot();
+            else resolve(v);
+          },
+          queuedSinceMs,
+          isCancelled: () => cancelled,
+        };
+        waiters.push(waiterRef);
       });
-      return { initialPosition, queuedSinceMs, ready };
+      // Splice the waiter on cancel so future `initialPosition` doesn't
+      // count it (otherwise a frequently-cancelled queue would inflate
+      // the displayed badge position).
+      const cancelWithSplice = (): void => {
+        if (!cancelled && !gotSlot && waiterRef) {
+          const idx = waiters.indexOf(waiterRef);
+          if (idx >= 0) waiters.splice(idx, 1);
+        }
+        cancel();
+      };
+      return {
+        initialPosition,
+        queuedSinceMs,
+        ready,
+        cancel: cancelWithSplice,
+      };
     },
-    release(): void {
-      if (inFlight === 0) {
-        // Either a double-release or a release before acquire — surface to
-        // stderr so a caller bug isn't silent, but stay non-fatal.
-        process.stderr.write(
-          "[bunny/llm/concurrency_gate] release() called with inFlight=0\n",
-        );
-        return;
-      }
-      inFlight--;
-      pump();
-    },
+    release: releaseSlot,
     setCap(n: number): void {
       if (!Number.isInteger(n) || n < 1) {
         throw new Error(`setCap: cap must be a positive integer, got ${n}`);

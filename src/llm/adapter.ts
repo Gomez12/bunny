@@ -98,15 +98,22 @@ export async function chat(
   // Acquire the upstream-concurrency gate BEFORE fetch so a queued request
   // doesn't hold an HTTP socket while waiting. `initialPosition > 0` means
   // the call had to queue — only then do the paired callbacks fire so the UI
-  // never shows a "queue" badge for unqueued calls.
+  // never shows a "queue" badge for unqueued calls. The try/catch hands the
+  // slot back if a renderer callback throws synchronously; otherwise an
+  // orphaned waiter would inflate `inFlight` permanently.
   if (opts.gate) {
     const ticket = opts.gate.acquire();
-    if (ticket.initialPosition > 0) {
-      opts.onQueueWait?.({ position: ticket.initialPosition });
+    try {
+      if (ticket.initialPosition > 0) {
+        opts.onQueueWait?.({ position: ticket.initialPosition });
+      }
       const { waitedMs } = await ticket.ready;
-      opts.onQueueRelease?.({ waitedMs });
-    } else {
-      await ticket.ready;
+      if (ticket.initialPosition > 0) {
+        opts.onQueueRelease?.({ waitedMs });
+      }
+    } catch (e) {
+      ticket.cancel();
+      throw e;
     }
   }
 
@@ -157,8 +164,9 @@ export async function chat(
   });
 
   // The generator pushes into the accumulator on every yield. The `finally`
-  // block releases the gate on both success and error. Callers that never
-  // iterate `deltas` would hold the gate forever — every caller must drain.
+  // block releases the gate AND cancels the underlying response body — the
+  // latter matters when the caller breaks out of the iterator early, so the
+  // socket and reader buffer don't linger until V8 GC notices.
   async function* fanOut(): AsyncIterable<StreamDelta> {
     try {
       for await (const delta of parseStream(res.body!, profile)) {
@@ -171,6 +179,7 @@ export async function chat(
       throw e;
     } finally {
       release();
+      void res.body?.cancel().catch(() => undefined);
     }
   }
 

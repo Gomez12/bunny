@@ -142,4 +142,77 @@ describe("createConcurrencyGate", () => {
     expect(() => gate.release()).not.toThrow();
     expect(gate.getInFlight()).toBe(0);
   });
+
+  test("cancel() on a queued ticket removes it from the queue without taking a slot", async () => {
+    const gate = createConcurrencyGate(1);
+    await gate.acquire().ready;
+
+    const queued = gate.acquire();
+    expect(queued.initialPosition).toBe(1);
+    expect(gate.getQueued()).toBe(1);
+
+    queued.cancel();
+
+    // Releasing the in-flight call should NOT bump inFlight from the cancelled
+    // waiter; it should simply skip it.
+    let nextResolved = false;
+    const next = gate.acquire();
+    expect(next.initialPosition).toBe(1);
+    void next.ready.then(() => {
+      nextResolved = true;
+    });
+
+    gate.release();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(nextResolved).toBe(true);
+    expect(gate.getInFlight()).toBe(1);
+    expect(gate.getQueued()).toBe(0);
+  });
+
+  test("cancel() on an immediately-acquired ticket releases the slot", () => {
+    const gate = createConcurrencyGate(1);
+    const t = gate.acquire();
+    expect(t.initialPosition).toBe(0);
+    expect(gate.getInFlight()).toBe(1);
+
+    t.cancel();
+    expect(gate.getInFlight()).toBe(0);
+
+    // Subsequent acquire still works.
+    const t2 = gate.acquire();
+    expect(t2.initialPosition).toBe(0);
+    expect(gate.getInFlight()).toBe(1);
+  });
+
+  test("cancel() is idempotent — double-cancel doesn't double-release", async () => {
+    const gate = createConcurrencyGate(1);
+    const t = gate.acquire();
+    await t.ready;
+
+    t.cancel();
+    expect(gate.getInFlight()).toBe(0);
+    t.cancel(); // no-op
+    expect(gate.getInFlight()).toBe(0);
+  });
+
+  test("cancel() between pump-promotion and resolver firing hands the slot back", async () => {
+    const gate = createConcurrencyGate(1);
+    await gate.acquire().ready;
+
+    const queued = gate.acquire();
+    expect(gate.getQueued()).toBe(1);
+
+    // Schedule cancel to fire AFTER release+pump but BEFORE the consumer
+    // awaits ticket.ready. We do this by cancelling synchronously right after
+    // release() — pump runs synchronously inside release(), so by the time
+    // we cancel, gotSlot is already true and the resolver runs into the
+    // `cancelled` branch which releases the slot.
+    gate.release();
+    queued.cancel();
+
+    await Promise.resolve();
+    expect(gate.getInFlight()).toBe(0);
+    expect(gate.getQueued()).toBe(0);
+  });
 });
