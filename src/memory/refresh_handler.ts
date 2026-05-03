@@ -22,7 +22,8 @@ import { setSessionHiddenFromChat } from "./session_visibility.ts";
 import { resolvePrompt, interpolate } from "../prompts/resolve.ts";
 import { registry as toolRegistry } from "../tools/index.ts";
 import { errorMessage } from "../util/error.ts";
-import { getSystemUserId } from "../auth/seed.ts";
+import { SYSTEM_USERNAME } from "../auth/seed.ts";
+import { getUserByUsername } from "../auth/users.ts";
 import {
   getUserById,
   setUserSoulAuto,
@@ -80,6 +81,9 @@ export function listActiveUserProjectPairs(
   db: Database,
   limit: number,
 ): ActiveUserProjectPair[] {
+  // Empty string when the system user isn't seeded yet — the `user_id != ?`
+  // predicate then matches every real row (no false-empty result).
+  const systemUserId = getUserByUsername(db, SYSTEM_USERNAME)?.id ?? "";
   const rows = db
     .prepare(
       `WITH active AS (
@@ -87,6 +91,7 @@ export function listActiveUserProjectPairs(
                 MAX(id) AS max_id
            FROM messages
           WHERE user_id IS NOT NULL
+            AND user_id != ?
             AND channel = 'content'
             AND role IN ('user','assistant')
             AND content IS NOT NULL AND content != ''
@@ -105,7 +110,7 @@ export function listActiveUserProjectPairs(
         ORDER BY (a.max_id - COALESCE(upm.watermark_message_id, 0)) DESC
         LIMIT ?`,
     )
-    .all(limit) as Array<{
+    .all(systemUserId, limit) as Array<{
     user_id: string;
     project: string;
     max_id: number;
@@ -183,12 +188,16 @@ export function listActiveSoulUsers(
   db: Database,
   limit: number,
 ): Array<{ userId: string; watermark: number; maxId: number }> {
+  // Empty string when the system user isn't seeded yet — the `user_id != ?`
+  // predicate then matches every real row (no false-empty result).
+  const systemUserId = getUserByUsername(db, SYSTEM_USERNAME)?.id ?? "";
   const rows = db
     .prepare(
       `WITH active AS (
          SELECT user_id, MAX(id) AS max_id
            FROM messages
           WHERE user_id IS NOT NULL
+            AND user_id != ?
             AND channel = 'content'
             AND role IN ('user','assistant')
             AND content IS NOT NULL AND content != ''
@@ -203,7 +212,7 @@ export function listActiveSoulUsers(
         ORDER BY (a.max_id - COALESCE(u.soul_watermark_message_id, 0)) DESC
         LIMIT ?`,
     )
-    .all(limit) as Array<{
+    .all(systemUserId, limit) as Array<{
     user_id: string;
     max_id: number;
     watermark: number;
@@ -283,7 +292,9 @@ export async function memoryRefreshHandler(
   }
 
   let budget = conf.batchSize;
-  const systemUserId = getSystemUserId(db);
+  // Empty string when the system user isn't seeded yet — the `user_id != ?`
+  // predicate then matches every real row (no false-empty result).
+  const systemUserId = getUserByUsername(db, SYSTEM_USERNAME)?.id ?? "";
 
   // 2. (user, project) memory.
   const userPairs = listActiveUserProjectPairs(db, budget);

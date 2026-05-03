@@ -193,4 +193,42 @@ describe("memory.refresh candidate selection", () => {
     const users = listActiveSoulUsers(db, 10);
     expect(users.length).toBe(0);
   });
+
+  test("the seeded `system` user is excluded from both per-project and soul refresh", () => {
+    const now = Date.now();
+    db.run(
+      `INSERT INTO users(id, username, password_hash, role, created_at, updated_at)
+       VALUES ('sys', 'system', 'x', 'user', ?, ?)`,
+      [now, now],
+    );
+    insertMessage(db, {
+      sessionId: "cli-1",
+      userId: "sys",
+      project: "alpha",
+      role: "user",
+      content: "one-shot CLI run",
+    });
+    insertMessage(db, {
+      sessionId: "cli-1",
+      userId: "sys",
+      project: "alpha",
+      role: "assistant",
+      content: "ok",
+    });
+    insertMessage(db, {
+      sessionId: "real-1",
+      userId: "alice",
+      project: "alpha",
+      role: "user",
+      content: "real user run",
+    });
+
+    const pairs = listActiveUserProjectPairs(db, 10);
+    expect(pairs.find((p) => p.userId === "sys")).toBeUndefined();
+    expect(pairs.find((p) => p.userId === "alice")).toBeDefined();
+
+    const souls = listActiveSoulUsers(db, 10);
+    expect(souls.find((u) => u.userId === "sys")).toBeUndefined();
+    expect(souls.find((u) => u.userId === "alice")).toBeDefined();
+  });
 });
