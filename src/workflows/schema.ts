@@ -258,7 +258,9 @@ export function parseWorkflowToml(text: string): ParseResult {
       } else {
         for (const d of raw.depends_on) {
           if (typeof d !== "string" || !d.trim()) {
-            errors.push(`${ctx}: 'depends_on' entries must be non-empty strings`);
+            errors.push(
+              `${ctx}: 'depends_on' entries must be non-empty strings`,
+            );
             continue;
           }
           depends_on.push(d.trim());
@@ -277,7 +279,9 @@ export function parseWorkflowToml(text: string): ParseResult {
     const hasBash = typeof raw.bash === "string" && raw.bash.length > 0;
     const hasScript = typeof raw.script === "string" && raw.script.length > 0;
     const hasLoop =
-      raw.loop !== undefined && raw.loop !== null && typeof raw.loop === "object";
+      raw.loop !== undefined &&
+      raw.loop !== null &&
+      typeof raw.loop === "object";
     const hasForEach =
       rawForEach !== undefined &&
       rawForEach !== null &&
@@ -359,7 +363,9 @@ export function parseWorkflowToml(text: string): ParseResult {
   for (const n of nodes) {
     for (const dep of n.depends_on) {
       if (!seenIds.has(dep)) {
-        errors.push(`node '${n.id}': depends_on references unknown id '${dep}'`);
+        errors.push(
+          `node '${n.id}': depends_on references unknown id '${dep}'`,
+        );
       }
     }
   }
@@ -435,7 +441,9 @@ function parseForEach(
   }
   const bodyRaw = raw["body"];
   if (!Array.isArray(bodyRaw) || bodyRaw.length === 0) {
-    errors.push(`${ctx}.for_each: 'body' must be a non-empty array of node ids`);
+    errors.push(
+      `${ctx}.for_each: 'body' must be a non-empty array of node ids`,
+    );
     return undefined;
   }
   const body: string[] = [];
@@ -449,7 +457,10 @@ function parseForEach(
   const spec: ForEachSpec = { body };
   if (items) spec.items = items;
   if (count) spec.count = count;
-  if (typeof raw["item_var"] === "string" && (raw["item_var"] as string).trim()) {
+  if (
+    typeof raw["item_var"] === "string" &&
+    (raw["item_var"] as string).trim()
+  ) {
     spec.item_var = (raw["item_var"] as string).trim();
   }
   if (
@@ -497,7 +508,9 @@ function parseIfThenElse(
     const out: string[] = [];
     for (const b of arr) {
       if (typeof b !== "string" || !b.trim()) {
-        errors.push(`${ctx}.if_then_else.${key}: entries must be non-empty strings`);
+        errors.push(
+          `${ctx}.if_then_else.${key}: entries must be non-empty strings`,
+        );
         continue;
       }
       out.push(b.trim());
@@ -667,9 +680,7 @@ export function serializeWorkflowToml(def: WorkflowDef): string {
     if (n.kind === "if_then_else" && n.if_then_else) {
       lines.push("");
       lines.push("[nodes.if_then_else]");
-      lines.push(
-        `condition = ${tomlMaybeMultiline(n.if_then_else.condition)}`,
-      );
+      lines.push(`condition = ${tomlMaybeMultiline(n.if_then_else.condition)}`);
       lines.push(
         `then_body = [${n.if_then_else.then_body.map(tomlString).join(", ")}]`,
       );

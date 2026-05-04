@@ -69,7 +69,12 @@ const SOURCE_EXTS: ReadonlySet<string> = new Set([
   "php",
 ]);
 
-const DOC_EXTS: ReadonlySet<string> = new Set(["md", "markdown", "pdf", "docx"]);
+const DOC_EXTS: ReadonlySet<string> = new Set([
+  "md",
+  "markdown",
+  "pdf",
+  "docx",
+]);
 
 /**
  * Minimal `.gitignore` matcher. Supports the common cases: comment lines,
@@ -110,7 +115,11 @@ function parseGitignore(abs: string): GitignoreRule[] {
   return rules;
 }
 
-function matchesRule(rel: string, isDir: boolean, rule: GitignoreRule): boolean {
+function matchesRule(
+  rel: string,
+  isDir: boolean,
+  rule: GitignoreRule,
+): boolean {
   if (rule.dirOnly && !isDir) return false;
   const name = rel.split("/").pop() ?? rel;
   // Exact match (name or full path) and simple suffix-glob (e.g. `*.log`).
@@ -122,7 +131,11 @@ function matchesRule(rel: string, isDir: boolean, rule: GitignoreRule): boolean 
   return false;
 }
 
-function isIgnored(rel: string, isDir: boolean, rules: GitignoreRule[]): boolean {
+function isIgnored(
+  rel: string,
+  isDir: boolean,
+  rules: GitignoreRule[],
+): boolean {
   let ignored = false;
   for (const rule of rules) {
     if (matchesRule(rel, isDir, rule)) {

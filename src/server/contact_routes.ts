@@ -31,12 +31,18 @@ import {
   deleteGroup,
   getContact,
   getGroup,
+  linkContactBusiness,
   listContacts,
   listGroups,
+  setContactSoulManual,
+  unlinkContactBusiness,
   updateContact,
   updateGroup,
   type CreateContactOpts,
 } from "../memory/contacts.ts";
+import { ENTITY_SOUL_CHAR_LIMIT } from "../memory/entity_soul_constants.ts";
+import { refreshOneContactSoul } from "../contacts/soul_refresh_handler.ts";
+import { getBusiness } from "../memory/businesses.ts";
 
 export interface ContactRouteCtx {
   db: Database;
@@ -123,6 +129,45 @@ export async function handleContactRoute(
     const project = decodeURIComponent(vcfMatch[1]!);
     const id = Number(vcfMatch[2]);
     if (req.method === "GET") return handleVcfExport(ctx, user, project, id);
+  }
+
+  // ── Soul (manual edit + force refresh) ──────────────────────────────────
+  const soulMatch = pathname.match(
+    /^\/api\/projects\/([^/]+)\/contacts\/(\d+)\/soul$/,
+  );
+  if (soulMatch) {
+    const project = decodeURIComponent(soulMatch[1]!);
+    const id = Number(soulMatch[2]);
+    if (req.method === "PUT") return handleSoulPut(req, ctx, user, project, id);
+  }
+  const soulRefreshMatch = pathname.match(
+    /^\/api\/projects\/([^/]+)\/contacts\/(\d+)\/soul\/refresh$/,
+  );
+  if (soulRefreshMatch) {
+    const project = decodeURIComponent(soulRefreshMatch[1]!);
+    const id = Number(soulRefreshMatch[2]);
+    if (req.method === "POST") return handleSoulRefresh(ctx, user, project, id);
+  }
+
+  // ── Contact ↔ business links ────────────────────────────────────────────
+  const linkListMatch = pathname.match(
+    /^\/api\/projects\/([^/]+)\/contacts\/(\d+)\/businesses$/,
+  );
+  if (linkListMatch) {
+    const project = decodeURIComponent(linkListMatch[1]!);
+    const id = Number(linkListMatch[2]);
+    if (req.method === "POST")
+      return handleLinkBusiness(req, ctx, user, project, id);
+  }
+  const linkOneMatch = pathname.match(
+    /^\/api\/projects\/([^/]+)\/contacts\/(\d+)\/businesses\/(\d+)$/,
+  );
+  if (linkOneMatch) {
+    const project = decodeURIComponent(linkOneMatch[1]!);
+    const id = Number(linkOneMatch[2]);
+    const businessId = Number(linkOneMatch[3]);
+    if (req.method === "DELETE")
+      return handleUnlinkBusiness(ctx, user, project, id, businessId);
   }
 
   const contactIdMatch = pathname.match(
@@ -550,6 +595,160 @@ async function handleEdit(
       "X-Session-Id": sessionId,
     },
   });
+}
+
+// ── Soul (manual edit + force refresh) ─────────────────────────────────────
+
+async function handleSoulPut(
+  req: Request,
+  ctx: ContactRouteCtx,
+  user: User,
+  rawProject: string,
+  id: number,
+): Promise<Response> {
+  const r = resolveProject(ctx, user, rawProject);
+  if (!r.ok) return r.error;
+  const contact = getContact(ctx.db, id);
+  if (!contact || contact.project !== r.project)
+    return json({ error: "not found" }, 404);
+  if (!canEditContact(user, contact, r.p))
+    return json({ error: "forbidden" }, 403);
+
+  const body = await readJson<{ soul?: string }>(req);
+  if (typeof body?.soul !== "string")
+    return json({ error: "missing soul" }, 400);
+  if (body.soul.length > ENTITY_SOUL_CHAR_LIMIT) {
+    return json(
+      { error: `soul exceeds ${ENTITY_SOUL_CHAR_LIMIT}-char cap` },
+      400,
+    );
+  }
+
+  try {
+    setContactSoulManual(ctx.db, id, body.soul, {
+      markStale: ctx.cfg.contacts.translateSoul,
+    });
+    void ctx.queue.log({
+      topic: "contact",
+      kind: "soul.update",
+      userId: user.id,
+      data: { id, project: r.project, chars: body.soul.length },
+    });
+    const updated = getContact(ctx.db, id)!;
+    return json({ contact: updated });
+  } catch (e) {
+    return json({ error: errorMessage(e) }, 400);
+  }
+}
+
+async function handleSoulRefresh(
+  ctx: ContactRouteCtx,
+  user: User,
+  rawProject: string,
+  id: number,
+): Promise<Response> {
+  const r = resolveProject(ctx, user, rawProject);
+  if (!r.ok) return r.error;
+  const contact = getContact(ctx.db, id);
+  if (!contact || contact.project !== r.project)
+    return json({ error: "not found" }, 404);
+  if (!canEditContact(user, contact, r.p))
+    return json({ error: "forbidden" }, 403);
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const sink = controllerSink(controller);
+      const renderer = createSseRenderer(sink);
+      try {
+        const outcome = await refreshOneContactSoul({
+          db: ctx.db,
+          queue: ctx.queue,
+          cfg: ctx.cfg,
+          contact,
+          renderer,
+        });
+        if (outcome === "lost_race") {
+          renderer.onError("another refresh is already in progress");
+        }
+      } catch (e) {
+        renderer.onError(errorMessage(e));
+      } finally {
+        finishSse(sink);
+      }
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
+}
+
+// ── Contact ↔ business linking ─────────────────────────────────────────────
+
+async function handleLinkBusiness(
+  req: Request,
+  ctx: ContactRouteCtx,
+  user: User,
+  rawProject: string,
+  contactId: number,
+): Promise<Response> {
+  const r = resolveProject(ctx, user, rawProject);
+  if (!r.ok) return r.error;
+  const contact = getContact(ctx.db, contactId);
+  if (!contact || contact.project !== r.project)
+    return json({ error: "not found" }, 404);
+  if (!canEditContact(user, contact, r.p))
+    return json({ error: "forbidden" }, 403);
+
+  const body = await readJson<{
+    businessId?: number;
+    role?: string | null;
+    isPrimary?: boolean;
+  }>(req);
+  if (!body?.businessId) return json({ error: "missing businessId" }, 400);
+  const business = getBusiness(ctx.db, body.businessId);
+  if (!business || business.project !== r.project)
+    return json({ error: "business not found in project" }, 404);
+
+  linkContactBusiness(ctx.db, contactId, business.id, {
+    role: body.role,
+    isPrimary: body.isPrimary === true,
+  });
+  void ctx.queue.log({
+    topic: "contact",
+    kind: "link.business",
+    userId: user.id,
+    data: { contactId, businessId: business.id, project: r.project },
+  });
+  return json({ ok: true });
+}
+
+function handleUnlinkBusiness(
+  ctx: ContactRouteCtx,
+  user: User,
+  rawProject: string,
+  contactId: number,
+  businessId: number,
+): Response {
+  const r = resolveProject(ctx, user, rawProject);
+  if (!r.ok) return r.error;
+  const contact = getContact(ctx.db, contactId);
+  if (!contact || contact.project !== r.project)
+    return json({ error: "not found" }, 404);
+  if (!canEditContact(user, contact, r.p))
+    return json({ error: "forbidden" }, 403);
+
+  unlinkContactBusiness(ctx.db, contactId, businessId);
+  void ctx.queue.log({
+    topic: "contact",
+    kind: "unlink.business",
+    userId: user.id,
+    data: { contactId, businessId, project: r.project },
+  });
+  return json({ ok: true });
 }
 
 // ── Question mode ────────────────────────────────────────────────────────────

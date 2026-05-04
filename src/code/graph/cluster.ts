@@ -52,9 +52,7 @@ export function clusterGraph(graph: Graph): ClusterResult {
 
   const clusters: ClusterSummary[] = [];
   for (const [id, nodes] of members.entries()) {
-    const ranked = [...nodes].sort(
-      (a, b) => graph.degree(b) - graph.degree(a),
-    );
+    const ranked = [...nodes].sort((a, b) => graph.degree(b) - graph.degree(a));
     clusters.push({
       id,
       size: nodes.length,
@@ -63,7 +61,9 @@ export function clusterGraph(graph: Graph): ClusterResult {
   }
   clusters.sort((a, b) => b.size - a.size);
 
-  const allByDegree = graph.nodes().sort((a, b) => graph.degree(b) - graph.degree(a));
+  const allByDegree = graph
+    .nodes()
+    .sort((a, b) => graph.degree(b) - graph.degree(a));
   const godNodes = allByDegree.slice(0, GOD_NODES);
 
   // Betweenness can be expensive on large graphs; skip when the graph is too

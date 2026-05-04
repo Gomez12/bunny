@@ -127,7 +127,10 @@ export interface CreateWorkflowOpts {
   createdBy: string;
 }
 
-export function createWorkflow(db: Database, opts: CreateWorkflowOpts): Workflow {
+export function createWorkflow(
+  db: Database,
+  opts: CreateWorkflowOpts,
+): Workflow {
   const now = Date.now();
   const info = db
     .prepare(

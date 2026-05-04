@@ -345,9 +345,7 @@ export async function memoryRefreshHandler(
       } catch {
         continue;
       }
-      if (
-        !claimAgentProjectMemoryForRefresh(db, pair.agent, pair.project, now)
-      )
+      if (!claimAgentProjectMemoryForRefresh(db, pair.agent, pair.project, now))
         continue;
       budget -= 1;
       try {
@@ -464,7 +462,11 @@ async function refreshUserProjectMemory(
     topic: "memory",
     kind: "user_project.refresh.start",
     userId,
-    data: { project, processed: messages.length, before: current?.memory.length ?? 0 },
+    data: {
+      project,
+      processed: messages.length,
+      before: current?.memory.length ?? 0,
+    },
   });
 
   const answer = await runAgent({
@@ -504,8 +506,7 @@ async function refreshUserProjectMemory(
 async function refreshAgentProjectMemory(
   args: RefreshArgs & { agent: string; project: string },
 ): Promise<void> {
-  const { ctx, agent, project, watermark, maxMessagesPerRow, runUserId } =
-    args;
+  const { ctx, agent, project, watermark, maxMessagesPerRow, runUserId } = args;
   const { db, queue, cfg } = ctx;
 
   const messages = getProjectAgentMessagesAfter(
@@ -522,7 +523,8 @@ async function refreshAgentProjectMemory(
 
   const current = getAgentProjectMemory(db, agent, project);
   const agentRow = getAgent(db, agent);
-  const description = (agentRow?.description ?? "").trim() || "(no description)";
+  const description =
+    (agentRow?.description ?? "").trim() || "(no description)";
 
   const systemPrompt = interpolate(
     resolvePrompt("memory.agent_project.refresh", { project }),
@@ -542,7 +544,12 @@ async function refreshAgentProjectMemory(
   void queue.log({
     topic: "memory",
     kind: "agent_project.refresh.start",
-    data: { project, agent, processed: messages.length, before: current?.memory.length ?? 0 },
+    data: {
+      project,
+      agent,
+      processed: messages.length,
+      before: current?.memory.length ?? 0,
+    },
   });
 
   const answer = await runAgent({
@@ -586,7 +593,12 @@ async function refreshUserSoul(
     args;
   const { db, queue, cfg } = ctx;
 
-  const messages = getUserMessagesAfter(db, userId, watermark, maxMessagesPerRow);
+  const messages = getUserMessagesAfter(
+    db,
+    userId,
+    watermark,
+    maxMessagesPerRow,
+  );
   if (messages.length === 0) {
     bumpUserSoulWatermark(db, userId, watermark);
     return;

@@ -21,10 +21,7 @@ import {
   hashWorkflowToml,
   writeWorkflowToml,
 } from "../../src/memory/workflow_assets.ts";
-import {
-  getRun,
-  listRunNodes,
-} from "../../src/memory/workflow_runs.ts";
+import { getRun, listRunNodes } from "../../src/memory/workflow_runs.ts";
 import {
   requestCancelWorkflowRun,
   runWorkflow,
@@ -78,7 +75,12 @@ const CFG: BunnyConfig = {
     defaultAgent: "bunny",
   },
   ui: { autosaveIntervalMs: 5000 },
-  web: { serpApiKey: "", serpProvider: "serper", serpBaseUrl: "", userAgent: "" },
+  web: {
+    serpApiKey: "",
+    serpProvider: "serper",
+    serpBaseUrl: "",
+    userAgent: "",
+  },
   translation: {
     maxPerTick: 20,
     maxDocumentBytes: 30_720,
@@ -91,7 +93,35 @@ const CFG: BunnyConfig = {
     documentFallbackBytes: 16 * 1024,
     publicBaseUrl: "",
   },
-  code: { cloneTimeoutMs: 300_000, maxRepoSizeMb: 500, defaultCloneDepth: 50, graph: { enabled: true, timeoutMs: 1_800_000, maxFiles: 5000, maxFileSizeKb: 512, maxDocFiles: 100, clusterAlgorithm: "louvain" as const, displayMaxNodes: 300, docExtractionEnabled: false, languages: ["ts","tsx","js","jsx","py","go","rs","java","c","cpp","rb","php"] } },
+  code: {
+    cloneTimeoutMs: 300_000,
+    maxRepoSizeMb: 500,
+    defaultCloneDepth: 50,
+    graph: {
+      enabled: true,
+      timeoutMs: 1_800_000,
+      maxFiles: 5000,
+      maxFileSizeKb: 512,
+      maxDocFiles: 100,
+      clusterAlgorithm: "louvain" as const,
+      displayMaxNodes: 300,
+      docExtractionEnabled: false,
+      languages: [
+        "ts",
+        "tsx",
+        "js",
+        "jsx",
+        "py",
+        "go",
+        "rs",
+        "java",
+        "c",
+        "cpp",
+        "rb",
+        "php",
+      ],
+    },
+  },
   workflows: {
     bashEnabled: false,
     bashDefaultTimeoutMs: 120_000,
@@ -100,6 +130,23 @@ const CFG: BunnyConfig = {
     scriptDefaultTimeoutMs: 120_000,
     scriptMaxOutputBytes: 256 * 1024,
     loopDefaultMaxIterations: 10,
+  },
+  contacts: {
+    soulRefreshCron: "0 */6 * * *",
+    soulRefreshBatchSize: 5,
+    soulRefreshCadenceH: 24,
+    soulStuckThresholdMs: 1_800_000,
+    translateSoul: true,
+  },
+  businesses: {
+    autoBuildEnabled: false,
+    autoBuildCron: "30 */6 * * *",
+    autoBuildBatchSize: 3,
+    soulRefreshCron: "0 */6 * * *",
+    soulRefreshBatchSize: 5,
+    soulRefreshCadenceH: 24,
+    soulStuckThresholdMs: 1_800_000,
+    translateSoul: true,
   },
   sessionId: undefined,
 };

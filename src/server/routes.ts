@@ -56,6 +56,7 @@ import { handleBoardRoute } from "./board_routes.ts";
 import { handleWhiteboardRoute } from "./whiteboard_routes.ts";
 import { handleDocumentRoute } from "./document_routes.ts";
 import { handleContactRoute } from "./contact_routes.ts";
+import { handleBusinessRoute } from "./business_routes.ts";
 import { handleCodeRoute } from "./code_routes.ts";
 import { handleWorkflowRoute } from "./workflow_routes.ts";
 import { handleKbRoute } from "./kb_routes.ts";
@@ -182,6 +183,15 @@ export async function handleApi(
     user,
   );
   if (contactResponse) return contactResponse;
+
+  // ── Businesses (sibling entity, per-project) ─────────────────────────────
+  const businessResponse = await handleBusinessRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg },
+    user,
+  );
+  if (businessResponse) return businessResponse;
 
   // ── Code projects (per-project source-code areas) ────────────────────────
   const codeResponse = await handleCodeRoute(
@@ -421,7 +431,10 @@ export async function handleApi(
       Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined;
     const beforeId =
       Number.isFinite(beforeRaw) && beforeRaw > 0 ? beforeRaw : undefined;
-    const messages = getMessagesBySession(ctx.db, sessionId, { limit, beforeId });
+    const messages = getMessagesBySession(ctx.db, sessionId, {
+      limit,
+      beforeId,
+    });
     return json({ sessionId, messages });
   }
 
@@ -643,6 +656,8 @@ interface ProjectDto {
   visibility: ProjectVisibility;
   languages: string[];
   defaultLanguage: string;
+  /** Whether the business.auto_build handler walks this project (ADR 0036). */
+  autoBuildBusinesses: boolean;
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
@@ -676,6 +691,7 @@ function toProjectDto(p: Project): ProjectDto {
     visibility: p.visibility,
     languages: p.languages,
     defaultLanguage: p.defaultLanguage,
+    autoBuildBusinesses: p.autoBuildBusinesses,
     createdBy: p.createdBy,
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
@@ -696,6 +712,8 @@ interface ProjectBody {
   recallK?: number | null;
   languages?: string[];
   defaultLanguage?: string;
+  /** Toggle the business.auto_build handler for this project (ADR 0036). */
+  autoBuildBusinesses?: boolean;
 }
 
 async function handleCreateProject(
@@ -792,6 +810,7 @@ async function handlePatchProject(
       visibility: body.visibility,
       languages: body.languages,
       defaultLanguage: body.defaultLanguage,
+      autoBuildBusinesses: body.autoBuildBusinesses,
     });
     const touchesPrompt =
       body.systemPrompt !== undefined || body.appendMode !== undefined;

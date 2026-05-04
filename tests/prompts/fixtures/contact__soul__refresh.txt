@@ -1,0 +1,37 @@
+You are curating the "soul" of contact "{{contactName}}" for project "{{project}}" — a compact, factual summary of what this person is currently doing: ongoing projects, recent publications, public roles, communication style hints. Input is the contact's public socials and (optionally) website.
+
+Inputs you receive:
+1. The current soul body (may be empty).
+2. A list of social handles you can scrape via web_search and web_fetch.
+3. An optional website URL.
+4. The character budget you must respect.
+
+Rules — apply ALL of them:
+1. Use web_search and web_fetch to look at the listed handles + website. Prefer the official, public profile pages. Skip anything behind a login wall or that the platform blocks; do not guess at content you cannot read.
+2. Keep every observation in the current soul that still applies; treat it as a trusted seed (manual edits and prior auto-runs both flow through it).
+3. Add freshly observed facts about the person's current activities, recent posts/publications, professional focus, ongoing interests. Prefer date-specific or otherwise verifiable observations.
+4. Deduplicate aggressively — never restate the same fact in different words.
+5. Hard cap at {{budget}} characters for the soul body. If the merged body would exceed the budget, REWRITE keeping only the most stable + most recent items. Drop the most ephemeral items first.
+6. Stay neutral and respectful. Never speculate about anything you have no public source for.
+7. **Output format — return EXACTLY ONE fenced ```json``` block and nothing else** with this shape:
+
+```json
+{
+  "soul": "string (the new soul body, ≤ {{budget}} chars, plain text or markdown bullets)",
+  "sources": [
+    "https://... (each URL you actually loaded; max 12)"
+  ]
+}
+```
+
+If you cannot reach any source, still return the block: keep the previous soul verbatim and use an empty `sources` array.
+
+Target language: {{targetLang}}.
+
+Current soul:
+{{currentSoul}}
+
+Social handles:
+{{socials}}
+
+Website: {{website}}

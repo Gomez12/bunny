@@ -556,13 +556,7 @@ export function getProjectAgentMessagesAfter(
          )
        ORDER BY id ASC
        LIMIT ?`,
-  ).all(
-    project,
-    afterMessageId,
-    agent,
-    project,
-    limit,
-  ) as MemoryRefreshRow[];
+  ).all(project, afterMessageId, agent, project, limit) as MemoryRefreshRow[];
   return rows.map((r) => ({
     id: r.id,
     ts: r.ts,

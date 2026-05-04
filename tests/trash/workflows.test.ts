@@ -20,7 +20,12 @@ import {
   hashWorkflowToml,
   writeWorkflowToml,
 } from "../../src/memory/workflow_assets.ts";
-import { listTrash, restore, softDelete, hardDelete } from "../../src/memory/trash.ts";
+import {
+  listTrash,
+  restore,
+  softDelete,
+  hardDelete,
+} from "../../src/memory/trash.ts";
 
 let tmp: string;
 let originalCwd: string;
@@ -63,7 +68,9 @@ describe("workflow trash", () => {
     const { db, wf } = await seed("delete-me");
     expect(softDelete(db, "workflow", wf.id, "u1")).toBe(true);
     expect(listWorkflows(db, "wf-trash")).toEqual([]);
-    const item = listTrash(db).find((i) => i.id === wf.id && i.kind === "workflow");
+    const item = listTrash(db).find(
+      (i) => i.id === wf.id && i.kind === "workflow",
+    );
     expect(item).toBeDefined();
     expect(item!.name).toBe("delete-me");
     db.close();

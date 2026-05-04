@@ -25,10 +25,7 @@ function workflowFile(project: string, slug: string): string {
 }
 
 /** Read the TOML text for one workflow. Returns null if the file is missing. */
-export function loadWorkflowToml(
-  project: string,
-  slug: string,
-): string | null {
+export function loadWorkflowToml(project: string, slug: string): string | null {
   const file = workflowFile(project, slug);
   if (!existsSync(file)) return null;
   return readFileSync(file, "utf8");

@@ -36,7 +36,9 @@ class Cat:
     const targets = ex.edges
       .filter((e) => e.kind === "imports")
       .map((e) => e.to);
-    expect(targets).toEqual(expect.arrayContaining(["external:math", "external:os"]));
+    expect(targets).toEqual(
+      expect.arrayContaining(["external:math", "external:os"]),
+    );
     const names = ex.nodes.map((n) => n.name);
     expect(names).toContain("greet");
     expect(names).toContain("Cat");

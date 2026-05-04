@@ -16,7 +16,9 @@ describe("buildSystemMessage memory injection", () => {
     expect(msg.content).toContain("## Persistent context");
     expect(msg.content).toContain("About Christiaan");
     expect(msg.content).toContain("Prefers terse Dutch replies.");
-    expect(msg.content).not.toContain("What you know about Christiaan in project");
+    expect(msg.content).not.toContain(
+      "What you know about Christiaan in project",
+    );
     expect(msg.content).not.toContain("accumulated notes");
   });
 

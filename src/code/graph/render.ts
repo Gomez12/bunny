@@ -66,9 +66,6 @@ export function renderGraphArtefacts(opts: RenderOpts): RenderedGraph {
   return { outDir, meta, persisted };
 }
 
-export function writeGraphReport(
-  outDir: string,
-  markdown: string,
-): void {
+export function writeGraphReport(outDir: string, markdown: string): void {
   writeFileSync(join(outDir, "GRAPH_REPORT.md"), markdown, "utf8");
 }

@@ -204,7 +204,12 @@ describe("computeTopo", () => {
       nodes: [
         { id: "a", depends_on: [], kind: "prompt" as const, prompt: "hi" },
         { id: "b", depends_on: [], kind: "prompt" as const, prompt: "hi" },
-        { id: "c", depends_on: ["a", "b"], kind: "prompt" as const, prompt: "hi" },
+        {
+          id: "c",
+          depends_on: ["a", "b"],
+          kind: "prompt" as const,
+          prompt: "hi",
+        },
       ],
     };
     expect(computeTopo(def)).toEqual(["a", "b", "c"]);

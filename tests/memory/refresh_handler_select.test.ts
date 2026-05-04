@@ -145,7 +145,13 @@ describe("memory.refresh candidate selection", () => {
     const before = listActiveAgentProjectPairs(db, 10);
     expect(before.length).toBe(1);
     ensureAgentProjectMemory(db, "researcher", "alpha");
-    setAgentProjectMemoryAuto(db, "researcher", "alpha", "seed", before[0]!.maxId);
+    setAgentProjectMemoryAuto(
+      db,
+      "researcher",
+      "alpha",
+      "seed",
+      before[0]!.maxId,
+    );
     const after = listActiveAgentProjectPairs(db, 10);
     expect(after.length).toBe(0);
   });

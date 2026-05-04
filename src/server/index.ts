@@ -67,6 +67,26 @@ import {
   MEMORY_REFRESH_HANDLER,
   registerMemoryRefresh,
 } from "../memory/refresh_handler.ts";
+import {
+  CONTACT_SOUL_REFRESH_HANDLER,
+  registerContactSoulRefresh,
+} from "../contacts/soul_refresh_handler.ts";
+import {
+  CONTACT_SOUL_SWEEP_HANDLER,
+  registerContactSoulSweep,
+} from "../contacts/soul_sweep_stuck_handler.ts";
+import {
+  BUSINESS_SOUL_REFRESH_HANDLER,
+  registerBusinessSoulRefresh,
+} from "../businesses/soul_refresh_handler.ts";
+import {
+  BUSINESS_SOUL_SWEEP_HANDLER,
+  registerBusinessSoulSweep,
+} from "../businesses/soul_sweep_stuck_handler.ts";
+import {
+  BUSINESS_AUTO_BUILD_HANDLER,
+  registerBusinessAutoBuild,
+} from "../businesses/auto_build_handler.ts";
 
 const DEFAULT_PORT = 3000;
 
@@ -162,6 +182,11 @@ export async function startServer(
   registerKbAutoGenerate(defaultHandlerRegistry);
   registerKbSweepStuck(defaultHandlerRegistry);
   registerMemoryRefresh(defaultHandlerRegistry);
+  registerContactSoulRefresh(defaultHandlerRegistry);
+  registerContactSoulSweep(defaultHandlerRegistry);
+  registerBusinessSoulRefresh(defaultHandlerRegistry);
+  registerBusinessSoulSweep(defaultHandlerRegistry);
+  registerBusinessAutoBuild(defaultHandlerRegistry);
   const bootNow = Date.now();
   const boardAutoRunCron = "*/5 * * * *";
   try {
@@ -264,10 +289,7 @@ export async function startServer(
       nextRunAt: computeNextRun(kbSweepStuckCron, bootNow),
     });
   } catch (e) {
-    console.warn(
-      "[bunny] failed to seed kb.sweep_stuck:",
-      errorMessage(e),
-    );
+    console.warn("[bunny] failed to seed kb.sweep_stuck:", errorMessage(e));
   }
   const memoryRefreshCron = "0 * * * *";
   try {
@@ -280,6 +302,81 @@ export async function startServer(
     });
   } catch (e) {
     console.warn("[bunny] failed to seed memory.refresh:", errorMessage(e));
+  }
+  const contactSoulRefreshCron = cfg.contacts.soulRefreshCron;
+  try {
+    ensureSystemTask(db, CONTACT_SOUL_REFRESH_HANDLER, {
+      name: "Contact soul refresh",
+      description:
+        "Periodic per-contact soul refresh via web_search + web_fetch. Cadence configured by [contacts] soul_refresh_cron.",
+      cronExpr: contactSoulRefreshCron,
+      nextRunAt: computeNextRun(contactSoulRefreshCron, bootNow),
+    });
+  } catch (e) {
+    console.warn(
+      "[bunny] failed to seed contact.soul_refresh:",
+      errorMessage(e),
+    );
+  }
+  const contactSoulSweepCron = "*/5 * * * *";
+  try {
+    ensureSystemTask(db, CONTACT_SOUL_SWEEP_HANDLER, {
+      name: "Contact soul stuck-row sweep",
+      description:
+        "Reset contact rows stuck in soul_status='refreshing' (every 5 minutes).",
+      cronExpr: contactSoulSweepCron,
+      nextRunAt: computeNextRun(contactSoulSweepCron, bootNow),
+    });
+  } catch (e) {
+    console.warn(
+      "[bunny] failed to seed contact.soul_sweep_stuck:",
+      errorMessage(e),
+    );
+  }
+  const businessSoulRefreshCron = cfg.businesses.soulRefreshCron;
+  try {
+    ensureSystemTask(db, BUSINESS_SOUL_REFRESH_HANDLER, {
+      name: "Business soul refresh",
+      description:
+        "Periodic per-business soul refresh via web_search + web_fetch. Cadence configured by [businesses] soul_refresh_cron.",
+      cronExpr: businessSoulRefreshCron,
+      nextRunAt: computeNextRun(businessSoulRefreshCron, bootNow),
+    });
+  } catch (e) {
+    console.warn(
+      "[bunny] failed to seed business.soul_refresh:",
+      errorMessage(e),
+    );
+  }
+  const businessSoulSweepCron = "*/5 * * * *";
+  try {
+    ensureSystemTask(db, BUSINESS_SOUL_SWEEP_HANDLER, {
+      name: "Business soul stuck-row sweep",
+      description:
+        "Reset business rows stuck in soul_status='refreshing' (every 5 minutes).",
+      cronExpr: businessSoulSweepCron,
+      nextRunAt: computeNextRun(businessSoulSweepCron, bootNow),
+    });
+  } catch (e) {
+    console.warn(
+      "[bunny] failed to seed business.soul_sweep_stuck:",
+      errorMessage(e),
+    );
+  }
+  const businessAutoBuildCron = cfg.businesses.autoBuildCron;
+  try {
+    ensureSystemTask(db, BUSINESS_AUTO_BUILD_HANDLER, {
+      name: "Business auto-build from contacts",
+      description:
+        "Per-project opt-in: derive business rows from contact company + email/website domains. Cadence configured by [businesses] auto_build_cron.",
+      cronExpr: businessAutoBuildCron,
+      nextRunAt: computeNextRun(businessAutoBuildCron, bootNow),
+    });
+  } catch (e) {
+    console.warn(
+      "[bunny] failed to seed business.auto_build:",
+      errorMessage(e),
+    );
   }
   const quickChatHideCron = "*/5 * * * *";
   try {

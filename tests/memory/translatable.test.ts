@@ -146,10 +146,11 @@ function fixtures(): KindFixture[] {
 }
 
 describe("translatable registry", () => {
-  test("all four kinds are registered", () => {
+  test("every translatable entity kind is registered", () => {
     const names = Object.keys(TRANSLATABLE_REGISTRY).sort();
     expect(names).toEqual([
       "board_card",
+      "business",
       "contact",
       "document",
       "kb_definition",

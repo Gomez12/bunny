@@ -20,6 +20,8 @@ export interface Project {
   visibility: ProjectVisibility;
   languages: string[];
   defaultLanguage: string;
+  /** Whether the business.auto_build handler walks this project (ADR 0036). */
+  autoBuildBusinesses: boolean;
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
@@ -80,6 +82,7 @@ interface ProjectRow {
   visibility: string;
   languages: string | null;
   default_language: string | null;
+  auto_build_businesses: number | null;
   created_by: string | null;
   created_at: number;
   updated_at: number;
@@ -114,6 +117,7 @@ function rowToProject(r: ProjectRow): Project {
       : "public") as ProjectVisibility,
     languages,
     defaultLanguage: languages.includes(def) ? def : languages[0]!,
+    autoBuildBusinesses: r.auto_build_businesses === 1,
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -121,6 +125,7 @@ function rowToProject(r: ProjectRow): Project {
 }
 
 const PROJECT_SELECT_COLS = `name, description, visibility, languages, default_language,
+                              auto_build_businesses,
                               created_by, created_at, updated_at`;
 
 export function listProjects(db: Database): Project[] {
@@ -178,6 +183,8 @@ export interface UpdateProjectPatch {
   visibility?: ProjectVisibility;
   languages?: string[];
   defaultLanguage?: string;
+  /** Toggle the business.auto_build handler for this project (admin-only). */
+  autoBuildBusinesses?: boolean;
 }
 
 export function updateProject(
@@ -199,16 +206,21 @@ export function updateProject(
     languages = validated.languages;
     defaultLanguage = validated.defaultLanguage;
   }
+  const autoBuildBusinesses =
+    patch.autoBuildBusinesses === undefined
+      ? existing.autoBuildBusinesses
+      : patch.autoBuildBusinesses;
   db.prepare(
     `UPDATE projects
        SET description = ?, visibility = ?, languages = ?, default_language = ?,
-           updated_at = ?
+           auto_build_businesses = ?, updated_at = ?
      WHERE name = ?`,
   ).run(
     description,
     visibility,
     JSON.stringify(languages),
     defaultLanguage,
+    autoBuildBusinesses ? 1 : 0,
     Date.now(),
     name,
   );

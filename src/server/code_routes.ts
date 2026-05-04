@@ -131,7 +131,9 @@ export async function handleCodeRoute(
     if (req.method === "POST") return handleGraphRun(ctx, user, id);
   }
 
-  const graphStreamMatch = pathname.match(/^\/api\/code\/(\d+)\/graph\/stream$/);
+  const graphStreamMatch = pathname.match(
+    /^\/api\/code\/(\d+)\/graph\/stream$/,
+  );
   if (graphStreamMatch) {
     const id = Number(graphStreamMatch[1]);
     if (req.method === "GET") return handleGraphStream(ctx, user, id);
@@ -143,7 +145,9 @@ export async function handleCodeRoute(
     if (req.method === "GET") return handleGraphData(ctx, user, id);
   }
 
-  const graphReportMatch = pathname.match(/^\/api\/code\/(\d+)\/graph\/report$/);
+  const graphReportMatch = pathname.match(
+    /^\/api\/code\/(\d+)\/graph\/report$/,
+  );
   if (graphReportMatch) {
     const id = Number(graphReportMatch[1]);
     if (req.method === "GET") return handleGraphReport(ctx, user, id);
@@ -685,11 +689,7 @@ function handleGraphStream(
   });
 }
 
-function handleGraphData(
-  ctx: CodeRouteCtx,
-  user: User,
-  id: number,
-): Response {
+function handleGraphData(ctx: CodeRouteCtx, user: User, id: number): Response {
   const cp = getCodeProject(ctx.db, id);
   if (!cp) return json({ error: "not found" }, 404);
   const p = getProject(ctx.db, cp.project);

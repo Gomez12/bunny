@@ -112,7 +112,9 @@ export async function loadGrammar(
   await ensureInit();
   try {
     const Language = (
-      Parser as unknown as { Language: { load(path: string): Promise<LanguageInstance> } }
+      Parser as unknown as {
+        Language: { load(path: string): Promise<LanguageInstance> };
+      }
     ).Language;
     const inst = await Language.load(WASM_PATHS[lang]);
     grammarCache.set(lang, inst);

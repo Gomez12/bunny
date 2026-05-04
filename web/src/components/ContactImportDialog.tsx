@@ -67,6 +67,7 @@ export default function ContactImportDialog({ allGroups, onClose, onImport }: Pr
         company: "",
         title: "",
         notes: "",
+        socials: [],
         photo: null,
       })).filter((c) => c.name);
       if (cards.length === 0) {

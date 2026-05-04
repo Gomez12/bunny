@@ -124,5 +124,4 @@ describe("kbSweepStuckHandler", () => {
     expect(getDefinition(db, d.id)!.llmStatus).toBe("generating");
     expect(logged).toHaveLength(0);
   });
-
 });

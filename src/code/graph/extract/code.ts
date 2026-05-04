@@ -19,13 +19,14 @@ import type Parser from "web-tree-sitter";
 import { langForFile, parserFor, type LangKey } from "../grammars.ts";
 import type { FileExtraction, GraphEdge, GraphNode } from "../types.ts";
 
-type TsNode = ReturnType<Parser["parse"]> extends infer T
-  ? T extends null | undefined
-    ? never
-    : T extends { rootNode: infer R }
-      ? R
-      : never
-  : never;
+type TsNode =
+  ReturnType<Parser["parse"]> extends infer T
+    ? T extends null | undefined
+      ? never
+      : T extends { rootNode: infer R }
+        ? R
+        : never
+    : never;
 
 // The narrow node-surface we actually use across walkers. `web-tree-sitter`'s
 // types are awkward at 0.22; this typing is enough.
@@ -44,7 +45,12 @@ function moduleIdFor(relPath: string): string {
   return `${relPath}#module`;
 }
 
-function nodeId(relPath: string, kind: string, name: string, line: number): string {
+function nodeId(
+  relPath: string,
+  kind: string,
+  name: string,
+  line: number,
+): string {
   return `${relPath}#${kind}:${name}@${line}`;
 }
 
@@ -171,8 +177,9 @@ function extractPython(relPath: string, root: SNode): FileExtraction {
   ];
   const edges: GraphEdge[] = [];
 
-  const decls = collect(root, (n) =>
-    n.type === "function_definition" || n.type === "class_definition",
+  const decls = collect(
+    root,
+    (n) => n.type === "function_definition" || n.type === "class_definition",
   );
   for (const d of decls) {
     const nameNode = d.childForFieldName("name");
@@ -181,7 +188,12 @@ function extractPython(relPath: string, root: SNode): FileExtraction {
     const isMethod =
       d.type === "function_definition" &&
       hasAncestorType(root, d, "class_definition");
-    const kind = d.type === "class_definition" ? "class" : isMethod ? "method" : "function";
+    const kind =
+      d.type === "class_definition"
+        ? "class"
+        : isMethod
+          ? "method"
+          : "function";
     nodes.push({
       id: nodeId(relPath, kind, name, d.startPosition.row + 1),
       kind,
@@ -222,7 +234,8 @@ function extractPython(relPath: string, root: SNode): FileExtraction {
     // `import_statement` — iterate named children of type `dotted_name`.
     for (const c of iterNamed(imp)) {
       if (c.type === "dotted_name" || c.type === "aliased_import") {
-        const real = c.type === "aliased_import" ? c.childForFieldName("name") : c;
+        const real =
+          c.type === "aliased_import" ? c.childForFieldName("name") : c;
         const target = identName(real);
         if (target) pushImport(target);
       }
@@ -234,7 +247,11 @@ function extractPython(relPath: string, root: SNode): FileExtraction {
 
 // Ancestor-type lookup: tree-sitter doesn't store parent pointers on the
 // zero-copy node objects, so we re-walk from root to find the path.
-function hasAncestorType(root: SNode, target: SNode, ancestorType: string): boolean {
+function hasAncestorType(
+  root: SNode,
+  target: SNode,
+  ancestorType: string,
+): boolean {
   type Frame = { node: SNode; stack: string[] };
   const queue: Frame[] = [{ node: root, stack: [] }];
   while (queue.length > 0) {
@@ -271,11 +288,9 @@ function extractGo(relPath: string, root: SNode): FileExtraction {
   const edges: GraphEdge[] = [];
 
   const decls = collect(root, (n) =>
-    [
-      "function_declaration",
-      "method_declaration",
-      "type_declaration",
-    ].includes(n.type),
+    ["function_declaration", "method_declaration", "type_declaration"].includes(
+      n.type,
+    ),
   );
   for (const d of decls) {
     if (d.type === "type_declaration") {
@@ -405,7 +420,9 @@ function extractRust(relPath: string, root: SNode): FileExtraction {
 
 // ── Dispatcher ───────────────────────────────────────────────────────────────
 
-const WALKERS: Partial<Record<LangKey, (rel: string, root: SNode) => FileExtraction>> = {
+const WALKERS: Partial<
+  Record<LangKey, (rel: string, root: SNode) => FileExtraction>
+> = {
   ts: extractTsJs,
   tsx: extractTsJs,
   js: extractTsJs,

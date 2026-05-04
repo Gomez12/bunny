@@ -46,9 +46,7 @@ describe("cache", () => {
           filePath: "a.ts",
         },
       ],
-      edges: [
-        { from: "a", to: "b", kind: "imports" as const, confidence: 1 },
-      ],
+      edges: [{ from: "a", to: "b", kind: "imports" as const, confidence: 1 }],
     };
     writeCache(dirs, "key1", extraction);
     const read = readCache(dirs, "key1");

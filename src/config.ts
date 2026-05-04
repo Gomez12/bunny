@@ -181,6 +181,39 @@ export interface WorkflowsConfig {
   loopDefaultMaxIterations: number;
 }
 
+export interface ContactsConfig {
+  /** Cron expression for the per-contact soul refresh handler. */
+  soulRefreshCron: string;
+  /** Max contact souls processed per refresh tick. */
+  soulRefreshBatchSize: number;
+  /** Cadence between auto-refreshes for one contact (hours). */
+  soulRefreshCadenceH: number;
+  /** Sweep window (ms) after which a `'refreshing'` row is considered stuck. */
+  soulStuckThresholdMs: number;
+  /**
+   * Whether contact-soul changes (manual or auto-refresh) flip translation
+   * sidecars to `pending`. Default true (full parity with `notes`); set false
+   * to keep translation cost flat as the soul churns hourly.
+   */
+  translateSoul: boolean;
+}
+
+export interface BusinessesConfig {
+  /** Per-tick fallback when a project has no `auto_build_businesses` row override. */
+  autoBuildEnabled: boolean;
+  /** Cron expression for the auto-build-from-contacts handler. */
+  autoBuildCron: string;
+  /** Max new businesses spawned (and enriched) per auto-build tick across all projects. */
+  autoBuildBatchSize: number;
+  /** Cron expression for the per-business soul refresh handler. */
+  soulRefreshCron: string;
+  soulRefreshBatchSize: number;
+  soulRefreshCadenceH: number;
+  soulStuckThresholdMs: number;
+  /** Same semantics as `ContactsConfig.translateSoul` but for businesses. */
+  translateSoul: boolean;
+}
+
 export interface TelegramConfig {
   /** Lease TTL on a project's poll slot (ms). */
   pollLeaseMs: number;
@@ -210,6 +243,8 @@ export interface BunnyConfig {
   telegram: TelegramConfig;
   code: CodeConfig;
   workflows: WorkflowsConfig;
+  contacts: ContactsConfig;
+  businesses: BusinessesConfig;
   sessionId: string | undefined;
 }
 
@@ -288,6 +323,23 @@ interface TomlShape {
     script_default_timeout_ms: number;
     script_max_output_bytes: number;
     loop_default_max_iterations: number;
+  }>;
+  contacts?: Partial<{
+    soul_refresh_cron: string;
+    soul_refresh_batch_size: number;
+    soul_refresh_cadence_h: number;
+    soul_stuck_threshold_ms: number;
+    translate_soul: boolean;
+  }>;
+  businesses?: Partial<{
+    auto_build_enabled: boolean;
+    auto_build_cron: string;
+    auto_build_batch_size: number;
+    soul_refresh_cron: string;
+    soul_refresh_batch_size: number;
+    soul_refresh_cadence_h: number;
+    soul_stuck_threshold_ms: number;
+    translate_soul: boolean;
   }>;
 }
 
@@ -392,6 +444,23 @@ When you are done, reply with your final answer without making any more tool cal
     scriptMaxOutputBytes: 256 * 1024,
     loopDefaultMaxIterations: 10,
   },
+  contacts: {
+    soulRefreshCron: "0 */6 * * *",
+    soulRefreshBatchSize: 5,
+    soulRefreshCadenceH: 24,
+    soulStuckThresholdMs: 30 * 60 * 1000,
+    translateSoul: true,
+  },
+  businesses: {
+    autoBuildEnabled: false,
+    autoBuildCron: "30 */6 * * *",
+    autoBuildBatchSize: 3,
+    soulRefreshCron: "0 */6 * * *",
+    soulRefreshBatchSize: 5,
+    soulRefreshCadenceH: 24,
+    soulStuckThresholdMs: 30 * 60 * 1000,
+    translateSoul: true,
+  },
 } as const;
 
 const VALID_PROFILES: readonly LlmProfile[] = [
@@ -425,7 +494,11 @@ function parseMaxConcurrent(
   const fallback = DEFAULTS.llm.maxConcurrentRequests;
   const candidate = envRaw !== undefined ? Number(envRaw) : tomlRaw;
   if (candidate === undefined) return fallback;
-  if (!Number.isFinite(candidate) || !Number.isInteger(candidate) || candidate < 1) {
+  if (
+    !Number.isFinite(candidate) ||
+    !Number.isInteger(candidate) ||
+    candidate < 1
+  ) {
     process.stderr.write(
       `[bunny/config] invalid llm.max_concurrent_requests=${candidate}; using default ${fallback}\n`,
     );
@@ -637,8 +710,7 @@ export function loadConfig(
   };
 
   const workflows: WorkflowsConfig = {
-    bashEnabled:
-      toml.workflows?.bash_enabled ?? DEFAULTS.workflows.bashEnabled,
+    bashEnabled: toml.workflows?.bash_enabled ?? DEFAULTS.workflows.bashEnabled,
     bashDefaultTimeoutMs: Number(
       toml.workflows?.bash_default_timeout_ms ??
         DEFAULTS.workflows.bashDefaultTimeoutMs,
@@ -663,6 +735,53 @@ export function loadConfig(
     ),
   };
 
+  const contacts: ContactsConfig = {
+    soulRefreshCron:
+      toml.contacts?.soul_refresh_cron ?? DEFAULTS.contacts.soulRefreshCron,
+    soulRefreshBatchSize: Number(
+      toml.contacts?.soul_refresh_batch_size ??
+        DEFAULTS.contacts.soulRefreshBatchSize,
+    ),
+    soulRefreshCadenceH: Number(
+      toml.contacts?.soul_refresh_cadence_h ??
+        DEFAULTS.contacts.soulRefreshCadenceH,
+    ),
+    soulStuckThresholdMs: Number(
+      toml.contacts?.soul_stuck_threshold_ms ??
+        DEFAULTS.contacts.soulStuckThresholdMs,
+    ),
+    translateSoul:
+      toml.contacts?.translate_soul ?? DEFAULTS.contacts.translateSoul,
+  };
+
+  const businesses: BusinessesConfig = {
+    autoBuildEnabled:
+      toml.businesses?.auto_build_enabled ??
+      DEFAULTS.businesses.autoBuildEnabled,
+    autoBuildCron:
+      toml.businesses?.auto_build_cron ?? DEFAULTS.businesses.autoBuildCron,
+    autoBuildBatchSize: Number(
+      toml.businesses?.auto_build_batch_size ??
+        DEFAULTS.businesses.autoBuildBatchSize,
+    ),
+    soulRefreshCron:
+      toml.businesses?.soul_refresh_cron ?? DEFAULTS.businesses.soulRefreshCron,
+    soulRefreshBatchSize: Number(
+      toml.businesses?.soul_refresh_batch_size ??
+        DEFAULTS.businesses.soulRefreshBatchSize,
+    ),
+    soulRefreshCadenceH: Number(
+      toml.businesses?.soul_refresh_cadence_h ??
+        DEFAULTS.businesses.soulRefreshCadenceH,
+    ),
+    soulStuckThresholdMs: Number(
+      toml.businesses?.soul_stuck_threshold_ms ??
+        DEFAULTS.businesses.soulStuckThresholdMs,
+    ),
+    translateSoul:
+      toml.businesses?.translate_soul ?? DEFAULTS.businesses.translateSoul,
+  };
+
   return {
     llm,
     embed,
@@ -677,6 +796,8 @@ export function loadConfig(
     telegram,
     code,
     workflows,
+    contacts,
+    businesses,
     sessionId: env["BUNNY_SESSION"],
   };
 }

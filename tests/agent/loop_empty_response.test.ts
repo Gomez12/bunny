@@ -22,11 +22,7 @@ import { createBunnyQueue } from "../../src/queue/bunqueue.ts";
 import { runAgent } from "../../src/agent/loop.ts";
 import { ToolRegistry } from "../../src/tools/registry.ts";
 import type { Renderer } from "../../src/agent/render.ts";
-import type {
-  LlmConfig,
-  EmbedConfig,
-  MemoryConfig,
-} from "../../src/config.ts";
+import type { LlmConfig, EmbedConfig, MemoryConfig } from "../../src/config.ts";
 
 let server: Server;
 let baseUrl: string;

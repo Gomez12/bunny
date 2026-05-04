@@ -156,8 +156,7 @@ export function resolveForEachItems(
         for (let i = 1; i <= cap; i++) out.push(i);
         return out;
       }
-    } catch {
-    }
+    } catch {}
     return s
       .split(/\r?\n/)
       .map((l) => l.trim())
@@ -947,7 +946,9 @@ async function dispatchLoop(
   for (let iter = 1; iter <= maxIters; iter++) {
     if (fan.meta.cancelRequested) return { status: "cancelled" };
 
-    const iterationSessionId = loop.fresh_context ? randomUUID() : run.sessionId;
+    const iterationSessionId = loop.fresh_context
+      ? randomUUID()
+      : run.sessionId;
     const rn = createRunNode(opts.db, {
       runId: run.id,
       nodeId: node.id,
@@ -1057,7 +1058,11 @@ async function dispatchLoop(
     status: "error",
     error: err,
   });
-  return { status: "error", error: err + (lastAnswer ? ` (last answer bytes: ${lastAnswer.length})` : "") };
+  return {
+    status: "error",
+    error:
+      err + (lastAnswer ? ` (last answer bytes: ${lastAnswer.length})` : ""),
+  };
 }
 
 // ── Interactive (stand-alone) ────────────────────────────────────────────────
@@ -1185,10 +1190,7 @@ async function dispatchForEach(
   inv: InvocationCtx,
 ): Promise<NodeExecResult> {
   const spec = node.for_each!;
-  const cap = Math.max(
-    1,
-    Math.min(1000, spec.max_iterations ?? 50),
-  );
+  const cap = Math.max(1, Math.min(1000, spec.max_iterations ?? 50));
   const items = resolveForEachItems(spec, inv.runCtx).slice(0, cap);
 
   const rn = createRunNode(opts.db, {
@@ -1257,8 +1259,7 @@ async function dispatchForEach(
         { runCtx: childCtx, iteration: i + 1 },
       );
       if (result.status === "error") {
-        const msg =
-          `for_each '${node.id}': iteration ${i + 1} failed in '${bid}': ${result.error ?? "error"}`;
+        const msg = `for_each '${node.id}': iteration ${i + 1} failed in '${bid}': ${result.error ?? "error"}`;
         markNodeError(opts.db, rn.id, msg);
         sendEvent(sink, {
           type: "workflow_node_finished",
@@ -1343,8 +1344,7 @@ async function dispatchIfThenElse(
       { runCtx: inv.runCtx, iteration: inv.iteration },
     );
     if (result.status === "error") {
-      const msg =
-        `if_then_else '${node.id}' (${branch}-branch): '${bid}' failed: ${result.error ?? "error"}`;
+      const msg = `if_then_else '${node.id}' (${branch}-branch): '${bid}' failed: ${result.error ?? "error"}`;
       markNodeError(opts.db, rn.id, msg);
       sendEvent(sink, {
         type: "workflow_node_finished",
@@ -1435,4 +1435,3 @@ function makeNodeRenderer(
     },
   };
 }
-

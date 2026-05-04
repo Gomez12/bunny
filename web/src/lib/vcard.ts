@@ -1,3 +1,9 @@
+export interface ParsedSocial {
+  platform: string;
+  handle: string;
+  url?: string;
+}
+
 export interface ParsedVCard {
   name: string;
   emails: string[];
@@ -5,7 +11,42 @@ export interface ParsedVCard {
   company: string;
   title: string;
   notes: string;
+  socials: ParsedSocial[];
   photo: string | null;
+}
+
+/**
+ * Map well-known X-* legacy properties to a canonical platform tag. Returns
+ * null when the property is not a recognised social-handle property.
+ */
+function legacySocialPlatform(prop: string): string | null {
+  switch (prop) {
+    case "X-TWITTER":
+      return "twitter";
+    case "X-LINKEDIN":
+      return "linkedin";
+    case "X-GITHUB":
+      return "github";
+    case "X-FACEBOOK":
+      return "facebook";
+    case "X-INSTAGRAM":
+      return "instagram";
+    case "X-MASTODON":
+      return "mastodon";
+    case "X-BLUESKY":
+      return "bluesky";
+    case "X-AIM":
+    case "X-SKYPE":
+      return "other";
+    default:
+      return null;
+  }
+}
+
+/** Try to parse `type=foo` (case-insensitive) out of a vCard params string. */
+function paramType(params: string): string | null {
+  const m = params.match(/(?:^|;)\s*type=([^;]+)/i);
+  return m && m[1] ? m[1].toLowerCase().trim() : null;
 }
 
 function unfoldLines(raw: string): string[] {
@@ -30,6 +71,7 @@ function parseSingleVCard(lines: string[]): ParsedVCard {
   let title = "";
   let notes = "";
   let photo: string | null = null;
+  const socials: ParsedSocial[] = [];
 
   for (const line of lines) {
     const { prop, params, value } = extractPropAndParams(line);
@@ -59,21 +101,61 @@ function parseSingleVCard(lines: string[]): ParsedVCard {
       case "NOTE":
         notes = value.replace(/\\n/g, "\n").replace(/\\,/g, ",");
         break;
+      case "URL":
+        if (value)
+          socials.push({ platform: "website", handle: value, url: value });
+        break;
+      case "X-SOCIALPROFILE": {
+        // Apple iCloud format: X-SOCIALPROFILE;type=twitter:https://...
+        const platform = paramType(params) ?? "other";
+        if (value)
+          socials.push({
+            platform,
+            handle: value,
+            url: /^https?:\/\//i.test(value) ? value : undefined,
+          });
+        break;
+      }
+      case "IMPP": {
+        // RFC 4770: IMPP:xmpp:user@host or IMPP;X-SERVICE-TYPE=Mastodon:...
+        const m = value.match(/^([a-zA-Z]+):(.+)$/);
+        const scheme = m && m[1] ? m[1].toLowerCase() : null;
+        const rest = m && m[2] ? m[2] : value;
+        const platform =
+          scheme === "xmpp"
+            ? "mastodon"
+            : (paramType(params) ?? scheme ?? "other");
+        if (rest) socials.push({ platform, handle: rest });
+        break;
+      }
       case "PHOTO": {
         const paramsUpper = params.toUpperCase();
         if (paramsUpper.includes("ENCODING=B") || paramsUpper.includes("ENCODING=BASE64")) {
           const typeMatch = paramsUpper.match(/TYPE=([A-Z]+)/);
-          const mime = typeMatch ? `image/${typeMatch[1].toLowerCase()}` : "image/jpeg";
+          const mime = typeMatch
+            ? `image/${typeMatch[1]!.toLowerCase()}`
+            : "image/jpeg";
           photo = `data:${mime};base64,${value}`;
         } else if (value.startsWith("data:")) {
           photo = value;
         }
         break;
       }
+      default: {
+        const platform = legacySocialPlatform(prop);
+        if (platform && value) {
+          socials.push({
+            platform,
+            handle: value,
+            url: /^https?:\/\//i.test(value) ? value : undefined,
+          });
+        }
+        break;
+      }
     }
   }
 
-  return { name, emails, phones, company, title, notes, photo };
+  return { name, emails, phones, company, title, notes, socials, photo };
 }
 
 export function parseVCards(vcfText: string): ParsedVCard[] {

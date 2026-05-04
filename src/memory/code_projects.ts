@@ -93,7 +93,8 @@ function rowToCodeProject(r: CodeProjectRow): CodeProject {
       ? r.git_status
       : "idle";
   const graphStatus: GraphStatus =
-    r.graph_status && (GRAPH_STATUSES as readonly string[]).includes(r.graph_status)
+    r.graph_status &&
+    (GRAPH_STATUSES as readonly string[]).includes(r.graph_status)
       ? (r.graph_status as GraphStatus)
       : "idle";
   return {

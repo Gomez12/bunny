@@ -8,11 +8,7 @@
 import type { LlmConfig } from "../../config.ts";
 import { chatSync } from "../../llm/adapter.ts";
 import { resolvePrompt, interpolate } from "../../prompts/resolve.ts";
-import type {
-  ClusterSummary,
-  GraphEdge,
-  GraphNode,
-} from "./types.ts";
+import type { ClusterSummary, GraphEdge, GraphNode } from "./types.ts";
 
 export interface ReportOpts {
   project: string;
@@ -30,9 +26,7 @@ export interface ReportOpts {
  * (empty API key, network error, etc.) so a run never hangs waiting for a
  * report that will never arrive.
  */
-export async function generateGraphReport(
-  opts: ReportOpts,
-): Promise<string> {
+export async function generateGraphReport(opts: ReportOpts): Promise<string> {
   const summary = buildSummaryText(opts);
   const fallback = buildDeterministicReport(opts, summary);
   if (!opts.llmCfg.apiKey) {
@@ -105,16 +99,15 @@ function buildSummaryText(opts: ReportOpts): string {
     lines.push("");
     lines.push("Cross-cluster edges among hubs:");
     for (const e of cross) {
-      lines.push(`- ${name(e.from)} -[${e.kind}]-> ${name(e.to)} (conf ${e.confidence.toFixed(2)})`);
+      lines.push(
+        `- ${name(e.from)} -[${e.kind}]-> ${name(e.to)} (conf ${e.confidence.toFixed(2)})`,
+      );
     }
   }
   return lines.join("\n");
 }
 
-function buildDeterministicReport(
-  opts: ReportOpts,
-  summary: string,
-): string {
+function buildDeterministicReport(opts: ReportOpts, summary: string): string {
   const lines: string[] = [];
   lines.push(`# ${opts.codeProjectName} — graph report`);
   lines.push("");

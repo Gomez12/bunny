@@ -30,7 +30,8 @@ export type TrashKind =
   | "contact"
   | "kb_definition"
   | "code_project"
-  | "workflow";
+  | "workflow"
+  | "business";
 
 export type RestoreOutcome = "ok" | "not_found" | "name_conflict";
 

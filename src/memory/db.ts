@@ -188,6 +188,33 @@ function migrateColumns(db: Database): void {
       `CREATE INDEX IF NOT EXISTS idx_${t}_trash ON ${t}(deleted_at) WHERE deleted_at IS NOT NULL`,
     );
   }
+  // ── Contacts: socials + per-contact soul ─────────────────────────────────
+  addColumn(
+    "ALTER TABLE contacts ADD COLUMN socials TEXT NOT NULL DEFAULT '[]'",
+  );
+  addColumn("ALTER TABLE contacts ADD COLUMN soul TEXT NOT NULL DEFAULT ''");
+  addColumn(
+    "ALTER TABLE contacts ADD COLUMN soul_status TEXT NOT NULL DEFAULT 'idle'",
+  );
+  addColumn("ALTER TABLE contacts ADD COLUMN soul_error TEXT");
+  addColumn("ALTER TABLE contacts ADD COLUMN soul_refreshed_at INTEGER");
+  addColumn("ALTER TABLE contacts ADD COLUMN soul_refreshing_at INTEGER");
+  addColumn("ALTER TABLE contacts ADD COLUMN soul_manual_edited_at INTEGER");
+  addColumn("ALTER TABLE contacts ADD COLUMN soul_next_refresh_at INTEGER");
+  addColumn("ALTER TABLE contacts ADD COLUMN soul_sources TEXT");
+  db.run(
+    `CREATE INDEX IF NOT EXISTS idx_contacts_soul_refresh
+       ON contacts(soul_status, soul_next_refresh_at) WHERE deleted_at IS NULL`,
+  );
+  // Translation sidecar: soul gets its own translated column (ADR 0036).
+  addColumn("ALTER TABLE contact_translations ADD COLUMN soul TEXT");
+  // Per-project opt-in for business auto-build handler (ADR 0036).
+  addColumn(
+    "ALTER TABLE projects ADD COLUMN auto_build_businesses INTEGER NOT NULL DEFAULT 0",
+  );
+  // Business postal address — auto-filled from website during soul refresh.
+  addColumn("ALTER TABLE businesses ADD COLUMN address TEXT");
+  addColumn("ALTER TABLE businesses ADD COLUMN address_fetched_at INTEGER");
   // Workflows — structured per-node step records for the run timeline UI.
   addColumn("ALTER TABLE workflow_run_nodes ADD COLUMN steps_json TEXT");
   // Code sub-app: per-project knowledge-graph status (ADR 0033).

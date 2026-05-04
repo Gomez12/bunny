@@ -49,6 +49,8 @@ export interface Project {
   visibility: ProjectVisibility;
   languages: string[];
   defaultLanguage: string;
+  /** Whether the business.auto_build handler walks this project (ADR 0036). */
+  autoBuildBusinesses: boolean;
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
@@ -790,6 +792,7 @@ export async function updateProject(
     recallK?: number | null;
     languages?: string[];
     defaultLanguage?: string;
+    autoBuildBusinesses?: boolean;
   },
 ): Promise<Project> {
   const { project } = await jsonFetch<{ project: Project }>(
@@ -1744,6 +1747,19 @@ export async function exportDocument(id: number, format: "docx" | "html"): Promi
 
 // ── Contacts ──────────────────────────────────────────────────────────────────
 
+export interface SocialHandle {
+  platform: string;
+  handle: string;
+  url?: string;
+}
+
+export interface SoulSource {
+  url: string;
+  fetchedAt: number;
+}
+
+export type SoulStatus = "idle" | "refreshing" | "error";
+
 export interface Contact {
   id: number;
   project: string;
@@ -1755,7 +1771,17 @@ export interface Contact {
   notes: string;
   avatar: string | null;
   tags: string[];
+  socials: SocialHandle[];
+  soul: string;
+  soulStatus: SoulStatus;
+  soulError: string | null;
+  soulRefreshedAt: number | null;
+  soulRefreshingAt: number | null;
+  soulManualEditedAt: number | null;
+  soulNextRefreshAt: number | null;
+  soulSources: SoulSource[];
   groups: number[];
+  businessIds: number[];
   originalLang: string | null;
   createdBy: string | null;
   createdAt: number;
@@ -1782,6 +1808,7 @@ export interface ContactInput {
   notes?: string;
   avatar?: string | null;
   tags?: string[];
+  socials?: SocialHandle[];
   groups?: number[];
 }
 
@@ -1909,6 +1936,200 @@ export async function askContacts(
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+export async function updateContactSoul(
+  project: string,
+  id: number,
+  soul: string,
+): Promise<Contact> {
+  const data = await jsonFetch<{ contact: Contact }>(
+    `/api/projects/${encodeURIComponent(project)}/contacts/${id}/soul`,
+    { method: "PUT", body: JSON.stringify({ soul }) },
+  );
+  return data.contact;
+}
+
+export async function refreshContactSoul(
+  project: string,
+  id: number,
+): Promise<Response> {
+  return fetch(
+    `/api/projects/${encodeURIComponent(project)}/contacts/${id}/soul/refresh`,
+    { method: "POST", credentials: "include" },
+  );
+}
+
+export async function linkContactBusiness(
+  project: string,
+  contactId: number,
+  businessId: number,
+  opts?: { role?: string | null; isPrimary?: boolean },
+): Promise<void> {
+  await jsonFetch(
+    `/api/projects/${encodeURIComponent(project)}/contacts/${contactId}/businesses`,
+    {
+      method: "POST",
+      body: JSON.stringify({ businessId, ...opts }),
+    },
+  );
+}
+
+export async function unlinkContactBusiness(
+  project: string,
+  contactId: number,
+  businessId: number,
+): Promise<void> {
+  await jsonFetch(
+    `/api/projects/${encodeURIComponent(project)}/contacts/${contactId}/businesses/${businessId}`,
+    { method: "DELETE" },
+  );
+}
+
+// ── Businesses ────────────────────────────────────────────────────────────────
+
+export type BusinessSource = "manual" | "auto_from_contacts";
+
+export interface BusinessAddress {
+  street?: string;
+  postalCode?: string;
+  city?: string;
+  region?: string;
+  country?: string;
+}
+
+export interface Business {
+  id: number;
+  project: string;
+  name: string;
+  domain: string | null;
+  description: string;
+  notes: string;
+  website: string | null;
+  emails: string[];
+  phones: string[];
+  socials: SocialHandle[];
+  /** Auto-filled from the website during soul refresh; manually editable. */
+  address: BusinessAddress | null;
+  /** Unix ms of the last successful auto-fill (null = never auto-filled). */
+  addressFetchedAt: number | null;
+  logo: string | null;
+  tags: string[];
+  soul: string;
+  soulStatus: SoulStatus;
+  soulError: string | null;
+  soulRefreshedAt: number | null;
+  soulRefreshingAt: number | null;
+  soulManualEditedAt: number | null;
+  soulNextRefreshAt: number | null;
+  soulSources: SoulSource[];
+  source: BusinessSource;
+  originalLang: string | null;
+  createdBy: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface BusinessInput {
+  name: string;
+  domain?: string | null;
+  description?: string;
+  notes?: string;
+  website?: string | null;
+  emails?: string[];
+  phones?: string[];
+  socials?: SocialHandle[];
+  address?: BusinessAddress | null;
+  logo?: string | null;
+  tags?: string[];
+}
+
+export async function fetchBusinesses(
+  project: string,
+  opts?: { q?: string; limit?: number; offset?: number },
+): Promise<{ businesses: Business[]; total: number }> {
+  const params = new URLSearchParams();
+  if (opts?.q) params.set("q", opts.q);
+  if (opts?.limit !== undefined) params.set("limit", String(opts.limit));
+  if (opts?.offset !== undefined) params.set("offset", String(opts.offset));
+  const qs = params.toString();
+  return jsonFetch(
+    `/api/projects/${encodeURIComponent(project)}/businesses${qs ? `?${qs}` : ""}`,
+  );
+}
+
+export async function fetchBusiness(
+  project: string,
+  id: number,
+): Promise<Business> {
+  const data = await jsonFetch<{ business: Business }>(
+    `/api/projects/${encodeURIComponent(project)}/businesses/${id}`,
+  );
+  return data.business;
+}
+
+export async function createBusiness(
+  project: string,
+  input: BusinessInput,
+): Promise<Business> {
+  const data = await jsonFetch<{ business: Business }>(
+    `/api/projects/${encodeURIComponent(project)}/businesses`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+  return data.business;
+}
+
+export async function updateBusiness(
+  project: string,
+  id: number,
+  patch: Partial<BusinessInput>,
+): Promise<Business> {
+  const data = await jsonFetch<{ business: Business }>(
+    `/api/projects/${encodeURIComponent(project)}/businesses/${id}`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+  );
+  return data.business;
+}
+
+export async function deleteBusiness(
+  project: string,
+  id: number,
+): Promise<void> {
+  await jsonFetch(
+    `/api/projects/${encodeURIComponent(project)}/businesses/${id}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function updateBusinessSoul(
+  project: string,
+  id: number,
+  soul: string,
+): Promise<Business> {
+  const data = await jsonFetch<{ business: Business }>(
+    `/api/projects/${encodeURIComponent(project)}/businesses/${id}/soul`,
+    { method: "PUT", body: JSON.stringify({ soul }) },
+  );
+  return data.business;
+}
+
+export async function refreshBusinessSoul(
+  project: string,
+  id: number,
+): Promise<Response> {
+  return fetch(
+    `/api/projects/${encodeURIComponent(project)}/businesses/${id}/soul/refresh`,
+    { method: "POST", credentials: "include" },
+  );
+}
+
+export async function triggerBusinessAutoBuild(
+  project: string,
+): Promise<{ ok: boolean }> {
+  return jsonFetch(
+    `/api/projects/${encodeURIComponent(project)}/businesses/auto-build`,
+    { method: "POST" },
+  );
 }
 
 // ── Knowledge Base: Definitions ─────────────────────────────────────────────

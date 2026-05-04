@@ -1,0 +1,1 @@
+Look up an organisation in the active project by id, exact name, or domain. Returns name, domain, website, emails, social handles, description, notes, the curated soul body, and the ids of linked contacts. Use this when the user references a company and you need recent context — preferred over guessing.

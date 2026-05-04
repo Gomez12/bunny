@@ -240,13 +240,17 @@ async function handleCreate(
 
   const parsed = parseWorkflowToml(tomlText);
   if (!parsed.def) {
-    return json({ error: "invalid workflow TOML", details: parsed.errors }, 400);
+    return json(
+      { error: "invalid workflow TOML", details: parsed.errors },
+      400,
+    );
   }
 
   // Slug: explicit body.slug wins; otherwise derived from def.name.
   let slug: string;
   try {
-    const candidate = body.slug && body.slug.trim() ? body.slug : parsed.def.name;
+    const candidate =
+      body.slug && body.slug.trim() ? body.slug : parsed.def.name;
     slug = validateWorkflowSlug(candidate);
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
@@ -329,7 +333,8 @@ async function handleUpdate(
     patch.tomlSha256 = hashWorkflowToml(body.tomlText);
   }
   if (body.layout !== undefined) {
-    patch.layoutJson = body.layout === null ? null : JSON.stringify(body.layout);
+    patch.layoutJson =
+      body.layout === null ? null : JSON.stringify(body.layout);
   }
 
   if (Object.keys(patch).length === 0) {
@@ -352,11 +357,7 @@ async function handleUpdate(
   return json({ workflow: toWorkflowDto(next), tomlText });
 }
 
-function handleDelete(
-  ctx: WorkflowRouteCtx,
-  user: User,
-  id: number,
-): Response {
+function handleDelete(ctx: WorkflowRouteCtx, user: User, id: number): Response {
   const wf = getWorkflow(ctx.db, id);
   if (!wf) return json({ error: "not found" }, 404);
   const p = getProject(ctx.db, wf.project);

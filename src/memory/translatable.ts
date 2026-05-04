@@ -30,7 +30,12 @@ export type TranslationStatus = "pending" | "translating" | "ready" | "error";
 /** Metadata for one translatable entity kind. Shape is uniform; only columns differ. */
 export interface TranslatableKind {
   /** Machine name used in SSE events, HTTP paths, and the registry. */
-  readonly name: "kb_definition" | "document" | "contact" | "board_card";
+  readonly name:
+    | "kb_definition"
+    | "document"
+    | "contact"
+    | "board_card"
+    | "business";
   /** Entity table (e.g. 'kb_definitions'). Source copy lives here. */
   readonly entityTable: string;
   /** Sidecar table (e.g. 'kb_definition_translations'). */

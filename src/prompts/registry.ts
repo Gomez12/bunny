@@ -445,6 +445,134 @@ Current soul:
 New messages:
 {{newMessages}}`;
 
+// ── Contact / business soul refresh (project-overridable) ──────────────────
+
+const CONTACT_SOUL_REFRESH_DEFAULT = `You are curating the "soul" of contact "{{contactName}}" for project "{{project}}" — a compact, factual summary of what this person is currently doing: ongoing projects, recent publications, public roles, communication style hints. Input is the contact's public socials and (optionally) website.
+
+Inputs you receive:
+1. The current soul body (may be empty).
+2. A list of social handles you can scrape via web_search and web_fetch.
+3. An optional website URL.
+4. The character budget you must respect.
+
+Rules — apply ALL of them:
+1. Use web_search and web_fetch to look at the listed handles + website. Prefer the official, public profile pages. Skip anything behind a login wall or that the platform blocks; do not guess at content you cannot read.
+2. Keep every observation in the current soul that still applies; treat it as a trusted seed (manual edits and prior auto-runs both flow through it).
+3. Add freshly observed facts about the person's current activities, recent posts/publications, professional focus, ongoing interests. Prefer date-specific or otherwise verifiable observations.
+4. Deduplicate aggressively — never restate the same fact in different words.
+5. Hard cap at {{budget}} characters for the soul body. If the merged body would exceed the budget, REWRITE keeping only the most stable + most recent items. Drop the most ephemeral items first.
+6. Stay neutral and respectful. Never speculate about anything you have no public source for.
+7. **Output format — return EXACTLY ONE fenced \`\`\`json\`\`\` block and nothing else** with this shape:
+
+\`\`\`json
+{
+  "soul": "string (the new soul body, ≤ {{budget}} chars, plain text or markdown bullets)",
+  "sources": [
+    "https://... (each URL you actually loaded; max 12)"
+  ]
+}
+\`\`\`
+
+If you cannot reach any source, still return the block: keep the previous soul verbatim and use an empty \`sources\` array.
+
+Target language: {{targetLang}}.
+
+Current soul:
+{{currentSoul}}
+
+Social handles:
+{{socials}}
+
+Website: {{website}}`;
+
+const BUSINESS_SOUL_REFRESH_DEFAULT = `You are curating the "soul" of business "{{businessName}}" for project "{{project}}" — a compact, factual summary of what this organisation is currently doing: products, recent launches, hiring, news, public stance. You also extract the business's postal address when the website lists one.
+
+Inputs you receive:
+1. The current soul body (may be empty).
+2. The primary domain.
+3. The website URL.
+4. A list of social handles.
+5. The character budget you must respect.
+
+Rules — apply ALL of them:
+1. Use web_search and web_fetch on the website + socials. Prefer the official site, the company blog, and recent press coverage. **For the address, look at the website's contact / imprint / impressum / colophon / footer page first.**
+2. Keep every observation in the current soul that still applies; treat it as a trusted seed.
+3. Add freshly observed facts about the company's current focus, recent product launches, expansions, hiring posture, public news. Prefer date-specific items.
+4. Deduplicate aggressively.
+5. Hard cap at {{budget}} characters. If over, REWRITE keeping only the most stable + most recent items.
+6. Stay neutral. Never invent facts about ownership, finances, or legal status without a verifiable source.
+7. **For the address: only fill fields you actually saw on the website.** Omit fields you cannot verify — do NOT guess a city from the domain. If no address is published, omit the \`address\` key entirely. Country uses the ISO 3166-1 alpha-2 code ("NL", "DE", "US") when you are confident, otherwise the country's English name.
+8. **Output format — return EXACTLY ONE fenced \`\`\`json\`\`\` block** with this shape:
+
+\`\`\`json
+{
+  "soul": "string (≤ {{budget}} chars)",
+  "sources": [
+    "https://... (each URL you actually loaded; max 12)"
+  ],
+  "address": {
+    "street": "Hoofdstraat 12",
+    "postalCode": "1234 AB",
+    "city": "Amsterdam",
+    "region": "Noord-Holland",
+    "country": "NL"
+  }
+}
+\`\`\`
+
+If you cannot reach any source, still return the block: keep the previous soul verbatim, use an empty \`sources\` array, and omit the \`address\` key.
+
+Target language: {{targetLang}}.
+
+Current soul:
+{{currentSoul}}
+
+Domain: {{domain}}
+Website: {{website}}
+
+Social handles:
+{{socials}}`;
+
+const BUSINESS_AUTO_BUILD_ENRICH_DEFAULT = `You are an organisation-profile researcher. The user gives you a freshly-discovered business name plus its primary domain (one or both may be present). Your job is to gather a brief, factual profile.
+
+Use web_search and web_fetch to look at the company's website and reputable third-party sources. Prefer official channels.
+
+Output format — return EXACTLY ONE fenced \`\`\`json\`\`\` block and nothing else, with this shape:
+
+\`\`\`json
+{
+  "description": "string (1–3 sentences, in the project's default language)",
+  "website": "https://...    (if you can confirm it; otherwise omit the field)",
+  "emails": ["info@..."],
+  "phones": ["+31..."],
+  "socials": [
+    { "platform": "linkedin", "handle": "company/acme", "url": "https://..." }
+  ],
+  "address": {
+    "street": "Hoofdstraat 12",
+    "postalCode": "1234 AB",
+    "city": "Amsterdam",
+    "region": "Noord-Holland",
+    "country": "NL"
+  }
+}
+\`\`\`
+
+Address rules — only fill fields you actually saw on the website's contact / imprint / impressum / footer page. Omit fields you cannot verify; do NOT guess. Country uses the ISO 3166-1 alpha-2 code when you are confident, otherwise the country's English name. If no address is published, omit the \`address\` key entirely.
+
+Inputs:
+- Name: {{name}}
+- Domain: {{domain}}
+- Search results so far: {{searchResults}}
+
+If you cannot find reliable information, still return the block with empty arrays and an empty description.`;
+
+const TOOLS_LOOKUP_CONTACT_DESCRIPTION_DEFAULT =
+  "Look up a contact in the active project by id, exact name, or email. Returns name, emails, phones, company, title, tags, social handles, the curated soul body (what this person is currently up to), and the ids of linked businesses. Use this when the user references someone by name and you need recent context — preferred over guessing.";
+
+const TOOLS_LOOKUP_BUSINESS_DESCRIPTION_DEFAULT =
+  "Look up an organisation in the active project by id, exact name, or domain. Returns name, domain, website, emails, social handles, description, notes, the curated soul body, and the ids of linked contacts. Use this when the user references a company and you need recent context — preferred over guessing.";
+
 // ── Tool descriptions (global) ───────────────────────────────────────────────
 
 const TOOLS_ASK_USER_DESCRIPTION_DEFAULT =
@@ -719,7 +847,13 @@ export const PROMPTS: Record<string, PromptDef> = {
     description:
       "System prompt for the hourly per-(user, project) memory refresh job. Merges new factual messages into the existing memory body and compacts when over budget.",
     defaultText: MEMORY_USER_PROJECT_REFRESH_DEFAULT,
-    variables: ["project", "userDisplay", "currentMemory", "newMessages", "budget"],
+    variables: [
+      "project",
+      "userDisplay",
+      "currentMemory",
+      "newMessages",
+      "budget",
+    ],
     warnsTokenCost: true,
   },
   "memory.agent_project.refresh": {
@@ -745,6 +879,68 @@ export const PROMPTS: Record<string, PromptDef> = {
       "System prompt for the hourly per-user soul refresh job. Soul captures personality + style + stable demographic preferences across every project.",
     defaultText: MEMORY_USER_SOUL_REFRESH_DEFAULT,
     variables: ["userDisplay", "currentSoul", "newMessages", "budget"],
+    warnsTokenCost: true,
+  },
+  "contact.soul.refresh": {
+    key: "contact.soul.refresh",
+    scope: "projectOverridable",
+    description:
+      "System prompt for the periodic per-contact soul refresh job. Drives an LLM with web_search + web_fetch to summarise what the contact is currently up to. Output is parsed as JSON ({soul, sources}); malformed edits break parsing.",
+    defaultText: CONTACT_SOUL_REFRESH_DEFAULT,
+    variables: [
+      "project",
+      "contactName",
+      "currentSoul",
+      "socials",
+      "website",
+      "targetLang",
+      "budget",
+    ],
+    warnsJsonContract: true,
+    warnsTokenCost: true,
+  },
+  "business.soul.refresh": {
+    key: "business.soul.refresh",
+    scope: "projectOverridable",
+    description:
+      "System prompt for the periodic per-business soul refresh job. Drives an LLM with web_search + web_fetch over the business's website + socials. Output is parsed as JSON ({soul, sources}); malformed edits break parsing.",
+    defaultText: BUSINESS_SOUL_REFRESH_DEFAULT,
+    variables: [
+      "project",
+      "businessName",
+      "domain",
+      "website",
+      "socials",
+      "currentSoul",
+      "targetLang",
+      "budget",
+    ],
+    warnsJsonContract: true,
+    warnsTokenCost: true,
+  },
+  "business.auto_build.enrich": {
+    key: "business.auto_build.enrich",
+    scope: "projectOverridable",
+    description:
+      "User-message template for the business auto-build enrichment step. Asks the agent for a brief profile of a freshly-discovered organisation. Output is parsed as JSON; malformed edits break parsing.",
+    defaultText: BUSINESS_AUTO_BUILD_ENRICH_DEFAULT,
+    variables: ["name", "domain", "searchResults"],
+    warnsJsonContract: true,
+  },
+  "tools.lookup_contact.description": {
+    key: "tools.lookup_contact.description",
+    scope: "global",
+    description:
+      "Tool description for `lookup_contact`. Sent to the LLM in the tool schema on every turn for project-scoped runs — keep it tight.",
+    defaultText: TOOLS_LOOKUP_CONTACT_DESCRIPTION_DEFAULT,
+    warnsTokenCost: true,
+  },
+  "tools.lookup_business.description": {
+    key: "tools.lookup_business.description",
+    scope: "global",
+    description:
+      "Tool description for `lookup_business`. Sent to the LLM in the tool schema on every turn for project-scoped runs — keep it tight.",
+    defaultText: TOOLS_LOOKUP_BUSINESS_DESCRIPTION_DEFAULT,
     warnsTokenCost: true,
   },
 };
@@ -780,7 +976,12 @@ export type PromptKey =
   | "workflows.bash.confirmation_prompt"
   | "memory.user_project.refresh"
   | "memory.agent_project.refresh"
-  | "memory.user_soul.refresh";
+  | "memory.user_soul.refresh"
+  | "contact.soul.refresh"
+  | "business.soul.refresh"
+  | "business.auto_build.enrich"
+  | "tools.lookup_contact.description"
+  | "tools.lookup_business.description";
 
 /** All registered prompt keys, in declaration order. */
 export const PROMPT_KEYS: PromptKey[] = Object.keys(PROMPTS) as PromptKey[];

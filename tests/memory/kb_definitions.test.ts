@@ -552,6 +552,7 @@ describe("canEditDefinition", () => {
     visibility: "public",
     languages: ["en"],
     defaultLanguage: "en",
+    autoBuildBusinesses: false,
     createdBy: "owner",
     createdAt: 0,
     updatedAt: 0,

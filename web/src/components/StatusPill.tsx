@@ -50,3 +50,15 @@ export default function StatusPill({ status, label, title }: Props) {
     </span>
   );
 }
+
+/**
+ * Map an entity-soul status (`'idle' | 'refreshing' | 'error'`) to the
+ * matching pill shape — used by Contact and Business cards/dialogs (ADR 0036).
+ */
+export function soulStatusToPill(
+  s: "idle" | "refreshing" | "error",
+): PillStatus {
+  if (s === "refreshing") return "translating";
+  if (s === "error") return "failed";
+  return "up-to-date";
+}

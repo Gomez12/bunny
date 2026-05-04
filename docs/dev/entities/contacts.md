@@ -2,7 +2,7 @@
 
 ## What it is
 
-Per-project contact management with groups. Emails, phones, and tags are JSON arrays to avoid join tables for simple lists. Supports vCard import/export, Contact Picker API on Android, and the usual Edit/Ask LLM modes.
+Per-project contact management with groups. Emails, phones, tags, and **social handles** are JSON arrays to avoid join tables for simple lists. Supports vCard import/export, Contact Picker API on Android, and the usual Edit/Ask LLM modes. Each contact carries a periodically refreshed **soul** body (LLM-curated summary of what the person is currently up to, scraped from their public socials + website) — see [ADR 0036](../../adr/0036-social-handles-and-businesses.md).
 
 ## Data model
 
@@ -45,7 +45,34 @@ CREATE TABLE contact_group_members (
 );
 ```
 
-Plus `contact_translations` sidecar — source field is `notes` only (structured fields stay untranslated).
+**Soul + social columns (ADR 0036):**
+
+```sql
+ALTER TABLE contacts ADD COLUMN socials               TEXT NOT NULL DEFAULT '[]';  -- JSON: [{platform, handle, url?}]
+ALTER TABLE contacts ADD COLUMN soul                  TEXT NOT NULL DEFAULT '';
+ALTER TABLE contacts ADD COLUMN soul_status           TEXT NOT NULL DEFAULT 'idle';
+ALTER TABLE contacts ADD COLUMN soul_error            TEXT;
+ALTER TABLE contacts ADD COLUMN soul_refreshed_at     INTEGER;
+ALTER TABLE contacts ADD COLUMN soul_refreshing_at    INTEGER;
+ALTER TABLE contacts ADD COLUMN soul_manual_edited_at INTEGER;
+ALTER TABLE contacts ADD COLUMN soul_next_refresh_at  INTEGER;
+ALTER TABLE contacts ADD COLUMN soul_sources          TEXT;  -- JSON: [{url, fetchedAt}]
+```
+
+Plus `contact_translations` sidecar — source fields are `notes` and `soul` (other structured fields stay untranslated).
+
+**M:N to businesses (ADR 0036):**
+
+```sql
+CREATE TABLE contact_businesses (
+  contact_id   INTEGER NOT NULL REFERENCES contacts(id)   ON DELETE CASCADE,
+  business_id  INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  role         TEXT,
+  is_primary   INTEGER NOT NULL DEFAULT 0,
+  created_at   INTEGER NOT NULL,
+  PRIMARY KEY (contact_id, business_id)
+);
+```
 
 ## HTTP API
 
@@ -59,6 +86,10 @@ Plus `contact_translations` sidecar — source field is `notes` only (structured
 - `PATCH/DELETE /api/projects/:p/contact-groups/:id`.
 - `POST /api/projects/:p/contacts/edit` — Edit mode (analyse / organise contacts).
 - `POST /api/projects/:p/contacts/ask` — Ask mode.
+- `PUT  /api/projects/:p/contacts/:id/soul` — manual soul edit (≤ 4000 chars).
+- `POST /api/projects/:p/contacts/:id/soul/refresh` — force soul refresh now (SSE).
+- `POST /api/projects/:p/contacts/:id/businesses` — link to a business `{businessId, role?, isPrimary?}`.
+- `DELETE /api/projects/:p/contacts/:id/businesses/:businessId` — unlink.
 
 ## Code paths
 
@@ -75,11 +106,11 @@ Plus `contact_translations` sidecar — source field is `notes` only (structured
 
 ## Extension hooks
 
-- **Translation:** yes. Source field: `notes`. `contact_translations` sidecar.
+- **Translation:** yes. Source fields: `notes`, `soul`. `contact_translations` sidecar. Soul stale-marking is gated by `cfg.contacts.translateSoul`.
 - **Trash:** yes. Soft-delete — contacts don't have a UNIQUE(project, name) constraint (names can repeat), so no name-munging required.
 - **Notifications:** no.
-- **Scheduler:** no.
-- **Tools:** no agent tools for v1.
+- **Scheduler:** `contact.soul_refresh` (default cron `0 */6 * * *`) + `contact.soul_sweep_stuck` (every 5 min).
+- **Tools:** `lookup_contact` (closure-bound, project-scoped) returns name/emails/phones/socials/soul + linked businesses.
 
 ## vCard import/export
 

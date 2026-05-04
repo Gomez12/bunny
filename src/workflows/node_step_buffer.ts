@@ -73,7 +73,10 @@ export class NodeStepBuffer {
       this.currentToolCallIndex = callIndex;
     }
     if (this.currentTool) {
-      if (name && (!this.currentTool.label || this.currentTool.label === "tool")) {
+      if (
+        name &&
+        (!this.currentTool.label || this.currentTool.label === "tool")
+      ) {
         this.currentTool.label = name;
       }
       const sum = (this.currentTool.summary ?? "") + argsDelta;

@@ -81,7 +81,6 @@ function autoMoveToNextLane(db: Database, cardId: number): void {
   }
 }
 
-
 export interface RunCardOpts {
   db: Database;
   queue: BunnyQueue;

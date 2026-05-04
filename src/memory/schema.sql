@@ -373,27 +373,41 @@ CREATE INDEX IF NOT EXISTS idx_documents_trash   ON documents(deleted_at) WHERE 
 -- Per-project contact management. Emails, phones, and tags are stored as
 -- JSON arrays in TEXT columns to avoid join tables for simple lists.
 CREATE TABLE IF NOT EXISTS contacts (
-  id             INTEGER PRIMARY KEY AUTOINCREMENT,
-  project        TEXT    NOT NULL,
-  name           TEXT    NOT NULL,
-  emails         TEXT    NOT NULL DEFAULT '[]',
-  phones         TEXT    NOT NULL DEFAULT '[]',
-  company        TEXT    NOT NULL DEFAULT '',
-  title          TEXT    NOT NULL DEFAULT '',
-  notes          TEXT    NOT NULL DEFAULT '',
-  avatar         TEXT,
-  tags           TEXT    NOT NULL DEFAULT '[]',
-  original_lang  TEXT,                           -- ISO 639-1 of the source notes field
-  source_version INTEGER NOT NULL DEFAULT 1,     -- bumps on every notes edit
-  created_by     TEXT    REFERENCES users(id) ON DELETE SET NULL,
-  created_at     INTEGER NOT NULL,
-  updated_at     INTEGER NOT NULL,
-  deleted_at     INTEGER,                        -- ms; non-null ⇒ soft-deleted (trash bin)
-  deleted_by     TEXT                            -- user.id who soft-deleted
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  project               TEXT    NOT NULL,
+  name                  TEXT    NOT NULL,
+  emails                TEXT    NOT NULL DEFAULT '[]',
+  phones                TEXT    NOT NULL DEFAULT '[]',
+  company               TEXT    NOT NULL DEFAULT '',
+  title                 TEXT    NOT NULL DEFAULT '',
+  notes                 TEXT    NOT NULL DEFAULT '',
+  avatar                TEXT,
+  tags                  TEXT    NOT NULL DEFAULT '[]',
+  socials               TEXT    NOT NULL DEFAULT '[]',  -- JSON: [{platform, handle, url?}]
+  -- Per-contact "soul" (LLM-curated profile body, periodically refreshed via web tools).
+  -- Mirrors the user/agent soul state machine but uses a cadence timestamp instead of a
+  -- watermark message-id because input is external content, not chat messages.
+  soul                  TEXT    NOT NULL DEFAULT '',
+  soul_status           TEXT    NOT NULL DEFAULT 'idle', -- 'idle' | 'refreshing' | 'error'
+  soul_error            TEXT,
+  soul_refreshed_at     INTEGER,
+  soul_refreshing_at    INTEGER,
+  soul_manual_edited_at INTEGER,
+  soul_next_refresh_at  INTEGER,
+  soul_sources          TEXT,                            -- JSON: [{url, fetchedAt}]
+  original_lang         TEXT,                            -- ISO 639-1 of the source notes/soul fields
+  source_version        INTEGER NOT NULL DEFAULT 1,      -- bumps on every notes/soul edit
+  created_by            TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at            INTEGER NOT NULL,
+  updated_at            INTEGER NOT NULL,
+  deleted_at            INTEGER,                         -- ms; non-null ⇒ soft-deleted (trash bin)
+  deleted_by            TEXT                             -- user.id who soft-deleted
 );
 CREATE INDEX IF NOT EXISTS idx_contacts_project ON contacts(project, name);
 CREATE INDEX IF NOT EXISTS idx_contacts_created_by ON contacts(created_by);
 CREATE INDEX IF NOT EXISTS idx_contacts_trash ON contacts(deleted_at) WHERE deleted_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_contacts_soul_refresh
+  ON contacts(soul_status, soul_next_refresh_at) WHERE deleted_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS contact_groups (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -505,6 +519,7 @@ CREATE TABLE IF NOT EXISTS contact_translations (
   contact_id      INTEGER NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
   lang            TEXT    NOT NULL,
   notes           TEXT,
+  soul            TEXT,
   status          TEXT    NOT NULL DEFAULT 'pending',
   error           TEXT,
   source_version  INTEGER NOT NULL,
@@ -534,6 +549,85 @@ CREATE TABLE IF NOT EXISTS board_card_translations (
 );
 CREATE INDEX IF NOT EXISTS idx_card_trans_lookup  ON board_card_translations(card_id, lang);
 CREATE INDEX IF NOT EXISTS idx_card_trans_pending ON board_card_translations(status, source_version);
+
+-- ── Businesses ──────────────────────────────────────────────────────────────
+-- Per-project organisation entities. Sibling of contacts; M:N linked via
+-- `contact_businesses`. Auto-build handler (opt-in via projects.auto_build_businesses)
+-- derives candidates from contacts.company + email/website domains and enriches
+-- via web_search. Each business has its own LLM-curated soul refreshed on a
+-- cadence (mirror of contact soul state machine).
+CREATE TABLE IF NOT EXISTS businesses (
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  project               TEXT    NOT NULL REFERENCES projects(name) ON DELETE CASCADE,
+  name                  TEXT    NOT NULL,
+  domain                TEXT,                              -- primary domain (e.g. ezbase.nl)
+  description           TEXT    NOT NULL DEFAULT '',
+  notes                 TEXT    NOT NULL DEFAULT '',
+  website               TEXT,
+  emails                TEXT    NOT NULL DEFAULT '[]',     -- JSON array
+  phones                TEXT    NOT NULL DEFAULT '[]',
+  socials               TEXT    NOT NULL DEFAULT '[]',     -- same shape as contacts.socials
+  address               TEXT,                              -- JSON: {street, postalCode, city, region, country}
+  address_fetched_at    INTEGER,                           -- Unix ms; last successful auto-fill from soul refresh
+  logo                  TEXT,                              -- data URL
+  tags                  TEXT    NOT NULL DEFAULT '[]',
+  -- Soul (mirror of contacts soul fields):
+  soul                  TEXT    NOT NULL DEFAULT '',
+  soul_status           TEXT    NOT NULL DEFAULT 'idle',
+  soul_error            TEXT,
+  soul_refreshed_at     INTEGER,
+  soul_refreshing_at    INTEGER,
+  soul_manual_edited_at INTEGER,
+  soul_next_refresh_at  INTEGER,
+  soul_sources          TEXT,
+  source                TEXT    NOT NULL DEFAULT 'manual', -- 'manual' | 'auto_from_contacts'
+  original_lang         TEXT,
+  source_version        INTEGER NOT NULL DEFAULT 1,
+  created_by            TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at            INTEGER NOT NULL,
+  updated_at            INTEGER NOT NULL,
+  deleted_at            INTEGER,
+  deleted_by            TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_businesses_project       ON businesses(project, name);
+CREATE INDEX IF NOT EXISTS idx_businesses_trash         ON businesses(deleted_at) WHERE deleted_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_businesses_soul_refresh  ON businesses(soul_status, soul_next_refresh_at) WHERE deleted_at IS NULL;
+-- Dedup-guards: load-bearing for auto_build race-safety. The partial-index
+-- `WHERE deleted_at IS NULL` clauses let a soft-deleted row coexist with a
+-- freshly created one of the same name/domain.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_businesses_unique_name_ci
+  ON businesses(project, lower(name)) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_businesses_unique_domain
+  ON businesses(project, domain) WHERE domain IS NOT NULL AND deleted_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS contact_businesses (
+  contact_id   INTEGER NOT NULL REFERENCES contacts(id)   ON DELETE CASCADE,
+  business_id  INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  role         TEXT,                  -- e.g. "Director", "Owner"
+  is_primary   INTEGER NOT NULL DEFAULT 0,
+  created_at   INTEGER NOT NULL,
+  PRIMARY KEY (contact_id, business_id)
+);
+CREATE INDEX IF NOT EXISTS idx_contact_businesses_business ON contact_businesses(business_id);
+
+CREATE TABLE IF NOT EXISTS business_translations (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  business_id     INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  lang            TEXT    NOT NULL,
+  description     TEXT,
+  notes           TEXT,
+  soul            TEXT,
+  status          TEXT    NOT NULL DEFAULT 'pending',
+  error           TEXT,
+  source_version  INTEGER NOT NULL,
+  source_hash     TEXT,
+  translating_at  INTEGER,
+  created_at      INTEGER NOT NULL,
+  updated_at      INTEGER NOT NULL,
+  UNIQUE(business_id, lang)
+);
+CREATE INDEX IF NOT EXISTS idx_business_trans_lookup  ON business_translations(business_id, lang);
+CREATE INDEX IF NOT EXISTS idx_business_trans_pending ON business_translations(status, source_version);
 
 -- ── Web News ────────────────────────────────────────────────────────────────
 -- Per-project periodic news aggregator. Each topic carries its own agent,

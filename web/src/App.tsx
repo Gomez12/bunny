@@ -30,6 +30,7 @@ const TasksTab = lazy(() => import("./tabs/TasksTab"));
 const WhiteboardTab = lazy(() => import("./tabs/WhiteboardTab"));
 const DocumentTab = lazy(() => import("./tabs/DocumentTab"));
 const ContactsTab = lazy(() => import("./tabs/ContactsTab"));
+const BusinessesTab = lazy(() => import("./tabs/BusinessesTab"));
 const KnowledgeBaseTab = lazy(() => import("./tabs/KnowledgeBaseTab"));
 const WebNewsTab = lazy(() => import("./tabs/WebNewsTab"));
 const CodeTab = lazy(() => import("./tabs/CodeTab"));
@@ -448,6 +449,9 @@ function AuthenticatedShell({
               currentUser={user}
               onOpenInChat={onOpenInChat}
             />
+          )}
+          {tab === "businesses" && (
+            <BusinessesTab project={activeProject} currentUser={user} />
           )}
           {tab === "knowledge-base" && (
             <KnowledgeBaseTab project={activeProject} currentUser={user} />

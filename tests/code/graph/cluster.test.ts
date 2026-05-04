@@ -33,10 +33,14 @@ describe("clusterGraph — Louvain", () => {
 
     // a,b,c in one cluster; d,e,f in the other.
     const abc = new Set(
-      s.nodes.filter((n) => ["a", "b", "c"].includes(n.id)).map((n) => n.cluster),
+      s.nodes
+        .filter((n) => ["a", "b", "c"].includes(n.id))
+        .map((n) => n.cluster),
     );
     const def = new Set(
-      s.nodes.filter((n) => ["d", "e", "f"].includes(n.id)).map((n) => n.cluster),
+      s.nodes
+        .filter((n) => ["d", "e", "f"].includes(n.id))
+        .map((n) => n.cluster),
     );
     expect(abc.size).toBe(1);
     expect(def.size).toBe(1);

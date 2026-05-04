@@ -50,7 +50,9 @@ export function loadMemoryContext(
   try {
     if (opts.userId) {
       const u =
-        opts.userRow !== undefined ? opts.userRow : getUserById(db, opts.userId);
+        opts.userRow !== undefined
+          ? opts.userRow
+          : getUserById(db, opts.userId);
       if (u && u.soul) out.userSoul = u.soul;
       const upm = getUserProjectMemory(db, opts.userId, opts.project);
       if (upm && upm.memory) out.userMemory = upm.memory;

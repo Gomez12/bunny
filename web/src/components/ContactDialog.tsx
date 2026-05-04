@@ -1,7 +1,14 @@
 import { useState, type FormEvent } from "react";
-import type { AuthUser, Contact, ContactGroup } from "../api";
+import type {
+  AuthUser,
+  Contact,
+  ContactGroup,
+  SocialHandle,
+} from "../api";
+import { fetchContact, refreshContactSoul } from "../api";
 import LanguageTabs, { translationStatusToPill } from "./LanguageTabs";
-import StatusPill, { type PillStatus } from "./StatusPill";
+import StatusPill, { type PillStatus, soulStatusToPill } from "./StatusPill";
+import { SOCIAL_PLATFORMS } from "../lib/socials";
 import { useTranslations } from "../hooks/useTranslations";
 
 export interface ContactDialogValue {
@@ -13,6 +20,7 @@ export interface ContactDialogValue {
   notes: string;
   avatar: string | null;
   tags: string[];
+  socials: SocialHandle[];
   groups: number[];
 }
 
@@ -43,8 +51,12 @@ export default function ContactDialog({
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [avatar, setAvatar] = useState<string | null>(initial?.avatar ?? null);
   const [tagsStr, setTagsStr] = useState((initial?.tags ?? []).join(", "));
+  const [socials, setSocials] = useState<SocialHandle[]>(
+    initial?.socials?.length ? initial.socials : [],
+  );
   const [groups, setGroups] = useState<Set<number>>(new Set(initial?.groups ?? []));
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -63,6 +75,13 @@ export default function ContactDialog({
           .split(",")
           .map((t) => t.trim())
           .filter(Boolean),
+        socials: socials
+          .map((s) => ({
+            platform: s.platform,
+            handle: s.handle.trim(),
+            ...(s.url?.trim() ? { url: s.url.trim() } : {}),
+          }))
+          .filter((s) => s.handle || s.url),
         groups: [...groups],
       });
       onClose();
@@ -206,6 +225,90 @@ export default function ContactDialog({
             />
           </label>
 
+          <div className="project-form__field">
+            Social profiles
+            {socials.length === 0 && (
+              <div style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 6 }}>
+                Add public handles or URLs so the auto-refresh can summarise what
+                this contact is currently up to.
+              </div>
+            )}
+            {socials.map((s, i) => (
+              <div key={i} className="contact-form__multi-row">
+                <select
+                  value={s.platform}
+                  onChange={(e) => {
+                    const next = [...socials];
+                    next[i] = { ...next[i]!, platform: e.target.value };
+                    setSocials(next);
+                  }}
+                  style={{ minWidth: 110 }}
+                >
+                  {SOCIAL_PLATFORMS.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  value={s.handle}
+                  placeholder={s.platform === "website" ? "https://..." : "@handle or URL"}
+                  onChange={(e) => {
+                    const next = [...socials];
+                    next[i] = { ...next[i]!, handle: e.target.value };
+                    setSocials(next);
+                  }}
+                />
+                <button
+                  type="button"
+                  className="contact-form__remove-btn"
+                  onClick={() =>
+                    setSocials(socials.filter((_, idx) => idx !== i))
+                  }
+                  title="Remove"
+                >
+                  &times;
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              className="contact-form__add-btn"
+              onClick={() =>
+                setSocials([...socials, { platform: "twitter", handle: "" }])
+              }
+            >
+              + Add social profile
+            </button>
+          </div>
+
+          {mode === "edit" && initial && (
+            <SoulSection
+              initial={initial}
+              refreshing={refreshing}
+              onStartRefresh={async () => {
+                setRefreshing(true);
+                try {
+                  const res = await refreshContactSoul(initial.project, initial.id);
+                  if (!res.ok) {
+                    alert(`Refresh failed: HTTP ${res.status}`);
+                    return;
+                  }
+                  // Drain the SSE so the run actually starts on the server.
+                  const reader = res.body?.getReader();
+                  if (reader) {
+                    while (true) {
+                      const { done } = await reader.read();
+                      if (done) break;
+                    }
+                  }
+                } finally {
+                  setRefreshing(false);
+                }
+              }}
+            />
+          )}
+
           {allGroups.length > 0 && (
             <div className="project-form__field">
               Groups
@@ -269,6 +372,61 @@ export default function ContactDialog({
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Soul preview + "Refresh now" button. Polls the entity after a refresh so
+ * the dialog reflects the new soul without forcing the user to close + reopen.
+ */
+function SoulSection({
+  initial,
+  refreshing,
+  onStartRefresh,
+}: {
+  initial: Contact;
+  refreshing: boolean;
+  onStartRefresh: () => Promise<void>;
+}) {
+  // We snapshot the initial row, then re-fetch after a successful refresh so
+  // the user immediately sees the new soul/status.
+  const [current, setCurrent] = useState<Contact>(initial);
+  const handleClick = async () => {
+    await onStartRefresh();
+    try {
+      setCurrent(await fetchContact(initial.project, initial.id));
+    } catch {
+      // non-fatal — list view will catch up on close
+    }
+  };
+  return (
+    <div className="project-form__field">
+      Soul (auto-refreshed)
+      <div className="soul-status-row">
+        <StatusPill status={soulStatusToPill(current.soulStatus)} />
+        <span>
+          {current.soulRefreshedAt
+            ? `last refreshed ${new Date(current.soulRefreshedAt).toLocaleString()}`
+            : "never refreshed"}
+        </span>
+        <button
+          type="button"
+          className="btn soul-status-row__refresh"
+          disabled={refreshing || current.soulStatus === "refreshing"}
+          onClick={() => void handleClick()}
+        >
+          {refreshing ? "Refreshing…" : "Refresh now"}
+        </button>
+      </div>
+      <div
+        className={`soul-preview${current.soul ? "" : " soul-preview--empty"}`}
+      >
+        {current.soul || "(empty — will be filled on next refresh)"}
+      </div>
+      {current.soulError && (
+        <div className="lang-readonly__error">{current.soulError}</div>
+      )}
     </div>
   );
 }

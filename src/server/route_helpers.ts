@@ -57,7 +57,8 @@ export function requireProjectAccess(
   const p = getProject(db, project);
   if (!p)
     return { ok: false, response: json({ error: "project not found" }, 404) };
-  const allowed = mode === "edit" ? canEditProject(p, user) : canSeeProject(p, user);
+  const allowed =
+    mode === "edit" ? canEditProject(p, user) : canSeeProject(p, user);
   if (!allowed)
     return { ok: false, response: json({ error: "forbidden" }, 403) };
   return { ok: true, project, p };

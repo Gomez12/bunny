@@ -34,9 +34,7 @@ beforeAll(() => {
         if (serverDelayMs > 0) {
           await new Promise((r) => setTimeout(r, serverDelayMs));
         }
-        const body = buildSseBody([
-          makeContentChunk("ok"),
-        ]);
+        const body = buildSseBody([makeContentChunk("ok")]);
         return new Response(body, {
           headers: {
             "Content-Type": "text/event-stream",
@@ -128,18 +126,30 @@ describe("chat() concurrency gate integration", () => {
     let waitedCount = 0;
 
     await Promise.all([
-      chatSync(cfg(), { messages: [{ role: "user", content: "1" }] }, {
-        gate,
-        onQueueWait: () => waitedCount++,
-      }),
-      chatSync(cfg(), { messages: [{ role: "user", content: "2" }] }, {
-        gate,
-        onQueueWait: () => waitedCount++,
-      }),
-      chatSync(cfg(), { messages: [{ role: "user", content: "3" }] }, {
-        gate,
-        onQueueWait: () => waitedCount++,
-      }),
+      chatSync(
+        cfg(),
+        { messages: [{ role: "user", content: "1" }] },
+        {
+          gate,
+          onQueueWait: () => waitedCount++,
+        },
+      ),
+      chatSync(
+        cfg(),
+        { messages: [{ role: "user", content: "2" }] },
+        {
+          gate,
+          onQueueWait: () => waitedCount++,
+        },
+      ),
+      chatSync(
+        cfg(),
+        { messages: [{ role: "user", content: "3" }] },
+        {
+          gate,
+          onQueueWait: () => waitedCount++,
+        },
+      ),
     ]);
 
     expect(waitedCount).toBe(1); // only the third was queued
@@ -157,9 +167,13 @@ describe("chat() concurrency gate integration", () => {
 
     let threw = false;
     try {
-      await chat(badCfg, { messages: [{ role: "user", content: "x" }] }, {
-        gate,
-      });
+      await chat(
+        badCfg,
+        { messages: [{ role: "user", content: "x" }] },
+        {
+          gate,
+        },
+      );
     } catch {
       threw = true;
     }
@@ -185,9 +199,13 @@ describe("chat() concurrency gate integration", () => {
     const gate = createConcurrencyGate(1);
     let threw = false;
     try {
-      await chat(errCfg, { messages: [{ role: "user", content: "x" }] }, {
-        gate,
-      });
+      await chat(
+        errCfg,
+        { messages: [{ role: "user", content: "x" }] },
+        {
+          gate,
+        },
+      );
     } catch {
       threw = true;
     }

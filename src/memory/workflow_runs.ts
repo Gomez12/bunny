@@ -266,7 +266,11 @@ export function createRunNode(
       );
       return Number(info.lastInsertRowid);
     } catch (e) {
-      if (String((e as Error).message ?? e).toLowerCase().includes("unique")) {
+      if (
+        String((e as Error).message ?? e)
+          .toLowerCase()
+          .includes("unique")
+      ) {
         return null;
       }
       throw e;
@@ -287,10 +291,7 @@ export function createRunNode(
   return getRunNode(db, id)!;
 }
 
-export function getRunNode(
-  db: Database,
-  id: number,
-): WorkflowRunNode | null {
+export function getRunNode(db: Database, id: number): WorkflowRunNode | null {
   const row = db
     .prepare(`SELECT ${NODE_COLS} FROM workflow_run_nodes WHERE id = ?`)
     .get(id) as NodeRow | undefined;

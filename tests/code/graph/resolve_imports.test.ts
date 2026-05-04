@@ -14,16 +14,31 @@ describe("resolveInternalImports", () => {
     const ex: FileExtraction[] = [
       {
         nodes: [
-          { id: "src/a.ts#module", kind: "module", name: "src/a.ts", filePath: "src/a.ts" },
+          {
+            id: "src/a.ts#module",
+            kind: "module",
+            name: "src/a.ts",
+            filePath: "src/a.ts",
+          },
           { id: "external:./b", kind: "module", name: "./b", filePath: null },
         ],
         edges: [
-          { from: "src/a.ts#module", to: "external:./b", kind: "imports", confidence: 1 },
+          {
+            from: "src/a.ts#module",
+            to: "external:./b",
+            kind: "imports",
+            confidence: 1,
+          },
         ],
       },
       {
         nodes: [
-          { id: "src/b.ts#module", kind: "module", name: "src/b.ts", filePath: "src/b.ts" },
+          {
+            id: "src/b.ts#module",
+            kind: "module",
+            name: "src/b.ts",
+            filePath: "src/b.ts",
+          },
         ],
         edges: [],
       },
@@ -37,13 +52,38 @@ describe("resolveInternalImports", () => {
     const ex: FileExtraction[] = [
       {
         nodes: [
-          { id: "src/server/routes.ts#module", kind: "module", name: "src/server/routes.ts", filePath: "src/server/routes.ts" },
-          { id: "external:../memory/db", kind: "module", name: "../memory/db", filePath: null },
-          { id: "external:./auth", kind: "module", name: "./auth", filePath: null },
+          {
+            id: "src/server/routes.ts#module",
+            kind: "module",
+            name: "src/server/routes.ts",
+            filePath: "src/server/routes.ts",
+          },
+          {
+            id: "external:../memory/db",
+            kind: "module",
+            name: "../memory/db",
+            filePath: null,
+          },
+          {
+            id: "external:./auth",
+            kind: "module",
+            name: "./auth",
+            filePath: null,
+          },
         ],
         edges: [
-          { from: "src/server/routes.ts#module", to: "external:../memory/db", kind: "imports", confidence: 1 },
-          { from: "src/server/routes.ts#module", to: "external:./auth", kind: "imports", confidence: 1 },
+          {
+            from: "src/server/routes.ts#module",
+            to: "external:../memory/db",
+            kind: "imports",
+            confidence: 1,
+          },
+          {
+            from: "src/server/routes.ts#module",
+            to: "external:./auth",
+            kind: "imports",
+            confidence: 1,
+          },
         ],
       },
     ];
@@ -60,11 +100,26 @@ describe("resolveInternalImports", () => {
     const ex: FileExtraction[] = [
       {
         nodes: [
-          { id: "src/x.ts#module", kind: "module", name: "src/x.ts", filePath: "src/x.ts" },
-          { id: "external:react", kind: "module", name: "react", filePath: null },
+          {
+            id: "src/x.ts#module",
+            kind: "module",
+            name: "src/x.ts",
+            filePath: "src/x.ts",
+          },
+          {
+            id: "external:react",
+            kind: "module",
+            name: "react",
+            filePath: null,
+          },
         ],
         edges: [
-          { from: "src/x.ts#module", to: "external:react", kind: "imports", confidence: 1 },
+          {
+            from: "src/x.ts#module",
+            to: "external:react",
+            kind: "imports",
+            confidence: 1,
+          },
         ],
       },
     ];
@@ -77,11 +132,26 @@ describe("resolveInternalImports", () => {
     const ex: FileExtraction[] = [
       {
         nodes: [
-          { id: "src/x.ts#module", kind: "module", name: "src/x.ts", filePath: "src/x.ts" },
-          { id: "external:./missing", kind: "module", name: "./missing", filePath: null },
+          {
+            id: "src/x.ts#module",
+            kind: "module",
+            name: "src/x.ts",
+            filePath: "src/x.ts",
+          },
+          {
+            id: "external:./missing",
+            kind: "module",
+            name: "./missing",
+            filePath: null,
+          },
         ],
         edges: [
-          { from: "src/x.ts#module", to: "external:./missing", kind: "imports", confidence: 1 },
+          {
+            from: "src/x.ts#module",
+            to: "external:./missing",
+            kind: "imports",
+            confidence: 1,
+          },
         ],
       },
     ];

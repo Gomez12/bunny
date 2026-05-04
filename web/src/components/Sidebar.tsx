@@ -8,6 +8,7 @@ import {
   Palette,
   Folder,
   Users,
+  Building2,
   Library,
   Newspaper,
   Code,
@@ -34,6 +35,7 @@ export type NavTabId =
   | "whiteboard"
   | "files"
   | "contacts"
+  | "businesses"
   | "knowledge-base"
   | "news"
   | "code"
@@ -76,6 +78,7 @@ const NAV: NavGroup[] = [
       { id: "files", label: "Files", icon: Folder },
       { id: "code", label: "Code", icon: Code },
       { id: "contacts", label: "Contacts", icon: Users },
+      { id: "businesses", label: "Businesses", icon: Building2 },
       { id: "knowledge-base", label: "Knowledge Base", icon: Library },
       { id: "news", label: "News", icon: Newspaper },
     ],

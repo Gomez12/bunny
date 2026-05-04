@@ -49,13 +49,14 @@ export async function readDocText(
 async function pdfToText(absPath: string): Promise<string> {
   // pdfjs-dist ships as an ESM module; the Bun/Node build is under the
   // `legacy` subpath. Worker is disabled by setting `disableWorker: true`.
-  const pdfjs = (await import("pdfjs-dist/legacy/build/pdf.mjs")) as unknown as {
-    getDocument(src: {
-      data: Uint8Array;
-      disableWorker: boolean;
-      useSystemFonts: boolean;
-    }): { promise: Promise<PdfDoc> };
-  };
+  const pdfjs =
+    (await import("pdfjs-dist/legacy/build/pdf.mjs")) as unknown as {
+      getDocument(src: {
+        data: Uint8Array;
+        disableWorker: boolean;
+        useSystemFonts: boolean;
+      }): { promise: Promise<PdfDoc> };
+    };
   const buf = await new Promise<Buffer>((resolve, reject) => {
     readFile(absPath, (err, data) => (err ? reject(err) : resolve(data)));
   });
@@ -165,11 +166,7 @@ function parseDocExtractJson(text: string): RawExtraction | undefined {
   if (firstBrace >= 0 && lastBrace > firstBrace) {
     try {
       const obj = JSON.parse(text.slice(firstBrace, lastBrace + 1));
-      if (
-        obj &&
-        Array.isArray(obj.nodes) &&
-        Array.isArray(obj.edges)
-      ) {
+      if (obj && Array.isArray(obj.nodes) && Array.isArray(obj.edges)) {
         return obj as RawExtraction;
       }
     } catch {
@@ -179,7 +176,13 @@ function parseDocExtractJson(text: string): RawExtraction | undefined {
   return undefined;
 }
 
-const ALLOWED_NODE_KINDS = ["module", "function", "class", "method", "concept"] as const;
+const ALLOWED_NODE_KINDS = [
+  "module",
+  "function",
+  "class",
+  "method",
+  "concept",
+] as const;
 const ALLOWED_EDGE_KINDS = [
   "imports",
   "calls",
@@ -204,7 +207,9 @@ function adaptExtractionForFile(
   const seen = new Set<string>([docModuleId]);
   for (const n of raw.nodes) {
     if (!n.id || !n.name) continue;
-    const kind = (ALLOWED_NODE_KINDS as readonly string[]).includes(n.kind ?? "")
+    const kind = (ALLOWED_NODE_KINDS as readonly string[]).includes(
+      n.kind ?? "",
+    )
       ? (n.kind as GraphNode["kind"])
       : "concept";
     const id = `${relPath}#${kind}:${n.id}`;
@@ -226,7 +231,9 @@ function adaptExtractionForFile(
     const from = resolveId(e.from);
     const to = resolveId(e.to);
     if (!from || !to) continue;
-    const kind = (ALLOWED_EDGE_KINDS as readonly string[]).includes(e.kind ?? "")
+    const kind = (ALLOWED_EDGE_KINDS as readonly string[]).includes(
+      e.kind ?? "",
+    )
       ? (e.kind as GraphEdge["kind"])
       : "mentions";
     const conf =

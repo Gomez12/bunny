@@ -65,6 +65,7 @@ import {
   WORKSPACE_TOOL_NAMES,
 } from "../tools/workspace.ts";
 import { makeWebTools, WEB_TOOL_NAMES } from "../tools/web.ts";
+import { makeLookupTools, LOOKUP_TOOL_NAMES } from "../tools/lookup_entity.ts";
 import {
   makeActivateSkillTool,
   ACTIVATE_SKILL_TOOL_NAME,
@@ -113,6 +114,7 @@ const DYNAMIC_TOOL_NAMES = new Set<string>([
   ...BOARD_TOOL_NAMES,
   ...WORKSPACE_TOOL_NAMES,
   ...WEB_TOOL_NAMES,
+  ...LOOKUP_TOOL_NAMES,
 ]);
 
 export interface RunAgentOptions {
@@ -633,15 +635,21 @@ function buildRunRegistry(opts: BuildRunRegistryOpts): ToolRegistry {
   const allWeb = opts.webCfg
     ? makeWebTools({ project: opts.boardCtx.project, webCfg: opts.webCfg })
     : [];
+  const allLookup = makeLookupTools({
+    db: opts.boardCtx.db,
+    project: opts.boardCtx.project,
+  });
   if (whitelist) {
     const allow = new Set(whitelist);
     for (const t of allBoard) if (allow.has(t.name)) extras.push(t);
     for (const t of allWorkspace) if (allow.has(t.name)) extras.push(t);
     for (const t of allWeb) if (allow.has(t.name)) extras.push(t);
+    for (const t of allLookup) if (allow.has(t.name)) extras.push(t);
   } else {
     extras.push(...allBoard);
     extras.push(...allWorkspace);
     extras.push(...allWeb);
+    extras.push(...allLookup);
   }
 
   if (allowedSubagents.length > 0) {

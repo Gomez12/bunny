@@ -1,0 +1,1 @@
+Look up a contact in the active project by id, exact name, or email. Returns name, emails, phones, company, title, tags, social handles, the curated soul body (what this person is currently up to), and the ids of linked businesses. Use this when the user references someone by name and you need recent context — preferred over guessing.

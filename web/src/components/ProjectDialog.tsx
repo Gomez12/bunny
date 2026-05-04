@@ -22,6 +22,8 @@ export interface ProjectDialogValue {
   defaultLanguage: string;
   /** Agent names that should be linked to this project after submit. */
   linkedAgents: string[];
+  /** Per-project opt-in for the business.auto_build handler (ADR 0036). */
+  autoBuildBusinesses: boolean;
 }
 
 /** Curated list of ISO 639-1 codes with English display names. Extend freely —
@@ -78,6 +80,9 @@ export default function ProjectDialog({
     if (!initial) return [];
     return allAgents.filter((a) => a.projects.includes(initial.name)).map((a) => a.name);
   });
+  const [autoBuildBusinesses, setAutoBuildBusinesses] = useState<boolean>(
+    initial?.autoBuildBusinesses ?? false,
+  );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -122,6 +127,7 @@ export default function ProjectDialog({
         languages,
         defaultLanguage,
         linkedAgents,
+        autoBuildBusinesses,
       });
       onClose();
     } catch (err) {
@@ -317,6 +323,25 @@ export default function ProjectDialog({
             )}
             <span className="project-form__hint">
               Checked agents can be mentioned with <code>@name</code> in this project's chats.
+            </span>
+          </label>
+
+          <label className="project-form__field">
+            <span>Businesses</span>
+            <label className="project-form__choice">
+              <input
+                type="checkbox"
+                checked={autoBuildBusinesses}
+                onChange={(e) => setAutoBuildBusinesses(e.target.checked)}
+              />
+              <span>Auto-build businesses from contacts</span>
+            </label>
+            <span className="project-form__hint">
+              When on, the <code>business.auto_build</code> handler walks this
+              project's contacts every six hours, derives organisations from
+              the <code>company</code> field plus email/website domains, and
+              enriches new rows via <code>web_search</code>. Off by default to
+              keep web-tool cost predictable.
             </span>
           </label>
 

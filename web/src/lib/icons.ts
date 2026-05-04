@@ -20,6 +20,7 @@ export {
   Palette,
   Folder,
   Users,
+  Building2,
   Package,
   Library,
   Newspaper,

@@ -3830,6 +3830,59 @@ button {
   height: 100%;
   overflow: hidden;
 }
+/* Businesses tab — same building blocks (search, toolbar, contacts-grid +
+   contact-card) but no sidebar, so a plain single-column shell. */
+.businesses-tab {
+  display: grid;
+  grid-template-columns: 1fr;
+  height: 100%;
+  overflow: hidden;
+}
+.businesses-tab__count {
+  padding: 8px 24px 16px;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* Soul preview pane — read-only body shown in BusinessDialog + ContactDialog
+   above the manual-edit textarea. (ADR 0036.) */
+.soul-preview {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 13px;
+  white-space: pre-wrap;
+  max-height: 180px;
+  overflow: auto;
+  color: var(--text);
+}
+.soul-preview--empty {
+  color: var(--text-faint);
+}
+.soul-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.soul-status-row__refresh {
+  margin-left: auto;
+}
+/* Two-column row used by BusinessDialog address fields. */
+.business-form__address-row {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+.business-form__address-row--zip-city {
+  grid-template-columns: 1fr 2fr;
+}
+.business-form__address-row--region-country {
+  grid-template-columns: 2fr 1fr;
+}
 .contacts-tab__main {
   display: grid;
   grid-template-rows: auto auto 1fr auto auto;

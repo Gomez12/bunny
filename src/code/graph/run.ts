@@ -308,7 +308,10 @@ async function runPhases(
   // like islands — internal modules never connect to each other. We rewrite
   // edges + drop the orphaned external nodes here so the cluster pass sees
   // real internal structure.
-  resolveInternalImports(extractions, walked.map((f) => f.relPath));
+  resolveInternalImports(
+    extractions,
+    walked.map((f) => f.relPath),
+  );
 
   // ── Cluster ─────────────────────────────────────────────────────────────
   if (isAborted()) throw new Error("aborted before clustering");

@@ -232,7 +232,9 @@ export function createRenderer(opts: RendererOptions): Renderer {
   function onQueueRelease(ev: { waitedMs: number }): void {
     if (ev.waitedMs >= 100) {
       out.write(
-        fmt.dim(`  ▶  sending to model (waited ${(ev.waitedMs / 1000).toFixed(1)}s)\n`),
+        fmt.dim(
+          `  ▶  sending to model (waited ${(ev.waitedMs / 1000).toFixed(1)}s)\n`,
+        ),
       );
     }
   }
