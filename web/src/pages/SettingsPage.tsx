@@ -16,6 +16,13 @@ const PromptsAdminTab = lazy(() => import("../tabs/PromptsAdminTab"));
 
 type Tab = "profile" | "keys" | "users" | "prompts" | "trash" | "logs";
 
+const WIDE_TABS: ReadonlySet<Tab> = new Set<Tab>([
+  "users",
+  "prompts",
+  "trash",
+  "logs",
+]);
+
 export default function SettingsPage({
   user,
   onUserUpdated,
@@ -58,7 +65,11 @@ export default function SettingsPage({
           </button>
         )}
       </nav>
-      <section className="settings-body">
+      <section
+        className={`settings-body${
+          WIDE_TABS.has(tab) ? " settings-body--wide" : ""
+        }`}
+      >
         {tab === "profile" && <ProfileForm user={user} onUpdated={onUserUpdated} />}
         {tab === "keys" && <ApiKeyList />}
         {tab === "users" && user.role === "admin" && <UserList currentUserId={user.id} />}

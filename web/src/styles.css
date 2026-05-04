@@ -1398,6 +1398,16 @@ button {
   padding: 24px 32px;
   max-width: 900px;
 }
+.settings-body--wide {
+  max-width: none;
+  padding: 0;
+}
+.settings-body--wide .userlist {
+  padding: 20px 24px;
+}
+.settings-body--wide .prompts-admin {
+  padding: 20px 24px 40px;
+}
 
 .profile, .apikeys, .userlist {
   display: flex;
@@ -2685,10 +2695,41 @@ button {
 .logs-row .num { text-align: right; font-variant-numeric: tabular-nums; }
 .logs-row .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .logs-payload-row td { background: var(--bg); padding: 10px 12px; }
+.logs-payload-meta-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+}
+.logs-payload-meta-list dt {
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+  align-self: center;
+}
+.logs-payload-meta-list dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  word-break: break-all;
+}
+.logs-payload-meta-list dd.error { color: var(--err); white-space: pre-wrap; }
 .logs-payload-actions {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 6px;
+}
+.logs-payload-meta {
+  margin-right: auto;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
 }
 .logs-payload-actions button {
   padding: 3px 10px;
