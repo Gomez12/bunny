@@ -425,7 +425,10 @@ export function listContactBusinessSummaries(
         ORDER BY cb.is_primary DESC, b.name ASC`,
     )
     .all(contactId) as Array<
-    ContactBusinessRow & { business_name: string; business_domain: string | null }
+    ContactBusinessRow & {
+      business_name: string;
+      business_domain: string | null;
+    }
   >;
   return rows.map((r) => ({
     ...rowToLink(r),

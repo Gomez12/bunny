@@ -314,9 +314,8 @@ describe("memory.refresh candidate selection", () => {
     const pairs = listActiveUserProjectPairs(db, 10);
     expect(pairs.length).toBe(1);
     expect(pairs[0]!.maxId).toBe(realId);
-    const { getUserProjectMessagesAfter } = await import(
-      "../../src/memory/messages.ts"
-    );
+    const { getUserProjectMessagesAfter } =
+      await import("../../src/memory/messages.ts");
     const fetched = getUserProjectMessagesAfter(db, "alice", "alpha", 0, 50);
     expect(fetched.map((m) => m.content)).toEqual(["real prompt"]);
   });

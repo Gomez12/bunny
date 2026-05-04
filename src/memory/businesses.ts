@@ -563,13 +563,16 @@ export function setBusinessAddressAuto(
   if (!cleaned) return;
   const serialised = JSON.stringify(cleaned);
   const current = db
-    .prepare(`SELECT address FROM businesses WHERE id = ? AND deleted_at IS NULL`)
+    .prepare(
+      `SELECT address FROM businesses WHERE id = ? AND deleted_at IS NULL`,
+    )
     .get(id) as { address: string | null } | undefined;
   if (!current) return;
   if (current.address === serialised) {
-    db.prepare(
-      `UPDATE businesses SET address_fetched_at = ? WHERE id = ?`,
-    ).run(Date.now(), id);
+    db.prepare(`UPDATE businesses SET address_fetched_at = ? WHERE id = ?`).run(
+      Date.now(),
+      id,
+    );
     return;
   }
   const now = Date.now();
