@@ -59,6 +59,93 @@ describe("schema + messages", () => {
     db.close();
   });
 
+  test("from_automation default is 0; insertMessage with fromAutomation=true stamps 1", async () => {
+    const db = await newDb();
+    const a = insertMessage(db, {
+      sessionId: "auto-1",
+      role: "user",
+      content: "real",
+    });
+    const b = insertMessage(db, {
+      sessionId: "auto-2",
+      role: "user",
+      content: "automated",
+      fromAutomation: true,
+    });
+    const row = (id: number) =>
+      db
+        .prepare("SELECT from_automation AS f FROM messages WHERE id = ?")
+        .get(id) as { f: number };
+    expect(row(a).f).toBe(0);
+    expect(row(b).f).toBe(1);
+    db.close();
+  });
+
+  test("backfill flips legacy automation rows to from_automation = 1", async () => {
+    // Open the DB once to materialize the schema, drop the column to simulate
+    // a pre-migration database, then re-open so migrateColumns re-adds the
+    // column with default 0 and runs the backfill UPDATE.
+    const db = await newDb();
+    const path = join(tmp!, "test.sqlite");
+
+    // Insert prefixed rows + a board_card_runs entry directly via SQL so the
+    // rows exist *before* migrateColumns runs the backfill on re-open. Use
+    // raw SQL with the legacy (no-from_automation) column list.
+    const insertLegacy = (sessionId: string, content: string): number => {
+      const r = db
+        .prepare(
+          `INSERT INTO messages (session_id, ts, role, channel, content, user_id, project)
+           VALUES (?, ?, 'user', 'content', ?, NULL, 'general') RETURNING id`,
+        )
+        .get(sessionId, Date.now(), content) as { id: number };
+      return r.id;
+    };
+    const realId = insertLegacy("real-chat", "human");
+    const newsId = insertLegacy("web-news-abc", "news");
+    const memId = insertLegacy("memory-user-xyz", "merge");
+    const translateId = insertLegacy("translate-kb-1", "translation");
+    const cardId = insertLegacy("bare-uuid-card", "card-run reply");
+
+    // Simulate the card-run discriminator: an entry in board_card_runs.
+    // The full chain (swimlane + card + run) needs minimum NOT NULL columns.
+    const now = Date.now();
+    db.run(
+      `INSERT INTO board_swimlanes (id, project, name, position, created_at, updated_at)
+       VALUES (1, 'general', 'Todo', 100, ?, ?)`,
+      [now, now],
+    );
+    db.run(
+      `INSERT INTO board_cards (id, project, swimlane_id, title, position, created_by, created_at, updated_at)
+       VALUES (1, 'general', 1, 't', 100, 'sys', ?, ?)`,
+      [now, now],
+    );
+    db.run(
+      `INSERT INTO board_card_runs (id, card_id, session_id, agent, triggered_by, trigger_kind, status, started_at)
+       VALUES (1, 1, 'bare-uuid-card', 'bunny', 'sys', 'manual', 'done', ?)`,
+      [now],
+    );
+
+    // Reset from_automation to 0 on every row + close the DB so the next
+    // openDb() runs migrateColumns (which is idempotent + the backfill
+    // gate WHERE from_automation = 0 catches every row we just inserted).
+    db.run(`UPDATE messages SET from_automation = 0`);
+    db.close();
+
+    const db2 = await openDb(path);
+    const flag = (id: number) =>
+      (
+        db2
+          .prepare("SELECT from_automation AS f FROM messages WHERE id = ?")
+          .get(id) as { f: number }
+      ).f;
+    expect(flag(realId)).toBe(0);
+    expect(flag(newsId)).toBe(1);
+    expect(flag(memId)).toBe(1);
+    expect(flag(translateId)).toBe(1);
+    expect(flag(cardId)).toBe(1);
+    db2.close();
+  });
+
   test("stores reasoning channel separately", async () => {
     const db = await newDb();
     insertMessage(db, {

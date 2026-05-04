@@ -81,11 +81,19 @@ export interface InsertMessageOpts {
    * message in the chain. NULL for everything else.
    */
   regenOfMessageId?: number | null;
+  /**
+   * 1 when this row was produced by a scheduled / background `runAgent` call
+   * (web-news, board card runs, kb auto-generate, contact/business soul
+   * refresh, business auto-build, translation, memory.refresh itself). The
+   * memory.refresh handler ignores rows with this flag set so it does not
+   * keep merging its own automation output back into user/agent memory.
+   */
+  fromAutomation?: boolean;
 }
 
 const INSERT_MESSAGE_SQL = `
-    INSERT INTO messages (session_id, ts, role, channel, content, tool_call_id, tool_name, provider_sig, ok, duration_ms, prompt_tokens, completion_tokens, user_id, project, author, attachments, regen_of_message_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO messages (session_id, ts, role, channel, content, tool_call_id, tool_name, provider_sig, ok, duration_ms, prompt_tokens, completion_tokens, user_id, project, author, attachments, regen_of_message_id, from_automation)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     RETURNING id
   `;
 
@@ -110,6 +118,7 @@ export function insertMessage(db: Database, opts: InsertMessageOpts): number {
       ? JSON.stringify(opts.attachments)
       : null,
     opts.regenOfMessageId ?? null,
+    opts.fromAutomation ? 1 : 0,
   ) as { id: number } | undefined;
   if (opts.userId) invalidateSessionOwners(db, opts.sessionId);
   return row?.id ?? 0;
@@ -515,6 +524,7 @@ export function getUserProjectMessagesAfter(
          AND role IN ('user', 'assistant')
          AND content IS NOT NULL AND content != ''
          AND trimmed_at IS NULL
+         AND from_automation = 0
        ORDER BY id ASC
        LIMIT ?`,
   ).all(userId, project, afterMessageId, limit) as MemoryRefreshRow[];
@@ -550,9 +560,11 @@ export function getProjectAgentMessagesAfter(
          AND role IN ('user', 'assistant')
          AND content IS NOT NULL AND content != ''
          AND trimmed_at IS NULL
+         AND from_automation = 0
          AND session_id IN (
            SELECT DISTINCT session_id FROM messages
            WHERE author = ? AND COALESCE(project, 'general') = ?
+             AND from_automation = 0
          )
        ORDER BY id ASC
        LIMIT ?`,
@@ -586,6 +598,7 @@ export function getUserMessagesAfter(
          AND role IN ('user', 'assistant')
          AND content IS NOT NULL AND content != ''
          AND trimmed_at IS NULL
+         AND from_automation = 0
        ORDER BY id ASC
        LIMIT ?`,
   ).all(userId, afterMessageId, limit) as MemoryRefreshRow[];

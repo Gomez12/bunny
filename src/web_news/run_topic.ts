@@ -137,6 +137,7 @@ export async function runTopic(opts: RunTopicOpts): Promise<RunTopicResult> {
       db,
       queue,
       renderer: silentRenderer(),
+      originAutomation: true,
     });
 
     const parsed = extractNewsJson(finalAnswer);

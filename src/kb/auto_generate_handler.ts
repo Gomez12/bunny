@@ -82,6 +82,7 @@ export async function kbAutoGenerateHandler(
         systemPromptOverride: resolvePrompt("kb.definition", {
           project: cand.project,
         }),
+        originAutomation: true,
       });
 
       const parsed = extractDefinitionJson(answer);

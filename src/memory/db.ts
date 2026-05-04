@@ -111,6 +111,13 @@ function migrateColumns(db: Database): void {
   addColumn("ALTER TABLE messages ADD COLUMN edited_at INTEGER");
   addColumn("ALTER TABLE messages ADD COLUMN trimmed_at INTEGER");
   addColumn("ALTER TABLE messages ADD COLUMN regen_of_message_id INTEGER");
+  // Discriminates rows produced by scheduled / background runAgent invocations
+  // (web-news, board card runs, kb auto-generate, contact/business soul refresh,
+  // business auto-build, translation auto-translate, memory.refresh itself) so
+  // memory.refresh stops merging its own output back in. See ADR 0034.
+  addColumn(
+    "ALTER TABLE messages ADD COLUMN from_automation INTEGER NOT NULL DEFAULT 0",
+  );
   addColumn(
     "ALTER TABLE session_visibility ADD COLUMN is_quick_chat INTEGER NOT NULL DEFAULT 0",
   );
@@ -257,6 +264,26 @@ function migrateColumns(db: Database): void {
          'en'
        )
      WHERE original_lang IS NULL`,
+  );
+  // One-shot backfill of from_automation for rows written before the column
+  // existed. Idempotent via the from_automation = 0 predicate. Board card
+  // runs use a bare randomUUID() session id, so they're caught via the
+  // board_card_runs join; everything else has a stable session prefix.
+  db.run(
+    `UPDATE messages SET from_automation = 1
+      WHERE from_automation = 0
+        AND (
+             session_id LIKE 'web-news-%'
+          OR session_id LIKE 'contact-soul-%'
+          OR session_id LIKE 'business-soul-%'
+          OR session_id LIKE 'business-build-%'
+          OR session_id LIKE 'kb-def-%'
+          OR session_id LIKE 'translate-%'
+          OR session_id LIKE 'memory-user-%'
+          OR session_id LIKE 'memory-agent-%'
+          OR session_id LIKE 'memory-soul-%'
+          OR session_id IN (SELECT session_id FROM board_card_runs)
+        )`,
   );
   db.run("CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_id)");
   db.run(

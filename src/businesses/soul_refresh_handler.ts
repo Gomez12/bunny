@@ -57,6 +57,12 @@ export interface RefreshOneOpts {
   cfg: BunnyConfig;
   business: Business;
   renderer?: Renderer;
+  /**
+   * True when invoked from the periodic scheduler. Stamps `from_automation = 1`
+   * on every message row written by the inner runAgent so memory.refresh
+   * ignores them. The HTTP "Refresh now" route leaves this off (default).
+   */
+  automation?: boolean;
 }
 
 export type RefreshOneOutcome = "ok" | "lost_race" | "parse_error" | "error";
@@ -112,6 +118,7 @@ export async function refreshOneBusinessSoul(
       queue,
       renderer: opts.renderer ?? silentRenderer(),
       systemPromptOverride: filled,
+      originAutomation: opts.automation,
     });
 
     const parsed = extractSoulJson(answer);
@@ -180,7 +187,13 @@ export async function businessSoulRefreshHandler(
   });
   if (candidates.length === 0) return;
   for (const cand of candidates) {
-    await refreshOneBusinessSoul({ db, queue, cfg, business: cand });
+    await refreshOneBusinessSoul({
+      db,
+      queue,
+      cfg,
+      business: cand,
+      automation: true,
+    });
   }
 }
 

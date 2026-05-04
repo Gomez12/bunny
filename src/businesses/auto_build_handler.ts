@@ -307,6 +307,7 @@ export async function runBusinessAutoBuild(
           queue,
           renderer: silentRenderer(),
           systemPromptOverride: userPrompt,
+          originAutomation: true,
         });
         const parsed = parseEnrichJson(answer);
         if (parsed) {

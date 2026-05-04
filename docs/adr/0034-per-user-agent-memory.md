@@ -122,6 +122,38 @@ the busiest rows go first. The cron runs hourly; the per-tick cap is
 `cfg.memory.refreshBatchSize` (default 50) LLM calls combined across user
 memory + agent memory + soul. Excess rows wait one hour for the next tick.
 
+### Scheduled-task exclusion via `from_automation`
+
+Scheduled / background `runAgent` calls (web-news topic runs, board card
+runs, kb auto-generate, contact/business soul refresh, business auto-build,
+translation auto-translate, the memory.refresh handler itself) write
+`messages` rows with a real `user_id` and `author` but synthetic prompts
+the user never typed. Without a discriminator, the candidate-selection
+queries treat that output as "new user activity" and re-arm a refresh on
+the next hourly tick — a busy scheduler effectively guarantees an LLM
+merge per hour even when the user is silent.
+
+Every scheduled `runAgent` call therefore passes `originAutomation: true`,
+which propagates to a new `messages.from_automation` column (defaults to
+0; non-null INTEGER 0/1) on every row written by that run. The three
+candidate-selection queries and their three message fetchers add
+`AND from_automation = 0`. Sub-agents inherit the flag for free via the
+`{ ...opts }` spread inside `invokeSubagent` in `src/agent/loop.ts`.
+
+Manual board card runs ("Run this card" via the UI) also count as
+automation — the agent's reply is task work driven by the card's title +
+description, not user expression. HTTP edit-style routes (doc /
+whiteboard / code-edit / contact / business / KB generate / KB
+illustration) follow in a separate PR; this scope is strictly
+scheduler-driven.
+
+A one-shot, idempotent UPDATE inside `migrateColumns` (`src/memory/db.ts`)
+backfills `from_automation = 1` for legacy rows by `session_id` prefix
+(`web-news-`, `contact-soul-`, `business-soul-`, `business-build-`,
+`kb-def-`, `translate-`, `memory-{user,agent,soul}-`) plus a
+`session_id IN (SELECT session_id FROM board_card_runs)` join — board card
+runs use a bare UUID and have no prefix.
+
 ## Consequences
 
 - **Schema:** two new tables, seven new `users` columns. Append-only.

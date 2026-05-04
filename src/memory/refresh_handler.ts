@@ -96,6 +96,7 @@ export function listActiveUserProjectPairs(
             AND role IN ('user','assistant')
             AND content IS NOT NULL AND content != ''
             AND trimmed_at IS NULL
+            AND from_automation = 0
           GROUP BY user_id, COALESCE(project, 'general')
        )
        SELECT a.user_id    AS user_id,
@@ -144,10 +145,12 @@ export function listActiveAgentProjectPairs(
                      AND m2.role IN ('user','assistant')
                      AND m2.content IS NOT NULL AND m2.content != ''
                      AND m2.trimmed_at IS NULL
+                     AND m2.from_automation = 0
                      AND m2.session_id IN (
                        SELECT DISTINCT session_id FROM messages
                         WHERE author = m.author
                           AND COALESCE(project, 'general') = COALESCE(m.project, 'general')
+                          AND from_automation = 0
                      )
                 ) AS max_id
            FROM messages m
@@ -155,6 +158,7 @@ export function listActiveAgentProjectPairs(
             AND m.role = 'assistant'
             AND m.channel = 'content'
             AND m.trimmed_at IS NULL
+            AND m.from_automation = 0
           GROUP BY m.author, COALESCE(m.project, 'general')
        )
        SELECT a.agent, a.project, a.max_id,
@@ -202,6 +206,7 @@ export function listActiveSoulUsers(
             AND role IN ('user','assistant')
             AND content IS NOT NULL AND content != ''
             AND trimmed_at IS NULL
+            AND from_automation = 0
           GROUP BY user_id
        )
        SELECT a.user_id, a.max_id, u.soul_watermark_message_id AS watermark, u.soul_status AS status
@@ -483,6 +488,7 @@ async function refreshUserProjectMemory(
     queue,
     renderer: silentRenderer(),
     systemPromptOverride: systemPrompt,
+    originAutomation: true,
   });
 
   const merged = clamp(answer);
@@ -566,6 +572,7 @@ async function refreshAgentProjectMemory(
     queue,
     renderer: silentRenderer(),
     systemPromptOverride: systemPrompt,
+    originAutomation: true,
   });
 
   const merged = clamp(answer);
@@ -641,6 +648,7 @@ async function refreshUserSoul(
     queue,
     renderer: silentRenderer(),
     systemPromptOverride: systemPrompt,
+    originAutomation: true,
   });
 
   const merged = clamp(answer);

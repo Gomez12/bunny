@@ -163,6 +163,7 @@ export async function runCard(opts: RunCardOpts): Promise<RunCardResult> {
         db: opts.db,
         queue: opts.queue,
         renderer,
+        originAutomation: true,
       });
       markRunDone(opts.db, run.id, { finalAnswer });
       autoMoveToNextLane(opts.db, card.id);

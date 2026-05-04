@@ -168,6 +168,14 @@ export interface RunAgentOptions {
    *  Only `POST /api/chat` sets this. Regenerate and every background code
    *  path leave it off so edits / re-runs don't re-fire pings. See ADR 0027. */
   mentionsEnabled?: boolean;
+  /** When true, every `messages` row written by this run is stamped with
+   *  `from_automation = 1` so the hourly `memory.refresh` handler skips them.
+   *  Set on every scheduled / background runAgent call (web-news topics, board
+   *  card runs, kb auto-generate, contact/business soul refresh, business
+   *  auto-build, translation auto-translate, memory.refresh itself). The
+   *  flag is auto-propagated to nested sub-agents via the `{ ...opts }`
+   *  spread in `invokeSubagent`. See ADR 0034. */
+  originAutomation?: boolean;
 }
 
 /** Run one user turn through the agent loop. Returns the final assistant response. */
@@ -313,6 +321,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
       // this", not "who it was addressed to". Recall / `getRecentTurns` still
       // include user rows unconditionally when a scope is set.
       author: null,
+      fromAutomation: opts.originAutomation,
     });
     void indexMessage(db, embedCfg, userMsgId, prompt);
     void queue.log({
@@ -482,6 +491,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
         channel: "reasoning",
         content: llmRes.message.reasoning,
         author: agentName ?? null,
+        fromAutomation: opts.originAutomation,
       });
     }
     if (assistantContent) {
@@ -494,6 +504,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
         content: assistantContent,
         author: agentName ?? null,
         regenOfMessageId: pendingRegenOfMessageId,
+        fromAutomation: opts.originAutomation,
         ...stats,
       });
       // Only the FIRST assistant content row in this run is part of the
@@ -542,6 +553,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
         toolCallId: tc.id,
         toolName: tc.function.name,
         author: agentName ?? null,
+        fromAutomation: opts.originAutomation,
       });
     }
 
@@ -599,6 +611,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
         toolName: tc.function.name,
         ok: result.ok,
         author: agentName ?? null,
+        fromAutomation: opts.originAutomation,
       });
     }
   }

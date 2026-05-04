@@ -200,6 +200,127 @@ describe("memory.refresh candidate selection", () => {
     expect(users.length).toBe(0);
   });
 
+  test("listActiveUserProjectPairs ignores fromAutomation rows", () => {
+    insertMessage(db, {
+      sessionId: "web-news-x",
+      userId: "alice",
+      project: "alpha",
+      role: "user",
+      content: "fetch news",
+      fromAutomation: true,
+    });
+    insertMessage(db, {
+      sessionId: "web-news-x",
+      userId: "alice",
+      project: "alpha",
+      role: "assistant",
+      content: "headlines",
+      fromAutomation: true,
+    });
+    const pairs = listActiveUserProjectPairs(db, 10);
+    expect(pairs.length).toBe(0);
+  });
+
+  test("listActiveSoulUsers ignores fromAutomation rows", () => {
+    insertMessage(db, {
+      sessionId: "web-news-x",
+      userId: "alice",
+      project: "alpha",
+      role: "user",
+      content: "fetch news",
+      fromAutomation: true,
+    });
+    const souls = listActiveSoulUsers(db, 10);
+    expect(souls.length).toBe(0);
+  });
+
+  test("listActiveAgentProjectPairs ignores fromAutomation rows", () => {
+    insertMessage(db, {
+      sessionId: "web-news-x",
+      userId: "alice",
+      project: "alpha",
+      role: "assistant",
+      author: "researcher",
+      content: "automation reply",
+      fromAutomation: true,
+    });
+    const pairs = listActiveAgentProjectPairs(db, 10);
+    expect(pairs.length).toBe(0);
+  });
+
+  test("listActiveAgentProjectPairs nested SELECT MAX honours fromAutomation", () => {
+    // Real human prompt to alice — bumps the agent's session into scope.
+    insertMessage(db, {
+      sessionId: "real-1",
+      userId: "alice",
+      project: "alpha",
+      role: "user",
+      content: "research X",
+    });
+    // Agent answer that IS real (catches the agent into the active set).
+    insertMessage(db, {
+      sessionId: "real-1",
+      userId: "alice",
+      project: "alpha",
+      role: "assistant",
+      author: "researcher",
+      content: "found Y",
+    });
+    // Pre-stamp watermark to the agent's last real reply.
+    const before = listActiveAgentProjectPairs(db, 10);
+    expect(before.length).toBe(1);
+    ensureAgentProjectMemory(db, "researcher", "alpha");
+    setAgentProjectMemoryAuto(
+      db,
+      "researcher",
+      "alpha",
+      "seed",
+      before[0]!.maxId,
+    );
+    expect(listActiveAgentProjectPairs(db, 10).length).toBe(0);
+
+    // A scheduled assistant turn in the same session must NOT inflate max_id
+    // past the watermark — proves both the outer m and nested SELECT MAX(m2)
+    // carry `from_automation = 0`.
+    insertMessage(db, {
+      sessionId: "real-1",
+      userId: "alice",
+      project: "alpha",
+      role: "assistant",
+      author: "researcher",
+      content: "card-run reply",
+      fromAutomation: true,
+    });
+    const after = listActiveAgentProjectPairs(db, 10);
+    expect(after.length).toBe(0);
+  });
+
+  test("mixed-session: real row still arms refresh, automation row is filtered out of the fetch", async () => {
+    insertMessage(db, {
+      sessionId: "shared",
+      userId: "alice",
+      project: "alpha",
+      role: "user",
+      content: "automation prompt",
+      fromAutomation: true,
+    });
+    const realId = insertMessage(db, {
+      sessionId: "shared",
+      userId: "alice",
+      project: "alpha",
+      role: "user",
+      content: "real prompt",
+    });
+    const pairs = listActiveUserProjectPairs(db, 10);
+    expect(pairs.length).toBe(1);
+    expect(pairs[0]!.maxId).toBe(realId);
+    const { getUserProjectMessagesAfter } = await import(
+      "../../src/memory/messages.ts"
+    );
+    const fetched = getUserProjectMessagesAfter(db, "alice", "alpha", 0, 50);
+    expect(fetched.map((m) => m.content)).toEqual(["real prompt"]);
+  });
+
   test("the seeded `system` user is excluded from both per-project and soul refresh", () => {
     const now = Date.now();
     db.run(

@@ -208,6 +208,7 @@ async function translateOne(
     queue: ctx.queue,
     renderer,
     systemPromptOverride: systemPrompt,
+    originAutomation: true,
   });
 
   const parsed = extractTranslationJson(answer, kind.sourceFields);

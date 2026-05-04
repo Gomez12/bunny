@@ -41,7 +41,8 @@ CREATE TABLE IF NOT EXISTS messages (
   attachments  TEXT,                        -- JSON array of {kind,mime,dataUrl} (null = no attachments)
   edited_at            INTEGER,             -- ms; set when content was rewritten via the edit affordance
   trimmed_at           INTEGER,             -- ms; soft-delete used by "save and regenerate"
-  regen_of_message_id  INTEGER              -- assistant alt-version pointer (chain of regenerations)
+  regen_of_message_id  INTEGER,             -- assistant alt-version pointer (chain of regenerations)
+  from_automation      INTEGER NOT NULL DEFAULT 0  -- 1 = produced by a scheduled / background runAgent (excluded from memory.refresh)
 );
 CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, ts);
 CREATE INDEX IF NOT EXISTS idx_messages_regen_of ON messages(regen_of_message_id);
