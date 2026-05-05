@@ -23,7 +23,6 @@
  * with a friendly notice. v1 is DM-text only.
  */
 
-import { randomUUID } from "node:crypto";
 import type { Database } from "bun:sqlite";
 import type { BunnyConfig } from "../config.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
@@ -210,7 +209,7 @@ export async function handleTelegramUpdate(
     return;
   }
 
-  const sessionId = link.currentSessionId ?? randomUUID();
+  const sessionId = link.currentSessionId ?? crypto.randomUUID();
   if (!link.currentSessionId) {
     setCurrentSession(db, project, message.chat.id, sessionId);
   }

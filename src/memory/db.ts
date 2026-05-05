@@ -25,9 +25,28 @@ async function ensureSqliteVec(): Promise<void> {
   sqliteVecAttempted = true;
   try {
     const mod = await import("sqlite-vec");
-    sqliteVecLoad = mod.load;
+    // Probe on a throw-away in-memory database so we discover up front whether
+    // this Bun build supports dynamic extension loading. If it does not, we
+    // skip silently for every subsequent openDb call instead of warning once
+    // per database.
+    const probe = new Database(":memory:");
+    try {
+      mod.load(probe);
+      sqliteVecLoad = mod.load;
+    } catch (e) {
+      // Not available on this Bun build — vector search degrades to empty
+      // results. Suppress in test mode (BUN_TEST=1) to keep test output clean.
+      if (process.env["NODE_ENV"] !== "test") {
+        console.warn(
+          "[bunny/db] Could not load sqlite-vec extension:",
+          errorMessage(e),
+        );
+      }
+    } finally {
+      probe.close();
+    }
   } catch {
-    // sqlite-vec binary not available — vector search degrades to empty results.
+    // sqlite-vec package not installed — vector search degrades to empty results.
   }
 }
 
@@ -70,16 +89,7 @@ export async function openDb(
   db.run("PRAGMA busy_timeout = 5000");
   db.run("PRAGMA journal_size_limit = 67108864");
 
-  if (sqliteVecLoad) {
-    try {
-      sqliteVecLoad(db);
-    } catch (e) {
-      console.warn(
-        "[bunny/db] Could not load sqlite-vec extension:",
-        errorMessage(e),
-      );
-    }
-  }
+  sqliteVecLoad?.(db);
 
   applySchema(db, embedDim);
   migrateColumns(db);

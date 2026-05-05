@@ -15,7 +15,6 @@
  * `contact_translations`.
  */
 
-import { randomUUID } from "node:crypto";
 import type { Database } from "bun:sqlite";
 import type { BunnyConfig } from "../config.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
@@ -95,7 +94,7 @@ export async function refreshOneContactSoul(
   const userId = contact.createdBy ?? systemUserId;
   const project = getProject(db, contact.project);
   const targetLang = contact.originalLang ?? project?.defaultLanguage ?? "en";
-  const sessionId = `contact-soul-${randomUUID()}`;
+  const sessionId = `contact-soul-${crypto.randomUUID()}`;
   setSessionHiddenFromChat(db, userId, sessionId, true);
 
   const systemPrompt = resolvePrompt("contact.soul.refresh", {

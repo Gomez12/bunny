@@ -22,7 +22,6 @@
  * insert work per tick is unbounded but cheap (only writes for unseen pairs).
  */
 
-import { randomUUID } from "node:crypto";
 import type {
   HandlerRegistry,
   TaskHandlerContext,
@@ -280,7 +279,7 @@ export async function runBusinessAutoBuild(
       if (llmBudget <= 0) continue;
       llmBudget -= 1;
       try {
-        const sessionId = `business-build-${randomUUID()}`;
+        const sessionId = `business-build-${crypto.randomUUID()}`;
         setSessionHiddenFromChat(db, systemUserId, sessionId, true);
         const userPrompt = interpolate(
           resolvePrompt("business.auto_build.enrich", {

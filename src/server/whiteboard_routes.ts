@@ -1,5 +1,4 @@
 import type { Database } from "bun:sqlite";
-import { randomUUID } from "node:crypto";
 import type { User } from "../auth/users.ts";
 import type { BunnyConfig } from "../config.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
@@ -214,7 +213,7 @@ async function handleEdit(
     return json({ error: "screenshot exceeds size limit" }, 413);
   }
 
-  const sessionId = `wb-edit-${randomUUID()}`;
+  const sessionId = `wb-edit-${crypto.randomUUID()}`;
 
   const userPrompt = `Current Excalidraw elements JSON:\n\`\`\`json\n${body.elementsJson}\n\`\`\`\n\nInstruction: ${prompt}`;
 
@@ -312,7 +311,7 @@ async function handleAsk(
     });
   }
 
-  const sessionId = randomUUID();
+  const sessionId = crypto.randomUUID();
 
   // The screenshot PNG is attached client-side (it's already in-memory
   // there) — see WhiteboardTab.handleSend. This endpoint only persists the

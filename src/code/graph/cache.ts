@@ -8,15 +8,12 @@
  * `run.ts`).
  */
 
-import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { FileExtraction } from "./types.ts";
 
 export function sha256Hex(data: string | Uint8Array): string {
-  const h = createHash("sha256");
-  h.update(data);
-  return h.digest("hex");
+  return new Bun.CryptoHasher("sha256").update(data).digest("hex");
 }
 
 export interface CacheDirs {

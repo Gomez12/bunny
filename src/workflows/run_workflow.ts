@@ -23,7 +23,6 @@
  * iterations.
  */
 
-import { randomUUID } from "node:crypto";
 import type { Database } from "bun:sqlite";
 import type { BunnyConfig } from "../config.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
@@ -377,7 +376,7 @@ export function runWorkflow(opts: RunWorkflowOpts): RunWorkflowResult {
     throw new Error(msg);
   }
 
-  const sessionId = randomUUID();
+  const sessionId = crypto.randomUUID();
   const run = createRun(opts.db, {
     workflowId: wf.id,
     project: wf.project,
@@ -947,7 +946,7 @@ async function dispatchLoop(
     if (fan.meta.cancelRequested) return { status: "cancelled" };
 
     const iterationSessionId = loop.fresh_context
-      ? randomUUID()
+      ? crypto.randomUUID()
       : run.sessionId;
     const rn = createRunNode(opts.db, {
       runId: run.id,

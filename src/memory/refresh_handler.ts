@@ -10,7 +10,6 @@
  * (process death mid-call) are reclaimed at the start of every tick.
  */
 
-import { randomUUID } from "node:crypto";
 import type { Database } from "bun:sqlite";
 import type {
   HandlerRegistry,
@@ -460,7 +459,7 @@ async function refreshUserProjectMemory(
     },
   );
 
-  const sessionId = `memory-user-${randomUUID()}`;
+  const sessionId = `memory-user-${crypto.randomUUID()}`;
   setSessionHiddenFromChat(db, runUserId, sessionId, true);
 
   void queue.log({
@@ -544,7 +543,7 @@ async function refreshAgentProjectMemory(
     },
   );
 
-  const sessionId = `memory-agent-${randomUUID()}`;
+  const sessionId = `memory-agent-${crypto.randomUUID()}`;
   setSessionHiddenFromChat(db, runUserId, sessionId, true);
 
   void queue.log({
@@ -624,7 +623,7 @@ async function refreshUserSoul(
     budget: MEMORY_FIELD_CHAR_LIMIT,
   });
 
-  const sessionId = `memory-soul-${randomUUID()}`;
+  const sessionId = `memory-soul-${crypto.randomUUID()}`;
   setSessionHiddenFromChat(db, runUserId, sessionId, true);
 
   void queue.log({

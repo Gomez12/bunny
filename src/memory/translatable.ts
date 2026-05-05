@@ -22,7 +22,6 @@
  * See ADR 0022.
  */
 
-import { createHash } from "node:crypto";
 import type { Database } from "bun:sqlite";
 
 export type TranslationStatus = "pending" | "translating" | "ready" | "error";
@@ -100,7 +99,7 @@ export function computeSourceHash(fields: Record<string, unknown>): string {
     const v = fields[k];
     normalised[k] = v === null || v === undefined ? "" : String(v);
   }
-  return createHash("sha256").update(JSON.stringify(normalised)).digest("hex");
+  return new Bun.CryptoHasher("sha256").update(JSON.stringify(normalised)).digest("hex");
 }
 
 // ── Row mapping ─────────────────────────────────────────────────────────────

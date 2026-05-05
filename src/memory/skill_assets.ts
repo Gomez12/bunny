@@ -14,7 +14,6 @@ import {
   readdirSync,
 } from "node:fs";
 import { join, relative } from "node:path";
-import { parse as parseYaml } from "yaml";
 import { paths } from "../paths.ts";
 import { validateSkillName, type Skill } from "./skills.ts";
 
@@ -94,6 +93,51 @@ export function loadSkillAssets(name: string): SkillAssets {
   }
 }
 
+function unquoteYaml(s: string): string {
+  if (s.length >= 2) {
+    const f = s[0], l = s[s.length - 1];
+    if ((f === '"' && l === '"') || (f === "'" && l === "'")) return s.slice(1, -1);
+  }
+  return s;
+}
+
+function parseSkillYamlFrontmatter(block: string): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  const lines = block.split("\n");
+  let i = 0;
+  while (i < lines.length) {
+    const raw = lines[i] ?? "";
+    if (!raw.trim() || raw.trimStart().startsWith("#")) { i++; continue; }
+    const m = raw.match(/^([a-zA-Z][a-zA-Z0-9_-]*):\s*(.*)/);
+    if (!m) { i++; continue; }
+    const key = m[1] ?? "";
+    const rest = (m[2] ?? "").trim();
+    if (rest) {
+      result[key] = unquoteYaml(rest);
+      i++;
+    } else {
+      i++;
+      const children: string[] = [];
+      while (i < lines.length) {
+        const line = lines[i] ?? "";
+        if (!line.trim()) { i++; continue; }
+        if (!line.match(/^\s/)) break;
+        children.push(line);
+        i++;
+      }
+      if (children.length > 0) {
+        const nested: Record<string, string> = {};
+        for (const child of children) {
+          const cm = child.match(/^\s+([a-zA-Z][a-zA-Z0-9_-]*):\s*(.*)/);
+          if (cm) nested[cm[1] ?? ""] = unquoteYaml((cm[2] ?? "").trim());
+        }
+        if (Object.keys(nested).length > 0) result[key] = nested;
+      }
+    }
+  }
+  return result;
+}
+
 export function parseFrontmatter(
   raw: string,
   fallbackName: string,
@@ -116,7 +160,7 @@ export function parseFrontmatter(
   const body = trimmed.slice(endIdx + 3).trim();
   let parsed: Record<string, unknown>;
   try {
-    parsed = parseYaml(yamlBlock) ?? {};
+    parsed = parseSkillYamlFrontmatter(yamlBlock);
   } catch {
     parsed = {};
   }

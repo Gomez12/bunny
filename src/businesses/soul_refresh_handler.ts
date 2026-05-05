@@ -10,7 +10,6 @@
  * `cfg.businesses.translateSoul`.
  */
 
-import { randomUUID } from "node:crypto";
 import type { Database } from "bun:sqlite";
 import type { BunnyConfig } from "../config.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
@@ -78,7 +77,7 @@ export async function refreshOneBusinessSoul(
   const userId = business.createdBy ?? systemUserId;
   const project = getProject(db, business.project);
   const targetLang = business.originalLang ?? project?.defaultLanguage ?? "en";
-  const sessionId = `business-soul-${randomUUID()}`;
+  const sessionId = `business-soul-${crypto.randomUUID()}`;
   setSessionHiddenFromChat(db, userId, sessionId, true);
 
   const systemPrompt = resolvePrompt("business.soul.refresh", {

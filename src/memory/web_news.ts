@@ -11,7 +11,6 @@
  *
  * See ADR 0024.
  */
-import { createHash } from "node:crypto";
 import type { Database } from "bun:sqlite";
 import type { User } from "../auth/users.ts";
 import type { Project } from "./projects.ts";
@@ -511,7 +510,7 @@ export function normaliseTitle(raw: string): string {
 
 export function computeContentHash(url: string, title: string): string {
   const key = `${normaliseUrl(url)}|${normaliseTitle(title)}`;
-  return createHash("sha256").update(key).digest("hex");
+  return new Bun.CryptoHasher("sha256").update(key).digest("hex");
 }
 
 export interface UpsertItemOpts {

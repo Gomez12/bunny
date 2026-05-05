@@ -17,7 +17,6 @@
  * leak to spawned processes.
  */
 
-import { createHash } from "node:crypto";
 import { safeWorkspacePath } from "../memory/workspace_fs.ts";
 import type { WorkflowsConfig } from "../config.ts";
 
@@ -47,7 +46,7 @@ const MIN_TIMEOUT_MS = 100;
 const ENV_ALLOWLIST = ["PATH", "HOME", "LANG", "LC_ALL", "BUNNY_HOME"] as const;
 
 export function hashCommand(command: string): string {
-  return createHash("sha256").update(command, "utf8").digest("hex");
+  return new Bun.CryptoHasher("sha256").update(command).digest("hex");
 }
 
 function filterEnv(project: string): Record<string, string> {

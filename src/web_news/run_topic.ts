@@ -16,7 +16,6 @@
  *   5. Always `releaseTopic` (idle, ok/error) in `finally`.
  */
 
-import { randomUUID } from "node:crypto";
 import type { Database } from "bun:sqlite";
 import type { BunnyConfig } from "../config.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
@@ -102,7 +101,7 @@ export async function runTopic(opts: RunTopicOpts): Promise<RunTopicResult> {
     },
   });
 
-  const sessionId = `web-news-${randomUUID()}`;
+  const sessionId = `web-news-${crypto.randomUUID()}`;
   setSessionHiddenFromChat(db, opts.triggeredBy, sessionId, true);
 
   const prompt = buildUserMessage(topic, {

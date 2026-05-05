@@ -8,7 +8,6 @@
 import type { Database } from "bun:sqlite";
 import type { BunnyConfig } from "../config.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
-import { randomUUID } from "node:crypto";
 
 import { getMessagesBySession } from "../memory/messages.ts";
 import type { ChatAttachment } from "../llm/types.ts";
@@ -411,7 +410,7 @@ export async function handleApi(
 
   // POST /api/sessions → create a new session id
   if (pathname === "/api/sessions" && req.method === "POST") {
-    return json({ sessionId: randomUUID() }, 201);
+    return json({ sessionId: crypto.randomUUID() }, 201);
   }
 
   // GET /api/sessions/:id/messages
@@ -484,7 +483,7 @@ async function handleChat(
   }
 
   const rawPrompt = body.prompt?.trim();
-  const sessionId = body.sessionId?.trim() || randomUUID();
+  const sessionId = body.sessionId?.trim() || crypto.randomUUID();
   if (!rawPrompt) return json({ error: "missing prompt" }, 400);
 
   // Validate & normalise attachments. Cap: 4 images, 10 MB per image (the

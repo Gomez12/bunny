@@ -19,7 +19,6 @@ import type { Database } from "bun:sqlite";
 import type { BunnyConfig } from "../config.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
 import type { User } from "../auth/users.ts";
-import { randomUUID } from "node:crypto";
 
 import { errorMessage } from "../util/error.ts";
 import { json, readJson } from "./http.ts";
@@ -416,7 +415,7 @@ async function handleAsk(
   const question = body?.question?.trim();
   if (!question) return json({ error: "missing question" }, 400);
 
-  const sessionId = randomUUID();
+  const sessionId = crypto.randomUUID();
   const listing = safeTopLevelListing(cp.project, cp.name);
   const graphSummary = safeGraphSummary(cp.project, cp.name);
   const prompt = renderPrompt(
@@ -467,7 +466,7 @@ async function handleEdit(
   const instruction = body?.instruction?.trim();
   if (!instruction) return json({ error: "missing instruction" }, 400);
 
-  const sessionId = `code-edit-${randomUUID()}`;
+  const sessionId = `code-edit-${crypto.randomUUID()}`;
   const listing = safeTopLevelListing(cp.project, cp.name);
   const systemPrompt = renderPrompt(
     "code.edit",
@@ -552,7 +551,7 @@ async function handleChat(
   // them via the generic /api/sessions endpoint + a simple startsWith filter.
   // A caller-supplied id (existing conversation being continued) is used as-is.
   const sessionId =
-    body?.sessionId?.trim() || `code-chat-${id}-${randomUUID()}`;
+    body?.sessionId?.trim() || `code-chat-${id}-${crypto.randomUUID()}`;
 
   const listing = safeTopLevelListing(cp.project, cp.name);
   const graphSummary = safeGraphSummary(cp.project, cp.name);

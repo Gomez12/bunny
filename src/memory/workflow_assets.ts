@@ -10,7 +10,6 @@
  */
 
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
-import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { projectDir } from "./project_assets.ts";
 
@@ -44,5 +43,5 @@ export function writeWorkflowToml(
 
 /** sha256 hex digest of the raw TOML text. Used as the drift-detection hash. */
 export function hashWorkflowToml(text: string): string {
-  return createHash("sha256").update(text, "utf8").digest("hex");
+  return new Bun.CryptoHasher("sha256").update(text).digest("hex");
 }

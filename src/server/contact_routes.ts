@@ -1,5 +1,4 @@
 import type { Database } from "bun:sqlite";
-import { randomUUID } from "node:crypto";
 import type { User } from "../auth/users.ts";
 import type { BunnyConfig } from "../config.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
@@ -542,7 +541,7 @@ async function handleEdit(
   if (!prompt) return json({ error: "missing prompt" }, 400);
 
   const contactsSummary = body.contactsSummary ?? "";
-  const sessionId = `contact-edit-${randomUUID()}`;
+  const sessionId = `contact-edit-${crypto.randomUUID()}`;
   const userPrompt = contactsSummary
     ? `Current contacts:\n${contactsSummary}\n\nInstruction: ${prompt}`
     : prompt;
@@ -770,7 +769,7 @@ async function handleAsk(
   if (!prompt) return json({ error: "missing prompt" }, 400);
 
   const contactsSummary = body.contactsSummary ?? "";
-  const sessionId = randomUUID();
+  const sessionId = crypto.randomUUID();
 
   const fullPrompt = contactsSummary
     ? `[Contacts Summary]\n\n${contactsSummary}\n\n${prompt}`

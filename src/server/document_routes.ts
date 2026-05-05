@@ -1,5 +1,4 @@
 import type { Database } from "bun:sqlite";
-import { randomUUID } from "node:crypto";
 import type { User } from "../auth/users.ts";
 import type { BunnyConfig } from "../config.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
@@ -257,7 +256,7 @@ async function handleEdit(
   if (!prompt) return json({ error: "missing prompt" }, 400);
 
   const contentMd = body.contentMd ?? doc.contentMd;
-  const sessionId = `doc-edit-${randomUUID()}`;
+  const sessionId = `doc-edit-${crypto.randomUUID()}`;
 
   const userPrompt = `Current document content:\n\`\`\`markdown\n${contentMd}\n\`\`\`\n\nInstruction: ${prompt}`;
 
@@ -334,7 +333,7 @@ async function handleAsk(
   if (!prompt) return json({ error: "missing prompt" }, 400);
 
   const contentMd = body.contentMd ?? doc.contentMd;
-  const sessionId = randomUUID();
+  const sessionId = crypto.randomUUID();
 
   // The user is asking a question *about* the document. Frame the document as
   // reference material fenced in its own block so the model doesn't interpret
@@ -392,7 +391,7 @@ async function handleImageUpload(
     return json({ error: "file too large (10MB max)" }, 413);
 
   const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-  const safeName = `${randomUUID()}.${ext}`;
+  const safeName = `${crypto.randomUUID()}.${ext}`;
   const relPath = `documents/${id}/images/${safeName}`;
 
   const buffer = new Uint8Array(await file.arrayBuffer());

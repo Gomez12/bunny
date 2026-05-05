@@ -8,7 +8,6 @@
  */
 
 import type { Database } from "bun:sqlite";
-import { randomUUID } from "node:crypto";
 import type { User } from "../auth/users.ts";
 import type { BunnyConfig } from "../config.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
@@ -414,7 +413,7 @@ async function handleGenerate(
     },
   });
 
-  const sessionId = `kb-def-${randomUUID()}`;
+  const sessionId = `kb-def-${crypto.randomUUID()}`;
   setSessionHiddenFromChat(ctx.db, user.id, sessionId, true);
 
   const projectContext = (
@@ -625,7 +624,7 @@ async function handleGenerateIllustration(
     data: { id, project: r.project, term: r.def.term },
   });
 
-  const sessionId = `kb-svg-${randomUUID()}`;
+  const sessionId = `kb-svg-${crypto.randomUUID()}`;
   setSessionHiddenFromChat(ctx.db, user.id, sessionId, true);
 
   const userPrompt = buildIllustrationPrompt(r.def);

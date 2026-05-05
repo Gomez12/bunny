@@ -12,7 +12,6 @@
  */
 
 import type { Database } from "bun:sqlite";
-import { randomUUID } from "node:crypto";
 
 export type TaskKind = "system" | "user";
 export type TaskStatus = "ok" | "error";
@@ -99,7 +98,7 @@ export interface CreateTaskOpts {
 }
 
 export function createTask(db: Database, opts: CreateTaskOpts): ScheduledTask {
-  const id = opts.id ?? randomUUID();
+  const id = opts.id ?? crypto.randomUUID();
   const now = Date.now();
   db.prepare(
     `INSERT INTO scheduled_tasks(id, kind, handler, name, description, cron_expr,

@@ -15,7 +15,13 @@
  * See ADR 0028.
  */
 
-import { randomBytes, timingSafeEqual } from "node:crypto";
+import { timingSafeEqual } from "node:crypto";
+
+function randomHex(bytes: number): string {
+  return Array.from(crypto.getRandomValues(new Uint8Array(bytes)), (b) =>
+    b.toString(16).padStart(2, "0"),
+  ).join("");
+}
 import type { Database } from "bun:sqlite";
 import type { User } from "../auth/users.ts";
 import type { BunnyConfig } from "../config.ts";
@@ -369,7 +375,7 @@ async function handlePutConfig(
   // Generate a webhook secret when switching into webhook mode without one.
   let webhookSecret: string | null | undefined = undefined;
   if (nextTransport === "webhook") {
-    webhookSecret = existing?.webhookSecret ?? randomBytes(24).toString("hex");
+    webhookSecret = existing?.webhookSecret ?? randomHex(24);
   }
 
   const cfg = upsertTelegramConfig(ctx.db, {
@@ -452,7 +458,7 @@ async function handleRegenerateSecret(
 
   const cfg = getTelegramConfig(ctx.db, r.project);
   if (!cfg) return json({ error: "not found" }, 404);
-  const secret = randomBytes(24).toString("hex");
+  const secret = randomHex(24);
   patchTelegramConfig(ctx.db, r.project, { webhookSecret: secret });
   void ctx.queue.log({
     topic: "telegram",

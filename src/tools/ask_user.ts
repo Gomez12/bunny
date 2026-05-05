@@ -14,7 +14,6 @@
  * it.
  */
 
-import { randomUUID } from "node:crypto";
 import type { JsonSchemaObject } from "../llm/types.ts";
 import type { ToolHandler, ToolResult, ToolDescriptor } from "./registry.ts";
 import type { SseAskUserQuestionEvent } from "../agent/sse_events.ts";
@@ -103,7 +102,7 @@ export function makeAskUserTool(ctx: AskUserContext): ToolDescriptor {
       );
     }
 
-    const questionId = (ctx.newId ?? randomUUID)();
+    const questionId = ctx.newId ? ctx.newId() : crypto.randomUUID();
     const payload: SseAskUserQuestionEvent = {
       type: "ask_user_question",
       questionId,

@@ -22,7 +22,6 @@ import { runAgent } from "./agent/loop.ts";
 import { registry } from "./tools/index.ts";
 import { startServer, parsePortFlag } from "./server/index.ts";
 import { mkdirSync, existsSync } from "node:fs";
-import { randomUUID } from "node:crypto";
 import { ensureSeedUsers, getSystemUserId } from "./auth/seed.ts";
 import { validateApiKey } from "./auth/apikeys.ts";
 import {
@@ -96,7 +95,7 @@ async function main(argv: string[]): Promise<number> {
   }
 
   const cfg = loadConfig();
-  const sessionId = session ?? cfg.sessionId ?? randomUUID();
+  const sessionId = session ?? cfg.sessionId ?? crypto.randomUUID();
 
   // Ensure state directory exists.
   const home = paths.home();

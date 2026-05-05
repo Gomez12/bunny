@@ -13,7 +13,6 @@
  * `triggerKind` so the board UI can distinguish manual vs. scheduled runs.
  */
 
-import { randomUUID } from "node:crypto";
 import type { Database } from "bun:sqlite";
 import type { BunnyConfig } from "../config.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
@@ -119,7 +118,7 @@ export async function runCard(opts: RunCardOpts): Promise<RunCardResult> {
   // Prevent scheduler re-queue while a run is pending.
   clearAutoRun(opts.db, card.id);
 
-  const sessionId = opts.sessionId ?? randomUUID();
+  const sessionId = opts.sessionId ?? crypto.randomUUID();
   const run = createRun(opts.db, {
     cardId: opts.cardId,
     sessionId,

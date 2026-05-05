@@ -6,7 +6,6 @@
  * ensureSystemTask wiring lives in src/server/index.ts.
  */
 
-import { randomUUID } from "node:crypto";
 import type {
   HandlerRegistry,
   TaskHandlerContext,
@@ -54,7 +53,7 @@ export async function kbAutoGenerateHandler(
         ? `Project: ${cand.project}\nProject context: ${projectContext}\n\nDefine the term (blend with project context when forming search queries): "${cand.term}"`
         : `Define the term: "${cand.term}"`;
 
-    const sessionId = `kb-def-${randomUUID()}`;
+    const sessionId = `kb-def-${crypto.randomUUID()}`;
     setSessionHiddenFromChat(db, userId, sessionId, true);
 
     void queue.log({

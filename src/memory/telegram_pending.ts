@@ -15,7 +15,6 @@
  * See ADR 0028.
  */
 
-import { randomBytes } from "node:crypto";
 import type { Database } from "bun:sqlite";
 
 export interface PendingLink {
@@ -55,7 +54,9 @@ export function createPendingLink(
   const ttl = opts.ttlMs ?? DEFAULT_PENDING_TTL_MS;
   // 20 bytes → 40 hex chars. Short enough to type in Telegram, long enough
   // to be unguessable.
-  const token = randomBytes(20).toString("hex");
+  const token = Array.from(crypto.getRandomValues(new Uint8Array(20)), (b) =>
+    b.toString(16).padStart(2, "0"),
+  ).join("");
   db.prepare(
     `INSERT INTO telegram_pending_links(link_token, user_id, project, expires_at, created_at)
      VALUES (?, ?, ?, ?, ?)`,

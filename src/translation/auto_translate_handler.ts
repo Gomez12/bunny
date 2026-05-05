@@ -18,7 +18,6 @@
  * ADR 0022 for why that's a separate daily task rather than a per-tick scan.
  */
 
-import { randomUUID } from "node:crypto";
 import type {
   HandlerRegistry,
   TaskHandlerContext,
@@ -187,7 +186,7 @@ async function translateOne(
     projectContext,
   );
 
-  const sessionId = `translate-${kind.name}-${randomUUID()}`;
+  const sessionId = `translate-${kind.name}-${crypto.randomUUID()}`;
   const systemUserId = getSystemUserId(ctx.db);
   setSessionHiddenFromChat(ctx.db, systemUserId, sessionId, true);
 
