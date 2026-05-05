@@ -1,8 +1,15 @@
 import { useEffect, useState } from "react";
 import type { Agent, AuthUser, Swimlane } from "../api";
 import { listUsers } from "../api";
+import Modal from "./Modal";
 
-const LANE_COLORS = ["#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444"] as const;
+const LANE_COLORS = [
+  "#6366f1",
+  "#0ea5e9",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+] as const;
 
 export interface SwimlaneDialogValue {
   name: string;
@@ -45,7 +52,9 @@ export default function SwimlaneDialog({
     : initial?.defaultAssigneeUserId
       ? "user"
       : "none";
-  const [assigneeKind, setAssigneeKind] = useState<"none" | "user" | "agent">(initialKind);
+  const [assigneeKind, setAssigneeKind] = useState<"none" | "user" | "agent">(
+    initialKind,
+  );
   const [assigneeUserId, setAssigneeUserId] = useState<string | null>(
     initial?.defaultAssigneeUserId ?? null,
   );
@@ -78,7 +87,9 @@ export default function SwimlaneDialog({
   }, [assigneeKind, currentUser, assigneeUserId]);
 
   const otherLanes = swimlanes.filter((s) => !initial || s.id !== initial.id);
-  const existingGroups = [...new Set(swimlanes.map((s) => s.group).filter(Boolean))] as string[];
+  const existingGroups = [
+    ...new Set(swimlanes.map((s) => s.group).filter(Boolean)),
+  ] as string[];
 
   const submit = async () => {
     if (!name.trim()) {
@@ -107,169 +118,180 @@ export default function SwimlaneDialog({
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <form
-          className="project-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void submit();
-          }}
-        >
-          <h2>{mode === "create" ? "New swimlane" : "Edit swimlane"}</h2>
+    <Modal onClose={onClose}>
+      <form
+        className="project-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit();
+        }}
+      >
+        <Modal.Header
+          title={mode === "create" ? "New swimlane" : "Edit swimlane"}
+        />
 
-          <label className="project-form__field">
-            <span>Name</span>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Lane name"
-              autoFocus
-              required
+        <label className="project-form__field">
+          <span>Name</span>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Lane name"
+            autoFocus
+            required
+          />
+        </label>
+
+        <div className="project-form__field">
+          <span>Color</span>
+          <div className="lane-color-picker">
+            <button
+              type="button"
+              className={`lane-color-swatch lane-color-swatch--none ${color === null ? "lane-color-swatch--active" : ""}`}
+              onClick={() => setColor(null)}
+              title="No color"
             />
-          </label>
-
-          <div className="project-form__field">
-            <span>Color</span>
-            <div className="lane-color-picker">
+            {LANE_COLORS.map((c) => (
               <button
+                key={c}
                 type="button"
-                className={`lane-color-swatch lane-color-swatch--none ${color === null ? "lane-color-swatch--active" : ""}`}
-                onClick={() => setColor(null)}
-                title="No color"
+                className={`lane-color-swatch ${color === c ? "lane-color-swatch--active" : ""}`}
+                style={{ background: c }}
+                onClick={() => setColor(c)}
+                title={c}
               />
-              {LANE_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  className={`lane-color-swatch ${color === c ? "lane-color-swatch--active" : ""}`}
-                  style={{ background: c }}
-                  onClick={() => setColor(c)}
-                  title={c}
-                />
-              ))}
-            </div>
+            ))}
           </div>
+        </div>
 
-          <label className="project-form__field">
-            <span>Group</span>
-            <input
-              value={group}
-              onChange={(e) => setGroup(e.target.value)}
-              placeholder="No group"
-              list="lane-groups"
-            />
-            <datalist id="lane-groups">
-              {existingGroups.map((g) => (
-                <option key={g} value={g} />
-              ))}
-            </datalist>
-            <span className="project-form__hint">
-              Lanes with the same group are visually grouped together on the board.
-            </span>
-          </label>
+        <label className="project-form__field">
+          <span>Group</span>
+          <input
+            value={group}
+            onChange={(e) => setGroup(e.target.value)}
+            placeholder="No group"
+            list="lane-groups"
+          />
+          <datalist id="lane-groups">
+            {existingGroups.map((g) => (
+              <option key={g} value={g} />
+            ))}
+          </datalist>
+          <span className="project-form__hint">
+            Lanes with the same group are visually grouped together on the
+            board.
+          </span>
+        </label>
 
-          <label className="project-form__field project-form__field--inline">
-            <input
-              type="checkbox"
-              checked={autoRun}
-              onChange={(e) => setAutoRun(e.target.checked)}
-            />
-            <span>Auto-run — scheduler will auto-run agent cards in this lane</span>
-          </label>
+        <label className="project-form__field project-form__field--inline">
+          <input
+            type="checkbox"
+            checked={autoRun}
+            onChange={(e) => setAutoRun(e.target.checked)}
+          />
+          <span>
+            Auto-run — scheduler will auto-run agent cards in this lane
+          </span>
+        </label>
 
-          <label className="project-form__field">
-            <span>WIP limit</span>
-            <input
-              type="number"
-              min={0}
-              value={wipLimit}
-              onChange={(e) => setWipLimit(e.target.value)}
-              placeholder="No limit"
-            />
-          </label>
+        <label className="project-form__field">
+          <span>WIP limit</span>
+          <input
+            type="number"
+            min={0}
+            value={wipLimit}
+            onChange={(e) => setWipLimit(e.target.value)}
+            placeholder="No limit"
+          />
+        </label>
 
-          <div className="project-form__field">
-            <span>Default assignee</span>
-            <div className="card-assignee-tabs">
-              {(["none", "user", "agent"] as const).map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  className={`card-assignee-tab ${assigneeKind === k ? "card-assignee-tab--active" : ""}`}
-                  onClick={() => setAssigneeKind(k)}
-                >
-                  {k === "none" ? "None" : k === "user" ? "User" : "Agent"}
-                </button>
-              ))}
-            </div>
+        <div className="project-form__field">
+          <span>Default assignee</span>
+          <div className="card-assignee-tabs">
+            {(["none", "user", "agent"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                className={`card-assignee-tab ${assigneeKind === k ? "card-assignee-tab--active" : ""}`}
+                onClick={() => setAssigneeKind(k)}
+              >
+                {k === "none" ? "None" : k === "user" ? "User" : "Agent"}
+              </button>
+            ))}
           </div>
+        </div>
 
-          {assigneeKind === "user" && (
-            <label className="project-form__field">
-              <span>User</span>
-              <select
-                value={assigneeUserId ?? ""}
-                onChange={(e) => setAssigneeUserId(e.target.value || null)}
-              >
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.displayName || u.username}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-
-          {assigneeKind === "agent" && (
-            <label className="project-form__field">
-              <span>Agent</span>
-              <select
-                value={assigneeAgent ?? ""}
-                onChange={(e) => setAssigneeAgent(e.target.value || null)}
-              >
-                <option value="">— pick an agent —</option>
-                {agents.map((a) => (
-                  <option key={a.name} value={a.name}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
-              {agents.length === 0 && (
-                <span className="project-form__hint">
-                  No agents are linked to this project. Link one in the Agents tab first.
-                </span>
-              )}
-            </label>
-          )}
-
+        {assigneeKind === "user" && (
           <label className="project-form__field">
-            <span>Next swimlane (auto-move after agent run)</span>
+            <span>User</span>
             <select
-              value={nextSwimlaneId ?? ""}
-              onChange={(e) => setNextSwimlaneId(e.target.value ? Number(e.target.value) : null)}
+              value={assigneeUserId ?? ""}
+              onChange={(e) => setAssigneeUserId(e.target.value || null)}
             >
-              <option value="">— none —</option>
-              {otherLanes.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.displayName || u.username}
                 </option>
               ))}
             </select>
           </label>
+        )}
 
-          {error && <div className="project-form__error">{error}</div>}
+        {assigneeKind === "agent" && (
+          <label className="project-form__field">
+            <span>Agent</span>
+            <select
+              value={assigneeAgent ?? ""}
+              onChange={(e) => setAssigneeAgent(e.target.value || null)}
+            >
+              <option value="">— pick an agent —</option>
+              {agents.map((a) => (
+                <option key={a.name} value={a.name}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+            {agents.length === 0 && (
+              <span className="project-form__hint">
+                No agents are linked to this project. Link one in the Agents tab
+                first.
+              </span>
+            )}
+          </label>
+        )}
 
-          <div className="project-form__actions">
-            <button type="button" className="btn" onClick={onClose} disabled={busy}>
-              Cancel
-            </button>
-            <button type="submit" className="btn btn--send" disabled={busy}>
-              {busy ? "Saving…" : mode === "create" ? "Create" : "Save"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <label className="project-form__field">
+          <span>Next swimlane (auto-move after agent run)</span>
+          <select
+            value={nextSwimlaneId ?? ""}
+            onChange={(e) =>
+              setNextSwimlaneId(e.target.value ? Number(e.target.value) : null)
+            }
+          >
+            <option value="">— none —</option>
+            {otherLanes.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {error && <div className="project-form__error">{error}</div>}
+
+        <Modal.Footer>
+          <button
+            type="button"
+            className="btn"
+            onClick={onClose}
+            disabled={busy}
+          >
+            Cancel
+          </button>
+          <button type="submit" className="btn btn--send" disabled={busy}>
+            {busy ? "Saving…" : mode === "create" ? "Create" : "Save"}
+          </button>
+        </Modal.Footer>
+      </form>
+    </Modal>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Project, Skill, SkillVisibility } from "../api";
+import Modal from "./Modal";
 
 export interface SkillDialogValue {
   name: string;
@@ -17,14 +18,24 @@ interface Props {
   onSubmit: (value: SkillDialogValue) => Promise<void>;
 }
 
-export default function SkillDialog({ mode, initial, allProjects, onClose, onSubmit }: Props) {
+export default function SkillDialog({
+  mode,
+  initial,
+  allProjects,
+  onClose,
+  onSubmit,
+}: Props) {
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
-  const [visibility, setVisibility] = useState<SkillVisibility>(initial?.visibility ?? "private");
+  const [visibility, setVisibility] = useState<SkillVisibility>(
+    initial?.visibility ?? "private",
+  );
   const [skillMd, setSkillMd] = useState(
     initial?.skillMd ?? "---\nname: \ndescription: \n---\n\n# Instructions\n",
   );
-  const [linkedProjects, setLinkedProjects] = useState<string[]>(initial?.projects ?? []);
+  const [linkedProjects, setLinkedProjects] = useState<string[]>(
+    initial?.projects ?? [],
+  );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -69,85 +80,93 @@ export default function SkillDialog({ mode, initial, allProjects, onClose, onSub
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
-        <form onSubmit={handleSubmit} className="project-form">
-          <h2>{mode === "create" ? "New skill" : `Edit ${initial?.name}`}</h2>
+    <Modal onClose={onClose} size="md">
+      <form onSubmit={handleSubmit} className="project-form">
+        <Modal.Header
+          title={mode === "create" ? "New skill" : `Edit ${initial?.name}`}
+        />
 
-          <label className="project-form__field">
-            <span>Name</span>
-            <input
-              ref={nameRef}
-              type="text"
-              value={name}
-              disabled={mode === "edit"}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="my-skill"
-              required
-            />
-          </label>
+        <label className="project-form__field">
+          <span>Name</span>
+          <input
+            ref={nameRef}
+            type="text"
+            value={name}
+            disabled={mode === "edit"}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="my-skill"
+            required
+          />
+        </label>
 
-          <label className="project-form__field">
-            <span>Description</span>
-            <input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What this skill does and when to use it"
-            />
-          </label>
+        <label className="project-form__field">
+          <span>Description</span>
+          <input
+            type="text"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="What this skill does and when to use it"
+          />
+        </label>
 
-          <label className="project-form__choice">
-            <span>Visibility</span>
-            <select
-              value={visibility}
-              onChange={(e) => setVisibility(e.target.value as SkillVisibility)}
-            >
-              <option value="private">Private</option>
-              <option value="public">Public</option>
-            </select>
-          </label>
+        <label className="project-form__choice">
+          <span>Visibility</span>
+          <select
+            value={visibility}
+            onChange={(e) => setVisibility(e.target.value as SkillVisibility)}
+          >
+            <option value="private">Private</option>
+            <option value="public">Public</option>
+          </select>
+        </label>
 
-          <label className="project-form__field">
-            <span>SKILL.md</span>
-            <textarea
-              className="project-form__prompt"
-              value={skillMd}
-              onChange={(e) => setSkillMd(e.target.value)}
-              rows={12}
-              spellCheck={false}
-              style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.85rem" }}
-            />
-          </label>
+        <label className="project-form__field">
+          <span>SKILL.md</span>
+          <textarea
+            className="project-form__prompt"
+            value={skillMd}
+            onChange={(e) => setSkillMd(e.target.value)}
+            rows={12}
+            spellCheck={false}
+            style={{
+              fontFamily: "var(--font-mono, monospace)",
+              fontSize: "0.85rem",
+            }}
+          />
+        </label>
 
-          <fieldset className="project-form__fieldset">
-            <legend>Available in projects</legend>
-            <div className="project-form__chips">
-              {allProjects.map((p) => (
-                <label key={p.name} className="project-form__chip">
-                  <input
-                    type="checkbox"
-                    checked={linkedProjects.includes(p.name)}
-                    onChange={() => toggleProject(p.name)}
-                  />
-                  <span>{p.name}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          {error && <div className="project-form__error">{error}</div>}
-
-          <div className="project-form__actions">
-            <button type="button" className="btn" onClick={onClose} disabled={submitting}>
-              Cancel
-            </button>
-            <button type="submit" className="btn btn--send" disabled={submitting}>
-              {submitting ? "Saving…" : mode === "create" ? "Create" : "Save"}
-            </button>
+        <fieldset className="project-form__fieldset">
+          <legend>Available in projects</legend>
+          <div className="project-form__chips">
+            {allProjects.map((p) => (
+              <label key={p.name} className="project-form__chip">
+                <input
+                  type="checkbox"
+                  checked={linkedProjects.includes(p.name)}
+                  onChange={() => toggleProject(p.name)}
+                />
+                <span>{p.name}</span>
+              </label>
+            ))}
           </div>
-        </form>
-      </div>
-    </div>
+        </fieldset>
+
+        {error && <div className="project-form__error">{error}</div>}
+
+        <Modal.Footer>
+          <button
+            type="button"
+            className="btn"
+            onClick={onClose}
+            disabled={submitting}
+          >
+            Cancel
+          </button>
+          <button type="submit" className="btn btn--send" disabled={submitting}>
+            {submitting ? "Saving…" : mode === "create" ? "Create" : "Save"}
+          </button>
+        </Modal.Footer>
+      </form>
+    </Modal>
   );
 }

@@ -109,7 +109,35 @@ Height settles around 28-32 px. Don't introduce a new `.btn--foo` variant withou
 
 ### Dialogs
 
-All dialogs share the `.dialog` class family (see `ProjectDialog`, `AgentDialog`, `CardDialog`, `ContactDialog`, `SwimlaneDialog`, `SkillDialog`). Fixed backdrop + centered card, `--radius` 12 px, 480-640 px max-width depending on form density. Close via X button *or* ESC. Always include a "Cancel" ghost button next to the primary action.
+Every modal in the app goes through the shared `<Modal>` primitive at `web/src/components/Modal.tsx` — never roll your own backdrop. The primitive owns ESC, click-outside, the structured header (title left + X right), the body slot, and the footer slot. CSS classes on the rendered DOM are `.modal-backdrop` + `.modal` (+ `.modal--wide`); the styleguide previously called these `.dialog-*` but the implementation has always been `.modal-*` and that name wins.
+
+Sizes are CSS variables — `--modal-size-sm` (420 px) and `--modal-size-md` (600 px) — used by `<Modal size="sm" />` (default) and `<Modal size="md" />`. `sm` = confirmations + simple pickers; `md` = entity create/edit forms.
+
+Close affordances are non-negotiable and all four are wired by the primitive:
+
+- X button (top-right of the header) — emitted by `<Modal.Header title="…" />`
+- ESC key
+- Backdrop click
+- A button in the footer — `Cancel` for forms (the destructive escape from unsaved changes), `Close` for non-form pickers (CodeProjectPickerDialog, NewChatWithAgentDialog, WhiteboardPickerDialog)
+
+Footer layout is always `<Modal.Footer>` (renders `.modal__footer`, right-aligned button row). `[Cancel] [Save/Create]` for form dialogs, `[Close]` alone for pickers, `[Cancel] [OK/Confirm]` for ConfirmDialog (destructive variant uses `btn--danger` on the right).
+
+Skeleton:
+
+```tsx
+<Modal onClose={onClose} size="md">
+  <form onSubmit={handleSubmit} className="project-form">
+    <Modal.Header title="Edit Contact" />
+    {/* form fields */}
+    <Modal.Footer>
+      <button type="button" className="btn" onClick={onClose}>Cancel</button>
+      <button type="submit" className="btn btn--send">Save</button>
+    </Modal.Footer>
+  </form>
+</Modal>
+```
+
+`<Modal.Body>` is available as a structured wrapper but is optional; many form dialogs put fields directly inside the form so the form's `onSubmit` reaches the submit button without an extra DOM layer.
 
 ### Forms
 
@@ -255,3 +283,4 @@ Events may carry `author` (agent name) — when set, render `@name` instead of t
 - **2026-04-19** — **Added user notifications.** Bell button with unread badge sits in a new `.nav__user-row` (sibling to `.nav__user` so the badge survives the hover-only opacity on the username label). Clicking the bell navigates to the Notifications **tab** (a full two-pane bunny view — `web/src/tabs/NotificationsTab.tsx`, CSS `.notif-tab` / `.notif-tab__list` / `.notif-tab__detail`) rather than opening a popover: the popover kept getting clipped by the main content area, and the tab offers room for a proper "All / Unread" filter and a detail pane with a primary "Open conversation" CTA. New components: `<NotificationBell>` (sidebar-footer navigation button, first click also requests OS-notification permission), `<NotificationsTab>` (list + detail), `<ToastStack>` (fixed top-right, auto-dismiss 5 s, hover-pause). Hook `useNotifications` owns fetch + SSE reconciliation; `osToast` shim feature-detects Tauri and routes to `@tauri-apps/plugin-notification` or falls back to `window.Notification`. New icons in the barrel: `Bell`, `BellRing`, `AtSign`. New SSE events surface `notification_created` / `notification_read` for realtime push (per-user fanout with 25 s keepalive). See [ADR 0027](./adr/0027-user-notifications.md).
 - **2026-04-20** — **Added Code sub-application with a secondary icon rail.** New nav item **Code** (icon: `Code`) in the Content group, between Files and Contacts. Unlike other tabs, Code mounts a second 56 px icon rail (`.code-rail`) inside its own shell (`.code-shell` grid) — mirrors the primary rail's hover-expand geometry so the UX feels continuous. For v1 the secondary rail ships one entry (`FolderGit2` icon → Projects) and is deliberately built around a `NavGroup[]` shape so future sub-features (reviews, docs generation, search, issues) drop in as one rail entry. New CSS classes: `.code-shell`, `.code-shell__main`, `.code-rail`, `.code-rail__header`, `.code-rail__title`, `.code-rail__groups`, `.code-rail__group`, `.code-rail__group-label`, `.code-rail__item` (+ `--active`), `.code-rail__item-icon`, `.code-rail__item-label`, the `.code-projects__*` list / detail / tree / breadcrumb / composer family, `.btn--icon`, `.mode-chip` (+ `--active`), `.status-dot` (+ `--ok` / `--err` / `--busy`), `.badge--idle|--cloning|--ready|--error`. New icons in the barrel: `Code`, `GitBranch`, `FolderGit2`. The primary `.nav` rules are untouched. See [ADR 0030](./adr/0030-code-sub-application.md).
 - **2026-04-18** — **Introduced light theme.** Palette defined on `[data-theme="light"]` mirroring every existing token (bg / text / accent-soft / user-bg / tool-bg / etc.) plus new tokens for theme-aware surfaces: `--code-bg` / `--code-fg` (kept dark in both modes for `github-dark.css` compatibility), `--inline-code-bg`, `--overlay-bg`, `--shadow-soft`, `--hover-bg`, `--hairline`. `App.tsx` drives the `data-theme` attribute on `<html>`, persists to `localStorage.bunny.theme`, and follows OS `prefers-color-scheme` until the user makes an explicit choice. Sidebar footer gains a Sun/Moon toggle (class `.nav__theme`, matches `.nav__logout` shape). New icons in the barrel: `Sun`, `Moon`. Replaced hardcoded dark hexes (`#0b0d12`, `#1e1e2e`, `#1a1d23`) and `rgba(255,…)` hover tints with the new tokens across `styles.css`.
+- **2026-05-05** — **Modal consistency pass.** Introduced the shared `<Modal>` primitive at `web/src/components/Modal.tsx` (with `Modal.Header` / `Modal.Body` / `Modal.Footer` subcomponents) and migrated all 15 dialog components (`ConfirmDialog`, `ProjectDialog`, `AgentDialog`, `SkillDialog`, `ContactDialog`, `BusinessDialog`, `SwimlaneDialog`, `CardDialog`, `CodeProjectDialog`, `CodeProjectPickerDialog`, `ContactImportDialog`, `NewChatWithAgentDialog`, `WhiteboardPickerDialog`, `TopicDialog`, `DefinitionDialog`). Every modal now consistently exposes X-close, ESC, backdrop click, and a footer action — previously only 2/15 had the X and 1/15 wired ESC. New CSS variables `--modal-size-sm` (420 px) and `--modal-size-md` (600 px) replace the hardcoded width literals on `.modal` / `.modal--wide`. Picker dialogs now use `Close` for the dismiss button, form dialogs keep `Cancel` (option 9b). `WhiteboardPickerDialog` migrated off the undeclared `.dialog-overlay` / `.dialog` class names. Styleguide §4 rewritten to reflect the `.modal-*` class family (the previous `.dialog-*` text was aspirational and never matched the code). See plan in `~/.claude/plans/vast-fluttering-knuth.md` (options 1c + 2a + 3a + 4a + 5a + 6a + 8a + 9b).

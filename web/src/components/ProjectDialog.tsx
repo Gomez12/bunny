@@ -4,6 +4,7 @@ import type { Agent, Project, ProjectVisibility } from "../api";
 // can pin itself to the backend's validation rule instead of drifting.
 import { PROJECT_NAME_RE } from "../../../src/memory/project_name";
 import { validateOverride } from "../lib/forms";
+import Modal from "./Modal";
 import ProjectPromptsSection from "./ProjectPromptsSection";
 
 export interface ProjectDialogValue {
@@ -69,16 +70,26 @@ export default function ProjectDialog({
   const [description, setDescription] = useState(initial?.description ?? "");
   const [systemPrompt, setSystemPrompt] = useState(initial?.systemPrompt ?? "");
   const [appendMode, setAppendMode] = useState(initial?.appendMode ?? true);
-  const [visibility, setVisibility] = useState<ProjectVisibility>(initial?.visibility ?? "public");
-  const [lastN, setLastN] = useState<string>(initial?.lastN == null ? "" : String(initial.lastN));
-  const [recallK, setRecallK] = useState<string>(initial?.recallK == null ? "" : String(initial.recallK));
-  const [languages, setLanguages] = useState<string[]>(initial?.languages ?? ["en"]);
+  const [visibility, setVisibility] = useState<ProjectVisibility>(
+    initial?.visibility ?? "public",
+  );
+  const [lastN, setLastN] = useState<string>(
+    initial?.lastN == null ? "" : String(initial.lastN),
+  );
+  const [recallK, setRecallK] = useState<string>(
+    initial?.recallK == null ? "" : String(initial.recallK),
+  );
+  const [languages, setLanguages] = useState<string[]>(
+    initial?.languages ?? ["en"],
+  );
   const [defaultLanguage, setDefaultLanguage] = useState<string>(
     initial?.defaultLanguage ?? initial?.languages?.[0] ?? "en",
   );
   const [linkedAgents, setLinkedAgents] = useState<string[]>(() => {
     if (!initial) return [];
-    return allAgents.filter((a) => a.projects.includes(initial.name)).map((a) => a.name);
+    return allAgents
+      .filter((a) => a.projects.includes(initial.name))
+      .map((a) => a.name);
   });
   const [autoBuildBusinesses, setAutoBuildBusinesses] = useState<boolean>(
     initial?.autoBuildBusinesses ?? false,
@@ -91,12 +102,15 @@ export default function ProjectDialog({
     if (mode === "create") nameRef.current?.focus();
   }, [mode]);
 
-  const nameValid = mode === "edit" || PROJECT_NAME_RE.test(name.trim().toLowerCase());
+  const nameValid =
+    mode === "edit" || PROJECT_NAME_RE.test(name.trim().toLowerCase());
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nameValid) {
-      setError("Name must be lowercase letters, digits, _ or - (max 63 chars).");
+      setError(
+        "Name must be lowercase letters, digits, _ or - (max 63 chars).",
+      );
       return;
     }
     const parsedLastN = validateOverride(lastN);
@@ -138,230 +152,249 @@ export default function ProjectDialog({
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
-        <form onSubmit={handleSubmit} className="project-form">
-          <h2>{mode === "create" ? "New project" : `Edit ${initial?.name}`}</h2>
+    <Modal onClose={onClose} size="md">
+      <form onSubmit={handleSubmit} className="project-form">
+        <Modal.Header
+          title={mode === "create" ? "New project" : `Edit ${initial?.name}`}
+        />
 
-          <label className="project-form__field">
-            <span>Name</span>
+        <label className="project-form__field">
+          <span>Name</span>
+          <input
+            ref={nameRef}
+            type="text"
+            value={name}
+            disabled={mode === "edit"}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. research, product-x"
+            autoComplete="off"
+            required
+          />
+          {!nameValid && name !== "" && (
+            <span className="project-form__hint project-form__hint--error">
+              Lowercase, digits, _ or - only (max 63 chars).
+            </span>
+          )}
+        </label>
+
+        <label className="project-form__field">
+          <span>Description (optional)</span>
+          <input
+            type="text"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Short summary shown on the card"
+          />
+        </label>
+
+        <label className="project-form__field">
+          <span>System prompt</span>
+          <textarea
+            value={systemPrompt}
+            onChange={(e) => setSystemPrompt(e.target.value)}
+            rows={8}
+            placeholder="Instructions that apply to every chat in this project"
+          />
+        </label>
+
+        <div className="project-form__row">
+          <label className="project-form__choice">
             <input
-              ref={nameRef}
-              type="text"
-              value={name}
-              disabled={mode === "edit"}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. research, product-x"
-              autoComplete="off"
-              required
+              type="checkbox"
+              checked={appendMode}
+              onChange={(e) => setAppendMode(e.target.checked)}
             />
-            {!nameValid && name !== "" && (
-              <span className="project-form__hint project-form__hint--error">
-                Lowercase, digits, _ or - only (max 63 chars).
-              </span>
-            )}
+            <span>Append to base prompt (uncheck to replace)</span>
           </label>
 
+          <label className="project-form__choice">
+            <span>Visibility</span>
+            <select
+              value={visibility}
+              onChange={(e) =>
+                setVisibility(e.target.value as ProjectVisibility)
+              }
+            >
+              <option value="public">Public</option>
+              <option value="private">Private (only you)</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="project-form__row">
           <label className="project-form__field">
-            <span>Description (optional)</span>
+            <span>Last N turns (verbatim)</span>
             <input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Short summary shown on the card"
+              type="number"
+              min={0}
+              step={1}
+              value={lastN}
+              onChange={(e) => setLastN(e.target.value)}
+              placeholder="inherit global"
             />
+            <span className="project-form__hint">
+              How many recent user/assistant turns to replay verbatim. Leave
+              blank to inherit.
+            </span>
           </label>
 
           <label className="project-form__field">
-            <span>System prompt</span>
-            <textarea
-              value={systemPrompt}
-              onChange={(e) => setSystemPrompt(e.target.value)}
-              rows={8}
-              placeholder="Instructions that apply to every chat in this project"
+            <span>Hybrid recall K</span>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={recallK}
+              onChange={(e) => setRecallK(e.target.value)}
+              placeholder="inherit global"
             />
+            <span className="project-form__hint">
+              How many BM25 + vector hits to inject. Leave blank to inherit.
+            </span>
           </label>
+        </div>
 
-          <div className="project-form__row">
-            <label className="project-form__choice">
-              <input
-                type="checkbox"
-                checked={appendMode}
-                onChange={(e) => setAppendMode(e.target.checked)}
-              />
-              <span>Append to base prompt (uncheck to replace)</span>
-            </label>
-
-            <label className="project-form__choice">
-              <span>Visibility</span>
-              <select
-                value={visibility}
-                onChange={(e) => setVisibility(e.target.value as ProjectVisibility)}
-              >
-                <option value="public">Public</option>
-                <option value="private">Private (only you)</option>
-              </select>
-            </label>
+        <label className="project-form__field">
+          <span>Languages</span>
+          <div className="project-form__chips">
+            {LANGUAGE_OPTIONS.map((opt) => {
+              const checked = languages.includes(opt.code);
+              return (
+                <label
+                  key={opt.code}
+                  className="project-form__chip"
+                  title={opt.name}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() =>
+                      setLanguages((prev) => {
+                        const next = checked
+                          ? prev.filter((l) => l !== opt.code)
+                          : [...prev, opt.code];
+                        if (!next.includes(defaultLanguage)) {
+                          setDefaultLanguage(next[0] ?? "en");
+                        }
+                        return next;
+                      })
+                    }
+                  />
+                  <span>
+                    {opt.code.toUpperCase()} · {opt.name}
+                  </span>
+                </label>
+              );
+            })}
           </div>
+          <span className="project-form__hint">
+            Every entity is authored in one of these and auto-translated to the
+            rest.
+          </span>
+        </label>
 
-          <div className="project-form__row">
-            <label className="project-form__field">
-              <span>Last N turns (verbatim)</span>
-              <input
-                type="number"
-                min={0}
-                step={1}
-                value={lastN}
-                onChange={(e) => setLastN(e.target.value)}
-                placeholder="inherit global"
-              />
-              <span className="project-form__hint">
-                How many recent user/assistant turns to replay verbatim. Leave blank to inherit.
-              </span>
-            </label>
+        <label className="project-form__field">
+          <span>Default language</span>
+          <select
+            value={defaultLanguage}
+            onChange={(e) => setDefaultLanguage(e.target.value)}
+          >
+            {languages.map((l) => (
+              <option key={l} value={l}>
+                {l.toUpperCase()} ·{" "}
+                {LANGUAGE_OPTIONS.find((o) => o.code === l)?.name ?? l}
+              </option>
+            ))}
+          </select>
+          <span className="project-form__hint">
+            New entities created in this project start in this language unless
+            the user has overridden their preferred language.
+          </span>
+        </label>
 
-            <label className="project-form__field">
-              <span>Hybrid recall K</span>
-              <input
-                type="number"
-                min={0}
-                step={1}
-                value={recallK}
-                onChange={(e) => setRecallK(e.target.value)}
-                placeholder="inherit global"
-              />
-              <span className="project-form__hint">
-                How many BM25 + vector hits to inject. Leave blank to inherit.
-              </span>
-            </label>
-          </div>
-
-          <label className="project-form__field">
-            <span>Languages</span>
+        <label className="project-form__field">
+          <span>Available agents</span>
+          {allAgents.length === 0 ? (
+            <span className="project-form__hint">
+              No agents yet. Create one in the Agents tab — it is auto-linked to
+              the default project.
+            </span>
+          ) : (
             <div className="project-form__chips">
-              {LANGUAGE_OPTIONS.map((opt) => {
-                const checked = languages.includes(opt.code);
+              {allAgents.map((a) => {
+                const checked = linkedAgents.includes(a.name);
                 return (
                   <label
-                    key={opt.code}
+                    key={a.name}
                     className="project-form__chip"
-                    title={opt.name}
+                    title={a.description || ""}
                   >
                     <input
                       type="checkbox"
                       checked={checked}
                       onChange={() =>
-                        setLanguages((prev) => {
-                          const next = checked
-                            ? prev.filter((l) => l !== opt.code)
-                            : [...prev, opt.code];
-                          if (!next.includes(defaultLanguage)) {
-                            setDefaultLanguage(next[0] ?? "en");
-                          }
-                          return next;
-                        })
+                        setLinkedAgents((prev) =>
+                          checked
+                            ? prev.filter((n) => n !== a.name)
+                            : [...prev, a.name],
+                        )
                       }
                     />
-                    <span>
-                      {opt.code.toUpperCase()} · {opt.name}
-                    </span>
+                    <span>@{a.name}</span>
                   </label>
                 );
               })}
             </div>
-            <span className="project-form__hint">
-              Every entity is authored in one of these and auto-translated to the rest.
-            </span>
-          </label>
-
-          <label className="project-form__field">
-            <span>Default language</span>
-            <select
-              value={defaultLanguage}
-              onChange={(e) => setDefaultLanguage(e.target.value)}
-            >
-              {languages.map((l) => (
-                <option key={l} value={l}>
-                  {l.toUpperCase()} ·{" "}
-                  {LANGUAGE_OPTIONS.find((o) => o.code === l)?.name ?? l}
-                </option>
-              ))}
-            </select>
-            <span className="project-form__hint">
-              New entities created in this project start in this language unless
-              the user has overridden their preferred language.
-            </span>
-          </label>
-
-          <label className="project-form__field">
-            <span>Available agents</span>
-            {allAgents.length === 0 ? (
-              <span className="project-form__hint">
-                No agents yet. Create one in the Agents tab — it is auto-linked to the default
-                project.
-              </span>
-            ) : (
-              <div className="project-form__chips">
-                {allAgents.map((a) => {
-                  const checked = linkedAgents.includes(a.name);
-                  return (
-                    <label key={a.name} className="project-form__chip" title={a.description || ""}>
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() =>
-                          setLinkedAgents((prev) =>
-                            checked ? prev.filter((n) => n !== a.name) : [...prev, a.name],
-                          )
-                        }
-                      />
-                      <span>@{a.name}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-            <span className="project-form__hint">
-              Checked agents can be mentioned with <code>@name</code> in this project's chats.
-            </span>
-          </label>
-
-          <label className="project-form__field">
-            <span>Businesses</span>
-            <label className="project-form__choice">
-              <input
-                type="checkbox"
-                checked={autoBuildBusinesses}
-                onChange={(e) => setAutoBuildBusinesses(e.target.checked)}
-              />
-              <span>Auto-build businesses from contacts</span>
-            </label>
-            <span className="project-form__hint">
-              When on, the <code>business.auto_build</code> handler walks this
-              project's contacts every six hours, derives organisations from
-              the <code>company</code> field plus email/website domains, and
-              enriches new rows via <code>web_search</code>. Off by default to
-              keep web-tool cost predictable.
-            </span>
-          </label>
-
-          {mode === "edit" && initial && (
-            <ProjectPromptsSection project={initial.name} />
           )}
+          <span className="project-form__hint">
+            Checked agents can be mentioned with <code>@name</code> in this
+            project's chats.
+          </span>
+        </label>
 
-          {error && <div className="project-form__error">{error}</div>}
+        <label className="project-form__field">
+          <span>Businesses</span>
+          <label className="project-form__choice">
+            <input
+              type="checkbox"
+              checked={autoBuildBusinesses}
+              onChange={(e) => setAutoBuildBusinesses(e.target.checked)}
+            />
+            <span>Auto-build businesses from contacts</span>
+          </label>
+          <span className="project-form__hint">
+            When on, the <code>business.auto_build</code> handler walks this
+            project's contacts every six hours, derives organisations from the{" "}
+            <code>company</code> field plus email/website domains, and enriches
+            new rows via <code>web_search</code>. Off by default to keep
+            web-tool cost predictable.
+          </span>
+        </label>
 
-          <div className="project-form__actions">
-            <button type="button" className="btn" onClick={onClose} disabled={submitting}>
-              Cancel
-            </button>
-            <button type="submit" className="btn btn--send" disabled={submitting || !nameValid}>
-              {submitting ? "Saving…" : mode === "create" ? "Create" : "Save"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        {mode === "edit" && initial && (
+          <ProjectPromptsSection project={initial.name} />
+        )}
+
+        {error && <div className="project-form__error">{error}</div>}
+
+        <Modal.Footer>
+          <button
+            type="button"
+            className="btn"
+            onClick={onClose}
+            disabled={submitting}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="btn btn--send"
+            disabled={submitting || !nameValid}
+          >
+            {submitting ? "Saving…" : mode === "create" ? "Create" : "Save"}
+          </button>
+        </Modal.Footer>
+      </form>
+    </Modal>
   );
 }
-

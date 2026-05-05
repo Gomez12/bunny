@@ -1,12 +1,8 @@
 import { useState, type FormEvent } from "react";
-import type {
-  AuthUser,
-  Contact,
-  ContactGroup,
-  SocialHandle,
-} from "../api";
+import type { AuthUser, Contact, ContactGroup, SocialHandle } from "../api";
 import { fetchContact, refreshContactSoul } from "../api";
 import LanguageTabs, { translationStatusToPill } from "./LanguageTabs";
+import Modal from "./Modal";
 import StatusPill, { type PillStatus, soulStatusToPill } from "./StatusPill";
 import { SOCIAL_PLATFORMS } from "../lib/socials";
 import { useTranslations } from "../hooks/useTranslations";
@@ -44,8 +40,12 @@ export default function ContactDialog({
   onSubmit,
 }: Props) {
   const [name, setName] = useState(initial?.name ?? "");
-  const [emails, setEmails] = useState<string[]>(initial?.emails?.length ? initial.emails : [""]);
-  const [phones, setPhones] = useState<string[]>(initial?.phones?.length ? initial.phones : [""]);
+  const [emails, setEmails] = useState<string[]>(
+    initial?.emails?.length ? initial.emails : [""],
+  );
+  const [phones, setPhones] = useState<string[]>(
+    initial?.phones?.length ? initial.phones : [""],
+  );
   const [company, setCompany] = useState(initial?.company ?? "");
   const [title, setTitle] = useState(initial?.title ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
@@ -54,7 +54,9 @@ export default function ContactDialog({
   const [socials, setSocials] = useState<SocialHandle[]>(
     initial?.socials?.length ? initial.socials : [],
   );
-  const [groups, setGroups] = useState<Set<number>>(new Set(initial?.groups ?? []));
+  const [groups, setGroups] = useState<Set<number>>(
+    new Set(initial?.groups ?? []),
+  );
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -102,7 +104,12 @@ export default function ContactDialog({
     reader.readAsDataURL(file);
   };
 
-  const updateList = (list: string[], idx: number, value: string, setter: (v: string[]) => void) => {
+  const updateList = (
+    list: string[],
+    idx: number,
+    value: string,
+    setter: (v: string[]) => void,
+  ) => {
     const next = [...list];
     next[idx] = value;
     setter(next);
@@ -112,7 +119,11 @@ export default function ContactDialog({
     setter([...list, ""]);
   };
 
-  const removeFromList = (list: string[], idx: number, setter: (v: string[]) => void) => {
+  const removeFromList = (
+    list: string[],
+    idx: number,
+    setter: (v: string[]) => void,
+  ) => {
     if (list.length <= 1) {
       setter([""]);
       return;
@@ -121,258 +132,287 @@ export default function ContactDialog({
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div
-        className="modal modal--wide"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <form className="project-form" onSubmit={handleSubmit}>
-          <h2>{mode === "create" ? "New Contact" : "Edit Contact"}</h2>
+    <Modal onClose={onClose} size="md">
+      <form className="project-form" onSubmit={handleSubmit}>
+        <Modal.Header
+          title={mode === "create" ? "New Contact" : "Edit Contact"}
+        />
 
-          <label className="project-form__field">
-            Name *
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              autoFocus
-            />
-          </label>
-
-          <div className="project-form__field">
-            Emails
-            {emails.map((email, i) => (
-              <div key={i} className="contact-form__multi-row">
-                <input
-                  type="email"
-                  value={email}
-                  placeholder="email@example.com"
-                  onChange={(e) => updateList(emails, i, e.target.value, setEmails)}
-                />
-                <button
-                  type="button"
-                  className="contact-form__remove-btn"
-                  onClick={() => removeFromList(emails, i, setEmails)}
-                  title="Remove"
-                >
-                  &times;
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              className="contact-form__add-btn"
-              onClick={() => addToList(emails, setEmails)}
-            >
-              + Add email
-            </button>
-          </div>
-
-          <div className="project-form__field">
-            Phones
-            {phones.map((phone, i) => (
-              <div key={i} className="contact-form__multi-row">
-                <input
-                  type="tel"
-                  value={phone}
-                  placeholder="+31 6 12345678"
-                  onChange={(e) => updateList(phones, i, e.target.value, setPhones)}
-                />
-                <button
-                  type="button"
-                  className="contact-form__remove-btn"
-                  onClick={() => removeFromList(phones, i, setPhones)}
-                  title="Remove"
-                >
-                  &times;
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              className="contact-form__add-btn"
-              onClick={() => addToList(phones, setPhones)}
-            >
-              + Add phone
-            </button>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <label className="project-form__field">
-              Company
-              <input value={company} onChange={(e) => setCompany(e.target.value)} />
-            </label>
-            <label className="project-form__field">
-              Title / Role
-              <input value={title} onChange={(e) => setTitle(e.target.value)} />
-            </label>
-          </div>
-
-          <NotesField
-            mode={mode}
-            initial={initial}
-            currentUser={currentUser}
-            notes={notes}
-            setNotes={setNotes}
+        <label className="project-form__field">
+          Name *
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            autoFocus
           />
+        </label>
 
+        <div className="project-form__field">
+          Emails
+          {emails.map((email, i) => (
+            <div key={i} className="contact-form__multi-row">
+              <input
+                type="email"
+                value={email}
+                placeholder="email@example.com"
+                onChange={(e) =>
+                  updateList(emails, i, e.target.value, setEmails)
+                }
+              />
+              <button
+                type="button"
+                className="contact-form__remove-btn"
+                onClick={() => removeFromList(emails, i, setEmails)}
+                title="Remove"
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="contact-form__add-btn"
+            onClick={() => addToList(emails, setEmails)}
+          >
+            + Add email
+          </button>
+        </div>
+
+        <div className="project-form__field">
+          Phones
+          {phones.map((phone, i) => (
+            <div key={i} className="contact-form__multi-row">
+              <input
+                type="tel"
+                value={phone}
+                placeholder="+31 6 12345678"
+                onChange={(e) =>
+                  updateList(phones, i, e.target.value, setPhones)
+                }
+              />
+              <button
+                type="button"
+                className="contact-form__remove-btn"
+                onClick={() => removeFromList(phones, i, setPhones)}
+                title="Remove"
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="contact-form__add-btn"
+            onClick={() => addToList(phones, setPhones)}
+          >
+            + Add phone
+          </button>
+        </div>
+
+        <div
+          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}
+        >
           <label className="project-form__field">
-            Tags (comma-separated)
+            Company
             <input
-              value={tagsStr}
-              onChange={(e) => setTagsStr(e.target.value)}
-              placeholder="client, vip, partner"
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
             />
           </label>
+          <label className="project-form__field">
+            Title / Role
+            <input value={title} onChange={(e) => setTitle(e.target.value)} />
+          </label>
+        </div>
 
-          <div className="project-form__field">
-            Social profiles
-            {socials.length === 0 && (
-              <div style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 6 }}>
-                Add public handles or URLs so the auto-refresh can summarise what
-                this contact is currently up to.
-              </div>
-            )}
-            {socials.map((s, i) => (
-              <div key={i} className="contact-form__multi-row">
-                <select
-                  value={s.platform}
-                  onChange={(e) => {
-                    const next = [...socials];
-                    next[i] = { ...next[i]!, platform: e.target.value };
-                    setSocials(next);
-                  }}
-                  style={{ minWidth: 110 }}
-                >
-                  {SOCIAL_PLATFORMS.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  value={s.handle}
-                  placeholder={s.platform === "website" ? "https://..." : "@handle or URL"}
-                  onChange={(e) => {
-                    const next = [...socials];
-                    next[i] = { ...next[i]!, handle: e.target.value };
-                    setSocials(next);
-                  }}
-                />
-                <button
-                  type="button"
-                  className="contact-form__remove-btn"
-                  onClick={() =>
-                    setSocials(socials.filter((_, idx) => idx !== i))
-                  }
-                  title="Remove"
-                >
-                  &times;
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              className="contact-form__add-btn"
-              onClick={() =>
-                setSocials([...socials, { platform: "twitter", handle: "" }])
-              }
-            >
-              + Add social profile
-            </button>
-          </div>
+        <NotesField
+          mode={mode}
+          initial={initial}
+          currentUser={currentUser}
+          notes={notes}
+          setNotes={setNotes}
+        />
 
-          {mode === "edit" && initial && (
-            <SoulSection
-              initial={initial}
-              refreshing={refreshing}
-              onStartRefresh={async () => {
-                setRefreshing(true);
-                try {
-                  const res = await refreshContactSoul(initial.project, initial.id);
-                  if (!res.ok) {
-                    alert(`Refresh failed: HTTP ${res.status}`);
-                    return;
-                  }
-                  // Drain the SSE so the run actually starts on the server.
-                  const reader = res.body?.getReader();
-                  if (reader) {
-                    while (true) {
-                      const { done } = await reader.read();
-                      if (done) break;
-                    }
-                  }
-                } finally {
-                  setRefreshing(false);
-                }
+        <label className="project-form__field">
+          Tags (comma-separated)
+          <input
+            value={tagsStr}
+            onChange={(e) => setTagsStr(e.target.value)}
+            placeholder="client, vip, partner"
+          />
+        </label>
+
+        <div className="project-form__field">
+          Social profiles
+          {socials.length === 0 && (
+            <div
+              style={{
+                fontSize: 12,
+                color: "var(--text-faint)",
+                marginBottom: 6,
               }}
-            />
-          )}
-
-          {allGroups.length > 0 && (
-            <div className="project-form__field">
-              Groups
-              <div className="contact-form__groups">
-                {allGroups.map((g) => (
-                  <label key={g.id} className="project-form__chip">
-                    <input
-                      type="checkbox"
-                      checked={groups.has(g.id)}
-                      onChange={() => {
-                        const next = new Set(groups);
-                        if (next.has(g.id)) next.delete(g.id);
-                        else next.add(g.id);
-                        setGroups(next);
-                      }}
-                    />
-                    <span>
-                      {g.color && (
-                        <span
-                          className="sidebar__group-dot"
-                          style={{ background: g.color, marginRight: 4 }}
-                        />
-                      )}
-                      {g.name}
-                    </span>
-                  </label>
-                ))}
-              </div>
+            >
+              Add public handles or URLs so the auto-refresh can summarise what
+              this contact is currently up to.
             </div>
           )}
-
-          <div className="project-form__field">
-            Avatar
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              {avatar && (
-                <img src={avatar} alt="avatar" className="contact-form__avatar-preview" />
-              )}
-              <input
-                type="file"
-                accept="image/*"
+          {socials.map((s, i) => (
+            <div key={i} className="contact-form__multi-row">
+              <select
+                value={s.platform}
                 onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleAvatarFile(file);
+                  const next = [...socials];
+                  next[i] = { ...next[i]!, platform: e.target.value };
+                  setSocials(next);
+                }}
+                style={{ minWidth: 110 }}
+              >
+                {SOCIAL_PLATFORMS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={s.handle}
+                placeholder={
+                  s.platform === "website" ? "https://..." : "@handle or URL"
+                }
+                onChange={(e) => {
+                  const next = [...socials];
+                  next[i] = { ...next[i]!, handle: e.target.value };
+                  setSocials(next);
                 }}
               />
-              {avatar && (
-                <button type="button" className="contact-form__remove-btn" onClick={() => setAvatar(null)}>
-                  &times;
-                </button>
-              )}
+              <button
+                type="button"
+                className="contact-form__remove-btn"
+                onClick={() =>
+                  setSocials(socials.filter((_, idx) => idx !== i))
+                }
+                title="Remove"
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="contact-form__add-btn"
+            onClick={() =>
+              setSocials([...socials, { platform: "twitter", handle: "" }])
+            }
+          >
+            + Add social profile
+          </button>
+        </div>
+
+        {mode === "edit" && initial && (
+          <SoulSection
+            initial={initial}
+            refreshing={refreshing}
+            onStartRefresh={async () => {
+              setRefreshing(true);
+              try {
+                const res = await refreshContactSoul(
+                  initial.project,
+                  initial.id,
+                );
+                if (!res.ok) {
+                  alert(`Refresh failed: HTTP ${res.status}`);
+                  return;
+                }
+                // Drain the SSE so the run actually starts on the server.
+                const reader = res.body?.getReader();
+                if (reader) {
+                  while (true) {
+                    const { done } = await reader.read();
+                    if (done) break;
+                  }
+                }
+              } finally {
+                setRefreshing(false);
+              }
+            }}
+          />
+        )}
+
+        {allGroups.length > 0 && (
+          <div className="project-form__field">
+            Groups
+            <div className="contact-form__groups">
+              {allGroups.map((g) => (
+                <label key={g.id} className="project-form__chip">
+                  <input
+                    type="checkbox"
+                    checked={groups.has(g.id)}
+                    onChange={() => {
+                      const next = new Set(groups);
+                      if (next.has(g.id)) next.delete(g.id);
+                      else next.add(g.id);
+                      setGroups(next);
+                    }}
+                  />
+                  <span>
+                    {g.color && (
+                      <span
+                        className="sidebar__group-dot"
+                        style={{ background: g.color, marginRight: 4 }}
+                      />
+                    )}
+                    {g.name}
+                  </span>
+                </label>
+              ))}
             </div>
           </div>
+        )}
 
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button type="button" className="btn" onClick={onClose}>
-              Cancel
-            </button>
-            <button type="submit" className="btn btn--accent" disabled={saving || !name.trim()}>
-              {saving ? "Saving..." : mode === "create" ? "Create" : "Save"}
-            </button>
+        <div className="project-form__field">
+          Avatar
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {avatar && (
+              <img
+                src={avatar}
+                alt="avatar"
+                className="contact-form__avatar-preview"
+              />
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleAvatarFile(file);
+              }}
+            />
+            {avatar && (
+              <button
+                type="button"
+                className="contact-form__remove-btn"
+                onClick={() => setAvatar(null)}
+              >
+                &times;
+              </button>
+            )}
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        <Modal.Footer>
+          <button type="button" className="btn" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="btn btn--accent"
+            disabled={saving || !name.trim()}
+          >
+            {saving ? "Saving..." : mode === "create" ? "Create" : "Save"}
+          </button>
+        </Modal.Footer>
+      </form>
+    </Modal>
   );
 }
 
@@ -526,7 +566,9 @@ function NotesField({
           </div>
           <div className="lang-readonly">
             {translatedNotes || (
-              <em style={{ color: "var(--text-faint)" }}>Not translated yet.</em>
+              <em style={{ color: "var(--text-faint)" }}>
+                Not translated yet.
+              </em>
             )}
           </div>
           {t?.status === "error" && t.error && (

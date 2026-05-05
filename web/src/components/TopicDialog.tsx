@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchProjectAgents, type Agent, type NewsTopic } from "../api";
 import { X } from "../lib/icons";
+import Modal from "./Modal";
 
 type RenewMode = "never" | "always" | "scheduled";
 
@@ -85,9 +86,11 @@ export default function TopicDialog({
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    void fetchProjectAgents(project).then(setAgents).catch((e) => {
-      setError(e instanceof Error ? e.message : String(e));
-    });
+    void fetchProjectAgents(project)
+      .then(setAgents)
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : String(e));
+      });
   }, [project]);
 
   // When an already-chosen agent is not in the project list (just unlinked?),
@@ -95,10 +98,7 @@ export default function TopicDialog({
   const agentOptions = useMemo(() => {
     if (!value.agent) return agents;
     if (agents.some((a) => a.name === value.agent)) return agents;
-    return [
-      ...agents,
-      { name: value.agent } as Agent,
-    ];
+    return [...agents, { name: value.agent } as Agent];
   }, [agents, value.agent]);
 
   const addTerm = () => {
@@ -139,23 +139,9 @@ export default function TopicDialog({
   };
 
   return (
-    <div className="modal-backdrop" onClick={onCancel}>
-      <form
-        className="modal modal--wide"
-        onClick={(e) => e.stopPropagation()}
-        onSubmit={handleSubmit}
-      >
-        <header className="modal__header">
-          <h2>{initial ? "Edit news topic" : "New news topic"}</h2>
-          <button
-            type="button"
-            className="modal__close"
-            onClick={onCancel}
-            aria-label="Close"
-          >
-            <X size={16} />
-          </button>
-        </header>
+    <Modal onClose={onCancel} size="md">
+      <form onSubmit={handleSubmit}>
+        <Modal.Header title={initial ? "Edit news topic" : "New news topic"} />
 
         <div className="modal__body">
           <label className="field">
@@ -232,7 +218,11 @@ export default function TopicDialog({
                 }}
                 placeholder="Add a term and press Enter"
               />
-              <button type="button" className="btn btn--secondary" onClick={addTerm}>
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={addTerm}
+              >
                 Add
               </button>
             </div>
@@ -325,7 +315,9 @@ export default function TopicDialog({
             <input
               type="checkbox"
               checked={value.enabled}
-              onChange={(e) => setValue({ ...value, enabled: e.target.checked })}
+              onChange={(e) =>
+                setValue({ ...value, enabled: e.target.checked })
+              }
             />
             <span>Enabled (scheduler will run this topic)</span>
           </label>
@@ -333,15 +325,15 @@ export default function TopicDialog({
           {error && <div className="modal__error">{error}</div>}
         </div>
 
-        <div className="project-form__actions">
+        <Modal.Footer>
           <button type="button" className="btn" onClick={onCancel}>
             Cancel
           </button>
           <button type="submit" className="btn btn--send" disabled={submitting}>
             {submitting ? "Saving…" : initial ? "Save" : "Create"}
           </button>
-        </div>
+        </Modal.Footer>
       </form>
-    </div>
+    </Modal>
   );
 }

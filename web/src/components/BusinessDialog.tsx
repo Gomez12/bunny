@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import Modal from "./Modal";
 import StatusPill, { soulStatusToPill } from "./StatusPill";
 import { SOCIAL_PLATFORMS } from "../lib/socials";
 import {
@@ -30,7 +31,12 @@ interface Props {
   onSubmit: (value: BusinessDialogValue) => Promise<void>;
 }
 
-export default function BusinessDialog({ mode, initial, onClose, onSubmit }: Props) {
+export default function BusinessDialog({
+  mode,
+  initial,
+  onClose,
+  onSubmit,
+}: Props) {
   const [name, setName] = useState(initial?.name ?? "");
   const [domain, setDomain] = useState(initial?.domain ?? "");
   const [website, setWebsite] = useState(initial?.website ?? "");
@@ -48,7 +54,9 @@ export default function BusinessDialog({ mode, initial, onClose, onSubmit }: Pro
   const [tagsStr, setTagsStr] = useState((initial?.tags ?? []).join(", "));
   const [logo, setLogo] = useState<string | null>(initial?.logo ?? null);
   const [street, setStreet] = useState(initial?.address?.street ?? "");
-  const [postalCode, setPostalCode] = useState(initial?.address?.postalCode ?? "");
+  const [postalCode, setPostalCode] = useState(
+    initial?.address?.postalCode ?? "",
+  );
   const [city, setCity] = useState(initial?.address?.city ?? "");
   const [region, setRegion] = useState(initial?.address?.region ?? "");
   const [country, setCountry] = useState(initial?.address?.country ?? "");
@@ -65,7 +73,8 @@ export default function BusinessDialog({ mode, initial, onClose, onSubmit }: Pro
     if (city.trim()) addressFields.city = city.trim();
     if (region.trim()) addressFields.region = region.trim();
     if (country.trim()) addressFields.country = country.trim();
-    const address = Object.keys(addressFields).length > 0 ? addressFields : null;
+    const address =
+      Object.keys(addressFields).length > 0 ? addressFields : null;
     try {
       await onSubmit({
         name: name.trim(),
@@ -107,13 +116,23 @@ export default function BusinessDialog({ mode, initial, onClose, onSubmit }: Pro
     reader.readAsDataURL(file);
   };
 
-  const updateList = (list: string[], idx: number, value: string, setter: (v: string[]) => void) => {
+  const updateList = (
+    list: string[],
+    idx: number,
+    value: string,
+    setter: (v: string[]) => void,
+  ) => {
     const next = [...list];
     next[idx] = value;
     setter(next);
   };
-  const addToList = (list: string[], setter: (v: string[]) => void) => setter([...list, ""]);
-  const removeFromList = (list: string[], idx: number, setter: (v: string[]) => void) => {
+  const addToList = (list: string[], setter: (v: string[]) => void) =>
+    setter([...list, ""]);
+  const removeFromList = (
+    list: string[],
+    idx: number,
+    setter: (v: string[]) => void,
+  ) => {
     if (list.length <= 1) {
       setter([""]);
       return;
@@ -122,282 +141,312 @@ export default function BusinessDialog({ mode, initial, onClose, onSubmit }: Pro
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
-        <form className="project-form" onSubmit={handleSubmit}>
-          <h2>{mode === "create" ? "New Business" : "Edit Business"}</h2>
+    <Modal onClose={onClose} size="md">
+      <form className="project-form" onSubmit={handleSubmit}>
+        <Modal.Header
+          title={mode === "create" ? "New Business" : "Edit Business"}
+        />
 
+        <label className="project-form__field">
+          Name *
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            autoFocus
+          />
+        </label>
+
+        <div
+          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}
+        >
           <label className="project-form__field">
-            Name *
-            <input value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
-          </label>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <label className="project-form__field">
-              Domain
-              <input
-                value={domain}
-                onChange={(e) => setDomain(e.target.value)}
-                placeholder="acme.com"
-              />
-            </label>
-            <label className="project-form__field">
-              Website
-              <input
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-                placeholder="https://acme.com"
-              />
-            </label>
-          </div>
-
-          <label className="project-form__field">
-            Description
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-            />
-          </label>
-
-          <label className="project-form__field">
-            Notes
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
-          </label>
-
-          <div className="project-form__field">
-            Emails
-            {emails.map((email, i) => (
-              <div key={i} className="contact-form__multi-row">
-                <input
-                  type="email"
-                  value={email}
-                  placeholder="info@acme.com"
-                  onChange={(e) => updateList(emails, i, e.target.value, setEmails)}
-                />
-                <button
-                  type="button"
-                  className="contact-form__remove-btn"
-                  onClick={() => removeFromList(emails, i, setEmails)}
-                >
-                  &times;
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              className="contact-form__add-btn"
-              onClick={() => addToList(emails, setEmails)}
-            >
-              + Add email
-            </button>
-          </div>
-
-          <div className="project-form__field">
-            Phones
-            {phones.map((phone, i) => (
-              <div key={i} className="contact-form__multi-row">
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => updateList(phones, i, e.target.value, setPhones)}
-                />
-                <button
-                  type="button"
-                  className="contact-form__remove-btn"
-                  onClick={() => removeFromList(phones, i, setPhones)}
-                >
-                  &times;
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              className="contact-form__add-btn"
-              onClick={() => addToList(phones, setPhones)}
-            >
-              + Add phone
-            </button>
-          </div>
-
-          <div className="project-form__field">
-            <span className="soul-status-row">
-              <span>Address</span>
-              {initial?.addressFetchedAt && (
-                <span style={{ fontSize: 11, color: "var(--text-faint)" }}>
-                  auto-filled {new Date(initial.addressFetchedAt).toLocaleDateString()}
-                </span>
-              )}
-            </span>
+            Domain
             <input
-              value={street}
-              placeholder="Street + number"
-              onChange={(e) => setStreet(e.target.value)}
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+              placeholder="acme.com"
             />
-            <div className="business-form__address-row business-form__address-row--zip-city">
-              <input
-                value={postalCode}
-                placeholder="Postal code"
-                onChange={(e) => setPostalCode(e.target.value)}
-              />
-              <input
-                value={city}
-                placeholder="City"
-                onChange={(e) => setCity(e.target.value)}
-              />
-            </div>
-            <div className="business-form__address-row business-form__address-row--region-country">
-              <input
-                value={region}
-                placeholder="Region / state (optional)"
-                onChange={(e) => setRegion(e.target.value)}
-              />
-              <input
-                value={country}
-                placeholder="Country (NL, DE, …)"
-                onChange={(e) => setCountry(e.target.value)}
-              />
-            </div>
-            <span className="project-form__hint" style={{ marginTop: 6 }}>
-              Filled automatically by the soul-refresh handler from the
-              business website's contact / imprint page. Manual edits override
-              the auto-fill until the next refresh.
-            </span>
-          </div>
+          </label>
+          <label className="project-form__field">
+            Website
+            <input
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              placeholder="https://acme.com"
+            />
+          </label>
+        </div>
 
-          <div className="project-form__field">
-            Social profiles
-            {socials.length === 0 && (
-              <div style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 6 }}>
-                Add public handles or URLs so the auto-refresh can summarise what
-                this business is currently up to.
-              </div>
+        <label className="project-form__field">
+          Description
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={2}
+          />
+        </label>
+
+        <label className="project-form__field">
+          Notes
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+          />
+        </label>
+
+        <div className="project-form__field">
+          Emails
+          {emails.map((email, i) => (
+            <div key={i} className="contact-form__multi-row">
+              <input
+                type="email"
+                value={email}
+                placeholder="info@acme.com"
+                onChange={(e) =>
+                  updateList(emails, i, e.target.value, setEmails)
+                }
+              />
+              <button
+                type="button"
+                className="contact-form__remove-btn"
+                onClick={() => removeFromList(emails, i, setEmails)}
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="contact-form__add-btn"
+            onClick={() => addToList(emails, setEmails)}
+          >
+            + Add email
+          </button>
+        </div>
+
+        <div className="project-form__field">
+          Phones
+          {phones.map((phone, i) => (
+            <div key={i} className="contact-form__multi-row">
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) =>
+                  updateList(phones, i, e.target.value, setPhones)
+                }
+              />
+              <button
+                type="button"
+                className="contact-form__remove-btn"
+                onClick={() => removeFromList(phones, i, setPhones)}
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="contact-form__add-btn"
+            onClick={() => addToList(phones, setPhones)}
+          >
+            + Add phone
+          </button>
+        </div>
+
+        <div className="project-form__field">
+          <span className="soul-status-row">
+            <span>Address</span>
+            {initial?.addressFetchedAt && (
+              <span style={{ fontSize: 11, color: "var(--text-faint)" }}>
+                auto-filled{" "}
+                {new Date(initial.addressFetchedAt).toLocaleDateString()}
+              </span>
             )}
-            {socials.map((s, i) => (
-              <div key={i} className="contact-form__multi-row">
-                <select
-                  value={s.platform}
-                  onChange={(e) => {
-                    const next = [...socials];
-                    next[i] = { ...next[i]!, platform: e.target.value };
-                    setSocials(next);
-                  }}
-                  style={{ minWidth: 110 }}
-                >
-                  {SOCIAL_PLATFORMS.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  value={s.handle}
-                  placeholder={s.platform === "website" ? "https://..." : "@handle or URL"}
-                  onChange={(e) => {
-                    const next = [...socials];
-                    next[i] = { ...next[i]!, handle: e.target.value };
-                    setSocials(next);
-                  }}
-                />
-                <button
-                  type="button"
-                  className="contact-form__remove-btn"
-                  onClick={() => setSocials(socials.filter((_, idx) => idx !== i))}
-                >
-                  &times;
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              className="contact-form__add-btn"
-              onClick={() =>
-                setSocials([...socials, { platform: "linkedin", handle: "" }])
-              }
-            >
-              + Add social profile
-            </button>
-          </div>
-
-          <label className="project-form__field">
-            Tags (comma-separated)
+          </span>
+          <input
+            value={street}
+            placeholder="Street + number"
+            onChange={(e) => setStreet(e.target.value)}
+          />
+          <div className="business-form__address-row business-form__address-row--zip-city">
             <input
-              value={tagsStr}
-              onChange={(e) => setTagsStr(e.target.value)}
-              placeholder="vendor, partner, prospect"
+              value={postalCode}
+              placeholder="Postal code"
+              onChange={(e) => setPostalCode(e.target.value)}
             />
-          </label>
+            <input
+              value={city}
+              placeholder="City"
+              onChange={(e) => setCity(e.target.value)}
+            />
+          </div>
+          <div className="business-form__address-row business-form__address-row--region-country">
+            <input
+              value={region}
+              placeholder="Region / state (optional)"
+              onChange={(e) => setRegion(e.target.value)}
+            />
+            <input
+              value={country}
+              placeholder="Country (NL, DE, …)"
+              onChange={(e) => setCountry(e.target.value)}
+            />
+          </div>
+          <span className="project-form__hint" style={{ marginTop: 6 }}>
+            Filled automatically by the soul-refresh handler from the business
+            website's contact / imprint page. Manual edits override the
+            auto-fill until the next refresh.
+          </span>
+        </div>
 
-          <div className="project-form__field">
-            Logo
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              {logo && (
-                <img src={logo} alt="logo" className="contact-form__avatar-preview" />
-              )}
-              <input
-                type="file"
-                accept="image/*"
+        <div className="project-form__field">
+          Social profiles
+          {socials.length === 0 && (
+            <div
+              style={{
+                fontSize: 12,
+                color: "var(--text-faint)",
+                marginBottom: 6,
+              }}
+            >
+              Add public handles or URLs so the auto-refresh can summarise what
+              this business is currently up to.
+            </div>
+          )}
+          {socials.map((s, i) => (
+            <div key={i} className="contact-form__multi-row">
+              <select
+                value={s.platform}
                 onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleLogoFile(file);
+                  const next = [...socials];
+                  next[i] = { ...next[i]!, platform: e.target.value };
+                  setSocials(next);
+                }}
+                style={{ minWidth: 110 }}
+              >
+                {SOCIAL_PLATFORMS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={s.handle}
+                placeholder={
+                  s.platform === "website" ? "https://..." : "@handle or URL"
+                }
+                onChange={(e) => {
+                  const next = [...socials];
+                  next[i] = { ...next[i]!, handle: e.target.value };
+                  setSocials(next);
                 }}
               />
-              {logo && (
-                <button
-                  type="button"
-                  className="contact-form__remove-btn"
-                  onClick={() => setLogo(null)}
-                >
-                  &times;
-                </button>
-              )}
-            </div>
-          </div>
-
-          {mode === "edit" && initial && (
-            <SoulSection
-              initial={initial}
-              refreshing={refreshing}
-              onStartRefresh={async () => {
-                setRefreshing(true);
-                try {
-                  const res = await refreshBusinessSoul(
-                    initial.project,
-                    initial.id,
-                  );
-                  if (!res.ok) {
-                    alert(`Refresh failed: HTTP ${res.status}`);
-                    return;
-                  }
-                  const reader = res.body?.getReader();
-                  if (reader) {
-                    while (true) {
-                      const { done } = await reader.read();
-                      if (done) break;
-                    }
-                  }
-                } finally {
-                  setRefreshing(false);
+              <button
+                type="button"
+                className="contact-form__remove-btn"
+                onClick={() =>
+                  setSocials(socials.filter((_, idx) => idx !== i))
                 }
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="contact-form__add-btn"
+            onClick={() =>
+              setSocials([...socials, { platform: "linkedin", handle: "" }])
+            }
+          >
+            + Add social profile
+          </button>
+        </div>
+
+        <label className="project-form__field">
+          Tags (comma-separated)
+          <input
+            value={tagsStr}
+            onChange={(e) => setTagsStr(e.target.value)}
+            placeholder="vendor, partner, prospect"
+          />
+        </label>
+
+        <div className="project-form__field">
+          Logo
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {logo && (
+              <img
+                src={logo}
+                alt="logo"
+                className="contact-form__avatar-preview"
+              />
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleLogoFile(file);
               }}
             />
-          )}
-
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button type="button" className="btn" onClick={onClose}>
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="btn btn--accent"
-              disabled={saving || !name.trim()}
-            >
-              {saving ? "Saving..." : mode === "create" ? "Create" : "Save"}
-            </button>
+            {logo && (
+              <button
+                type="button"
+                className="contact-form__remove-btn"
+                onClick={() => setLogo(null)}
+              >
+                &times;
+              </button>
+            )}
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        {mode === "edit" && initial && (
+          <SoulSection
+            initial={initial}
+            refreshing={refreshing}
+            onStartRefresh={async () => {
+              setRefreshing(true);
+              try {
+                const res = await refreshBusinessSoul(
+                  initial.project,
+                  initial.id,
+                );
+                if (!res.ok) {
+                  alert(`Refresh failed: HTTP ${res.status}`);
+                  return;
+                }
+                const reader = res.body?.getReader();
+                if (reader) {
+                  while (true) {
+                    const { done } = await reader.read();
+                    if (done) break;
+                  }
+                }
+              } finally {
+                setRefreshing(false);
+              }
+            }}
+          />
+        )}
+
+        <Modal.Footer>
+          <button type="button" className="btn" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="btn btn--accent"
+            disabled={saving || !name.trim()}
+          >
+            {saving ? "Saving..." : mode === "create" ? "Create" : "Save"}
+          </button>
+        </Modal.Footer>
+      </form>
+    </Modal>
   );
 }
 

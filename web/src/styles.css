@@ -30,6 +30,10 @@
   --hairline: rgba(255, 255, 255, 0.05);
   --radius: 12px;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Modal sizes — see <Modal size="sm|md"> primitive (web/src/components/Modal.tsx).
+   * sm = confirmations + simple pickers; md = form-edit dialogs. */
+  --modal-size-sm: 420px;
+  --modal-size-md: 600px;
   color-scheme: dark;
 }
 
@@ -1498,7 +1502,7 @@ button {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 20px;
-  width: 420px;
+  width: var(--modal-size-sm);
   max-width: 95vw;
   display: flex;
   flex-direction: column;
@@ -1638,9 +1642,8 @@ button {
   max-height: calc(100vh - 48px);
   overflow-y: auto;
 }
-/* Wider modal variant for the project editor — the prompt textarea and the
-   double-column rows need the room. */
-.modal.modal--wide { width: 600px; }
+/* Wider modal variant for form-edit dialogs (most entity create/edit). */
+.modal.modal--wide { width: var(--modal-size-md); }
 
 .project-form {
   display: flex;
@@ -2263,6 +2266,13 @@ button {
   gap: 8px;
   justify-content: flex-end;
   margin-top: 6px;
+}
+/* Mirrors the legacy `.modal-actions button:first-child` ghost look so the
+ * leading Cancel / Close button stays visually distinct from the primary
+ * action on the right. The primary keeps whatever variant it has
+ * (`btn--send` / `btn--accent` / `btn--danger`). */
+.modal__footer .btn:first-child {
+  background: transparent;
 }
 .modal__primary {
   background: var(--accent);

@@ -9,6 +9,7 @@ import {
   Trash2,
 } from "../lib/icons";
 import type { CodeProject } from "../api";
+import Modal from "./Modal";
 
 interface Props {
   open: boolean;
@@ -38,81 +39,69 @@ export default function CodeProjectPickerDialog({
 }: Props) {
   if (!open) return null;
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="code-picker">
-          <div className="code-picker__header">
-            <h2 className="code-picker__title">Code projects</h2>
-            <button
-              type="button"
-              className="btn btn--primary"
-              onClick={onNew}
-            >
-              <Plus size={14} /> New
-            </button>
-          </div>
-          <ul className="code-picker__list">
-            {items.length === 0 && (
-              <li className="code-picker__empty">
-                No code projects yet. Add one to get started.
-              </li>
-            )}
-            {items.map((cp) => {
-              const isActive = cp.id === activeId;
-              return (
-                <li
-                  key={cp.id}
-                  className={`code-picker__row ${isActive ? "code-picker__row--active" : ""}`}
-                >
-                  <button
-                    type="button"
-                    className="code-picker__pick"
-                    onClick={() => onPick(cp.id)}
-                  >
-                    <span className="code-picker__name">{cp.name}</span>
-                    {cp.description && (
-                      <span className="code-picker__desc">
-                        {cp.description}
-                      </span>
-                    )}
-                  </button>
-                  <span className="code-picker__status">
-                    <PickerStatusIcon status={cp.gitStatus} />
-                  </span>
-                  <button
-                    type="button"
-                    className="btn btn--icon"
-                    onClick={() => onEdit(cp)}
-                    title="Edit"
-                    aria-label="Edit"
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn--icon"
-                    onClick={() => onDelete(cp)}
-                    title="Delete"
-                    aria-label="Delete"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          <div className="code-picker__footer">
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={onClose}
-            >
-              Close
-            </button>
-          </div>
+    <Modal onClose={onClose}>
+      <Modal.Header title="Code projects" />
+      <div className="code-picker">
+        <div className="code-picker__header">
+          <button type="button" className="btn btn--primary" onClick={onNew}>
+            <Plus size={14} /> New
+          </button>
         </div>
+        <ul className="code-picker__list">
+          {items.length === 0 && (
+            <li className="code-picker__empty">
+              No code projects yet. Add one to get started.
+            </li>
+          )}
+          {items.map((cp) => {
+            const isActive = cp.id === activeId;
+            return (
+              <li
+                key={cp.id}
+                className={`code-picker__row ${isActive ? "code-picker__row--active" : ""}`}
+              >
+                <button
+                  type="button"
+                  className="code-picker__pick"
+                  onClick={() => onPick(cp.id)}
+                >
+                  <span className="code-picker__name">{cp.name}</span>
+                  {cp.description && (
+                    <span className="code-picker__desc">{cp.description}</span>
+                  )}
+                </button>
+                <span className="code-picker__status">
+                  <PickerStatusIcon status={cp.gitStatus} />
+                </span>
+                <button
+                  type="button"
+                  className="btn btn--icon"
+                  onClick={() => onEdit(cp)}
+                  title="Edit"
+                  aria-label="Edit"
+                >
+                  <Pencil size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--icon"
+                  onClick={() => onDelete(cp)}
+                  title="Delete"
+                  aria-label="Delete"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       </div>
-    </div>
+      <Modal.Footer>
+        <button type="button" className="btn btn--ghost" onClick={onClose}>
+          Close
+        </button>
+      </Modal.Footer>
+    </Modal>
   );
 }
 

@@ -13,6 +13,7 @@ import {
 } from "../api";
 import ConfirmDialog from "./ConfirmDialog";
 import LanguageTabs from "./LanguageTabs";
+import Modal from "./Modal";
 import StatusPill, { type PillStatus } from "./StatusPill";
 import { useTranslations } from "../hooks/useTranslations";
 import { translationStatusToPill } from "./LanguageTabs";
@@ -37,22 +38,32 @@ type Props =
     };
 
 export default function DefinitionDialog(props: Props) {
-  const initial: Definition | null = props.mode === "edit" ? props.definition : null;
+  const initial: Definition | null =
+    props.mode === "edit" ? props.definition : null;
 
   const [term, setTerm] = useState(initial?.term ?? "");
   const [manual, setManual] = useState(initial?.manualDescription ?? "");
-  const [projectDependent, setProjectDependent] = useState(initial?.isProjectDependent ?? false);
-  const [active, setActive] = useState<ActiveDescription>(initial?.activeDescription ?? "manual");
+  const [projectDependent, setProjectDependent] = useState(
+    initial?.isProjectDependent ?? false,
+  );
+  const [active, setActive] = useState<ActiveDescription>(
+    initial?.activeDescription ?? "manual",
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
-  const [confirmClearIllustration, setConfirmClearIllustration] = useState(false);
+  const [confirmClearIllustration, setConfirmClearIllustration] =
+    useState(false);
 
-  const [generating, setGenerating] = useState(initial?.llmStatus === "generating");
+  const [generating, setGenerating] = useState(
+    initial?.llmStatus === "generating",
+  );
   const [generationLog, setGenerationLog] = useState<string[]>([]);
   const genAbortRef = useRef<AbortController | null>(null);
 
-  const [generatingSvg, setGeneratingSvg] = useState(initial?.svgStatus === "generating");
+  const [generatingSvg, setGeneratingSvg] = useState(
+    initial?.svgStatus === "generating",
+  );
   const [svgElapsed, setSvgElapsed] = useState(0);
   const svgAbortRef = useRef<AbortController | null>(null);
 
@@ -161,9 +172,16 @@ export default function DefinitionDialog(props: Props) {
     genAbortRef.current = controller;
 
     try {
-      const res = await streamGenerateDefinition(props.project, props.definition.id);
+      const res = await streamGenerateDefinition(
+        props.project,
+        props.definition.id,
+      );
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({ error: `HTTP ${res.status}` }))) as { error?: string };
+        const err = (await res
+          .json()
+          .catch(() => ({ error: `HTTP ${res.status}` }))) as {
+          error?: string;
+        };
         setError(err.error ?? `HTTP ${res.status}`);
         setGenerating(false);
         return;
@@ -222,11 +240,17 @@ export default function DefinitionDialog(props: Props) {
       return;
     }
     if (ev.type === "tool_result") {
-      setGenerationLog((prev) => [...prev, `  ${ev.ok ? "✓" : "✗"} ${ev.name}`]);
+      setGenerationLog((prev) => [
+        ...prev,
+        `  ${ev.ok ? "✓" : "✗"} ${ev.name}`,
+      ]);
       return;
     }
     if (ev.type === "kb_definition_generated") {
-      setGenerationLog((prev) => [...prev, `✓ stored ${ev.sources} source${ev.sources === 1 ? "" : "s"}`]);
+      setGenerationLog((prev) => [
+        ...prev,
+        `✓ stored ${ev.sources} source${ev.sources === 1 ? "" : "s"}`,
+      ]);
       return;
     }
   }
@@ -340,14 +364,21 @@ export default function DefinitionDialog(props: Props) {
   };
 
   const current = props.mode === "edit" ? props.definition : null;
-  const hasLlmData = !!(current && (current.llmShort || current.llmLong || current.llmSources.length > 0));
+  const hasLlmData = !!(
+    current &&
+    (current.llmShort || current.llmLong || current.llmSources.length > 0)
+  );
   const canGenerate = props.mode === "edit" && canEdit && !generating;
-  const canClear = props.mode === "edit" && canEdit && hasLlmData && !generating;
+  const canClear =
+    props.mode === "edit" && canEdit && hasLlmData && !generating;
 
   const hasSvg = !!current?.svgContent;
   const canGenerateSvg = props.mode === "edit" && canEdit && !generatingSvg;
-  const canClearSvg = props.mode === "edit" && canEdit && hasSvg && !generatingSvg;
-  const svgDataUrl = current?.svgContent ? svgToDataUrl(current.svgContent) : null;
+  const canClearSvg =
+    props.mode === "edit" && canEdit && hasSvg && !generatingSvg;
+  const svgDataUrl = current?.svgContent
+    ? svgToDataUrl(current.svgContent)
+    : null;
 
   const originalLang = current?.originalLang ?? null;
   const tr = useTranslations(
@@ -357,58 +388,62 @@ export default function DefinitionDialog(props: Props) {
     props.currentUser,
     originalLang,
   );
-  const showTabs = props.mode === "edit" && !!originalLang && tr.languages.length > 1;
+  const showTabs =
+    props.mode === "edit" && !!originalLang && tr.languages.length > 1;
   const sourceActive = !showTabs || tr.isSourceActive;
   const activeTranslationFields = tr.activeTranslation?.fields ?? {};
 
   return (
-    <div className="modal-backdrop" onClick={handleClose}>
-      <div className="modal modal--wide kb-dialog" onClick={(e) => e.stopPropagation()}>
-        <div className="modal__header">
-          <h2>{props.mode === "create" ? "New definition" : current?.term ?? "Edit definition"}</h2>
-          <button className="modal__close" onClick={handleClose} aria-label="Close">
-            &times;
-          </button>
-        </div>
+    <Modal onClose={handleClose} size="md" className="kb-dialog">
+      <Modal.Header
+        title={
+          props.mode === "create"
+            ? "New definition"
+            : (current?.term ?? "Edit definition")
+        }
+      />
 
-        <div className="modal__body">
-          {error && (
-            <div className="kb-dialog__error">
-              {error}
-              <button onClick={() => setError(null)} aria-label="Dismiss">&times;</button>
-            </div>
-          )}
-
-          {showTabs && (
-            <LanguageTabs
-              languages={tr.languages}
-              sourceLang={originalLang!}
-              activeLang={tr.activeLang}
-              translations={tr.translations}
-              onChange={tr.setActiveLang}
-            />
-          )}
-
-          {sourceActive ? (
-            <SourceBody />
-          ) : (
-            <TranslationBody />
-          )}
-        </div>
-
-        {props.mode === "edit" && initial?.originalLang && (
-          <TranslationsPanelStub />
+      <div className="modal__body">
+        {error && (
+          <div className="kb-dialog__error">
+            {error}
+            <button onClick={() => setError(null)} aria-label="Dismiss">
+              &times;
+            </button>
+          </div>
         )}
 
-        <div className="project-form__actions">
-          <button className="btn" onClick={handleClose}>Close</button>
-          {canEdit && sourceActive && (
-            <button className="btn btn--send" onClick={() => void handleSaveMeta()} disabled={saving}>
-              {saving ? "Saving…" : props.mode === "create" ? "Create" : "Save"}
-            </button>
-          )}
-        </div>
+        {showTabs && (
+          <LanguageTabs
+            languages={tr.languages}
+            sourceLang={originalLang!}
+            activeLang={tr.activeLang}
+            translations={tr.translations}
+            onChange={tr.setActiveLang}
+          />
+        )}
+
+        {sourceActive ? <SourceBody /> : <TranslationBody />}
       </div>
+
+      {props.mode === "edit" && initial?.originalLang && (
+        <TranslationsPanelStub />
+      )}
+
+      <Modal.Footer>
+        <button className="btn" onClick={handleClose}>
+          Close
+        </button>
+        {canEdit && sourceActive && (
+          <button
+            className="btn btn--send"
+            onClick={() => void handleSaveMeta()}
+            disabled={saving}
+          >
+            {saving ? "Saving…" : props.mode === "create" ? "Create" : "Save"}
+          </button>
+        )}
+      </Modal.Footer>
       <ConfirmDialog
         open={confirmClear}
         message="Clear the LLM-generated short, long and sources for this definition?"
@@ -423,217 +458,233 @@ export default function DefinitionDialog(props: Props) {
         onConfirm={() => void doClearIllustration()}
         onCancel={() => setConfirmClearIllustration(false)}
       />
-    </div>
+    </Modal>
   );
 
   // ── Rendered bodies ──────────────────────────────────────────────────────
   function SourceBody() {
     return (
       <>
-          <div className="kb-dialog__field">
-            <label>Term *</label>
+        <div className="kb-dialog__field">
+          <label>Term *</label>
+          <input
+            className="kb-dialog__input"
+            type="text"
+            value={term}
+            disabled={!canEdit}
+            onChange={(e) => setTerm(e.target.value)}
+            placeholder="e.g. supplier"
+            autoFocus={props.mode === "create"}
+          />
+        </div>
+
+        <div className="kb-dialog__field">
+          <label className="kb-dialog__active-row">
             <input
-              className="kb-dialog__input"
-              type="text"
-              value={term}
+              type="radio"
+              name="active"
+              checked={active === "manual"}
               disabled={!canEdit}
-              onChange={(e) => setTerm(e.target.value)}
-              placeholder="e.g. supplier"
-              autoFocus={props.mode === "create"}
+              onChange={() => void handleSetActive("manual")}
             />
-          </div>
+            Manual description
+          </label>
+          <textarea
+            className="kb-dialog__textarea"
+            rows={4}
+            value={manual}
+            disabled={!canEdit}
+            onChange={(e) => setManual(e.target.value)}
+            placeholder="Write the project-specific meaning of this term."
+          />
+        </div>
 
-          <div className="kb-dialog__field">
-            <label className="kb-dialog__active-row">
-              <input
-                type="radio"
-                name="active"
-                checked={active === "manual"}
-                disabled={!canEdit}
-                onChange={() => void handleSetActive("manual")}
-              />
-              Manual description
-            </label>
-            <textarea
-              className="kb-dialog__textarea"
-              rows={4}
-              value={manual}
+        <div className="kb-dialog__field kb-dialog__field--inline">
+          <label className="kb-dialog__checkbox">
+            <input
+              type="checkbox"
+              checked={projectDependent}
               disabled={!canEdit}
-              onChange={(e) => setManual(e.target.value)}
-              placeholder="Write the project-specific meaning of this term."
+              onChange={(e) => setProjectDependent(e.target.checked)}
             />
-          </div>
+            Project-dependent definition
+            <span className="kb-dialog__hint">
+              When on, searches blend the term with the project domain (e.g. in
+              a cars project, "chair" → "car seat").
+            </span>
+          </label>
+        </div>
 
-          <div className="kb-dialog__field kb-dialog__field--inline">
-            <label className="kb-dialog__checkbox">
-              <input
-                type="checkbox"
-                checked={projectDependent}
-                disabled={!canEdit}
-                onChange={(e) => setProjectDependent(e.target.checked)}
-              />
-              Project-dependent definition
-              <span className="kb-dialog__hint">
-                When on, searches blend the term with the project domain (e.g. in a cars project, "chair" → "car seat").
-              </span>
-            </label>
-          </div>
-
-          {props.mode === "edit" && (
-            <div className="kb-dialog__llm">
-              <div className="kb-dialog__llm-header">
-                <span className="kb-dialog__llm-title">AI-generated</span>
-                <div className="kb-dialog__llm-actions">
-                  <button
-                    className="btn btn--send"
-                    onClick={() => void handleGenerate()}
-                    disabled={!canGenerate}
-                    title={generating ? "Generation in progress" : "Generate with LLM"}
-                  >
-                    {generating ? "Generating…" : hasLlmData ? "Regenerate" : "Generate"}
-                  </button>
-                  <button
-                    className="btn"
-                    onClick={() => void handleClear()}
-                    disabled={!canClear}
-                    title="Clear the short, long and sources"
-                  >
-                    Clear
-                  </button>
-                </div>
+        {props.mode === "edit" && (
+          <div className="kb-dialog__llm">
+            <div className="kb-dialog__llm-header">
+              <span className="kb-dialog__llm-title">AI-generated</span>
+              <div className="kb-dialog__llm-actions">
+                <button
+                  className="btn btn--send"
+                  onClick={() => void handleGenerate()}
+                  disabled={!canGenerate}
+                  title={
+                    generating ? "Generation in progress" : "Generate with LLM"
+                  }
+                >
+                  {generating
+                    ? "Generating…"
+                    : hasLlmData
+                      ? "Regenerate"
+                      : "Generate"}
+                </button>
+                <button
+                  className="btn"
+                  onClick={() => void handleClear()}
+                  disabled={!canClear}
+                  title="Clear the short, long and sources"
+                >
+                  Clear
+                </button>
               </div>
+            </div>
 
-              {current?.llmCleared && !hasLlmData && (
-                <p className="kb-dialog__note">
-                  Cleared. The scheduled auto-fill will skip this row until you click Generate again.
-                </p>
-              )}
+            {current?.llmCleared && !hasLlmData && (
+              <p className="kb-dialog__note">
+                Cleared. The scheduled auto-fill will skip this row until you
+                click Generate again.
+              </p>
+            )}
 
-              {current?.llmError && (
-                <p className="kb-dialog__error" role="alert">{current.llmError}</p>
-              )}
+            {current?.llmError && (
+              <p className="kb-dialog__error" role="alert">
+                {current.llmError}
+              </p>
+            )}
 
-              {generationLog.length > 0 && (
-                <pre className="kb-dialog__log">{generationLog.join("\n")}</pre>
-              )}
+            {generationLog.length > 0 && (
+              <pre className="kb-dialog__log">{generationLog.join("\n")}</pre>
+            )}
 
-              <div className="kb-dialog__panel">
-                <label className="kb-dialog__active-row">
-                  <input
-                    type="radio"
-                    name="active"
-                    checked={active === "short"}
-                    disabled={!canEdit || !current?.llmShort}
-                    onChange={() => void handleSetActive("short")}
-                  />
-                  Short description
-                </label>
-                <div className="kb-dialog__readonly">
-                  {current?.llmShort ? (
-                    current.llmShort
-                  ) : (
-                    <em className="kb-dialog__placeholder">Not generated yet.</em>
-                  )}
-                </div>
-              </div>
-
-              <div className="kb-dialog__panel">
-                <label className="kb-dialog__active-row">
-                  <input
-                    type="radio"
-                    name="active"
-                    checked={active === "long"}
-                    disabled={!canEdit || !current?.llmLong}
-                    onChange={() => void handleSetActive("long")}
-                  />
-                  Long description
-                </label>
-                <div className="kb-dialog__readonly kb-dialog__readonly--long">
-                  {current?.llmLong ? (
-                    current.llmLong
-                  ) : (
-                    <em className="kb-dialog__placeholder">Not generated yet.</em>
-                  )}
-                </div>
-              </div>
-
-              <div className="kb-dialog__panel">
-                <span className="kb-dialog__panel-label">Sources</span>
-                {current && current.llmSources.length > 0 ? (
-                  <ul className="kb-dialog__sources">
-                    {current.llmSources.map((s, i) => (
-                      <li key={`${s.url}-${i}`}>
-                        <a href={s.url} target="_blank" rel="noopener noreferrer">
-                          {s.title || s.url}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
+            <div className="kb-dialog__panel">
+              <label className="kb-dialog__active-row">
+                <input
+                  type="radio"
+                  name="active"
+                  checked={active === "short"}
+                  disabled={!canEdit || !current?.llmShort}
+                  onChange={() => void handleSetActive("short")}
+                />
+                Short description
+              </label>
+              <div className="kb-dialog__readonly">
+                {current?.llmShort ? (
+                  current.llmShort
                 ) : (
-                  <em className="kb-dialog__placeholder">No sources.</em>
+                  <em className="kb-dialog__placeholder">Not generated yet.</em>
                 )}
               </div>
             </div>
-          )}
 
-          {props.mode === "edit" && (
-            <div className="kb-dialog__illustration">
-              <div className="kb-dialog__llm-header">
-                <span className="kb-dialog__llm-title">Illustration</span>
-                <div className="kb-dialog__llm-actions">
-                  <button
-                    className="btn btn--send"
-                    onClick={() => void handleGenerateIllustration()}
-                    disabled={!canGenerateSvg}
-                    title={generatingSvg ? "Generation in progress" : "Generate an SVG illustration"}
-                  >
-                    {generatingSvg ? "Generating…" : hasSvg ? "Regenerate" : "Generate"}
-                  </button>
-                  <button
-                    className="btn"
-                    onClick={() => void handleClearIllustration()}
-                    disabled={!canClearSvg}
-                    title="Remove the stored illustration"
-                  >
-                    Clear
-                  </button>
-                </div>
-              </div>
-
-              {current?.svgError && (
-                <p className="kb-dialog__error" role="alert">{current.svgError}</p>
-              )}
-
-              {generatingSvg && (
-                <p className="kb-dialog__note">
-                  Drawing your illustration… {svgElapsed}s
-                </p>
-              )}
-
-              <div className="kb-dialog__illustration-preview">
-                {svgDataUrl ? (
-                  <img
-                    className="kb-dialog__illustration-img"
-                    src={svgDataUrl}
-                    alt={`Illustration for ${current?.term ?? ""}`}
-                  />
+            <div className="kb-dialog__panel">
+              <label className="kb-dialog__active-row">
+                <input
+                  type="radio"
+                  name="active"
+                  checked={active === "long"}
+                  disabled={!canEdit || !current?.llmLong}
+                  onChange={() => void handleSetActive("long")}
+                />
+                Long description
+              </label>
+              <div className="kb-dialog__readonly kb-dialog__readonly--long">
+                {current?.llmLong ? (
+                  current.llmLong
                 ) : (
-                  <em className="kb-dialog__placeholder">
-                    No illustration yet.
-                  </em>
+                  <em className="kb-dialog__placeholder">Not generated yet.</em>
                 )}
               </div>
             </div>
-          )}
+
+            <div className="kb-dialog__panel">
+              <span className="kb-dialog__panel-label">Sources</span>
+              {current && current.llmSources.length > 0 ? (
+                <ul className="kb-dialog__sources">
+                  {current.llmSources.map((s, i) => (
+                    <li key={`${s.url}-${i}`}>
+                      <a href={s.url} target="_blank" rel="noopener noreferrer">
+                        {s.title || s.url}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <em className="kb-dialog__placeholder">No sources.</em>
+              )}
+            </div>
+          </div>
+        )}
+
+        {props.mode === "edit" && (
+          <div className="kb-dialog__illustration">
+            <div className="kb-dialog__llm-header">
+              <span className="kb-dialog__llm-title">Illustration</span>
+              <div className="kb-dialog__llm-actions">
+                <button
+                  className="btn btn--send"
+                  onClick={() => void handleGenerateIllustration()}
+                  disabled={!canGenerateSvg}
+                  title={
+                    generatingSvg
+                      ? "Generation in progress"
+                      : "Generate an SVG illustration"
+                  }
+                >
+                  {generatingSvg
+                    ? "Generating…"
+                    : hasSvg
+                      ? "Regenerate"
+                      : "Generate"}
+                </button>
+                <button
+                  className="btn"
+                  onClick={() => void handleClearIllustration()}
+                  disabled={!canClearSvg}
+                  title="Remove the stored illustration"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            {current?.svgError && (
+              <p className="kb-dialog__error" role="alert">
+                {current.svgError}
+              </p>
+            )}
+
+            {generatingSvg && (
+              <p className="kb-dialog__note">
+                Drawing your illustration… {svgElapsed}s
+              </p>
+            )}
+
+            <div className="kb-dialog__illustration-preview">
+              {svgDataUrl ? (
+                <img
+                  className="kb-dialog__illustration-img"
+                  src={svgDataUrl}
+                  alt={`Illustration for ${current?.term ?? ""}`}
+                />
+              ) : (
+                <em className="kb-dialog__placeholder">No illustration yet.</em>
+              )}
+            </div>
+          </div>
+        )}
       </>
     );
   }
 
   function TranslationBody() {
     const t = tr.activeTranslation;
-    const pill: PillStatus = t
-      ? translationStatusToPill(t)
-      : "pending";
+    const pill: PillStatus = t ? translationStatusToPill(t) : "pending";
     const termTr = activeTranslationFields["term"] ?? "";
     const manualTr = activeTranslationFields["manual_description"] ?? "";
     const shortTr = activeTranslationFields["llm_short"] ?? "";
@@ -672,28 +723,36 @@ export default function DefinitionDialog(props: Props) {
         <div className="kb-dialog__field">
           <label>Term</label>
           <div className="kb-dialog__readonly">
-            {termTr || <em className="kb-dialog__placeholder">Not translated yet.</em>}
+            {termTr || (
+              <em className="kb-dialog__placeholder">Not translated yet.</em>
+            )}
           </div>
         </div>
 
         <div className="kb-dialog__field">
           <label>Manual description</label>
           <div className="kb-dialog__readonly">
-            {manualTr || <em className="kb-dialog__placeholder">Not translated yet.</em>}
+            {manualTr || (
+              <em className="kb-dialog__placeholder">Not translated yet.</em>
+            )}
           </div>
         </div>
 
         <div className="kb-dialog__panel">
           <span className="kb-dialog__panel-label">Short description</span>
           <div className="kb-dialog__readonly">
-            {shortTr || <em className="kb-dialog__placeholder">Not translated yet.</em>}
+            {shortTr || (
+              <em className="kb-dialog__placeholder">Not translated yet.</em>
+            )}
           </div>
         </div>
 
         <div className="kb-dialog__panel">
           <span className="kb-dialog__panel-label">Long description</span>
           <div className="kb-dialog__readonly kb-dialog__readonly--long">
-            {longTr || <em className="kb-dialog__placeholder">Not translated yet.</em>}
+            {longTr || (
+              <em className="kb-dialog__placeholder">Not translated yet.</em>
+            )}
           </div>
         </div>
 

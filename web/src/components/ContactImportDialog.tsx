@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, type DragEvent } from "react";
 import { parseVCards, type ParsedVCard } from "../lib/vcard";
 import type { ContactGroup } from "../api";
+import Modal from "./Modal";
 
 interface Props {
   allGroups: ContactGroup[];
@@ -8,7 +9,11 @@ interface Props {
   onImport: (contacts: ParsedVCard[], groupIds: number[]) => Promise<void>;
 }
 
-export default function ContactImportDialog({ allGroups, onClose, onImport }: Props) {
+export default function ContactImportDialog({
+  allGroups,
+  onClose,
+  onImport,
+}: Props) {
   const [parsed, setParsed] = useState<ParsedVCard[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [groups, setGroups] = useState<Set<number>>(new Set());
@@ -56,20 +61,26 @@ export default function ContactImportDialog({ allGroups, onClose, onImport }: Pr
           select: (
             props: string[],
             opts: { multiple: boolean },
-          ) => Promise<Array<{ name?: string[]; email?: string[]; tel?: string[] }>>;
+          ) => Promise<
+            Array<{ name?: string[]; email?: string[]; tel?: string[] }>
+          >;
         };
       };
-      const results = await nav.contacts.select(["name", "email", "tel"], { multiple: true });
-      const cards: ParsedVCard[] = results.map((r) => ({
-        name: r.name?.[0] ?? "",
-        emails: r.email ?? [],
-        phones: r.tel ?? [],
-        company: "",
-        title: "",
-        notes: "",
-        socials: [],
-        photo: null,
-      })).filter((c) => c.name);
+      const results = await nav.contacts.select(["name", "email", "tel"], {
+        multiple: true,
+      });
+      const cards: ParsedVCard[] = results
+        .map((r) => ({
+          name: r.name?.[0] ?? "",
+          emails: r.email ?? [],
+          phones: r.tel ?? [],
+          company: "",
+          title: "",
+          notes: "",
+          socials: [],
+          photo: null,
+        }))
+        .filter((c) => c.name);
       if (cards.length === 0) {
         setError("No contacts selected");
         return;
@@ -100,149 +111,171 @@ export default function ContactImportDialog({ allGroups, onClose, onImport }: Pr
     else setSelected(new Set(parsed.map((_, i) => i)));
   };
 
-  const hasContactPicker = typeof navigator !== "undefined" && "contacts" in navigator;
+  const hasContactPicker =
+    typeof navigator !== "undefined" && "contacts" in navigator;
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
-        <div className="project-form">
-          <h2>Import Contacts</h2>
+    <Modal onClose={onClose} size="md">
+      <div className="project-form">
+        <Modal.Header title="Import Contacts" />
 
-          {parsed.length === 0 ? (
-            <>
-              <div
-                className={`contact-import__dropzone${dragActive ? " contact-import__dropzone--active" : ""}`}
-                onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
-                onDragLeave={() => setDragActive(false)}
-                onDrop={handleDrop}
-                onClick={() => fileRef.current?.click()}
+        {parsed.length === 0 ? (
+          <>
+            <div
+              className={`contact-import__dropzone${dragActive ? " contact-import__dropzone--active" : ""}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragActive(true);
+              }}
+              onDragLeave={() => setDragActive(false)}
+              onDrop={handleDrop}
+              onClick={() => fileRef.current?.click()}
+            >
+              <div style={{ fontSize: 32, marginBottom: 8 }}>&#128203;</div>
+              <div style={{ fontWeight: 500, marginBottom: 4 }}>
+                Drop a .vcf file here or click to browse
+              </div>
+              <div style={{ fontSize: 12 }}>
+                Supports vCard files exported from iPhone, Android, or Google
+                Contacts
+              </div>
+            </div>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".vcf,.vcard"
+              style={{ display: "none" }}
+              onChange={handleFileChange}
+            />
+            {hasContactPicker && (
+              <button
+                className="btn btn--accent"
+                style={{ width: "100%", marginTop: 8 }}
+                onClick={handleContactPicker}
               >
-                <div style={{ fontSize: 32, marginBottom: 8 }}>&#128203;</div>
-                <div style={{ fontWeight: 500, marginBottom: 4 }}>
-                  Drop a .vcf file here or click to browse
-                </div>
-                <div style={{ fontSize: 12 }}>
-                  Supports vCard files exported from iPhone, Android, or Google Contacts
-                </div>
-              </div>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".vcf,.vcard"
-                style={{ display: "none" }}
-                onChange={handleFileChange}
-              />
-              {hasContactPicker && (
-                <button
-                  className="btn btn--accent"
-                  style={{ width: "100%", marginTop: 8 }}
-                  onClick={handleContactPicker}
-                >
-                  Import from Phone Contacts
-                </button>
-              )}
-            </>
-          ) : (
-            <>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 13, color: "var(--text-dim)" }}>
-                  {parsed.length} contact{parsed.length !== 1 ? "s" : ""} found
-                </span>
-                <button type="button" className="contact-form__add-btn" onClick={toggleAll}>
-                  {selected.size === parsed.length ? "Deselect all" : "Select all"}
-                </button>
-              </div>
-              <div className="contact-import__preview">
-                <table className="contact-import__preview-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: 30 }}></th>
-                      <th>Name</th>
-                      <th>Email</th>
-                      <th>Phone</th>
-                      <th>Company</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {parsed.map((c, i) => (
-                      <tr key={i}>
-                        <td>
-                          <input
-                            type="checkbox"
-                            checked={selected.has(i)}
-                            onChange={() => {
-                              const next = new Set(selected);
-                              if (next.has(i)) next.delete(i);
-                              else next.add(i);
-                              setSelected(next);
-                            }}
-                          />
-                        </td>
-                        <td>{c.name}</td>
-                        <td>{c.emails[0] ?? ""}</td>
-                        <td>{c.phones[0] ?? ""}</td>
-                        <td>{c.company}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {allGroups.length > 0 && (
-                <div className="project-form__field">
-                  <span style={{ fontSize: 13, color: "var(--text-dim)" }}>Add to groups:</span>
-                  <div className="contact-form__groups">
-                    {allGroups.map((g) => (
-                      <label key={g.id} className="project-form__chip">
-                        <input
-                          type="checkbox"
-                          checked={groups.has(g.id)}
-                          onChange={() => {
-                            const next = new Set(groups);
-                            if (next.has(g.id)) next.delete(g.id);
-                            else next.add(g.id);
-                            setGroups(next);
-                          }}
-                        />
-                        <span>{g.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-
+                Import from Phone Contacts
+              </button>
+            )}
+          </>
+        ) : (
+          <>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <span style={{ fontSize: 13, color: "var(--text-dim)" }}>
+                {parsed.length} contact{parsed.length !== 1 ? "s" : ""} found
+              </span>
               <button
                 type="button"
                 className="contact-form__add-btn"
-                onClick={() => { setParsed([]); setSelected(new Set()); }}
-                style={{ alignSelf: "flex-start" }}
+                onClick={toggleAll}
               >
-                &larr; Choose a different file
+                {selected.size === parsed.length
+                  ? "Deselect all"
+                  : "Select all"}
               </button>
-            </>
-          )}
+            </div>
+            <div className="contact-import__preview">
+              <table className="contact-import__preview-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 30 }}></th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Company</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {parsed.map((c, i) => (
+                    <tr key={i}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selected.has(i)}
+                          onChange={() => {
+                            const next = new Set(selected);
+                            if (next.has(i)) next.delete(i);
+                            else next.add(i);
+                            setSelected(next);
+                          }}
+                        />
+                      </td>
+                      <td>{c.name}</td>
+                      <td>{c.emails[0] ?? ""}</td>
+                      <td>{c.phones[0] ?? ""}</td>
+                      <td>{c.company}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-          {error && (
-            <div style={{ color: "var(--err)", fontSize: 13 }}>{error}</div>
-          )}
-
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button type="button" className="btn" onClick={onClose}>
-              Cancel
-            </button>
-            {parsed.length > 0 && (
-              <button
-                type="button"
-                className="btn btn--accent"
-                disabled={importing || selected.size === 0}
-                onClick={handleImport}
-              >
-                {importing ? "Importing..." : `Import ${selected.size} contact${selected.size !== 1 ? "s" : ""}`}
-              </button>
+            {allGroups.length > 0 && (
+              <div className="project-form__field">
+                <span style={{ fontSize: 13, color: "var(--text-dim)" }}>
+                  Add to groups:
+                </span>
+                <div className="contact-form__groups">
+                  {allGroups.map((g) => (
+                    <label key={g.id} className="project-form__chip">
+                      <input
+                        type="checkbox"
+                        checked={groups.has(g.id)}
+                        onChange={() => {
+                          const next = new Set(groups);
+                          if (next.has(g.id)) next.delete(g.id);
+                          else next.add(g.id);
+                          setGroups(next);
+                        }}
+                      />
+                      <span>{g.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             )}
-          </div>
-        </div>
+
+            <button
+              type="button"
+              className="contact-form__add-btn"
+              onClick={() => {
+                setParsed([]);
+                setSelected(new Set());
+              }}
+              style={{ alignSelf: "flex-start" }}
+            >
+              &larr; Choose a different file
+            </button>
+          </>
+        )}
+
+        {error && (
+          <div style={{ color: "var(--err)", fontSize: 13 }}>{error}</div>
+        )}
+
+        <Modal.Footer>
+          <button type="button" className="btn" onClick={onClose}>
+            Cancel
+          </button>
+          {parsed.length > 0 && (
+            <button
+              type="button"
+              className="btn btn--accent"
+              disabled={importing || selected.size === 0}
+              onClick={handleImport}
+            >
+              {importing
+                ? "Importing..."
+                : `Import ${selected.size} contact${selected.size !== 1 ? "s" : ""}`}
+            </button>
+          )}
+        </Modal.Footer>
       </div>
-    </div>
+    </Modal>
   );
 }

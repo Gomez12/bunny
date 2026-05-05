@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchProjectAgents, type Agent } from "../api";
 import { Bot } from "../lib/icons";
+import Modal from "./Modal";
 
 interface Props {
   open: boolean;
@@ -43,80 +44,73 @@ export default function NewChatWithAgentDialog({
     };
   }, [open, project]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onCancel]);
-
   if (!open) return null;
 
   const hasAgents = agents && agents.length > 0;
   const defaultMeta = agents?.find((a) => a.name === defaultAgent);
 
   return (
-    <div className="modal-backdrop" onClick={onCancel}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ margin: "0 0 4px", fontSize: 16 }}>New chat with…</h3>
-        <p style={{ margin: "0 0 14px", opacity: 0.7, fontSize: 13 }}>
-          Pick an agent. A fresh session opens, pre-bound to them.
-        </p>
-        {error && <div className="bubble__error">error: {error}</div>}
-        {!error && agents === null && (
-          <div style={{ opacity: 0.6 }}>Loading…</div>
-        )}
-        {!error && agents !== null && !hasAgents && (
-          <div style={{ opacity: 0.7 }}>
-            No agents are linked to project <strong>{project}</strong>.
-          </div>
-        )}
-        {hasAgents && (
-          <ul
-            className="new-chat-agent-list"
-            role="listbox"
-            aria-label="Available agents"
-          >
-            <li role="presentation" style={{ listStyle: "none" }}>
-              <button
-                type="button"
-                className="new-chat-agent-option"
-                onClick={() => onPick(defaultAgent)}
-              >
-                <Bot size={16} />
-                <span className="new-chat-agent-name">@{defaultAgent}</span>
-                <span className="new-chat-agent-hint">
-                  {defaultMeta?.description || "default"}
-                </span>
-              </button>
-            </li>
-            {agents
-              .filter((a) => a.name !== defaultAgent)
-              .map((a) => (
-                <li key={a.name} role="presentation" style={{ listStyle: "none" }}>
-                  <button
-                    type="button"
-                    className="new-chat-agent-option"
-                    onClick={() => onPick(a.name)}
-                  >
-                    <Bot size={16} />
-                    <span className="new-chat-agent-name">@{a.name}</span>
-                    {a.description && (
-                      <span className="new-chat-agent-hint">{a.description}</span>
-                    )}
-                  </button>
-                </li>
-              ))}
-          </ul>
-        )}
-        <div className="modal-actions">
-          <button type="button" className="btn" onClick={onCancel}>
-            Cancel
-          </button>
+    <Modal onClose={onCancel}>
+      <Modal.Header title="New chat with…" />
+      <p style={{ margin: "0 0 14px", opacity: 0.7, fontSize: 13 }}>
+        Pick an agent. A fresh session opens, pre-bound to them.
+      </p>
+      {error && <div className="bubble__error">error: {error}</div>}
+      {!error && agents === null && (
+        <div style={{ opacity: 0.6 }}>Loading…</div>
+      )}
+      {!error && agents !== null && !hasAgents && (
+        <div style={{ opacity: 0.7 }}>
+          No agents are linked to project <strong>{project}</strong>.
         </div>
-      </div>
-    </div>
+      )}
+      {hasAgents && (
+        <ul
+          className="new-chat-agent-list"
+          role="listbox"
+          aria-label="Available agents"
+        >
+          <li role="presentation" style={{ listStyle: "none" }}>
+            <button
+              type="button"
+              className="new-chat-agent-option"
+              onClick={() => onPick(defaultAgent)}
+            >
+              <Bot size={16} />
+              <span className="new-chat-agent-name">@{defaultAgent}</span>
+              <span className="new-chat-agent-hint">
+                {defaultMeta?.description || "default"}
+              </span>
+            </button>
+          </li>
+          {agents
+            .filter((a) => a.name !== defaultAgent)
+            .map((a) => (
+              <li
+                key={a.name}
+                role="presentation"
+                style={{ listStyle: "none" }}
+              >
+                <button
+                  type="button"
+                  className="new-chat-agent-option"
+                  onClick={() => onPick(a.name)}
+                >
+                  <Bot size={16} />
+                  <span className="new-chat-agent-name">@{a.name}</span>
+                  {a.description && (
+                    <span className="new-chat-agent-hint">{a.description}</span>
+                  )}
+                </button>
+              </li>
+            ))}
+        </ul>
+      )}
+      <Modal.Footer>
+        <button type="button" className="btn" onClick={onCancel}>
+          Close
+        </button>
+      </Modal.Footer>
+    </Modal>
   );
 }
