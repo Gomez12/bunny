@@ -18,8 +18,13 @@ import {
 } from "recharts";
 import { fetchDashboard, type AuthUser, type DashboardData, type DashboardRange } from "../api";
 
+type NavTarget =
+  | { tab: "tasks"; tasksErrorsOnly?: boolean }
+  | { tab: "settings"; settingsSub?: "logs"; logsErrorsOnly?: boolean };
+
 interface Props {
   currentUser: AuthUser;
+  onNavigate?: (nav: NavTarget) => void;
 }
 
 const RANGES: { key: DashboardRange; label: string }[] = [
@@ -102,7 +107,7 @@ function KpiCard({ label, value, sub }: { label: string; value: string; sub?: st
   );
 }
 
-export default function DashboardTab(_props: Props) {
+export default function DashboardTab({ currentUser, onNavigate }: Props) {
   const [range, setRange] = useState<DashboardRange>("7d");
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -441,7 +446,15 @@ export default function DashboardTab(_props: Props) {
           <div className="dash-footer-row">
             <div className="dash-card dash-card--compact">
               <h3 className="dash-chart-title">Error Rate</h3>
-              <div className="dash-error-rate">
+              <div
+                className={`dash-error-rate${data.errorRate.errors > 0 && currentUser.role === "admin" && onNavigate ? " dash-error-rate--link" : ""}`}
+                onClick={
+                  data.errorRate.errors > 0 && currentUser.role === "admin" && onNavigate
+                    ? () => onNavigate({ tab: "settings", settingsSub: "logs", logsErrorsOnly: true })
+                    : undefined
+                }
+                title={data.errorRate.errors > 0 && currentUser.role === "admin" ? "View error logs" : undefined}
+              >
                 <span className={`dash-error-pct ${data.errorRate.errors === 0 ? "dash-error-pct--ok" : "dash-error-pct--warn"}`}>
                   {data.errorRate.total === 0 ? "0%" : `${((data.errorRate.errors / data.errorRate.total) * 100).toFixed(1)}%`}
                 </span>
@@ -459,10 +472,21 @@ export default function DashboardTab(_props: Props) {
                   <span>{data.scheduler.enabled} / {data.scheduler.total} enabled</span>
                 </div>
                 {data.scheduler.errored > 0 && (
-                  <div className="dash-scheduler-row dash-scheduler-row--err">
-                    <span className="dash-scheduler-label">Errors</span>
-                    <span>{data.scheduler.errored}</span>
-                  </div>
+                  onNavigate ? (
+                    <button
+                      className="dash-scheduler-row dash-scheduler-row--err dash-scheduler-row--link"
+                      onClick={() => onNavigate({ tab: "tasks", tasksErrorsOnly: true })}
+                      title="View errored tasks"
+                    >
+                      <span className="dash-scheduler-label">Errors</span>
+                      <span>{data.scheduler.errored} →</span>
+                    </button>
+                  ) : (
+                    <div className="dash-scheduler-row dash-scheduler-row--err">
+                      <span className="dash-scheduler-label">Errors</span>
+                      <span>{data.scheduler.errored}</span>
+                    </div>
+                  )
                 )}
                 <div className="dash-scheduler-row">
                   <span className="dash-scheduler-label">Next run</span>

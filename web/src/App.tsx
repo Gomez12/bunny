@@ -262,6 +262,25 @@ function AuthenticatedShell({
     [],
   );
 
+  const [pendingNav, setPendingNav] = useState<{
+    tab: "tasks" | "settings";
+    tasksErrorsOnly?: boolean;
+    settingsSub?: "logs";
+    logsErrorsOnly?: boolean;
+  } | null>(null);
+  const navigateTo = useCallback(
+    (nav: {
+      tab: "tasks" | "settings";
+      tasksErrorsOnly?: boolean;
+      settingsSub?: "logs";
+      logsErrorsOnly?: boolean;
+    }) => {
+      setTab(nav.tab);
+      setPendingNav(nav);
+    },
+    [setTab],
+  );
+
   const [pendingDeepLink, setPendingDeepLink] = useState<BootDeepLink | null>(
     readBootDeepLink,
   );
@@ -402,7 +421,9 @@ function AuthenticatedShell({
         data-tab={tab}
       >
         <Suspense fallback={<div className="app-loading">Loading…</div>}>
-          {tab === "dashboard" && <DashboardTab currentUser={user} />}
+          {tab === "dashboard" && (
+            <DashboardTab currentUser={user} onNavigate={navigateTo} />
+          )}
           {tab === "chat" && sessionId && (
             <ChatTab
               sessionId={sessionId}
@@ -468,7 +489,14 @@ function AuthenticatedShell({
           {tab === "files" && (
             <FilesTab project={activeProject} currentUser={user} />
           )}
-          {tab === "tasks" && <TasksTab currentUser={user} />}
+          {tab === "tasks" && (
+            <TasksTab
+              currentUser={user}
+              initialErrorsOnly={
+                pendingNav?.tab === "tasks" ? (pendingNav.tasksErrorsOnly ?? false) : false
+              }
+            />
+          )}
           {tab === "notifications" && (
             <NotificationsTab
               items={notifications.items}
@@ -483,7 +511,16 @@ function AuthenticatedShell({
             />
           )}
           {tab === "settings" && (
-            <SettingsPage user={user} onUserUpdated={(u) => setUser(u)} />
+            <SettingsPage
+              user={user}
+              onUserUpdated={(u) => setUser(u)}
+              initialSub={
+                pendingNav?.tab === "settings" ? pendingNav.settingsSub : undefined
+              }
+              initialLogsErrorsOnly={
+                pendingNav?.tab === "settings" ? (pendingNav.logsErrorsOnly ?? false) : false
+              }
+            />
           )}
         </Suspense>
       </main>

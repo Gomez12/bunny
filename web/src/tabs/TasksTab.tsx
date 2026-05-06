@@ -14,6 +14,7 @@ import ConfirmDialog from "../components/ConfirmDialog";
 
 interface Props {
   currentUser: AuthUser;
+  initialErrorsOnly?: boolean;
 }
 
 type DialogState =
@@ -33,12 +34,13 @@ function StatusBadge({ status }: { status: "ok" | "error" | null }) {
   );
 }
 
-export default function TasksTab({ currentUser }: Props) {
+export default function TasksTab({ currentUser, initialErrorsOnly = false }: Props) {
   const [tasks, setTasks] = useState<ScheduledTask[] | null>(null);
   const [handlers, setHandlers] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogState>({ kind: "closed" });
   const [confirmDelete, setConfirmDelete] = useState<ScheduledTask | null>(null);
+  const [errorsOnly, setErrorsOnly] = useState(initialErrorsOnly);
 
   const isAdmin = currentUser.role === "admin";
 
@@ -63,14 +65,17 @@ export default function TasksTab({ currentUser }: Props) {
   }, []);
 
   const { system, mine } = useMemo(() => {
+    const filtered = errorsOnly
+      ? (tasks ?? []).filter((t) => t.lastStatus === "error")
+      : (tasks ?? []);
     const sys: ScheduledTask[] = [];
     const usr: ScheduledTask[] = [];
-    for (const t of tasks ?? []) {
+    for (const t of filtered) {
       if (t.kind === "system") sys.push(t);
       else usr.push(t);
     }
     return { system: sys, mine: usr };
-  }, [tasks]);
+  }, [tasks, errorsOnly]);
 
   const canEdit = (t: ScheduledTask): boolean => {
     if (t.kind === "system") return isAdmin;
@@ -144,7 +149,12 @@ export default function TasksTab({ currentUser }: Props) {
       <td className="task-row__actions">
         {canEdit(t) && (
           <>
-            <button onClick={() => void handleRunNow(t)} title="Run now">Run now</button>
+            <button
+              onClick={() => void handleRunNow(t)}
+              title={t.lastStatus === "error" ? "Retry" : "Run now"}
+            >
+              {t.lastStatus === "error" ? "Retry" : "Run now"}
+            </button>
             <button onClick={() => setDialog({ kind: "edit", task: t })}>Edit</button>
             <button onClick={() => void handleDelete(t)} className="task-row__danger">
               Delete
@@ -200,6 +210,17 @@ export default function TasksTab({ currentUser }: Props) {
       </div>
 
       {error && <div className="tasks__error">{error}</div>}
+
+      <div className="tasks__filters">
+        <label className="task-toggle">
+          <input
+            type="checkbox"
+            checked={errorsOnly}
+            onChange={(e) => setErrorsOnly(e.target.checked)}
+          />
+          <span>Errors only</span>
+        </label>
+      </div>
 
       {tasks === null ? (
         <div className="tasks-empty">Loading…</div>

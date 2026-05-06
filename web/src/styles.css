@@ -2478,6 +2478,12 @@ button {
   border-radius: 8px;
   font-size: 13px;
 }
+.tasks__filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
 .tasks-section {
   display: flex;
   flex-direction: column;
@@ -2949,6 +2955,14 @@ button {
   flex-direction: column;
   gap: 4px;
 }
+.dash-error-rate--link {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 4px;
+  margin: -4px;
+  transition: background 0.15s;
+}
+.dash-error-rate--link:hover { background: var(--bg-hover, rgba(255,255,255,.06)); }
 
 .dash-error-pct {
   font-size: 2rem;
@@ -2978,6 +2992,17 @@ button {
 }
 
 .dash-scheduler-row--err { color: var(--err); }
+.dash-scheduler-row--link {
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+.dash-scheduler-row--link:hover { text-decoration: underline; }
 .dash-scheduler-label { color: var(--text-dim); }
 
 /* Activity feed */

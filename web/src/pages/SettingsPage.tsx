@@ -26,11 +26,17 @@ const WIDE_TABS: ReadonlySet<Tab> = new Set<Tab>([
 export default function SettingsPage({
   user,
   onUserUpdated,
+  initialSub,
+  initialLogsErrorsOnly = false,
 }: {
   user: AuthUser;
   onUserUpdated: (u: AuthUser) => void;
+  initialSub?: "logs";
+  initialLogsErrorsOnly?: boolean;
 }) {
-  const [tab, setTab] = useState<Tab>("profile");
+  const [tab, setTab] = useState<Tab>(
+    initialSub && user.role === "admin" ? initialSub : "profile",
+  );
 
   return (
     <div className="settings">
@@ -85,7 +91,7 @@ export default function SettingsPage({
         )}
         {tab === "logs" && user.role === "admin" && (
           <Suspense fallback={<div className="app-loading">Loading…</div>}>
-            <LogsTab />
+            <LogsTab initialErrorsOnly={initialLogsErrorsOnly} />
           </Suspense>
         )}
       </section>

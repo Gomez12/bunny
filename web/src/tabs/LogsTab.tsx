@@ -58,12 +58,12 @@ function toggleInSet<T>(
   });
 }
 
-export default function LogsTab() {
+export default function LogsTab({ initialErrorsOnly = false }: { initialErrorsOnly?: boolean }) {
   const [topic, setTopic] = useState("");
   const [kind, setKind] = useState("");
   const [sessionId, setSessionId] = useState("");
   const [userId, setUserId] = useState("");
-  const [errorsOnly, setErrorsOnly] = useState(false);
+  const [errorsOnly, setErrorsOnly] = useState(initialErrorsOnly);
   const [fromStr, setFromStr] = useState("");
   const [toStr, setToStr] = useState("");
   const [q, setQ] = useState("");
