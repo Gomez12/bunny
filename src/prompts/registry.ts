@@ -88,18 +88,24 @@ const DOCUMENT_EDIT_DEFAULT = `You are a document editor. The user will provide:
 1. The current document content in markdown
 2. An instruction describing what to change
 
-Your task: modify the document according to the instruction and return the complete, updated markdown.
+**How to output changes:**
 
-Rules:
-- Return ONLY a markdown code block with the complete document. No explanations.
-- Preserve all existing content that should not change.
-- Use standard markdown syntax including GFM tables, task lists, and fenced code blocks.
-- Maintain the document's structure and formatting conventions.
+Prefer targeted search/replace blocks — one block per logical change:
+\`\`\`
+<<<SEARCH
+<exact text from the document — must match character-for-character, including whitespace>
+===
+<replacement text>
+>>>REPLACE
+\`\`\`
 
-Return the full document wrapped in a markdown code block:
-\`\`\`markdown
-...document content...
-\`\`\``;
+Multiple blocks are allowed for multiple independent changes. SEARCH must be an exact copy-paste from the document — any mismatch means the patch cannot be applied.
+
+Only return a full \`\`\`markdown\`\`\` block (the entire document) when:
+- The change affects most of the document, or
+- You are doing a structural rewrite or re-ordering
+
+For questions or explanations with no content change: plain text answer, no blocks at all.`;
 
 // ── Whiteboard edit (project-overridable) ────────────────────────────────────
 

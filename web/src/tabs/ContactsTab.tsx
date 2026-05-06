@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import DocumentComposer from "../components/DocumentComposer";
+import EntityComposer from "../components/EntityComposer";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { Trash2 } from "../lib/icons";
 import ContactDialog, { type ContactDialogValue } from "../components/ContactDialog";
@@ -482,7 +482,7 @@ export default function ContactsTab({ project, currentUser, onOpenInChat }: Prop
           </div>
         )}
 
-        <DocumentComposer
+        <EntityComposer
           mode={mode}
           onModeChange={setMode}
           onSend={handleSend}

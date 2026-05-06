@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import EmptyState from "../components/EmptyState";
 import WhiteboardSidebar from "../components/WhiteboardSidebar";
-import WhiteboardComposer from "../components/WhiteboardComposer";
+import EntityComposer from "../components/EntityComposer";
 import WhiteboardCanvas, {
   exportCanvasPng,
   exportThumbnail,
@@ -37,6 +37,8 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
   const [mode, setMode] = useState<"edit" | "question">("edit");
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editPreview, setEditPreview] = useState("");
+  const [editPreviewError, setEditPreviewError] = useState<string | null>(null);
 
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -204,6 +206,8 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
     }
 
     setStreaming(true);
+    setEditPreview("");
+    setEditPreviewError(null);
     try {
       const elements = apiRef.current.getSceneElements();
       const elementsJson = JSON.stringify(elements);
@@ -253,7 +257,7 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
           try {
             const ev = JSON.parse(raw) as ServerEvent;
             if (ev.type === "content") fullContent += ev.text;
-            if (ev.type === "error") setError(ev.message);
+            if (ev.type === "error") { setEditPreviewError(ev.message); setError(ev.message); }
           } catch {
             // ignore parse errors
           }
@@ -282,8 +286,11 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
         setWhiteboards((prev) =>
           prev.map((w) => (w.id === activeId ? { ...w, thumbnail: thumb || null, updatedAt: Date.now() } : w)),
         );
+        setEditPreview(`✓ Whiteboard updated (${restored.length} element${restored.length !== 1 ? "s" : ""})`);
       } catch (e) {
-        setError(`Invalid elements JSON: ${e}`);
+        const msg = `Invalid elements JSON: ${e}`;
+        setError(msg);
+        setEditPreviewError(msg);
       }
     } catch (e) {
       setError(String(e));
@@ -327,13 +334,23 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
                 </button>
               </div>
             )}
-            <WhiteboardComposer
+            {(editPreview || editPreviewError) && !streaming && (
+              <div className="entity-composer__preview">
+                {editPreview && <pre className="entity-composer__preview-text">{editPreview}</pre>}
+                {editPreviewError && (
+                  <span className="entity-composer__preview-error">{editPreviewError}</span>
+                )}
+              </div>
+            )}
+            <EntityComposer
               mode={mode}
               onModeChange={setMode}
               onSend={handleSend}
               onSave={handleManualSave}
               streaming={streaming}
               dirty={dirty}
+              editPlaceholder="Describe changes to the whiteboard… (Enter to send)"
+              questionPlaceholder="Ask a question about the whiteboard… (opens Chat)"
             />
           </>
         ) : (

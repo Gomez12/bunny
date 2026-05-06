@@ -6,19 +6,19 @@ interface Props {
   mode: Mode;
   onModeChange: (mode: Mode) => void;
   onSend: (prompt: string) => void;
-  onSave?: () => void;
   streaming: boolean;
+  onSave?: () => void;
   dirty?: boolean;
   editPlaceholder?: string;
   questionPlaceholder?: string;
 }
 
-export default function DocumentComposer({
+export default function EntityComposer({
   mode,
   onModeChange,
   onSend,
-  onSave,
   streaming,
+  onSave,
   dirty,
   editPlaceholder,
   questionPlaceholder,
@@ -41,54 +41,52 @@ export default function DocumentComposer({
   };
 
   return (
-    <div className="doc-composer">
-      <div className="doc-composer__mode">
+    <div className="entity-composer">
+      <div className="entity-composer__mode">
         <button
-          className={`doc-composer__mode-btn${mode === "edit" ? " doc-composer__mode-btn--active" : ""}`}
+          type="button"
+          className={`entity-composer__mode-btn${mode === "edit" ? " entity-composer__mode-btn--active" : ""}`}
           onClick={() => onModeChange("edit")}
-          title="Edit document via AI"
+          title="Edit via AI"
         >
           Edit
         </button>
         <button
-          className={`doc-composer__mode-btn${mode === "question" ? " doc-composer__mode-btn--active" : ""}`}
+          type="button"
+          className={`entity-composer__mode-btn${mode === "question" ? " entity-composer__mode-btn--active" : ""}`}
           onClick={() => onModeChange("question")}
-          title="Ask a question about the document (opens in Chat)"
+          title="Ask a question (opens in Chat)"
         >
           Question
         </button>
       </div>
-      <form className="doc-composer__form" onSubmit={handleSubmit}>
+      <form className="entity-composer__form" onSubmit={handleSubmit}>
         <textarea
           ref={inputRef}
-          className="doc-composer__input"
+          className="entity-composer__input"
           placeholder={
             mode === "edit"
-              ? (editPlaceholder ?? "Describe changes to the document...")
-              : (questionPlaceholder ?? "Ask a question about the document...")
+              ? (editPlaceholder ?? "Describe a change… (Enter to send)")
+              : (questionPlaceholder ?? "Ask a question… (opens Chat)")
           }
           rows={1}
           disabled={streaming}
           onKeyDown={handleKeyDown}
         />
         <button
-          className="btn btn--accent doc-composer__send"
+          className="btn btn--accent entity-composer__send"
           type="submit"
           disabled={streaming}
         >
-          {streaming ? (
-            <span className="spinner" />
-          ) : (
-            "Send"
-          )}
+          {streaming ? <span className="spinner" /> : "Send"}
         </button>
       </form>
       {onSave && (
         <button
-          className={`btn doc-composer__save${dirty ? " doc-composer__save--dirty" : ""}`}
+          className={`btn entity-composer__save${dirty ? " entity-composer__save--dirty" : ""}`}
           onClick={onSave}
           disabled={!dirty || streaming}
-          title={dirty ? "Save document" : "No unsaved changes"}
+          title={dirty ? "Save" : "No unsaved changes"}
         >
           Save
         </button>

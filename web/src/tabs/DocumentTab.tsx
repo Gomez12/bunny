@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import DocumentSidebar from "../components/DocumentSidebar";
-import DocumentComposer from "../components/DocumentComposer";
+import EntityComposer from "../components/EntityComposer";
+import { extractPatches, applyPatches } from "../lib/patchUtils";
 import DocumentEditor, { type DocumentEditorHandle } from "../components/DocumentEditor";
 import WhiteboardPickerDialog from "../components/WhiteboardPickerDialog";
 import LanguageTabs, { translationStatusToPill } from "../components/LanguageTabs";
@@ -41,6 +42,8 @@ export default function DocumentTab({ project, currentUser, onOpenInChat }: Prop
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showWbPicker, setShowWbPicker] = useState(false);
+  const [editPreview, setEditPreview] = useState("");
+  const [editPreviewError, setEditPreviewError] = useState<string | null>(null);
 
   const editorRef = useRef<DocumentEditorHandle>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -241,6 +244,8 @@ export default function DocumentTab({ project, currentUser, onOpenInChat }: Prop
   const handleSend = async (prompt: string) => {
     if (activeId === null) return;
     setError(null);
+    setEditPreview("");
+    setEditPreviewError(null);
 
     if (mode === "question") {
       setStreaming(true);
@@ -300,18 +305,42 @@ export default function DocumentTab({ project, currentUser, onOpenInChat }: Prop
           if (raw === "[DONE]") continue;
           try {
             const ev = JSON.parse(raw) as ServerEvent;
-            if (ev.type === "content") fullContent += ev.text;
-            if (ev.type === "error") setError(ev.message);
+            if (ev.type === "content") {
+              fullContent += ev.text;
+              setEditPreview(fullContent);
+            }
+            if (ev.type === "error") { setError(ev.message); setEditPreviewError(ev.message); }
           } catch {
             // ignore parse errors
           }
         }
       }
 
+      // Try search/replace patches first — prefer targeted edits over full rewrites
+      const patches = extractPatches(fullContent);
+      if (patches.length > 0) {
+        const patched = applyPatches(contentRef.current, patches);
+        if (patched !== null) {
+          setContentMd(patched);
+          lastSavedRef.current = patched;
+          editorRef.current?.setMarkdown(patched);
+          await patchDocument(activeId, { contentMd: patched });
+          setDocuments((prev) =>
+            prev.map((d) => (d.id === activeId ? { ...d, updatedAt: Date.now() } : d)),
+          );
+          setDirty(false);
+          setEditPreview(`✓ ${patches.length} patch${patches.length !== 1 ? "es" : ""} applied`);
+          return;
+        }
+        // Patches present but failed to apply — fall through to full rewrite
+      }
+
+      // Fall back to full markdown block
       const md = extractMarkdown(fullContent);
       if (!md) {
-        setError("Could not extract markdown from the response");
-        setStreaming(false);
+        const msg = "Could not extract changes from the response";
+        setError(msg);
+        setEditPreviewError(msg);
         return;
       }
 
@@ -323,6 +352,7 @@ export default function DocumentTab({ project, currentUser, onOpenInChat }: Prop
         prev.map((d) => (d.id === activeId ? { ...d, updatedAt: Date.now() } : d)),
       );
       setDirty(false);
+      setEditPreview("✓ Document updated");
     } catch (e) {
       setError(String(e));
     } finally {
@@ -365,6 +395,8 @@ export default function DocumentTab({ project, currentUser, onOpenInChat }: Prop
             handleSend={handleSend}
             handleManualSave={handleManualSave}
             dirty={dirty}
+            editPreview={editPreview}
+            editPreviewError={editPreviewError}
           />
         ) : (
           <div className="doc-tab__empty">
@@ -403,6 +435,8 @@ interface DocumentBodyProps {
   handleSend: (prompt: string) => Promise<void>;
   handleManualSave: () => Promise<void>;
   dirty: boolean;
+  editPreview: string;
+  editPreviewError: string | null;
 }
 
 /**
@@ -488,7 +522,7 @@ function DocumentBody(p: DocumentBodyProps) {
       {isSourceActive && p.streaming && (
         <div className="doc-tab__overlay">
           <span className="spinner" />
-          <span>AI is editing the document...</span>
+          <span>AI is editing the document…</span>
         </div>
       )}
       {isSourceActive && p.error && (
@@ -502,14 +536,24 @@ function DocumentBody(p: DocumentBodyProps) {
           </button>
         </div>
       )}
+      {isSourceActive && (p.editPreview || p.editPreviewError) && !p.streaming && (
+        <div className="entity-composer__preview">
+          {p.editPreview && <pre className="entity-composer__preview-text">{p.editPreview}</pre>}
+          {p.editPreviewError && (
+            <span className="entity-composer__preview-error">{p.editPreviewError}</span>
+          )}
+        </div>
+      )}
       {isSourceActive && (
-        <DocumentComposer
+        <EntityComposer
           mode={p.mode}
           onModeChange={p.setMode}
           onSend={p.handleSend}
           onSave={p.handleManualSave}
           streaming={p.streaming}
           dirty={p.dirty}
+          editPlaceholder="Describe changes to the document… (Enter to send)"
+          questionPlaceholder="Ask a question about the document… (opens Chat)"
         />
       )}
     </>

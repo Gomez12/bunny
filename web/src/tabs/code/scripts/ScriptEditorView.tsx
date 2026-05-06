@@ -7,7 +7,7 @@ import type {
   SseScriptRunOutputEvent,
 } from "../../../../../src/agent/sse_events";
 import { Play, Square, HardDrive, Terminal } from "../../../lib/icons";
-import ScriptComposer from "../../../components/ScriptComposer";
+import EntityComposer from "../../../components/EntityComposer";
 import { applyPatches, extractPatches, extractFullBlock } from "../../../lib/patchUtils";
 
 const LANGUAGE_TO_MONACO: Record<ScriptLanguage, string> = {
@@ -501,11 +501,13 @@ export default function ScriptEditorView({
 
       {/* Bottom panel: composer + AI response + output */}
       <div className="script-editor__bottom" style={{ height: bottomHeight }}>
-        <ScriptComposer
+        <EntityComposer
           mode={composerMode}
           onModeChange={setComposerMode}
           onSend={handleComposerSend}
           streaming={isEditing}
+          editPlaceholder="Describe a change to the script… (Enter to send)"
+          questionPlaceholder="Ask a question about the script… (opens Chat)"
         />
 
         {(isEditing || editResponse || editError) && (
