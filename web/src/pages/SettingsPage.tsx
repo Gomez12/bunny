@@ -1,10 +1,12 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import type { AuthUser, SoulInfo } from "../api";
+import type { AuthUser, ScriptRuntimes, SoulInfo } from "../api";
 import {
   updateOwnProfile,
   changeOwnPassword,
   fetchOwnSoul,
   updateOwnSoul,
+  fetchScriptRuntimes,
+  patchScriptRuntimes,
 } from "../api";
 import ApiKeyList from "../components/ApiKeyList";
 import UserList from "../components/UserList";
@@ -14,7 +16,7 @@ const LogsTab = lazy(() => import("../tabs/LogsTab"));
 const TrashTab = lazy(() => import("../tabs/TrashTab"));
 const PromptsAdminTab = lazy(() => import("../tabs/PromptsAdminTab"));
 
-type Tab = "profile" | "keys" | "users" | "prompts" | "trash" | "logs";
+type Tab = "profile" | "keys" | "users" | "prompts" | "trash" | "logs" | "runtimes";
 
 const WIDE_TABS: ReadonlySet<Tab> = new Set<Tab>([
   "users",
@@ -70,6 +72,11 @@ export default function SettingsPage({
             Logs
           </button>
         )}
+        {user.role === "admin" && (
+          <button className={tab === "runtimes" ? "active" : ""} onClick={() => setTab("runtimes")}>
+            Script Runtimes
+          </button>
+        )}
       </nav>
       <section
         className={`settings-body${
@@ -93,6 +100,9 @@ export default function SettingsPage({
           <Suspense fallback={<div className="app-loading">Loading…</div>}>
             <LogsTab initialErrorsOnly={initialLogsErrorsOnly} />
           </Suspense>
+        )}
+        {tab === "runtimes" && user.role === "admin" && (
+          <ScriptRuntimesForm />
         )}
       </section>
     </div>
@@ -348,6 +358,115 @@ function SoulForm() {
       </button>
       {msg && <div className="auth-ok">{msg}</div>}
       {err && <div className="auth-error">{err}</div>}
+    </form>
+  );
+}
+
+// ── Script Runtimes Admin Form ────────────────────────────────────────────────
+
+const RUNTIME_ROWS: {
+  field: keyof ScriptRuntimes;
+  label: string;
+  help: string;
+}[] = [
+  {
+    field: "dotnetPath",
+    label: "dotnet",
+    help: "Path to the dotnet executable. .NET 10+ supports file-based run. Empty = C# execution disabled.",
+  },
+  {
+    field: "pythonPath",
+    label: "python",
+    help: "Path to the python executable. Empty = Python execution disabled.",
+  },
+  {
+    field: "powershellPath",
+    label: "pwsh",
+    help: "Path to PowerShell (pwsh). Empty = defaults to 'pwsh' on PATH.",
+  },
+  {
+    field: "goPath",
+    label: "go",
+    help: "Path to the Go executable. Empty = defaults to 'go' on PATH.",
+  },
+  {
+    field: "bunPath",
+    label: "bun (override)",
+    help: "Override the Bun executable path. Empty = uses the current Bun process (always available).",
+  },
+];
+
+function ScriptRuntimesForm() {
+  const [runtimes, setRuntimes] = useState<ScriptRuntimes | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchScriptRuntimes()
+      .then(setRuntimes)
+      .catch(() => setErr("Failed to load runtime config"));
+  }, []);
+
+  if (!runtimes) return <div className="loading-state">Loading…</div>;
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setMsg(null);
+    setErr(null);
+    try {
+      await patchScriptRuntimes(runtimes!);
+      setMsg("Saved.");
+    } catch {
+      setErr("Failed to save.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form className="profile" onSubmit={handleSubmit}>
+      <h2>Script Runtimes</h2>
+      <p className="muted" style={{ marginBottom: "16px" }}>
+        Configure executable paths for script execution. Bun/JavaScript always
+        works without configuration. See{" "}
+        <a
+          href="https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-run"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          docs
+        </a>{" "}
+        for .NET file-based run.
+      </p>
+
+      {RUNTIME_ROWS.map(({ field, label, help }) => (
+        <div className="form-group" key={field}>
+          <label className="form-label" htmlFor={`runtime-${field}`}>
+            {label}
+          </label>
+          <input
+            id={`runtime-${field}`}
+            className="form-input"
+            type="text"
+            value={runtimes![field]}
+            onChange={(e) =>
+              setRuntimes((prev) => ({ ...prev!, [field]: e.target.value }))
+            }
+            placeholder={`/path/to/${label}`}
+          />
+          <p className="muted" style={{ fontSize: "12px", marginTop: "2px" }}>
+            {help}
+          </p>
+        </div>
+      ))}
+
+      <button type="submit" disabled={saving} className="btn btn--primary">
+        {saving ? "Saving…" : "Save"}
+      </button>
+      {msg && <div className="auth-ok" style={{ marginTop: "8px" }}>{msg}</div>}
+      {err && <div className="auth-error" style={{ marginTop: "8px" }}>{err}</div>}
     </form>
   );
 }

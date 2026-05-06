@@ -3095,3 +3095,173 @@ export async function answerSessionQuestion(
     { method: "POST", body: JSON.stringify({ answer }) },
   );
 }
+
+// ── Scripts ──────────────────────────────────────────────────────────────────
+
+export type ScriptLanguage =
+  | "javascript"
+  | "typescript"
+  | "csharp"
+  | "python"
+  | "sql"
+  | "bash"
+  | "powershell"
+  | "go";
+
+export interface Script {
+  id: number;
+  codeProjectId: number;
+  project: string;
+  name: string;
+  description: string;
+  content: string;
+  language: ScriptLanguage;
+  isTemp: boolean;
+  fileHash: string | null;
+  createdBy: string | null;
+  createdAt: number;
+  updatedAt: number;
+  /** Set on GET when the disk file content differs from the stored hash. */
+  diskContent?: string;
+  diskDiffers?: boolean;
+}
+
+export interface ScriptVersion {
+  id: number;
+  scriptId: number;
+  content: string;
+  createdBy: string | null;
+  createdAt: number;
+}
+
+export interface ScriptRuntimes {
+  bunPath: string;
+  dotnetPath: string;
+  pythonPath: string;
+  powershellPath: string;
+  goPath: string;
+}
+
+export async function listScripts(
+  codeProjectId: number,
+  opts: { includeTemp?: boolean } = {},
+): Promise<{ scripts: Script[] }> {
+  const qs = opts.includeTemp ? "?includeTemp=true" : "";
+  return jsonFetch(`/api/code/${codeProjectId}/scripts${qs}`);
+}
+
+export async function fetchScript(id: number): Promise<{ script: Script }> {
+  return jsonFetch(`/api/scripts/${id}`);
+}
+
+export async function createScript(
+  codeProjectId: number,
+  opts: {
+    name?: string;
+    description?: string;
+    content?: string;
+    language?: ScriptLanguage;
+    isTemp?: boolean;
+  },
+): Promise<{ script: Script }> {
+  return jsonFetch(`/api/code/${codeProjectId}/scripts`, {
+    method: "POST",
+    body: JSON.stringify(opts),
+  });
+}
+
+export async function patchScript(
+  id: number,
+  patch: {
+    name?: string;
+    description?: string;
+    content?: string;
+    language?: ScriptLanguage;
+    isTemp?: boolean;
+    createVersion?: boolean;
+  },
+): Promise<{ script: Script }> {
+  return jsonFetch(`/api/scripts/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+export async function deleteScript(id: number): Promise<void> {
+  await jsonFetch(`/api/scripts/${id}`, { method: "DELETE" });
+}
+
+export async function promoteScript(id: number): Promise<{ script: Script }> {
+  return jsonFetch(`/api/scripts/${id}/promote`, { method: "POST" });
+}
+
+export async function listScriptVersions(
+  scriptId: number,
+): Promise<{ versions: ScriptVersion[] }> {
+  return jsonFetch(`/api/scripts/${scriptId}/versions`);
+}
+
+export async function restoreScriptVersion(
+  scriptId: number,
+  versionId: number,
+): Promise<{ script: Script }> {
+  return jsonFetch(`/api/scripts/${scriptId}/versions/${versionId}/restore`, {
+    method: "POST",
+  });
+}
+
+export async function syncScript(
+  id: number,
+): Promise<{ synced: string; script?: Script }> {
+  return jsonFetch(`/api/scripts/${id}/sync`, { method: "POST" });
+}
+
+export async function fetchScriptRuntimes(): Promise<ScriptRuntimes> {
+  return jsonFetch("/api/scripts/runtimes");
+}
+
+export async function patchScriptRuntimes(
+  patch: Partial<ScriptRuntimes>,
+): Promise<void> {
+  await jsonFetch("/api/scripts/runtimes", {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+export function streamScriptRun(
+  scriptId: number,
+  onEvent: (ev: ServerEvent) => void,
+): { done: Promise<void>; abort: () => void } {
+  return openSseStream(
+    `/api/scripts/${scriptId}/run`,
+    { method: "POST" },
+    onEvent,
+  );
+}
+
+export function streamScriptChat(
+  scriptId: number,
+  body: {
+    sessionId: string;
+    prompt: string;
+    /** Current editor content — sent so the LLM always sees the latest
+     *  unsaved state rather than the last-saved DB version. */
+    content?: string;
+  },
+  onEvent: (ev: ServerEvent) => void,
+): { done: Promise<void>; abort: () => void } {
+  return openSseStream(
+    `/api/scripts/${scriptId}/chat`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: body.sessionId,
+        prompt: body.prompt,
+        content: body.content,
+      }),
+    },
+    onEvent,
+  );
+}

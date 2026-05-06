@@ -6,6 +6,7 @@ import {
   ICON_DEFAULTS,
   MessageCircle,
   Network,
+  Terminal,
 } from "../lib/icons";
 import type { CodeProject } from "../api";
 
@@ -20,7 +21,7 @@ import type { CodeProject } from "../api";
  * continuous, and reuses the same `NavGroup[]` shape so future groups (e.g.
  * "Quality" for reviews / linting) land without shell changes.
  */
-export type CodeFeatureId = "show-code" | "chat" | "graph";
+export type CodeFeatureId = "show-code" | "chat" | "graph" | "scripts";
 
 type IconType = ComponentType<{ size?: number; strokeWidth?: number }>;
 
@@ -40,6 +41,7 @@ const FEATURES: RailGroup[] = [
     label: "Workspace",
     items: [
       { id: "show-code", label: "Show Code", icon: FolderGit2 },
+      { id: "scripts", label: "Scripts", icon: Terminal },
       { id: "chat", label: "Chat", icon: MessageCircle },
       { id: "graph", label: "Graph", icon: Network },
     ],

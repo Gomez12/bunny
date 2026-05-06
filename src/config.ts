@@ -229,6 +229,27 @@ export interface TelegramConfig {
   publicBaseUrl: string;
 }
 
+export interface ScriptsConfig {
+  /** Path to bun executable. Empty = process.execPath (always available). */
+  bunPath: string;
+  /** Path to dotnet executable. Empty = C# execution disabled. */
+  dotnetPath: string;
+  /** Path to python executable. Empty = Python execution disabled. */
+  pythonPath: string;
+  /** Path to PowerShell (pwsh). Empty = defaults to "pwsh" (on PATH). */
+  powershellPath: string;
+  /** Path to Go executable. Empty = defaults to "go" (on PATH). */
+  goPath: string;
+  /** Script execution timeout in ms. Default 30 s. */
+  execTimeoutMs: number;
+  /** Max combined stdout+stderr bytes. Default 10 MiB. */
+  maxOutputBytes: number;
+  /** Max versions retained per script; oldest pruned on insert. Default 50. */
+  maxVersionsPerScript: number;
+  /** Cron expression for the disk-sync scan. Default every 5 min. */
+  syncCron: string;
+}
+
 export interface BunnyConfig {
   llm: LlmConfig;
   embed: EmbedConfig;
@@ -245,6 +266,7 @@ export interface BunnyConfig {
   workflows: WorkflowsConfig;
   contacts: ContactsConfig;
   businesses: BusinessesConfig;
+  scripts: ScriptsConfig;
   sessionId: string | undefined;
 }
 
@@ -340,6 +362,17 @@ interface TomlShape {
     soul_refresh_cadence_h: number;
     soul_stuck_threshold_ms: number;
     translate_soul: boolean;
+  }>;
+  scripts?: Partial<{
+    bun_path: string;
+    dotnet_path: string;
+    python_path: string;
+    powershell_path: string;
+    go_path: string;
+    exec_timeout_ms: number;
+    max_output_bytes: number;
+    max_versions_per_script: number;
+    sync_cron: string;
   }>;
 }
 
@@ -460,6 +493,17 @@ When you are done, reply with your final answer without making any more tool cal
     soulRefreshCadenceH: 24,
     soulStuckThresholdMs: 30 * 60 * 1000,
     translateSoul: true,
+  },
+  scripts: {
+    bunPath: "",
+    dotnetPath: "",
+    pythonPath: "",
+    powershellPath: "",
+    goPath: "",
+    execTimeoutMs: 30_000,
+    maxOutputBytes: 10 * 1024 * 1024,
+    maxVersionsPerScript: 50,
+    syncCron: "*/5 * * * *",
   },
 } as const;
 
@@ -782,6 +826,26 @@ export function loadConfig(
       toml.businesses?.translate_soul ?? DEFAULTS.businesses.translateSoul,
   };
 
+  const scripts: ScriptsConfig = {
+    bunPath: toml.scripts?.bun_path ?? DEFAULTS.scripts.bunPath,
+    dotnetPath: toml.scripts?.dotnet_path ?? DEFAULTS.scripts.dotnetPath,
+    pythonPath: toml.scripts?.python_path ?? DEFAULTS.scripts.pythonPath,
+    powershellPath:
+      toml.scripts?.powershell_path ?? DEFAULTS.scripts.powershellPath,
+    goPath: toml.scripts?.go_path ?? DEFAULTS.scripts.goPath,
+    execTimeoutMs: Number(
+      toml.scripts?.exec_timeout_ms ?? DEFAULTS.scripts.execTimeoutMs,
+    ),
+    maxOutputBytes: Number(
+      toml.scripts?.max_output_bytes ?? DEFAULTS.scripts.maxOutputBytes,
+    ),
+    maxVersionsPerScript: Number(
+      toml.scripts?.max_versions_per_script ??
+        DEFAULTS.scripts.maxVersionsPerScript,
+    ),
+    syncCron: toml.scripts?.sync_cron ?? DEFAULTS.scripts.syncCron,
+  };
+
   return {
     llm,
     embed,
@@ -798,6 +862,7 @@ export function loadConfig(
     workflows,
     contacts,
     businesses,
+    scripts,
     sessionId: env["BUNNY_SESSION"],
   };
 }

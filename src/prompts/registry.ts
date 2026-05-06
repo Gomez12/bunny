@@ -259,6 +259,32 @@ Keep improvedTerms to 3-7 items. `;
 
 // ── Code project ask / edit (project-overridable) ───────────────────────────
 
+const SCRIPTS_CHAT_DEFAULT = `You are a scripting assistant helping with {{scriptLanguage}} scripts.
+
+Current script "{{scriptName}}" in code project "{{codeProjectName}}":
+\`\`\`{{scriptLanguage}}
+{{scriptContent}}
+\`\`\`
+
+**How to output code changes:**
+
+Prefer targeted search/replace blocks — one block per logical change:
+\`\`\`
+<<<SEARCH
+<exact lines from the script above — must match character-for-character>
+===
+<replacement lines>
+>>>REPLACE
+\`\`\`
+
+Multiple blocks are allowed for multiple independent changes. SEARCH content must be an exact copy-paste from the current script — any mismatch means the patch cannot be applied.
+
+Only use a full \`\`\`{{scriptLanguage}} code block (the entire file) when:
+- The change affects most of the file, or
+- You are doing a structural rewrite
+
+For questions or explanations with no code change: plain text answer, no blocks at all.`;
+
 const CODE_ASK_DEFAULT = `You are a senior code reviewer and documentation writer. The user is asking a question about a source-code project and the conversation is seeded with:
 
 1. The name of the code project: "{{codeProjectName}}".
@@ -943,6 +969,14 @@ export const PROMPTS: Record<string, PromptDef> = {
     defaultText: TOOLS_LOOKUP_BUSINESS_DESCRIPTION_DEFAULT,
     warnsTokenCost: true,
   },
+  "scripts.chat": {
+    key: "scripts.chat",
+    scope: "projectOverridable",
+    description:
+      "System prompt for the Scripts tab LLM chat. Seeded with the current script's language, name, and content so the model can generate or modify the script.",
+    defaultText: SCRIPTS_CHAT_DEFAULT,
+    variables: ["scriptName", "scriptLanguage", "scriptContent", "codeProjectName"],
+  },
 };
 
 /**
@@ -981,7 +1015,8 @@ export type PromptKey =
   | "business.soul.refresh"
   | "business.auto_build.enrich"
   | "tools.lookup_contact.description"
-  | "tools.lookup_business.description";
+  | "tools.lookup_business.description"
+  | "scripts.chat";
 
 /** All registered prompt keys, in declaration order. */
 export const PROMPT_KEYS: PromptKey[] = Object.keys(PROMPTS) as PromptKey[];

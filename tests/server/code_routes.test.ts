@@ -118,6 +118,17 @@ const cfg: BunnyConfig = {
     soulStuckThresholdMs: 1_800_000,
     translateSoul: true,
   },
+  scripts: {
+    bunPath: "",
+    dotnetPath: "",
+    pythonPath: "",
+    powershellPath: "",
+    goPath: "",
+    execTimeoutMs: 30_000,
+    maxOutputBytes: 10_485_760,
+    maxVersionsPerScript: 50,
+    syncCron: "*/5 * * * *",
+  },
   sessionId: undefined,
 };
 

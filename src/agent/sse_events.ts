@@ -294,6 +294,31 @@ export interface SseNotificationReadEvent {
   readAt: number;
 }
 
+/** Emitted when a script execution starts. `runId` is a random UUID. */
+export interface SseScriptRunStartedEvent {
+  type: "script_run_started";
+  scriptId: number;
+  runId: string;
+}
+
+/** One chunk of stdout or stderr from the running script. */
+export interface SseScriptRunOutputEvent {
+  type: "script_run_output";
+  runId: string;
+  stream: "stdout" | "stderr";
+  text: string;
+}
+
+/** Terminal event for a script run. */
+export interface SseScriptRunFinishedEvent {
+  type: "script_run_finished";
+  runId: string;
+  exitCode: number | null;
+  durationMs: number;
+  timedOut?: boolean;
+  error?: string;
+}
+
 export type SseEvent =
   | SseContentEvent
   | SseReasoningEvent
@@ -323,4 +348,7 @@ export type SseEvent =
   | SseCodeGraphRunStartedEvent
   | SseCodeGraphPhaseEvent
   | SseCodeGraphLogEvent
-  | SseCodeGraphRunFinishedEvent;
+  | SseCodeGraphRunFinishedEvent
+  | SseScriptRunStartedEvent
+  | SseScriptRunOutputEvent
+  | SseScriptRunFinishedEvent;

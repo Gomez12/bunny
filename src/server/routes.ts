@@ -57,6 +57,7 @@ import { handleDocumentRoute } from "./document_routes.ts";
 import { handleContactRoute } from "./contact_routes.ts";
 import { handleBusinessRoute } from "./business_routes.ts";
 import { handleCodeRoute } from "./code_routes.ts";
+import { handleScriptRoute } from "./scripts_routes.ts";
 import { handleWorkflowRoute } from "./workflow_routes.ts";
 import { handleKbRoute } from "./kb_routes.ts";
 import { handleWebNewsRoute } from "./web_news_routes.ts";
@@ -200,6 +201,15 @@ export async function handleApi(
     user,
   );
   if (codeResponse) return codeResponse;
+
+  // ── Scripts (per-code-project single-file scripts) ────────────────────────
+  const scriptResponse = await handleScriptRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg },
+    user,
+  );
+  if (scriptResponse) return scriptResponse;
 
   // ── Workflows (per-project DAG pipelines) ─────────────────────────────────
   const workflowResponse = await handleWorkflowRoute(

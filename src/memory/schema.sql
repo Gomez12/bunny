@@ -274,6 +274,40 @@ CREATE TABLE IF NOT EXISTS code_projects (
 CREATE INDEX IF NOT EXISTS idx_code_projects_project ON code_projects(project, updated_at);
 CREATE INDEX IF NOT EXISTS idx_code_projects_trash   ON code_projects(deleted_at) WHERE deleted_at IS NOT NULL;
 
+-- ── Scripts ──────────────────────────────────────────────────────────────────
+-- Single-file scripts scoped to a code project, stored both in the DB and on
+-- disk at workspace/code/<code-project-name>/scripts/<name>.<ext>.
+-- Temp scripts (is_temp=1) are stored in scripts/temp/ and hidden by default.
+CREATE TABLE IF NOT EXISTS scripts (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  code_project_id  INTEGER NOT NULL REFERENCES code_projects(id),
+  project          TEXT    NOT NULL,  -- denormalized for display/permissions
+  name             TEXT    NOT NULL,  -- slug; also the disk filename (no ext)
+  description      TEXT    NOT NULL DEFAULT '',
+  content          TEXT    NOT NULL DEFAULT '',
+  language         TEXT    NOT NULL DEFAULT 'javascript',
+  is_temp          INTEGER NOT NULL DEFAULT 0,  -- 1 = scratch script, hidden by default
+  file_hash        TEXT,              -- SHA-256 of last-known disk content
+  created_by       TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at       INTEGER NOT NULL,
+  updated_at       INTEGER NOT NULL,
+  deleted_at       INTEGER,
+  deleted_by       TEXT,
+  UNIQUE(code_project_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_scripts_code_project ON scripts(code_project_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_scripts_project      ON scripts(project, updated_at);
+CREATE INDEX IF NOT EXISTS idx_scripts_trash        ON scripts(deleted_at) WHERE deleted_at IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS script_versions (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  script_id   INTEGER NOT NULL REFERENCES scripts(id) ON DELETE CASCADE,
+  content     TEXT    NOT NULL,
+  created_by  TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_script_versions_script ON script_versions(script_id, created_at DESC);
+
 -- ── Scheduled tasks ──────────────────────────────────────────────────────────
 -- Generiek scheduler-subsysteem: rijen representeren periodiek werk waarvan de
 -- naam van de handler de enige koppeling is naar de code. De ticker

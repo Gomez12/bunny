@@ -47,9 +47,12 @@ export {
   ChevronRight,
   ChevronDown,
   Play,
+  Square,
   Pause,
   RefreshCw,
   RotateCcw,
+  History,
+  HardDrive,
   Eraser,
   ExternalLink,
 

@@ -87,6 +87,11 @@ import {
   BUSINESS_AUTO_BUILD_HANDLER,
   registerBusinessAutoBuild,
 } from "../businesses/auto_build_handler.ts";
+import {
+  SCRIPTS_SYNC_HANDLER,
+  registerScriptsSyncHandler,
+  seedScriptsSyncTask,
+} from "../scripts/sync_handler.ts";
 
 const DEFAULT_PORT = 3000;
 
@@ -187,6 +192,7 @@ export async function startServer(
   registerBusinessSoulRefresh(defaultHandlerRegistry);
   registerBusinessSoulSweep(defaultHandlerRegistry);
   registerBusinessAutoBuild(defaultHandlerRegistry);
+  registerScriptsSyncHandler(defaultHandlerRegistry);
   const bootNow = Date.now();
   const boardAutoRunCron = "*/5 * * * *";
   try {
@@ -377,6 +383,11 @@ export async function startServer(
       "[bunny] failed to seed business.auto_build:",
       errorMessage(e),
     );
+  }
+  try {
+    seedScriptsSyncTask(db, cfg.scripts.syncCron);
+  } catch (e) {
+    console.warn("[bunny] failed to seed scripts.sync_scan:", errorMessage(e));
   }
   const quickChatHideCron = "*/5 * * * *";
   try {

@@ -31,7 +31,8 @@ export type TrashKind =
   | "kb_definition"
   | "code_project"
   | "workflow"
-  | "business";
+  | "business"
+  | "script";
 
 export type RestoreOutcome = "ok" | "not_found" | "name_conflict";
 
@@ -59,8 +60,14 @@ export interface TrashEntityDef {
   readonly table: string;
   /** The `name` / `term` column — used both for list display and rename-on-soft-delete. */
   readonly nameColumn: string;
-  /** True when `UNIQUE(project, nameColumn)` is enforced; triggers the rename dance. */
+  /** True when `UNIQUE(scopeColumn, nameColumn)` is enforced; triggers the rename dance. */
   readonly hasUniqueName: boolean;
+  /**
+   * Column used as the scope for the name-uniqueness conflict check in `restore()`.
+   * Defaults to `"project"` when undefined — matches all existing entities.
+   * Override when the UNIQUE constraint uses a different column (e.g. `"code_project_id"`).
+   */
+  readonly scopeColumn?: string;
   /** Sidecar table dropped on soft-delete (null = entity is not translatable). */
   readonly translationSidecarTable: string | null;
   readonly translationSidecarFk: string | null;
@@ -171,14 +178,15 @@ export function restore(
   id: number,
 ): RestoreOutcome {
   const def = requireDef(kind);
+  const scopeCol = def.scopeColumn ?? "project";
   const outcome = db.transaction((): RestoreOutcome => {
     const row = db
       .prepare(
-        `SELECT project, ${def.nameColumn} AS name_col, deleted_at
+        `SELECT ${scopeCol} AS scope_val, ${def.nameColumn} AS name_col, deleted_at
            FROM ${def.table} WHERE id = ?`,
       )
       .get(id) as
-      | { project: string; name_col: string; deleted_at: number | null }
+      | { scope_val: string | number; name_col: string; deleted_at: number | null }
       | undefined;
     if (!row) return "not_found";
     if (row.deleted_at === null) return "not_found";
@@ -190,11 +198,11 @@ export function restore(
       const conflict = db
         .prepare(
           `SELECT id FROM ${def.table}
-            WHERE project = ? AND ${def.nameColumn} = ?
+            WHERE ${scopeCol} = ? AND ${def.nameColumn} = ?
               AND deleted_at IS NULL
               AND id != ?`,
         )
-        .get(row.project, original, id) as { id: number } | undefined;
+        .get(row.scope_val, original, id) as { id: number } | undefined;
       if (conflict) return "name_conflict";
 
       db.prepare(

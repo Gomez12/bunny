@@ -66,6 +66,7 @@ test("registry covers every known prompt key exactly once", () => {
       "workflows.interactive.approval_preamble",
       "workflows.loop.preamble",
       "workflows.system_prompt",
+      "scripts.chat",
     ].sort(),
   );
 });
@@ -94,6 +95,7 @@ test("project-overridable set is exactly the content-flow prompts", () => {
       "workflows.system_prompt",
       "workflows.loop.preamble",
       "workflows.interactive.approval_preamble",
+      "scripts.chat",
     ].sort(),
   );
 });

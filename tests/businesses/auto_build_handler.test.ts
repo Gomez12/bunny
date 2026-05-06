@@ -194,7 +194,18 @@ function makeCfg(): BunnyConfig {
       soulStuckThresholdMs: 30 * 60 * 1000,
       translateSoul: false,
     },
-    sessionId: undefined,
+    scripts: {
+    bunPath: "",
+    dotnetPath: "",
+    pythonPath: "",
+    powershellPath: "",
+    goPath: "",
+    execTimeoutMs: 30_000,
+    maxOutputBytes: 10_485_760,
+    maxVersionsPerScript: 50,
+    syncCron: "*/5 * * * *",
+  },
+  sessionId: undefined,
   };
 }
 

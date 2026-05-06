@@ -12,6 +12,7 @@ import CodeProjectPickerDialog from "../components/CodeProjectPickerDialog";
 import CodeShowCodeView from "./code/CodeShowCodeView";
 import CodeChatView from "./code/CodeChatView";
 import CodeGraphView from "./code/CodeGraphView";
+import CodeScriptsView from "./code/CodeScriptsView";
 import EmptyState from "../components/EmptyState";
 import ConfirmDialog from "../components/ConfirmDialog";
 
@@ -19,7 +20,7 @@ const CODE_FEATURE_STORAGE_KEY = "bunny.activeCodeFeature";
 const CODE_PROJECT_STORAGE_KEY = (bunnyProject: string) =>
   `bunny.activeCodeProject.${bunnyProject}`;
 
-const VALID_FEATURES: CodeFeatureId[] = ["show-code", "chat", "graph"];
+const VALID_FEATURES: CodeFeatureId[] = ["show-code", "chat", "graph", "scripts"];
 
 function resolveStoredFeature(): CodeFeatureId {
   const stored = localStorage.getItem(CODE_FEATURE_STORAGE_KEY);
@@ -225,6 +226,12 @@ export default function CodeTab({ project, currentUser }: Props) {
           <CodeGraphView
             codeProject={activeCodeProject}
             onChanged={handleProjectTouched}
+          />
+        )}
+        {activeCodeProject && activeFeature === "scripts" && (
+          <CodeScriptsView
+            codeProject={activeCodeProject}
+            currentUser={currentUser}
           />
         )}
         {loadError && (
