@@ -118,6 +118,12 @@ const cfg = {
     maxVersionsPerScript: 50,
     syncCron: "*/5 * * * *",
   },
+  diary: {
+    whisperCppPath: "",
+    whisperModelPath: "",
+    whisperLanguage: "nl",
+    whisperTimeoutMs: 300000,
+  },
   sessionId: undefined,
 } as unknown as BunnyConfig;
 

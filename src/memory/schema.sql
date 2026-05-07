@@ -1064,6 +1064,33 @@ CREATE TABLE IF NOT EXISTS diagram_node_library (
 CREATE INDEX IF NOT EXISTS idx_diagram_lib_type ON diagram_node_library(diagram_type, is_seeded);
 CREATE INDEX IF NOT EXISTS idx_diagram_lib_proj ON diagram_node_library(project) WHERE project IS NOT NULL;
 
+-- ── Diary (per-project voice diary with speech-to-text) ─────────────────────
+-- Experimental subsystem for recording audio entries and transcribing them
+-- with whisper.cpp on CPU (no GPU, no cloud services required).
+-- Audio is stored as WAV in the project workspace: diary/<id>/audio.wav.
+CREATE TABLE IF NOT EXISTS diary_entries (
+  id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+  project                TEXT    NOT NULL,
+  user_id                TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_by             TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  title                  TEXT    NOT NULL DEFAULT '',
+  audio_path             TEXT,              -- relative workspace path, e.g. diary/<id>/audio.wav
+  audio_duration_s       INTEGER,           -- seconds, estimated from recording timer
+  audio_size_b           INTEGER,           -- bytes
+  language               TEXT    NOT NULL DEFAULT 'nl',
+  transcription          TEXT,              -- NULL until transcription completes
+  transcription_status   TEXT    NOT NULL DEFAULT 'idle', -- idle | transcribing | done | error
+  transcription_error    TEXT,
+  transcribed_at         INTEGER,
+  created_at             INTEGER NOT NULL,
+  updated_at             INTEGER NOT NULL,
+  deleted_at             INTEGER,           -- ms; non-null = soft-deleted
+  deleted_by             TEXT    REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_diary_project ON diary_entries(project, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_diary_user    ON diary_entries(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_diary_trash   ON diary_entries(deleted_at) WHERE deleted_at IS NOT NULL;
+
 -- ── Embeddings ───────────────────────────────────────────────────────────────
 -- Created dynamically by db.ts using the configured dimension (default 1536)
 -- because the dimension must be baked into the vec0 CREATE statement.

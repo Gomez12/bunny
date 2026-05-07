@@ -55,6 +55,7 @@ import { handleBoardRoute } from "./board_routes.ts";
 import { handleWhiteboardRoute } from "./whiteboard_routes.ts";
 import { handleDiagramRoute } from "./diagram_routes.ts";
 import { handleDocumentRoute } from "./document_routes.ts";
+import { handleDiaryRoute } from "./diary_routes.ts";
 import { handleContactRoute } from "./contact_routes.ts";
 import { handleBusinessRoute } from "./business_routes.ts";
 import { handleCodeRoute } from "./code_routes.ts";
@@ -185,6 +186,15 @@ export async function handleApi(
     user,
   );
   if (documentResponse) return documentResponse;
+
+  // ── Diary (per-project voice diary with speech-to-text) ──────────────────
+  const diaryResponse = await handleDiaryRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg },
+    user,
+  );
+  if (diaryResponse) return diaryResponse;
 
   // ── Contacts (per-project contact management) ────────────────────────────
   const contactResponse = await handleContactRoute(

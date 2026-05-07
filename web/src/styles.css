@@ -9240,3 +9240,393 @@ button {
   color: var(--text-faint);
   font-weight: 400;
 }
+
+/* ── Diary ──────────────────────────────────────────────────────────────── */
+.diary-tab {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+.diary-tab__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.diary-tab__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.diary-tab__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+}
+.diary-tab__loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+}
+
+/* ── Diary list item ─────────────────────────────────────────────────────── */
+.diary-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  cursor: pointer;
+  transition: border-color 150ms, box-shadow 150ms;
+  position: relative;
+}
+.diary-item:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px var(--shadow-soft);
+}
+.diary-item:hover .diary-item__delete { opacity: 1; }
+.diary-item__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-soft) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+}
+.diary-item__body { flex: 1; min-width: 0; }
+.diary-item__title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 3px;
+}
+.diary-item__title--empty { color: var(--text-faint); font-style: italic; }
+.diary-item__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.diary-item__date { font-size: 11px; color: var(--text-faint); }
+.diary-item__delete {
+  opacity: 0;
+  transition: opacity 150ms;
+  flex-shrink: 0;
+}
+
+/* ── Diary status badges ─────────────────────────────────────────────────── */
+.diary-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+.diary-badge--idle   { background: var(--bg); color: var(--text-faint); border: 1px solid var(--border); }
+.diary-badge--transcribing { background: rgba(124,92,255,0.15); color: var(--accent); }
+.diary-badge--done   { background: rgba(34,197,94,0.15); color: var(--ok); }
+.diary-badge--error  { background: rgba(239,68,68,0.12); color: var(--err); }
+.diary-badge--lang   { background: var(--bg); color: var(--text-dim); border: 1px solid var(--border); }
+
+/* ── Diary entry view ────────────────────────────────────────────────────── */
+.diary-entry {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+.diary-entry__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.diary-entry__meta { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.diary-entry__date { font-size: 12px; color: var(--text-faint); }
+.diary-entry__lang-select {
+  font-size: 12px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  outline: none;
+  cursor: pointer;
+}
+.diary-entry__lang-select:focus { border-color: var(--accent); }
+.diary-entry__title-input {
+  width: 100%;
+  padding: 14px 20px 10px;
+  font-size: 17px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  outline: none;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.diary-entry__title-input::placeholder { color: var(--text-faint); }
+.diary-entry__body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Record section */
+.diary-entry__record {
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.diary-entry__record-hint {
+  font-size: 12px;
+  color: var(--text-faint);
+  text-align: center;
+  max-width: 360px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Audio player section */
+.diary-entry__audio {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.diary-entry__audio-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+.diary-entry__audio-player {
+  width: 100%;
+  border-radius: 6px;
+}
+
+/* Transcription section */
+.diary-entry__transcription {
+  padding: 16px 24px;
+  flex: 1;
+}
+.diary-entry__transcription-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.diary-entry__transcription-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-faint);
+}
+.diary-entry__transcription-empty {
+  font-size: 13px;
+  color: var(--text-faint);
+  font-style: italic;
+}
+.diary-entry__transcription-busy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.diary-entry__transcription-text {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text);
+  white-space: pre-wrap;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.diary-entry__transcription-error {
+  font-size: 13px;
+  color: var(--err);
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.2);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+/* ── AudioRecorder ───────────────────────────────────────────────────────── */
+.audio-recorder { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+
+/* Idle mic button */
+.audio-recorder__mic-btn {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 150ms, box-shadow 150ms, background 150ms;
+  box-shadow: 0 4px 16px rgba(124,92,255,0.4);
+}
+.audio-recorder__mic-btn:hover {
+  transform: scale(1.06);
+  box-shadow: 0 6px 20px rgba(124,92,255,0.55);
+}
+.audio-recorder__mic-btn:active { transform: scale(0.96); }
+.audio-recorder__mic-label { font-size: 12px; color: var(--text-faint); }
+
+/* Recording state */
+.audio-recorder__recording { display: flex; align-items: center; gap: 14px; }
+.audio-recorder__pulse-wrap {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(239,68,68,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.audio-recorder__pulse-wrap::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid rgba(239,68,68,0.3);
+  animation: diary-pulse 1.4s ease-out infinite;
+}
+@keyframes diary-pulse {
+  0%   { transform: scale(0.9); opacity: 0.8; }
+  100% { transform: scale(1.1); opacity: 0; }
+}
+.audio-recorder__pulse-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--err);
+}
+.audio-recorder__timer {
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  letter-spacing: 1px;
+  min-width: 60px;
+}
+.audio-recorder__stop-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--err);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 150ms;
+}
+.audio-recorder__stop-btn:hover { transform: scale(1.06); }
+
+/* Processing state */
+.audio-recorder__busy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-dim);
+  padding: 8px 0;
+}
+
+/* Error state */
+.audio-recorder__error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+.audio-recorder__error-msg {
+  font-size: 12px;
+  color: var(--err);
+  max-width: 280px;
+  line-height: 1.5;
+}
+
+/* Not available (Tauri / HTTP context) */
+.audio-recorder__unavailable {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-align: center;
+  max-width: 340px;
+}
+.audio-recorder__unavailable-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+}
+.audio-recorder__unavailable-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+.audio-recorder__unavailable-desc {
+  font-size: 12px;
+  color: var(--text-faint);
+  line-height: 1.55;
+  margin: 0;
+}

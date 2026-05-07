@@ -250,6 +250,17 @@ export interface ScriptsConfig {
   syncCron: string;
 }
 
+export interface DiaryConfig {
+  /** Path to the whisper.cpp binary. Empty string = transcription disabled. */
+  whisperCppPath: string;
+  /** Path to the whisper.cpp GGML model file (e.g. ggml-small.bin). */
+  whisperModelPath: string;
+  /** Default transcription language (BCP-47 short code, e.g. "nl", "en"). */
+  whisperLanguage: string;
+  /** Max time (ms) to wait for whisper.cpp to finish. Default 5 min. */
+  whisperTimeoutMs: number;
+}
+
 export interface BunnyConfig {
   llm: LlmConfig;
   embed: EmbedConfig;
@@ -267,6 +278,7 @@ export interface BunnyConfig {
   contacts: ContactsConfig;
   businesses: BusinessesConfig;
   scripts: ScriptsConfig;
+  diary: DiaryConfig;
   sessionId: string | undefined;
 }
 
@@ -373,6 +385,12 @@ interface TomlShape {
     max_output_bytes: number;
     max_versions_per_script: number;
     sync_cron: string;
+  }>;
+  diary?: Partial<{
+    whisper_cpp_path: string;
+    whisper_model_path: string;
+    whisper_language: string;
+    whisper_timeout_ms: number;
   }>;
 }
 
@@ -504,6 +522,12 @@ When you are done, reply with your final answer without making any more tool cal
     maxOutputBytes: 10 * 1024 * 1024,
     maxVersionsPerScript: 50,
     syncCron: "*/5 * * * *",
+  },
+  diary: {
+    whisperCppPath: "",
+    whisperModelPath: "",
+    whisperLanguage: "nl",
+    whisperTimeoutMs: 5 * 60 * 1000,
   },
 } as const;
 
@@ -846,6 +870,24 @@ export function loadConfig(
     syncCron: toml.scripts?.sync_cron ?? DEFAULTS.scripts.syncCron,
   };
 
+  const diary: DiaryConfig = {
+    whisperCppPath:
+      env["BUNNY_DIARY_WHISPER_CPP_PATH"] ??
+      toml.diary?.whisper_cpp_path ??
+      DEFAULTS.diary.whisperCppPath,
+    whisperModelPath:
+      env["BUNNY_DIARY_WHISPER_MODEL_PATH"] ??
+      toml.diary?.whisper_model_path ??
+      DEFAULTS.diary.whisperModelPath,
+    whisperLanguage:
+      env["BUNNY_DIARY_WHISPER_LANGUAGE"] ??
+      toml.diary?.whisper_language ??
+      DEFAULTS.diary.whisperLanguage,
+    whisperTimeoutMs: Number(
+      toml.diary?.whisper_timeout_ms ?? DEFAULTS.diary.whisperTimeoutMs,
+    ),
+  };
+
   return {
     llm,
     embed,
@@ -863,6 +905,7 @@ export function loadConfig(
     contacts,
     businesses,
     scripts,
+    diary,
     sessionId: env["BUNNY_SESSION"],
   };
 }

@@ -33,7 +33,8 @@ export type TrashKind =
   | "workflow"
   | "business"
   | "script"
-  | "diagram";
+  | "diagram"
+  | "diary_entry";
 
 export type RestoreOutcome = "ok" | "not_found" | "name_conflict";
 

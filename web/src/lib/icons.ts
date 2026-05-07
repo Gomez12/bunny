@@ -73,6 +73,12 @@ export {
   CheckCircle,
   Loader2,
 
+  // Diary / audio
+  BookOpen,
+  Mic,
+  MicOff,
+  AudioLines,
+
   // Domain
   Lock,
   KeyRound,

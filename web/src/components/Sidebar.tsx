@@ -23,6 +23,7 @@ import {
   Moon,
   Plus,
   Shapes,
+  BookOpen,
 } from "../lib/icons";
 import type { AuthUser, Theme } from "../api";
 import NotificationBell from "./NotificationBell";
@@ -31,6 +32,7 @@ export type NavTabId =
   | "chat"
   | "board"
   | "workflows"
+  | "diary"
   | "tasks"
   | "documents"
   | "whiteboard"
@@ -70,6 +72,7 @@ const NAV: NavGroup[] = [
       { id: "chat", label: "Chat", icon: MessageCircle },
       { id: "board", label: "Board", icon: Kanban },
       { id: "workflows", label: "Workflows", icon: Workflow },
+      { id: "diary", label: "Diary", icon: BookOpen },
     ],
   },
   {
