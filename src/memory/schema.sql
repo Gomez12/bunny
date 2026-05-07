@@ -719,6 +719,82 @@ CREATE TABLE IF NOT EXISTS web_news_items (
 CREATE INDEX IF NOT EXISTS idx_web_news_items_topic_time   ON web_news_items(topic_id, published_at DESC, first_seen_at DESC);
 CREATE INDEX IF NOT EXISTS idx_web_news_items_project_time ON web_news_items(project, first_seen_at DESC);
 
+-- Feed URL pattern templates for the rss_feed topic type.
+-- Built-in rows (is_builtin=1) are seeded via INSERT OR IGNORE so they survive
+-- repeated schema runs. Admin-added rows have is_builtin=0 and can be deleted.
+CREATE TABLE IF NOT EXISTS web_news_feed_patterns (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  site       TEXT    NOT NULL,               -- "GitHub", "Reddit", …
+  name       TEXT    NOT NULL,               -- "Releases", "Subreddit", …
+  pattern    TEXT    NOT NULL,               -- URL template with {variable} placeholders
+  variables  TEXT    NOT NULL DEFAULT '[]',  -- JSON: [{name,label,hint?}, …]
+  is_builtin INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch('now') * 1000),
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch('now') * 1000),
+  UNIQUE(site, name)
+);
+INSERT OR IGNORE INTO web_news_feed_patterns(site, name, pattern, variables, is_builtin) VALUES
+  ('GitHub', 'Releases',
+   'https://github.com/{owner}/{repo}/releases.atom',
+   '[{"name":"owner","label":"Owner","hint":"e.g. microsoft"},{"name":"repo","label":"Repository","hint":"e.g. vscode"}]',
+   1),
+  ('GitHub', 'Commits',
+   'https://github.com/{owner}/{repo}/commits/{branch}.atom',
+   '[{"name":"owner","label":"Owner","hint":"e.g. torvalds"},{"name":"repo","label":"Repository","hint":"e.g. linux"},{"name":"branch","label":"Branch","hint":"e.g. master"}]',
+   1),
+  ('GitHub', 'Tags',
+   'https://github.com/{owner}/{repo}/tags.atom',
+   '[{"name":"owner","label":"Owner","hint":"e.g. facebook"},{"name":"repo","label":"Repository","hint":"e.g. react"}]',
+   1),
+  ('Reddit', 'Subreddit',
+   'https://www.reddit.com/r/{subreddit}/.rss',
+   '[{"name":"subreddit","label":"Subreddit","hint":"e.g. programming"}]',
+   1),
+  ('YouTube', 'Channel',
+   'https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}',
+   '[{"name":"channel_id","label":"Channel ID","hint":"e.g. UCVHFbw7woebKtfvug_dAqpg"}]',
+   1),
+  ('Hacker News', 'Frontpage',
+   'https://hnrss.org/frontpage',
+   '[]',
+   1),
+  ('Hacker News', 'Keyword search',
+   'https://hnrss.org/newest?q={query}',
+   '[{"name":"query","label":"Search query","hint":"e.g. bun runtime"}]',
+   1),
+  ('Stack Overflow', 'Tag feed',
+   'https://stackoverflow.com/feeds/tag/{tag}',
+   '[{"name":"tag","label":"Tag","hint":"e.g. typescript"}]',
+   1),
+  ('Medium', 'Publication',
+   'https://medium.com/feed/{publication}',
+   '[{"name":"publication","label":"Publication slug","hint":"e.g. better-programming"}]',
+   1),
+  ('Substack', 'Newsletter',
+   'https://{subdomain}.substack.com/feed',
+   '[{"name":"subdomain","label":"Subdomain","hint":"e.g. stratechery"}]',
+   1),
+  ('Dev.to', 'Tag feed',
+   'https://dev.to/feed/tag/{tag}',
+   '[{"name":"tag","label":"Tag","hint":"e.g. webdev"}]',
+   1),
+  ('PyPI', 'Package releases',
+   'https://pypi.org/rss/project/{package}/releases.xml',
+   '[{"name":"package","label":"Package name","hint":"e.g. requests"}]',
+   1);
+
+-- Per-user reactions on news items. Drives the user's soul so liked/disliked
+-- items inform interest modeling. PRIMARY KEY enforces one reaction per item.
+CREATE TABLE IF NOT EXISTS web_news_item_reactions (
+  user_id    TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  item_id    INTEGER NOT NULL REFERENCES web_news_items(id) ON DELETE CASCADE,
+  reaction   TEXT    NOT NULL CHECK(reaction IN ('up', 'down')),
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, item_id)
+);
+CREATE INDEX IF NOT EXISTS idx_news_reactions_user
+  ON web_news_item_reactions(user_id, created_at DESC);
+
 -- ── User notifications ──────────────────────────────────────────────────────
 -- Per-user (cross-project) notifications. v1 trigger: @username mentions in
 -- chat prompts; extensible to future triggers (board-card assignment, task

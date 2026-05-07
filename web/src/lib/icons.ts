@@ -82,6 +82,9 @@ export {
   Moon,
   Send,
   Link as LinkIcon,
+  Rss,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 
 /**

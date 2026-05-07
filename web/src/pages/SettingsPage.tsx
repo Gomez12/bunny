@@ -15,8 +15,9 @@ import TelegramLinkCard from "../components/TelegramLinkCard";
 const LogsTab = lazy(() => import("../tabs/LogsTab"));
 const TrashTab = lazy(() => import("../tabs/TrashTab"));
 const PromptsAdminTab = lazy(() => import("../tabs/PromptsAdminTab"));
+const FeedPatternsAdmin = lazy(() => import("../tabs/FeedPatternsAdmin"));
 
-type Tab = "profile" | "keys" | "users" | "prompts" | "trash" | "logs" | "runtimes";
+type Tab = "profile" | "keys" | "users" | "prompts" | "trash" | "logs" | "runtimes" | "feed_patterns";
 
 const WIDE_TABS: ReadonlySet<Tab> = new Set<Tab>([
   "users",
@@ -77,6 +78,11 @@ export default function SettingsPage({
             Script Runtimes
           </button>
         )}
+        {user.role === "admin" && (
+          <button className={tab === "feed_patterns" ? "active" : ""} onClick={() => setTab("feed_patterns")}>
+            Feed Patterns
+          </button>
+        )}
       </nav>
       <section
         className={`settings-body${
@@ -103,6 +109,11 @@ export default function SettingsPage({
         )}
         {tab === "runtimes" && user.role === "admin" && (
           <ScriptRuntimesForm />
+        )}
+        {tab === "feed_patterns" && user.role === "admin" && (
+          <Suspense fallback={<div className="app-loading">Loading…</div>}>
+            <FeedPatternsAdmin />
+          </Suspense>
         )}
       </section>
     </div>

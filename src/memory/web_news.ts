@@ -17,6 +17,7 @@ import type { Project } from "./projects.ts";
 
 export type RunStatus = "idle" | "running";
 export type LastRunStatus = "ok" | "error";
+export type TopicType = "keyword_search" | "rss_feed" | "site_monitor";
 
 export interface NewsTopic {
   id: number;
@@ -38,6 +39,28 @@ export interface NewsTopic {
   lastRunError: string | null;
   lastSessionId: string | null;
   createdBy: string | null;
+  createdAt: number;
+  updatedAt: number;
+  topicType: TopicType;
+  feedUrl: string | null;
+  siteUrl: string | null;
+  lastHtmlHash: string | null;
+  lastMdHash: string | null;
+}
+
+export interface FeedPatternVariable {
+  name: string;
+  label: string;
+  hint?: string;
+}
+
+export interface FeedPattern {
+  id: number;
+  site: string;
+  name: string;
+  pattern: string;
+  variables: FeedPatternVariable[];
+  isBuiltin: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -81,6 +104,22 @@ interface TopicRow {
   created_by: string | null;
   created_at: number;
   updated_at: number;
+  topic_type: string | null;
+  feed_url: string | null;
+  site_url: string | null;
+  last_html_hash: string | null;
+  last_md_hash: string | null;
+}
+
+interface FeedPatternRow {
+  id: number;
+  site: string;
+  name: string;
+  pattern: string;
+  variables: string;
+  is_builtin: number;
+  created_at: number;
+  updated_at: number;
 }
 
 interface ItemRow {
@@ -105,7 +144,8 @@ const TOPIC_COLS = `id, project, name, description, agent, terms,
                     max_items_per_run, enabled, run_status,
                     next_update_at, next_renew_terms_at,
                     last_run_at, last_run_status, last_run_error, last_session_id,
-                    created_by, created_at, updated_at`;
+                    created_by, created_at, updated_at,
+                    topic_type, feed_url, site_url, last_html_hash, last_md_hash`;
 
 const ITEM_COLS = `id, topic_id, project, title, summary, url, image_url, source,
                    published_at, content_hash, seen_count,
@@ -130,6 +170,11 @@ function normaliseLastStatus(raw: string | null): LastRunStatus | null {
   return null;
 }
 
+function normaliseTopicType(raw: string | null): TopicType {
+  if (raw === "rss_feed" || raw === "site_monitor") return raw;
+  return "keyword_search";
+}
+
 function rowToTopic(r: TopicRow): NewsTopic {
   return {
     id: r.id,
@@ -151,6 +196,31 @@ function rowToTopic(r: TopicRow): NewsTopic {
     lastRunError: r.last_run_error,
     lastSessionId: r.last_session_id,
     createdBy: r.created_by,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+    topicType: normaliseTopicType(r.topic_type),
+    feedUrl: r.feed_url,
+    siteUrl: r.site_url,
+    lastHtmlHash: r.last_html_hash,
+    lastMdHash: r.last_md_hash,
+  };
+}
+
+function rowToFeedPattern(r: FeedPatternRow): FeedPattern {
+  let variables: FeedPatternVariable[] = [];
+  try {
+    const parsed = JSON.parse(r.variables);
+    if (Array.isArray(parsed)) variables = parsed;
+  } catch {
+    // leave empty
+  }
+  return {
+    id: r.id,
+    site: r.site,
+    name: r.name,
+    pattern: r.pattern,
+    variables,
+    isBuiltin: r.is_builtin !== 0,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -191,6 +261,9 @@ export interface CreateTopicOpts {
   nextUpdateAt: number;
   nextRenewTermsAt?: number | null;
   createdBy: string;
+  topicType?: TopicType;
+  feedUrl?: string | null;
+  siteUrl?: string | null;
 }
 
 function validateTerms(raw: unknown): string[] {
@@ -218,6 +291,13 @@ export function createTopic(db: Database, opts: CreateTopicOpts): NewsTopic {
   if (max < 1 || max > 100) {
     throw new Error("max_items_per_run must be between 1 and 100");
   }
+  const topicType = opts.topicType ?? "keyword_search";
+  if (topicType === "rss_feed" && !opts.feedUrl?.trim()) {
+    throw new Error("feed_url is required for rss_feed topics");
+  }
+  if (topicType === "site_monitor" && !opts.siteUrl?.trim()) {
+    throw new Error("site_url is required for site_monitor topics");
+  }
   const now = Date.now();
   const info = db
     .prepare(
@@ -227,8 +307,9 @@ export function createTopic(db: Database, opts: CreateTopicOpts): NewsTopic {
          max_items_per_run, enabled, run_status,
          next_update_at, next_renew_terms_at,
          last_run_at, last_run_status, last_run_error, last_session_id,
-         created_by, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'idle', ?, ?, NULL, NULL, NULL, NULL, ?, ?, ?)`,
+         created_by, created_at, updated_at,
+         topic_type, feed_url, site_url
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'idle', ?, ?, NULL, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       opts.project,
@@ -246,6 +327,9 @@ export function createTopic(db: Database, opts: CreateTopicOpts): NewsTopic {
       opts.createdBy,
       now,
       now,
+      topicType,
+      opts.feedUrl?.trim() ?? null,
+      opts.siteUrl?.trim() ?? null,
     );
   const id = Number(info.lastInsertRowid);
   return getTopic(db, id)!;
@@ -280,6 +364,8 @@ export interface UpdateTopicPatch {
   nextUpdateAt?: number;
   nextRenewTermsAt?: number | null;
   lastSessionId?: string | null;
+  feedUrl?: string | null;
+  siteUrl?: string | null;
 }
 
 export function updateTopic(
@@ -334,6 +420,10 @@ export function updateTopic(
     patch.lastSessionId === undefined
       ? existing.lastSessionId
       : patch.lastSessionId;
+  const feedUrl =
+    patch.feedUrl === undefined ? existing.feedUrl : patch.feedUrl?.trim() || null;
+  const siteUrl =
+    patch.siteUrl === undefined ? existing.siteUrl : patch.siteUrl?.trim() || null;
 
   db.prepare(
     `UPDATE web_news_topics
@@ -341,6 +431,7 @@ export function updateTopic(
            update_cron = ?, renew_terms_cron = ?, always_regenerate_terms = ?,
            max_items_per_run = ?, enabled = ?,
            next_update_at = ?, next_renew_terms_at = ?, last_session_id = ?,
+           feed_url = ?, site_url = ?,
            updated_at = ?
      WHERE id = ?`,
   ).run(
@@ -356,6 +447,8 @@ export function updateTopic(
     nextUpdateAt,
     nextRenewTermsAt,
     lastSessionId,
+    feedUrl,
+    siteUrl,
     Date.now(),
     id,
   );
@@ -643,6 +736,18 @@ export function deleteNewsItem(db: Database, id: number): void {
   db.prepare(`DELETE FROM web_news_items WHERE id = ?`).run(id);
 }
 
+/** Update the site-monitor layer hashes after a successful check. */
+export function updateSiteHashes(
+  db: Database,
+  id: number,
+  htmlHash: string | null,
+  mdHash: string | null,
+): void {
+  db.prepare(
+    `UPDATE web_news_topics SET last_html_hash = ?, last_md_hash = ?, updated_at = ? WHERE id = ?`,
+  ).run(htmlHash, mdHash, Date.now(), id);
+}
+
 // ── Permissions ──────────────────────────────────────────────────────────────
 
 export function canEditTopic(
@@ -654,4 +759,59 @@ export function canEditTopic(
   if (project.createdBy && project.createdBy === user.id) return true;
   if (topic.createdBy === user.id) return true;
   return false;
+}
+
+// ── Feed patterns ─────────────────────────────────────────────────────────────
+
+export function listFeedPatterns(db: Database): FeedPattern[] {
+  const rows = db
+    .prepare(
+      `SELECT id, site, name, pattern, variables, is_builtin, created_at, updated_at
+         FROM web_news_feed_patterns
+        ORDER BY site ASC, name ASC`,
+    )
+    .all() as FeedPatternRow[];
+  return rows.map(rowToFeedPattern);
+}
+
+export interface CreateFeedPatternOpts {
+  site: string;
+  name: string;
+  pattern: string;
+  variables?: FeedPatternVariable[];
+}
+
+export function createFeedPattern(
+  db: Database,
+  opts: CreateFeedPatternOpts,
+): FeedPattern {
+  const site = opts.site.trim();
+  if (!site) throw new Error("site is required");
+  const name = opts.name.trim();
+  if (!name) throw new Error("name is required");
+  const pattern = opts.pattern.trim();
+  if (!pattern) throw new Error("pattern is required");
+  const now = Date.now();
+  const info = db
+    .prepare(
+      `INSERT INTO web_news_feed_patterns(site, name, pattern, variables, is_builtin, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 0, ?, ?)`,
+    )
+    .run(site, name, pattern, JSON.stringify(opts.variables ?? []), now, now);
+  const row = db
+    .prepare(
+      `SELECT id, site, name, pattern, variables, is_builtin, created_at, updated_at
+         FROM web_news_feed_patterns WHERE id = ?`,
+    )
+    .get(Number(info.lastInsertRowid)) as FeedPatternRow;
+  return rowToFeedPattern(row);
+}
+
+export function deleteFeedPattern(db: Database, id: number): void {
+  const row = db
+    .prepare(`SELECT is_builtin FROM web_news_feed_patterns WHERE id = ?`)
+    .get(id) as { is_builtin: number } | undefined;
+  if (!row) throw new Error("feed pattern not found");
+  if (row.is_builtin !== 0) throw new Error("built-in feed patterns cannot be deleted");
+  db.prepare(`DELETE FROM web_news_feed_patterns WHERE id = ?`).run(id);
 }

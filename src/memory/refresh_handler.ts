@@ -23,6 +23,7 @@ import { registry as toolRegistry } from "../tools/index.ts";
 import { errorMessage } from "../util/error.ts";
 import { SYSTEM_USERNAME } from "../auth/seed.ts";
 import { getUserByUsername } from "../auth/users.ts";
+import { getUserNewsSoul } from "./news_soul.ts";
 import {
   getUserById,
   setUserSoulAuto,
@@ -616,10 +617,19 @@ async function refreshUserSoul(
     userRow.displayName?.trim() || userRow.username || `user(${userId})`;
 
   const currentSoul = userRow.soul ?? "";
+
+  // Include the stable news interests profile so the main soul has a reference
+  // point for content preferences without being swung by individual items.
+  const newsSoul = getUserNewsSoul(db, userId);
+  const newsSoulBlock =
+    newsSoul?.soul
+      ? `\n\nUser's news interests profile (stable reference — do not overwrite, only inform):\n${newsSoul.soul}`
+      : "";
+
   const systemPrompt = interpolate(resolvePrompt("memory.user_soul.refresh"), {
     userDisplay,
     currentSoul: currentSoul || "(empty)",
-    newMessages: formatMessages(messages),
+    newMessages: formatMessages(messages) + newsSoulBlock,
     budget: MEMORY_FIELD_CHAR_LIMIT,
   });
 

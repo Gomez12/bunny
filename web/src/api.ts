@@ -2284,6 +2284,7 @@ export async function clearDefinitionIllustration(
 
 export type NewsRunStatus = "idle" | "running";
 export type NewsLastRunStatus = "ok" | "error";
+export type NewsTopicType = "keyword_search" | "rss_feed" | "site_monitor";
 
 export interface NewsTopic {
   id: number;
@@ -2307,6 +2308,32 @@ export interface NewsTopic {
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
+  topicType: NewsTopicType;
+  feedUrl: string | null;
+  siteUrl: string | null;
+}
+
+export interface FeedPatternVariable {
+  name: string;
+  label: string;
+  hint?: string;
+}
+
+export interface FeedPattern {
+  id: number;
+  site: string;
+  name: string;
+  pattern: string;
+  variables: FeedPatternVariable[];
+  isBuiltin: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface DiscoveredFeed {
+  url: string;
+  title: string;
+  format: "rss" | "atom" | "unknown";
 }
 
 export interface NewsItem {
@@ -2329,13 +2356,16 @@ export interface NewsItem {
 export interface NewsTopicInput {
   name: string;
   description?: string;
-  agent: string;
+  agent?: string;
   terms?: string[];
   updateCron: string;
   renewTermsCron?: string | null;
   alwaysRegenerateTerms?: boolean;
   maxItemsPerRun?: number;
   enabled?: boolean;
+  topicType?: NewsTopicType;
+  feedUrl?: string | null;
+  siteUrl?: string | null;
 }
 
 export async function fetchNewsTopics(project: string): Promise<NewsTopic[]> {
@@ -2412,6 +2442,76 @@ export async function deleteNewsItem(project: string, id: number): Promise<void>
     `/api/projects/${encodeURIComponent(project)}/news/items/${id}`,
     { method: "DELETE" },
   );
+}
+
+export type NewsReaction = "up" | "down";
+
+export async function fetchNewsReactions(
+  project: string,
+): Promise<Record<number, NewsReaction>> {
+  const data = await jsonFetch<{ reactions: Record<string, string> }>(
+    `/api/projects/${encodeURIComponent(project)}/news/reactions`,
+  );
+  // Keys are strings from JSON — convert to numbers
+  return Object.fromEntries(
+    Object.entries(data.reactions).map(([k, v]) => [Number(k), v as NewsReaction]),
+  );
+}
+
+export async function setNewsReaction(
+  project: string,
+  itemId: number,
+  reaction: NewsReaction,
+): Promise<void> {
+  await jsonFetch(
+    `/api/projects/${encodeURIComponent(project)}/news/items/${itemId}/react`,
+    { method: "POST", body: JSON.stringify({ reaction }) },
+  );
+}
+
+export async function removeNewsReaction(
+  project: string,
+  itemId: number,
+): Promise<void> {
+  await jsonFetch(
+    `/api/projects/${encodeURIComponent(project)}/news/items/${itemId}/react`,
+    { method: "DELETE" },
+  );
+}
+
+export async function discoverFeeds(
+  project: string,
+  url: string,
+): Promise<DiscoveredFeed[]> {
+  const data = await jsonFetch<{ feeds: DiscoveredFeed[] }>(
+    `/api/projects/${encodeURIComponent(project)}/news/discover-feed`,
+    { method: "POST", body: JSON.stringify({ url }) },
+  );
+  return data.feeds;
+}
+
+export async function fetchFeedPatterns(): Promise<FeedPattern[]> {
+  const data = await jsonFetch<{ patterns: FeedPattern[] }>(
+    `/api/news/feed-patterns`,
+  );
+  return data.patterns;
+}
+
+export async function createFeedPattern(opts: {
+  site: string;
+  name: string;
+  pattern: string;
+  variables: FeedPatternVariable[];
+}): Promise<FeedPattern> {
+  const data = await jsonFetch<{ pattern: FeedPattern }>(
+    `/api/news/feed-patterns`,
+    { method: "POST", body: JSON.stringify(opts) },
+  );
+  return data.pattern;
+}
+
+export async function deleteFeedPattern(id: number): Promise<void> {
+  await jsonFetch(`/api/news/feed-patterns/${id}`, { method: "DELETE" });
 }
 
 // ── Trash (admin-only) ────────────────────────────────────────────────────

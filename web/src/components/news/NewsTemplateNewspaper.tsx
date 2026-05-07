@@ -1,12 +1,14 @@
-import type { NewsItem, NewsTopic } from "../../api";
+import type { NewsItem, NewsTopic, NewsReaction } from "../../api";
 import NewsItemCard from "./NewsItemCard";
 
 type Props = {
   items: NewsItem[];
   topics: NewsTopic[];
+  reactions?: Record<number, NewsReaction>;
+  onReact?: (itemId: number, reaction: NewsReaction | null) => void;
 };
 
-export default function NewsTemplateNewspaper({ items, topics }: Props) {
+export default function NewsTemplateNewspaper({ items, topics, reactions = {}, onReact }: Props) {
   const grouped = new Map<number, NewsItem[]>();
   for (const item of items) {
     const bucket = grouped.get(item.topicId) ?? [];
@@ -14,7 +16,6 @@ export default function NewsTemplateNewspaper({ items, topics }: Props) {
     grouped.set(item.topicId, bucket);
   }
 
-  // Sort topics by their most recent item so the freshest section leads.
   const newestItemDate = (topicId: number): number => {
     const bucket = grouped.get(topicId);
     if (!bucket?.length) return 0;
@@ -49,7 +50,12 @@ export default function NewsTemplateNewspaper({ items, topics }: Props) {
               )}
               {hero && (
                 <div className="newspaper-section__hero">
-                  <NewsItemCard item={hero} topic={topic} />
+                  <NewsItemCard
+                    item={hero}
+                    topic={topic}
+                    reaction={reactions[hero.id] ?? null}
+                    onReact={onReact ? (r) => onReact(hero.id, r) : undefined}
+                  />
                 </div>
               )}
               {rest.length > 0 && (
@@ -60,6 +66,8 @@ export default function NewsTemplateNewspaper({ items, topics }: Props) {
                       item={item}
                       topic={topic}
                       compact
+                      reaction={reactions[item.id] ?? null}
+                      onReact={onReact ? (r) => onReact(item.id, r) : undefined}
                     />
                   ))}
                 </div>

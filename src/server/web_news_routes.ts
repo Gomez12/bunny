@@ -32,18 +32,30 @@ import { getAgent, isAgentLinkedToProject } from "../memory/agents.ts";
 import {
   canEditTopic,
   createTopic,
+  createFeedPattern,
+  deleteFeedPattern,
   deleteNewsItem,
   deleteTopic,
   getNewsItem,
   getTopic,
+  listFeedPatterns,
   listItemsForProject,
   listTopics,
   updateTopic,
   type NewsTopic,
+  type TopicType,
 } from "../memory/web_news.ts";
+import { discoverFeeds } from "../web_news/feed_discovery.ts";
+import {
+  setReaction,
+  removeReaction,
+  listUserReactionsForProject,
+  type Reaction,
+} from "../memory/news_reactions.ts";
 import { computeNextRun } from "../scheduler/cron.ts";
 import { registry as toolsRegistry } from "../tools/index.ts";
 import { runTopic } from "../web_news/run_topic.ts";
+import { NEWS_AGENT_NAME, RSS_NEWS_AGENT_NAME } from "../memory/agents_seed.ts";
 
 export interface WebNewsRouteCtx {
   db: Database;
@@ -58,6 +70,26 @@ export async function handleWebNewsRoute(
   user: User,
 ): Promise<Response | null> {
   const { pathname } = url;
+
+  // ── Global feed-patterns (not project-scoped) ─────────────────────────────
+  if (pathname === "/api/news/feed-patterns") {
+    if (req.method === "GET") return handleListFeedPatterns(ctx);
+    if (req.method === "POST") return handleCreateFeedPattern(req, ctx, user);
+  }
+  const feedPatternIdMatch = pathname.match(/^\/api\/news\/feed-patterns\/(\d+)$/);
+  if (feedPatternIdMatch) {
+    const id = Number(feedPatternIdMatch[1]);
+    if (req.method === "DELETE") return handleDeleteFeedPattern(ctx, user, id);
+  }
+
+  // ── Per-project discover-feed ─────────────────────────────────────────────
+  const discoverMatch = pathname.match(
+    /^\/api\/projects\/([^/]+)\/news\/discover-feed$/,
+  );
+  if (discoverMatch) {
+    const project = decodeURIComponent(discoverMatch[1]!);
+    if (req.method === "POST") return handleDiscoverFeed(req, ctx, user, project);
+  }
 
   const topicsMatch = pathname.match(
     /^\/api\/projects\/([^/]+)\/news\/topics$/,
@@ -104,6 +136,12 @@ export async function handleWebNewsRoute(
     if (req.method === "GET") return handleListItems(ctx, user, project, url);
   }
 
+  const reactionsMatch = pathname.match(/^\/api\/projects\/([^/]+)\/news\/reactions$/);
+  if (reactionsMatch) {
+    const project = decodeURIComponent(reactionsMatch[1]!);
+    if (req.method === "GET") return handleListReactions(ctx, user, project);
+  }
+
   const itemIdMatch = pathname.match(
     /^\/api\/projects\/([^/]+)\/news\/items\/(\d+)$/,
   );
@@ -112,6 +150,16 @@ export async function handleWebNewsRoute(
     const id = Number(itemIdMatch[2]);
     if (req.method === "DELETE")
       return handleDeleteItem(ctx, user, project, id);
+  }
+
+  const reactMatch = pathname.match(
+    /^\/api\/projects\/([^/]+)\/news\/items\/(\d+)\/react$/,
+  );
+  if (reactMatch) {
+    const project = decodeURIComponent(reactMatch[1]!);
+    const id = Number(reactMatch[2]);
+    if (req.method === "POST") return handleSetReaction(req, ctx, user, project, id);
+    if (req.method === "DELETE") return handleRemoveReaction(ctx, user, project, id);
   }
 
   return null;
@@ -206,6 +254,9 @@ interface TopicBody {
   alwaysRegenerateTerms?: boolean;
   maxItemsPerRun?: number;
   enabled?: boolean;
+  topicType?: TopicType;
+  feedUrl?: string | null;
+  siteUrl?: string | null;
 }
 
 async function handleCreate(
@@ -219,9 +270,14 @@ async function handleCreate(
 
   const body = await readJson<TopicBody>(req);
   if (!body?.name?.trim()) return json({ error: "missing name" }, 400);
-  if (!body.agent?.trim()) return json({ error: "missing agent" }, 400);
   if (!body.updateCron?.trim())
     return json({ error: "missing updateCron" }, 400);
+
+  // Choose the right built-in agent when none is specified.
+  // rss_feed → rss-news (summarisation); site_monitor → news (page analysis).
+  const defaultAgent =
+    body.topicType === "rss_feed" ? RSS_NEWS_AGENT_NAME : NEWS_AGENT_NAME;
+  const resolvedAgent = body.agent?.trim() || defaultAgent;
 
   try {
     const updateCron = validateCron(body.updateCron);
@@ -229,14 +285,14 @@ async function handleCreate(
       body.renewTermsCron && body.renewTermsCron.trim()
         ? validateCron(body.renewTermsCron)
         : null;
-    validateAgent(ctx, r.project, body.agent);
+    validateAgent(ctx, r.project, resolvedAgent);
     const now = Date.now();
 
     const topic = createTopic(ctx.db, {
       project: r.project,
       name: body.name,
       description: body.description,
-      agent: body.agent,
+      agent: resolvedAgent,
       terms: body.terms,
       updateCron,
       renewTermsCron: renewCron,
@@ -246,6 +302,9 @@ async function handleCreate(
       nextUpdateAt: computeNextRun(updateCron, now),
       nextRenewTermsAt: renewCron ? computeNextRun(renewCron, now) : null,
       createdBy: user.id,
+      topicType: body.topicType,
+      feedUrl: body.feedUrl,
+      siteUrl: body.siteUrl,
     });
 
     void ctx.queue.log({
@@ -290,8 +349,9 @@ async function handlePatch(
     if (body.name !== undefined) patch.name = body.name;
     if (body.description !== undefined) patch.description = body.description;
     if (body.agent !== undefined) {
-      validateAgent(ctx, r.project, body.agent);
-      patch.agent = body.agent;
+      const resolvedPatchAgent = body.agent?.trim() || NEWS_AGENT_NAME;
+      validateAgent(ctx, r.project, resolvedPatchAgent);
+      patch.agent = resolvedPatchAgent;
     }
     if (body.terms !== undefined) patch.terms = body.terms;
     if (body.updateCron !== undefined) {
@@ -314,6 +374,8 @@ async function handlePatch(
     if (body.maxItemsPerRun !== undefined)
       patch.maxItemsPerRun = body.maxItemsPerRun;
     if (body.enabled !== undefined) patch.enabled = body.enabled;
+    if (body.feedUrl !== undefined) patch.feedUrl = body.feedUrl;
+    if (body.siteUrl !== undefined) patch.siteUrl = body.siteUrl;
 
     const updated = updateTopic(ctx.db, id, patch);
     void ctx.queue.log({
@@ -449,4 +511,146 @@ function handleDeleteItem(
     data: { id, project: r.project, topicId: item.topicId },
   });
   return json({ ok: true });
+}
+
+// ── Discover feed ─────────────────────────────────────────────────────────────
+
+async function handleDiscoverFeed(
+  req: Request,
+  ctx: WebNewsRouteCtx,
+  user: User,
+  rawProject: string,
+): Promise<Response> {
+  const r = resolveProject(ctx, user, rawProject);
+  if (!r.ok) return r.error;
+
+  const body = await readJson<{ url?: string }>(req);
+  const rawUrl = body?.url?.trim();
+  if (!rawUrl) return json({ error: "missing url" }, 400);
+  if (!/^https?:\/\//i.test(rawUrl)) return json({ error: "url must start with http:// or https://" }, 400);
+
+  try {
+    const feeds = await discoverFeeds(rawUrl, { db: ctx.db, llmCfg: ctx.cfg.llm });
+    void ctx.queue.log({
+      topic: "web_news",
+      kind: "discover_feed",
+      userId: user.id,
+      data: { project: r.project, url: rawUrl, found: feeds.length },
+    });
+    return json({ feeds });
+  } catch (e) {
+    return json({ error: errorMessage(e) }, 500);
+  }
+}
+
+// ── Feed patterns (global, not project-scoped) ────────────────────────────────
+
+function handleListFeedPatterns(ctx: WebNewsRouteCtx): Response {
+  return json({ patterns: listFeedPatterns(ctx.db) });
+}
+
+async function handleCreateFeedPattern(
+  req: Request,
+  ctx: WebNewsRouteCtx,
+  user: User,
+): Promise<Response> {
+  if (user.role !== "admin") return json({ error: "forbidden" }, 403);
+  const body = await readJson<{ site?: string; name?: string; pattern?: string; variables?: unknown }>(req);
+  if (!body?.site?.trim()) return json({ error: "missing site" }, 400);
+  if (!body?.name?.trim()) return json({ error: "missing name" }, 400);
+  if (!body?.pattern?.trim()) return json({ error: "missing pattern" }, 400);
+
+  try {
+    const variables = Array.isArray(body.variables) ? body.variables : [];
+    const pattern = createFeedPattern(ctx.db, {
+      site: body.site,
+      name: body.name,
+      pattern: body.pattern,
+      variables,
+    });
+    void ctx.queue.log({
+      topic: "web_news",
+      kind: "feed_pattern.create",
+      userId: user.id,
+      data: { id: pattern.id, site: pattern.site, name: pattern.name },
+    });
+    return json({ pattern }, 201);
+  } catch (e) {
+    return json({ error: errorMessage(e) }, 400);
+  }
+}
+
+// ── Reactions ─────────────────────────────────────────────────────────────────
+
+function handleListReactions(
+  ctx: WebNewsRouteCtx,
+  user: User,
+  rawProject: string,
+): Response {
+  const r = resolveProject(ctx, user, rawProject);
+  if (!r.ok) return r.error;
+  const map = listUserReactionsForProject(ctx.db, user.id, r.project);
+  return json({ reactions: Object.fromEntries(map) });
+}
+
+async function handleSetReaction(
+  req: Request,
+  ctx: WebNewsRouteCtx,
+  user: User,
+  rawProject: string,
+  id: number,
+): Promise<Response> {
+  const r = resolveProject(ctx, user, rawProject);
+  if (!r.ok) return r.error;
+  const item = getNewsItem(ctx.db, id);
+  if (!item || item.project !== r.project) return json({ error: "not found" }, 404);
+  const body = await readJson<{ reaction?: string }>(req);
+  if (body?.reaction !== "up" && body?.reaction !== "down")
+    return json({ error: "reaction must be 'up' or 'down'" }, 400);
+  setReaction(ctx.db, user.id, id, body.reaction as Reaction);
+  void ctx.queue.log({
+    topic: "web_news",
+    kind: "item.react",
+    userId: user.id,
+    data: { itemId: id, project: r.project, reaction: body.reaction },
+  });
+  return json({ ok: true });
+}
+
+function handleRemoveReaction(
+  ctx: WebNewsRouteCtx,
+  user: User,
+  rawProject: string,
+  id: number,
+): Response {
+  const r = resolveProject(ctx, user, rawProject);
+  if (!r.ok) return r.error;
+  removeReaction(ctx.db, user.id, id);
+  void ctx.queue.log({
+    topic: "web_news",
+    kind: "item.react.remove",
+    userId: user.id,
+    data: { itemId: id, project: r.project },
+  });
+  return json({ ok: true });
+}
+
+function handleDeleteFeedPattern(
+  ctx: WebNewsRouteCtx,
+  user: User,
+  id: number,
+): Response {
+  if (user.role !== "admin") return json({ error: "forbidden" }, 403);
+  try {
+    deleteFeedPattern(ctx.db, id);
+    void ctx.queue.log({
+      topic: "web_news",
+      kind: "feed_pattern.delete",
+      userId: user.id,
+      data: { id },
+    });
+    return json({ ok: true });
+  } catch (e) {
+    return json({ error: errorMessage(e) }, 400);
+  }
 }

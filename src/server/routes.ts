@@ -774,6 +774,15 @@ async function handleCreateProject(
     } catch {
       // ignore — next boot heals
     }
+    // Also link the built-in news/rss-news agents so news topics work
+    // on newly created projects without waiting for the next boot cycle.
+    try {
+      const { NEWS_AGENT_NAME, RSS_NEWS_AGENT_NAME } = await import("../memory/agents_seed.ts");
+      linkAgentToProject(ctx.db, name, NEWS_AGENT_NAME);
+      linkAgentToProject(ctx.db, name, RSS_NEWS_AGENT_NAME);
+    } catch {
+      // ignore — ensureNewsAgent/ensureRssNewsAgent at boot heals the link
+    }
     void ctx.queue.log({
       topic: "project",
       kind: "create",

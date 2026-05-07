@@ -23,7 +23,7 @@ import { webBundle } from "./web_bundle.ts";
 import { ensureSeedUsers } from "../auth/seed.ts";
 import { ensureProject, validateProjectName } from "../memory/projects.ts";
 import { ensureProjectDir } from "../memory/project_assets.ts";
-import { ensureDefaultAgent } from "../memory/agents_seed.ts";
+import { ensureDefaultAgent, ensureNewsAgent, ensureRssNewsAgent } from "../memory/agents_seed.ts";
 import { backfillAllTranslationSlots } from "../memory/translatable.ts";
 import { defaultHandlerRegistry } from "../scheduler/handlers.ts";
 import { startScheduler } from "../scheduler/ticker.ts";
@@ -67,6 +67,10 @@ import {
   MEMORY_REFRESH_HANDLER,
   registerMemoryRefresh,
 } from "../memory/refresh_handler.ts";
+import {
+  NEWS_SOUL_REFRESH_HANDLER,
+  registerNewsSoulRefresh,
+} from "../memory/news_soul_refresh_handler.ts";
 import {
   CONTACT_SOUL_REFRESH_HANDLER,
   registerContactSoulRefresh,
@@ -177,6 +181,8 @@ export async function startServer(
   // Seed the configured default agent and link it to every existing project
   // so `/api/chat` can always resolve a named agent. See ADR 0031.
   ensureDefaultAgent(db, cfg.agent, queue);
+  ensureNewsAgent(db, queue);
+  ensureRssNewsAgent(db, queue);
 
   registerBoardAutoRun(defaultHandlerRegistry);
   registerAutoTranslate(defaultHandlerRegistry);
@@ -187,6 +193,7 @@ export async function startServer(
   registerKbAutoGenerate(defaultHandlerRegistry);
   registerKbSweepStuck(defaultHandlerRegistry);
   registerMemoryRefresh(defaultHandlerRegistry);
+  registerNewsSoulRefresh(defaultHandlerRegistry);
   registerContactSoulRefresh(defaultHandlerRegistry);
   registerContactSoulSweep(defaultHandlerRegistry);
   registerBusinessSoulRefresh(defaultHandlerRegistry);
@@ -308,6 +315,18 @@ export async function startServer(
     });
   } catch (e) {
     console.warn("[bunny] failed to seed memory.refresh:", errorMessage(e));
+  }
+  const newsSoulRefreshCron = "0 */6 * * *";
+  try {
+    ensureSystemTask(db, NEWS_SOUL_REFRESH_HANDLER, {
+      name: "News soul refresh",
+      description:
+        "Every 6 h: distil each user's news reactions into a stable interests profile (news soul).",
+      cronExpr: newsSoulRefreshCron,
+      nextRunAt: computeNextRun(newsSoulRefreshCron, bootNow),
+    });
+  } catch (e) {
+    console.warn("[bunny] failed to seed memory.news_soul.refresh:", errorMessage(e));
   }
   const contactSoulRefreshCron = cfg.contacts.soulRefreshCron;
   try {

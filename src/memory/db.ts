@@ -242,6 +242,26 @@ function migrateColumns(db: Database): void {
   addColumn("ALTER TABLE code_projects ADD COLUMN graph_node_count INTEGER");
   addColumn("ALTER TABLE code_projects ADD COLUMN graph_edge_count INTEGER");
   addColumn("ALTER TABLE code_projects ADD COLUMN last_graphed_at INTEGER");
+  // ── Per-user news interests soul ──────────────────────────────────────────
+  addColumn("ALTER TABLE users ADD COLUMN news_soul TEXT NOT NULL DEFAULT ''");
+  addColumn(
+    "ALTER TABLE users ADD COLUMN news_soul_status TEXT NOT NULL DEFAULT 'idle'",
+  );
+  addColumn("ALTER TABLE users ADD COLUMN news_soul_error TEXT");
+  addColumn("ALTER TABLE users ADD COLUMN news_soul_refreshed_at INTEGER");
+  addColumn("ALTER TABLE users ADD COLUMN news_soul_refreshing_at INTEGER");
+  db.run(
+    `CREATE INDEX IF NOT EXISTS idx_users_news_soul_status
+       ON users(news_soul_status, news_soul_refreshing_at)`,
+  );
+  // ── Web News: new topic types (rss_feed, site_monitor) — ADR 0038 ─────────
+  addColumn(
+    "ALTER TABLE web_news_topics ADD COLUMN topic_type TEXT NOT NULL DEFAULT 'keyword_search'",
+  );
+  addColumn("ALTER TABLE web_news_topics ADD COLUMN feed_url TEXT");
+  addColumn("ALTER TABLE web_news_topics ADD COLUMN site_url TEXT");
+  addColumn("ALTER TABLE web_news_topics ADD COLUMN last_html_hash TEXT");
+  addColumn("ALTER TABLE web_news_topics ADD COLUMN last_md_hash TEXT");
   // Backfill original_lang once for legacy rows.
   db.run(
     `UPDATE kb_definitions

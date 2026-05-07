@@ -3,19 +3,25 @@ import {
   createNewsTopic,
   deleteNewsTopic,
   fetchNewsItems,
+  fetchNewsReactions,
   fetchNewsTopics,
   regenerateNewsTopicTerms,
+  removeNewsReaction,
   runNewsTopicNow,
+  setNewsReaction,
   updateNewsTopic,
   type AuthUser,
   type NewsItem,
   type NewsTopic,
+  type NewsReaction,
 } from "../api";
 import EmptyState from "../components/EmptyState";
 import ConfirmDialog from "../components/ConfirmDialog";
 import TopicDialog, {
   type TopicDialogValue,
 } from "../components/TopicDialog";
+import FeedDialog from "../components/news/FeedDialog";
+import SiteDialog from "../components/news/SiteDialog";
 import NewsTemplateList from "../components/news/NewsTemplateList";
 import NewsTemplateNewspaper from "../components/news/NewsTemplateNewspaper";
 import {
@@ -26,6 +32,8 @@ import {
   Plus,
   Loader2,
   AlertCircle,
+  Rss,
+  Globe,
 } from "../lib/icons";
 
 type TemplateId = "list" | "newspaper";
@@ -38,6 +46,22 @@ const TEMPLATES: Array<{ id: TemplateId; label: string }> = [
 const TEMPLATE_STORAGE_KEY = "bunny.webNews.template";
 const POLL_INTERVAL_MS = 5_000;
 
+function loadHiddenTopics(project: string, userId: string): Set<number> {
+  try {
+    const raw = localStorage.getItem(`bunny.news.hiddenTopics.${project}.${userId}`);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw) as unknown;
+    if (!Array.isArray(arr)) return new Set();
+    return new Set(arr.filter((n): n is number => typeof n === "number"));
+  } catch {
+    return new Set();
+  }
+}
+
+function saveHiddenTopics(project: string, userId: string, hidden: Set<number>) {
+  localStorage.setItem(`bunny.news.hiddenTopics.${project}.${userId}`, JSON.stringify([...hidden]));
+}
+
 type Props = {
   project: string;
   currentUser: AuthUser;
@@ -45,8 +69,20 @@ type Props = {
 
 type DialogState =
   | { kind: "closed" }
-  | { kind: "create" }
+  | { kind: "create-topic" }
+  | { kind: "create-feed" }
+  | { kind: "create-site" }
   | { kind: "edit"; topic: NewsTopic };
+
+function topicTypeBadge(t: NewsTopic): React.ReactNode {
+  if (t.topicType === "rss_feed") {
+    return <span className="news-type-badge news-type-badge--rss" title="RSS/Atom feed"><Rss size={10} /> RSS</span>;
+  }
+  if (t.topicType === "site_monitor") {
+    return <span className="news-type-badge news-type-badge--site" title="Site monitor"><Globe size={10} /> Site</span>;
+  }
+  return null;
+}
 
 function readStoredTemplate(): TemplateId {
   const raw = localStorage.getItem(TEMPLATE_STORAGE_KEY);
@@ -62,6 +98,29 @@ export default function WebNewsTab({ project, currentUser }: Props) {
   const [loading, setLoading] = useState(true);
   const [confirmDeleteTopic, setConfirmDeleteTopic] = useState<NewsTopic | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [hiddenTopicIds, setHiddenTopicIds] = useState<Set<number>>(
+    () => loadHiddenTopics(project, currentUser.id),
+  );
+
+  // Reset hidden topics when project changes
+  useEffect(() => {
+    setHiddenTopicIds(loadHiddenTopics(project, currentUser.id));
+  }, [project, currentUser.id]);
+
+  const toggleTopicVisibility = (topicId: number) => {
+    setHiddenTopicIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(topicId)) {
+        next.delete(topicId);
+      } else {
+        next.add(topicId);
+      }
+      saveHiddenTopics(project, currentUser.id, next);
+      return next;
+    });
+  };
+
+  const [reactions, setReactions] = useState<Record<number, NewsReaction>>({});
 
   const setTemplate = (t: TemplateId) => {
     localStorage.setItem(TEMPLATE_STORAGE_KEY, t);
@@ -70,12 +129,14 @@ export default function WebNewsTab({ project, currentUser }: Props) {
 
   const refresh = useCallback(async () => {
     try {
-      const [t, i] = await Promise.all([
+      const [t, i, r] = await Promise.all([
         fetchNewsTopics(project),
         fetchNewsItems(project, { limit: 200 }),
+        fetchNewsReactions(project),
       ]);
       setTopics(t);
       setItems(i);
+      setReactions(r);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -83,6 +144,29 @@ export default function WebNewsTab({ project, currentUser }: Props) {
       setLoading(false);
     }
   }, [project]);
+
+  const handleReact = async (itemId: number, reaction: NewsReaction | null) => {
+    // Optimistic update
+    setReactions((prev) => {
+      const next = { ...prev };
+      if (reaction === null) {
+        delete next[itemId];
+      } else {
+        next[itemId] = reaction;
+      }
+      return next;
+    });
+    try {
+      if (reaction === null) {
+        await removeNewsReaction(project, itemId);
+      } else {
+        await setNewsReaction(project, itemId, reaction);
+      }
+    } catch {
+      // Revert on error
+      void refresh();
+    }
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -119,6 +203,11 @@ export default function WebNewsTab({ project, currentUser }: Props) {
 
   const handleEdit = async (topic: NewsTopic, value: TopicDialogValue) => {
     await updateNewsTopic(project, topic.id, value);
+    setDialog({ kind: "closed" });
+    await refresh();
+  };
+
+  const handleFeedOrSiteDone = async () => {
     setDialog({ kind: "closed" });
     await refresh();
   };
@@ -162,30 +251,57 @@ export default function WebNewsTab({ project, currentUser }: Props) {
     () => topics.filter((t) => t.enabled),
     [topics],
   );
+
+  // Items shown in the news view: topic must be system-enabled AND user-visible.
   const visibleItems = useMemo(() => {
     const enabledIds = new Set(enabledTopics.map((t) => t.id));
-    return items.filter((i) => enabledIds.has(i.topicId));
-  }, [items, enabledTopics]);
+    return items.filter(
+      (i) => enabledIds.has(i.topicId) && !hiddenTopicIds.has(i.topicId),
+    );
+  }, [items, enabledTopics, hiddenTopicIds]);
 
-  // Topics shown in the sidebar: enabled + (has items OR has never been run yet).
-  // Topics that have run but returned nothing are hidden until they do.
+  // Sidebar shows all topics that have any items (regardless of user-hidden state),
+  // plus topics that have never been run yet. Use all items (not just visibleItems)
+  // so hidden topics still appear in the sidebar and can be re-enabled.
   const sidebarTopics = useMemo(() => {
-    const topicsWithItems = new Set(visibleItems.map((i) => i.topicId));
-    return topics.filter((t) => topicsWithItems.has(t.id) || !t.lastRunAt);
-  }, [topics, visibleItems]);
+    const enabledIds = new Set(enabledTopics.map((t) => t.id));
+    const topicsWithAnyItems = new Set(
+      items.filter((i) => enabledIds.has(i.topicId)).map((i) => i.topicId),
+    );
+    return topics.filter((t) => topicsWithAnyItems.has(t.id) || !t.lastRunAt);
+  }, [topics, items, enabledTopics]);
 
   return (
     <div className="news-tab">
       <aside className="news-tab__sidebar">
         <header className="news-tab__sidebar-header">
           <h2>Topics</h2>
-          <button
-            type="button"
-            className="btn btn--primary btn--sm"
-            onClick={() => setDialog({ kind: "create" })}
-          >
-            <Plus size={14} /> New topic
-          </button>
+          <div className="news-tab__add-menu">
+            <button
+              type="button"
+              className="btn btn--primary btn--sm"
+              onClick={() => setDialog({ kind: "create-topic" })}
+              title="Keyword topic — agent searches the web"
+            >
+              <Plus size={14} /> Topic
+            </button>
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={() => setDialog({ kind: "create-feed" })}
+              title="RSS/Atom feed"
+            >
+              <Rss size={14} />
+            </button>
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={() => setDialog({ kind: "create-site" })}
+              title="Site monitor — check a page for changes"
+            >
+              <Globe size={14} />
+            </button>
+          </div>
         </header>
 
         {loading ? (
@@ -211,8 +327,22 @@ export default function WebNewsTab({ project, currentUser }: Props) {
                     ? "news-status-dot--error"
                     : "news-status-dot--idle";
               return (
-                <li key={topic.id} className="news-tab__topic">
+                <li
+                  key={topic.id}
+                  className={`news-tab__topic${hiddenTopicIds.has(topic.id) ? " news-tab__topic--hidden" : ""}`}
+                >
                   <div className="news-tab__topic-main">
+                    <input
+                      type="checkbox"
+                      className="news-topic-toggle"
+                      checked={!hiddenTopicIds.has(topic.id)}
+                      onChange={() => toggleTopicVisibility(topic.id)}
+                      title={
+                        hiddenTopicIds.has(topic.id)
+                          ? "Show in news view"
+                          : "Hide from news view"
+                      }
+                    />
                     <span
                       className={`news-status-dot ${statusClass}`}
                       title={
@@ -224,10 +354,17 @@ export default function WebNewsTab({ project, currentUser }: Props) {
                       }
                     />
                     <div className="news-tab__topic-text">
-                      <strong>{topic.name}</strong>
+                      <strong>
+                        {topicTypeBadge(topic)}
+                        {topic.name}
+                      </strong>
                       <small>
-                        {topic.terms.length} term
-                        {topic.terms.length === 1 ? "" : "s"} · {topic.agent}
+                        {topic.topicType === "rss_feed"
+                          ? topic.feedUrl ?? "—"
+                          : topic.topicType === "site_monitor"
+                            ? topic.siteUrl ?? "—"
+                            : `${topic.terms.length} term${topic.terms.length === 1 ? "" : "s"}`}{" "}
+                        · {topic.agent}
                       </small>
                       {topic.lastRunAt && (
                         <small>
@@ -253,14 +390,16 @@ export default function WebNewsTab({ project, currentUser }: Props) {
                       >
                         <Play size={14} />
                       </button>
-                      <button
-                        type="button"
-                        className="btn btn--ghost btn--xs"
-                        onClick={() => handleRegenerate(topic)}
-                        title="Regenerate terms on next run"
-                      >
-                        <RefreshCw size={14} />
-                      </button>
+                      {topic.topicType === "keyword_search" && (
+                        <button
+                          type="button"
+                          className="btn btn--ghost btn--xs"
+                          onClick={() => handleRegenerate(topic)}
+                          title="Regenerate terms on next run"
+                        >
+                          <RefreshCw size={14} />
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="btn btn--ghost btn--xs"
@@ -322,20 +461,50 @@ export default function WebNewsTab({ project, currentUser }: Props) {
             }
           />
         ) : template === "newspaper" ? (
-          <NewsTemplateNewspaper items={visibleItems} topics={enabledTopics} />
+          <NewsTemplateNewspaper items={visibleItems} topics={enabledTopics} reactions={reactions} onReact={handleReact} />
         ) : (
-          <NewsTemplateList items={visibleItems} topics={enabledTopics} />
+          <NewsTemplateList items={visibleItems} topics={enabledTopics} reactions={reactions} onReact={handleReact} />
         )}
       </section>
 
-      {dialog.kind === "create" && (
+      {dialog.kind === "create-topic" && (
         <TopicDialog
           project={project}
           onCancel={() => setDialog({ kind: "closed" })}
           onSubmit={handleCreate}
         />
       )}
-      {dialog.kind === "edit" && (
+      {dialog.kind === "create-feed" && (
+        <FeedDialog
+          project={project}
+          onCancel={() => setDialog({ kind: "closed" })}
+          onDone={() => void handleFeedOrSiteDone()}
+        />
+      )}
+      {dialog.kind === "create-site" && (
+        <SiteDialog
+          project={project}
+          onCancel={() => setDialog({ kind: "closed" })}
+          onDone={() => void handleFeedOrSiteDone()}
+        />
+      )}
+      {dialog.kind === "edit" && dialog.topic.topicType === "rss_feed" && (
+        <FeedDialog
+          project={project}
+          initial={dialog.topic}
+          onCancel={() => setDialog({ kind: "closed" })}
+          onDone={() => void handleFeedOrSiteDone()}
+        />
+      )}
+      {dialog.kind === "edit" && dialog.topic.topicType === "site_monitor" && (
+        <SiteDialog
+          project={project}
+          initial={dialog.topic}
+          onCancel={() => setDialog({ kind: "closed" })}
+          onDone={() => void handleFeedOrSiteDone()}
+        />
+      )}
+      {dialog.kind === "edit" && dialog.topic.topicType === "keyword_search" && (
         <TopicDialog
           project={project}
           initial={dialog.topic}

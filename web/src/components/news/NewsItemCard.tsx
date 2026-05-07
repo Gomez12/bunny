@@ -1,11 +1,13 @@
-import type { NewsItem, NewsTopic } from "../../api";
-import { ExternalLink } from "../../lib/icons";
+import type { NewsItem, NewsTopic, NewsReaction } from "../../api";
+import { ExternalLink, ThumbsUp, ThumbsDown } from "../../lib/icons";
 
 type Props = {
   item: NewsItem;
   topic: NewsTopic | undefined;
   showTopicBadge?: boolean;
   compact?: boolean;
+  reaction?: NewsReaction | null;
+  onReact?: (reaction: NewsReaction | null) => void;
 };
 
 function formatDate(ts: number | null): string {
@@ -22,8 +24,17 @@ export default function NewsItemCard({
   topic,
   showTopicBadge = false,
   compact = false,
+  reaction = null,
+  onReact,
 }: Props) {
   const dateLabel = formatDate(item.publishedAt ?? item.firstSeenAt);
+
+  const handleThumb = (thumb: NewsReaction) => {
+    if (!onReact) return;
+    // Clicking the same reaction again removes it (toggle off)
+    onReact(reaction === thumb ? null : thumb);
+  };
+
   return (
     <article className={`news-card ${compact ? "news-card--compact" : ""}`}>
       {item.imageUrl && !compact && (
@@ -52,6 +63,28 @@ export default function NewsItemCard({
           )}
         </h3>
         {item.summary && <p className="news-card__summary">{item.summary}</p>}
+        {onReact && (
+          <div className="news-card__reactions">
+            <button
+              type="button"
+              className={`news-card__reaction-btn ${reaction === "up" ? "news-card__reaction-btn--active-up" : ""}`}
+              onClick={() => handleThumb("up")}
+              title="Interessant"
+              aria-pressed={reaction === "up"}
+            >
+              <ThumbsUp size={14} />
+            </button>
+            <button
+              type="button"
+              className={`news-card__reaction-btn ${reaction === "down" ? "news-card__reaction-btn--active-down" : ""}`}
+              onClick={() => handleThumb("down")}
+              title="Niet interessant"
+              aria-pressed={reaction === "down"}
+            >
+              <ThumbsDown size={14} />
+            </button>
+          </div>
+        )}
       </div>
     </article>
   );

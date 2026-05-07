@@ -36,6 +36,9 @@ import {
 } from "../memory/web_news.ts";
 import { listTopicSubscribers } from "../memory/web_news_subscriptions.ts";
 import { sendTelegramToUser } from "../telegram/outbound.ts";
+import { parseFeed } from "./feed_parser.ts";
+import { runSiteMonitor } from "./site_monitor.ts";
+import { summariseRssItems } from "./rss_summarizer.ts";
 
 export interface RunTopicOpts {
   db: Database;
@@ -54,7 +57,7 @@ export interface RunTopicResult {
   sessionId: string;
   inserted: number;
   duplicates: number;
-  mode: "fetch" | "renew+fetch";
+  mode: "fetch" | "renew+fetch" | "rss" | "site_monitor";
   terms: string[];
   error?: string;
 }
@@ -83,6 +86,16 @@ export async function runTopic(opts: RunTopicOpts): Promise<RunTopicResult> {
   }
 
   const now = opts.now ?? Date.now();
+
+  // ── Dispatch to type-specific runner ────────────────────────────────────────
+  if (topic.topicType === "rss_feed") {
+    return runRssFeed(topic, { db, queue, cfg, tools, triggeredBy: opts.triggeredBy, now });
+  }
+  if (topic.topicType === "site_monitor") {
+    return runSiteMonitorTopic(topic, { db, queue, cfg, tools, triggeredBy: opts.triggeredBy, now });
+  }
+  // ── keyword_search (existing flow) ──────────────────────────────────────────
+
   const needsRenewByCron =
     topic.nextRenewTermsAt !== null && topic.nextRenewTermsAt <= now;
   const renewTerms =
@@ -274,6 +287,221 @@ export async function runTopic(opts: RunTopicOpts): Promise<RunTopicResult> {
     });
     return result;
   }
+}
+
+// ── Shared runner helpers ─────────────────────────────────────────────────────
+
+interface RunnerOpts {
+  db: Database;
+  queue: BunnyQueue;
+  cfg: BunnyConfig;
+  tools: ToolRegistry;
+  triggeredBy: string;
+  now: number;
+}
+
+function notifySubscribers(
+  db: Database,
+  queue: BunnyQueue,
+  cfg: BunnyConfig,
+  topic: NewsTopic,
+  insertedItems: ParsedNewsItem[],
+): void {
+  if (insertedItems.length === 0) return;
+  const digest = buildDigest(topic, insertedItems);
+  const subs = listTopicSubscribers(db, topic.id).map((s) => s.userId);
+  const recipients = subs.length > 0 ? subs : topic.createdBy ? [topic.createdBy] : [];
+  for (const uid of recipients) {
+    void sendTelegramToUser(db, queue, cfg.telegram, {
+      userId: uid,
+      project: topic.project,
+      text: digest,
+      silent: true,
+      source: "news_digest",
+    });
+  }
+}
+
+// ── RSS feed runner ───────────────────────────────────────────────────────────
+
+async function runRssFeed(
+  topic: NewsTopic,
+  opts: RunnerOpts,
+): Promise<RunTopicResult> {
+  const { db, queue, triggeredBy, now } = opts;
+  const result: RunTopicResult = {
+    topicId: topic.id,
+    sessionId: "",
+    inserted: 0,
+    duplicates: 0,
+    mode: "rss",
+    terms: [],
+  };
+
+  void queue.log({
+    topic: "web_news",
+    kind: "topic.run.start",
+    userId: triggeredBy,
+    data: { topicId: topic.id, project: topic.project, mode: "rss" },
+  });
+
+  try {
+    const feedUrl = topic.feedUrl!;
+    const res = await fetch(feedUrl, {
+      headers: { "User-Agent": "Bunny-News/1.0" },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status} fetching feed`);
+    const xml = await res.text();
+    const parsed = parseFeed(xml);
+    if (!parsed) throw new Error("unrecognised feed format");
+
+    // Summarise long/messy raw RSS content with the rss-news agent's LLM.
+    const rawItems = parsed.items.slice(0, topic.maxItemsPerRun);
+    const capped = await summariseRssItems(rawItems, opts.cfg.llm);
+    const insertedItems: ParsedNewsItem[] = [];
+    for (const item of capped) {
+      try {
+        const { inserted } = upsertNewsItem(db, {
+          topicId: topic.id,
+          project: topic.project,
+          title: item.title,
+          summary: item.summary,
+          url: item.url,
+          imageUrl: item.imageUrl,
+          source: item.source ?? (parsed.feedTitle || null),
+          publishedAt: item.publishedAt,
+          now,
+        });
+        if (inserted) {
+          result.inserted++;
+          insertedItems.push({ ...item, source: item.source ?? (parsed.feedTitle || null) });
+        } else {
+          result.duplicates++;
+        }
+      } catch (e) {
+        void queue.log({
+          topic: "web_news",
+          kind: "topic.item.upsert_error",
+          userId: triggeredBy,
+          data: { topicId: topic.id, title: item.title },
+          error: errorMessage(e),
+        });
+      }
+    }
+
+    releaseTopic(db, topic.id, {
+      status: "ok",
+      error: null,
+      nextUpdateAt: safeNext(topic.updateCron, now),
+    });
+
+    notifySubscribers(db, queue, opts.cfg, topic, insertedItems);
+
+    void queue.log({
+      topic: "web_news",
+      kind: "topic.run.done",
+      userId: triggeredBy,
+      data: { topicId: topic.id, project: topic.project, mode: "rss", inserted: result.inserted, duplicates: result.duplicates },
+    });
+  } catch (e) {
+    const msg = errorMessage(e);
+    result.error = msg;
+    try {
+      releaseTopic(db, topic.id, {
+        status: "error",
+        error: msg,
+        nextUpdateAt: safeNext(topic.updateCron, now),
+      });
+    } catch { /* swallow */ }
+    void queue.log({
+      topic: "web_news",
+      kind: "topic.run.error",
+      userId: triggeredBy,
+      data: { topicId: topic.id, project: topic.project, mode: "rss" },
+      error: msg,
+    });
+  }
+
+  return result;
+}
+
+// ── Site monitor runner ───────────────────────────────────────────────────────
+
+async function runSiteMonitorTopic(
+  topic: NewsTopic,
+  opts: RunnerOpts,
+): Promise<RunTopicResult> {
+  const { db, queue, now } = opts;
+  const result: RunTopicResult = {
+    topicId: topic.id,
+    sessionId: "",
+    inserted: 0,
+    duplicates: 0,
+    mode: "site_monitor",
+    terms: [],
+  };
+
+  void queue.log({
+    topic: "web_news",
+    kind: "topic.run.start",
+    userId: opts.triggeredBy,
+    data: { topicId: topic.id, project: topic.project, mode: "site_monitor" },
+  });
+
+  try {
+    const monitorResult = await runSiteMonitor(topic, {
+      db,
+      queue,
+      cfg: opts.cfg,
+      tools: opts.tools,
+      triggeredBy: opts.triggeredBy,
+      now,
+    });
+
+    result.sessionId = monitorResult.sessionId ?? "";
+    result.inserted = monitorResult.inserted;
+    result.duplicates = monitorResult.duplicates;
+
+    if (monitorResult.outcome === "llm_error") {
+      result.error = "LLM extraction failed";
+    }
+
+    releaseTopic(db, topic.id, {
+      status: monitorResult.outcome === "llm_error" ? "error" : "ok",
+      error: result.error ?? null,
+      nextUpdateAt: safeNext(topic.updateCron, now),
+      sessionId: monitorResult.sessionId ?? undefined,
+    });
+
+    notifySubscribers(db, queue, opts.cfg, topic, monitorResult.insertedItems);
+
+    void queue.log({
+      topic: "web_news",
+      kind: "topic.run.done",
+      userId: opts.triggeredBy,
+      data: { topicId: topic.id, project: topic.project, mode: "site_monitor", outcome: monitorResult.outcome, inserted: result.inserted },
+    });
+  } catch (e) {
+    const msg = errorMessage(e);
+    result.error = msg;
+    try {
+      releaseTopic(db, topic.id, {
+        status: "error",
+        error: msg,
+        nextUpdateAt: safeNext(topic.updateCron, now),
+      });
+    } catch { /* swallow */ }
+    void queue.log({
+      topic: "web_news",
+      kind: "topic.run.error",
+      userId: opts.triggeredBy,
+      data: { topicId: topic.id, project: topic.project, mode: "site_monitor" },
+      error: msg,
+    });
+  }
+
+  return result;
 }
 
 function safeNext(expr: string, now: number): number {

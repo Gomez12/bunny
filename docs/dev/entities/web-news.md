@@ -2,7 +2,15 @@
 
 ## What it is
 
-Per-project periodic news aggregator. Each topic carries its own agent, a list of search terms, an `update_cron`, an optional `renew_terms_cron` (or `always_regenerate_terms = 1`), and self-scheduling next-run timestamps. The scheduler fires every minute, selects due topics, and dispatches a fetch or a terms-refresh run.
+Per-project periodic news aggregator. Topics come in three flavours (controlled by `topic_type`):
+
+| Type | How it works |
+|------|-------------|
+| `keyword_search` | Agent searches the web using terms, returns structured JSON. Supports term regeneration via cron or `always_regenerate_terms`. |
+| `rss_feed` | Fetches a direct RSS 2.0 or Atom 1.0 feed URL. No LLM call — items are parsed and upserted directly. |
+| `site_monitor` | Checks a URL for content changes via a 3-layer filter (raw HTML hash → markdown hash → LLM extraction) before calling the LLM. |
+
+All types share the same `web_news_topics` + `web_news_items` tables, the `web_news.auto_run_scan` scheduler, and the existing List/Newspaper UI templates.
 
 Items dedup per topic via `content_hash = sha256(normalizedUrl + normalizedTitle)` — re-runs of the same story bump `seen_count` + `last_seen_at` instead of inserting a new row.
 

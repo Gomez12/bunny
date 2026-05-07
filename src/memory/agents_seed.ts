@@ -30,6 +30,68 @@ import { listProjects } from "./projects.ts";
 const DEFAULT_AGENT_DESCRIPTION = "Bunny — the default assistant.";
 const DEFAULT_AGENT_PROMPT = "You are a helpful assistant";
 
+export const NEWS_AGENT_NAME = "news";
+const NEWS_AGENT_DESCRIPTION =
+  "Lightweight built-in agent for RSS feeds and site monitoring. No memory, no soul — pure content extraction.";
+const NEWS_AGENT_PROMPT =
+  "You are a focused web content agent. Your task is to fetch web pages and RSS feeds, " +
+  "extract relevant news items or updates, and return them as structured JSON. " +
+  "Be concise. Do not add commentary outside the JSON block.";
+
+export const RSS_NEWS_AGENT_NAME = "rss-news";
+const RSS_NEWS_AGENT_DESCRIPTION =
+  "Built-in agent that summarises raw RSS/Atom feed content into clean 2–3 sentence digests. " +
+  "Returns valid JSON only — no fences, no commentary.";
+const RSS_NEWS_AGENT_PROMPT =
+  "You summarise RSS feed articles into concise 2–3 sentence digests. " +
+  "Focus on what is new, notable, or useful. " +
+  "Return valid JSON only — no markdown fences, no extra text.";
+
+function ensureBuiltinAgent(
+  db: Database,
+  queue: BunnyQueue,
+  name: string,
+  description: string,
+  prompt: string,
+  logKind: string,
+): void {
+  try {
+    const existing = getAgent(db, name);
+    if (!existing) {
+      createAgent(db, {
+        name,
+        description,
+        visibility: "public",
+        isSubagent: false,
+        knowsOtherAgents: false,
+        contextScope: "full",
+        createdBy: getSystemUserId(db),
+      });
+    }
+    ensureAgentDir(name, { systemPrompt: { prompt, append: false } });
+    const before = new Set(listProjectsForAgent(db, name));
+    const projects = listProjects(db);
+    let linked = 0;
+    for (const p of projects) {
+      if (!before.has(p.name)) {
+        linkAgentToProject(db, p.name, name);
+        linked += 1;
+      }
+    }
+    void queue.log({ topic: "agent", kind: logKind, data: { created: !existing, linkedProjects: linked } });
+  } catch (e) {
+    console.warn(`[bunny] ${name} agent seed failed: ${errorMessage(e)}`);
+  }
+}
+
+export function ensureNewsAgent(db: Database, queue: BunnyQueue): void {
+  ensureBuiltinAgent(db, queue, NEWS_AGENT_NAME, NEWS_AGENT_DESCRIPTION, NEWS_AGENT_PROMPT, "seed.news");
+}
+
+export function ensureRssNewsAgent(db: Database, queue: BunnyQueue): void {
+  ensureBuiltinAgent(db, queue, RSS_NEWS_AGENT_NAME, RSS_NEWS_AGENT_DESCRIPTION, RSS_NEWS_AGENT_PROMPT, "seed.rss_news");
+}
+
 export function ensureDefaultAgent(
   db: Database,
   cfg: AgentConfig,
