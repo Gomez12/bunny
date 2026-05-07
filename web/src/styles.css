@@ -8598,6 +8598,19 @@ button {
   min-height: 0;
   position: relative;
 }
+.diagrams-tab__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 15px;
+  pointer-events: all;
+}
 
 /* ── Diagram node shapes ────────────────────────────────────────────────── */
 

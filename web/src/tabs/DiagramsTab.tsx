@@ -461,6 +461,14 @@ export default function DiagramsTab({ project, currentUser, onOpenInChat }: Prop
               onChangeRef={onChangeRef}
               innerRef={canvasRef}
             />
+            {(streaming || generating) && (
+              <div className="diagrams-tab__overlay">
+                <span className="spinner" />
+                <span>
+                  {generating ? "AI is generating the diagram…" : "AI is editing the diagram…"}
+                </span>
+              </div>
+            )}
           </div>
 
           <DiagramComposer
