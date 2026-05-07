@@ -1022,6 +1022,48 @@ CREATE TABLE IF NOT EXISTS agent_project_memory (
 CREATE INDEX IF NOT EXISTS idx_agent_proj_mem_status
   ON agent_project_memory(status, refreshed_at);
 
+-- ── Diagrams ─────────────────────────────────────────────────────────────────
+-- Per-project Visio-like diagrams. content_json stores { nodes, edges } in
+-- xyflow-compatible format. thumbnail is a PNG data URL generated client-side.
+CREATE TABLE IF NOT EXISTS diagrams (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  project         TEXT    NOT NULL,
+  name            TEXT    NOT NULL,
+  diagram_type    TEXT    NOT NULL DEFAULT 'custom',
+  description     TEXT    NOT NULL DEFAULT '',
+  content_json    TEXT    NOT NULL DEFAULT '{"nodes":[],"edges":[]}',
+  thumbnail       TEXT,
+  created_by      TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at      INTEGER NOT NULL,
+  updated_at      INTEGER NOT NULL,
+  deleted_at      INTEGER,                          -- ms; non-null = soft-deleted
+  deleted_by      TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  UNIQUE(project, name)
+);
+CREATE INDEX IF NOT EXISTS idx_diagrams_project ON diagrams(project, updated_at);
+CREATE INDEX IF NOT EXISTS idx_diagrams_trash   ON diagrams(deleted_at) WHERE deleted_at IS NOT NULL;
+
+-- Per-project node type library for diagrams. is_seeded = 1 rows have project IS NULL
+-- (global defaults); is_seeded = 0 rows are per-project custom additions.
+CREATE TABLE IF NOT EXISTS diagram_node_library (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  project         TEXT,
+  diagram_type    TEXT    NOT NULL,
+  name            TEXT    NOT NULL,
+  description     TEXT    NOT NULL DEFAULT '',
+  shape           TEXT    NOT NULL DEFAULT 'rectangle',
+  icon_name       TEXT,
+  color           TEXT    NOT NULL DEFAULT '#6b7280',
+  width           INTEGER NOT NULL DEFAULT 140,
+  height          INTEGER NOT NULL DEFAULT 60,
+  handle_sides    TEXT    NOT NULL DEFAULT '["top","right","bottom","left"]',
+  is_seeded       INTEGER NOT NULL DEFAULT 0,
+  created_by      TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at      INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_diagram_lib_type ON diagram_node_library(diagram_type, is_seeded);
+CREATE INDEX IF NOT EXISTS idx_diagram_lib_proj ON diagram_node_library(project) WHERE project IS NOT NULL;
+
 -- ── Embeddings ───────────────────────────────────────────────────────────────
 -- Created dynamically by db.ts using the configured dimension (default 1536)
 -- because the dimension must be baked into the vec0 CREATE statement.

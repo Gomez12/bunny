@@ -32,7 +32,8 @@ export type TrashKind =
   | "code_project"
   | "workflow"
   | "business"
-  | "script";
+  | "script"
+  | "diagram";
 
 export type RestoreOutcome = "ok" | "not_found" | "name_conflict";
 

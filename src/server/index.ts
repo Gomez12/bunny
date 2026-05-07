@@ -24,6 +24,8 @@ import { ensureSeedUsers } from "../auth/seed.ts";
 import { ensureProject, validateProjectName } from "../memory/projects.ts";
 import { ensureProjectDir } from "../memory/project_assets.ts";
 import { ensureDefaultAgent, ensureNewsAgent, ensureRssNewsAgent } from "../memory/agents_seed.ts";
+import { ensureSeededLibrary } from "../memory/diagram_node_library.ts";
+import { SEEDED_NODES } from "../diagrams/seed_library.ts";
 import { backfillAllTranslationSlots } from "../memory/translatable.ts";
 import { defaultHandlerRegistry } from "../scheduler/handlers.ts";
 import { startScheduler } from "../scheduler/ticker.ts";
@@ -183,6 +185,7 @@ export async function startServer(
   ensureDefaultAgent(db, cfg.agent, queue);
   ensureNewsAgent(db, queue);
   ensureRssNewsAgent(db, queue);
+  ensureSeededLibrary(db, SEEDED_NODES);
 
   registerBoardAutoRun(defaultHandlerRegistry);
   registerAutoTranslate(defaultHandlerRegistry);

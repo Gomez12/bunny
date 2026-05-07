@@ -959,6 +959,149 @@ export const PROMPTS: Record<string, PromptDef> = {
     variables: ["name", "domain", "searchResults"],
     warnsJsonContract: true,
   },
+  "diagram.generate": {
+    key: "diagram.generate",
+    scope: "projectOverridable",
+    description:
+      "System prompt for the diagram generate-mode agent (returns a fenced ```json``` block with { nodes, edges }). Drives initial layout from diagram type + user intent.",
+    defaultText: `You are a diagram layout engine. The user will provide a diagram type, an intent describing what to diagram, and a list of available node types from the library.
+
+Your task is to generate an initial diagram layout that fulfills the intent.
+
+## Output Contract
+Return ONLY a single \`\`\`json\`\`\` code block containing a JSON object with this exact shape:
+
+\`\`\`json
+{
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "diagramNode",
+      "position": { "x": 0, "y": 0 },
+      "data": {
+        "label": "Node Label",
+        "shape": "rectangle",
+        "iconName": "Server",
+        "color": "#374151",
+        "description": "",
+        "libraryItemId": 5
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "n1",
+      "target": "n2",
+      "label": "",
+      "animated": false,
+      "markerEnd": { "type": "ArrowClosed" }
+    }
+  ]
+}
+\`\`\`
+
+No other text before or after the JSON block.
+
+## Node rules
+- Every node must have \`"type": "diagramNode"\`.
+- \`id\` values must be unique strings (e.g. n1, n2, n3...).
+- Use the library nodes' \`shape\`, \`iconName\`, and \`color\` values from the available library list. Set \`libraryItemId\` to the matching library item \`id\`.
+- If no library item matches, set \`libraryItemId\` to null and choose an appropriate shape and color.
+- Place nodes so they do not overlap. Keep at least 200 px between node centers.
+- Use a layout direction that makes sense for the diagram type:
+  - flowchart, sequence: left-to-right or top-to-bottom
+  - orgchart: top-to-bottom tree
+  - mindmap: radial from center
+  - network, architecture: grouped clusters with clear visual separation
+  - er, class: grid with connections
+
+## Edge rules
+- \`id\` values must be unique strings (e.g. e1, e2, e3...).
+- \`source\` and \`target\` must reference existing node \`id\` values.
+- Add \`"label"\` only when it carries meaning (e.g. bandwidth, relationship name).
+- Use \`"animated": true\` only for data-flow or active-connection semantics.
+- Include \`"markerEnd": { "type": "ArrowClosed" }\` on directed edges.
+
+## Scale
+- Generate enough nodes to meaningfully represent the intent (typically 5–20 nodes).
+- Avoid generating more nodes than necessary — prefer clarity over completeness.`,
+    variables: ["diagramType", "diagramTypeName", "intent", "libraryJson"],
+    warnsJsonContract: true,
+  },
+  "diagram.edit": {
+    key: "diagram.edit",
+    scope: "projectOverridable",
+    description:
+      "System prompt for the diagram edit-mode agent (returns a fenced ```json``` block with the updated { nodes, edges }). Drives chat-based diagram modification.",
+    defaultText: `You are a diagram editor. The user will provide the current diagram content as JSON and an instruction describing what to change.
+
+Your task is to apply the instruction to the diagram and return the complete updated diagram.
+
+## Output Contract
+Return ONLY a single \`\`\`json\`\`\` code block containing a JSON object with this exact shape:
+
+\`\`\`json
+{
+  "nodes": [...],
+  "edges": [...]
+}
+\`\`\`
+
+No other text before or after the JSON block. Include ALL nodes and edges (both unchanged and modified ones).
+
+## Editing rules
+- Preserve existing node \`id\` values when modifying or keeping nodes.
+- Generate unique \`id\` values for newly added nodes and edges (continue the existing numbering pattern).
+- Maintain sensible positions: place new nodes near related existing nodes without overlapping (keep at least 200 px between node centers).
+- When removing nodes, also remove any edges that referenced those nodes.
+- When the instruction is ambiguous, use the diagram type and existing structure as context.
+- Keep the \`"type": "diagramNode"\` field on all nodes.
+- Preserve \`libraryItemId\`, \`shape\`, \`iconName\`, and \`color\` on existing nodes unless the instruction explicitly changes them.`,
+    variables: ["diagramType", "diagramTypeName"],
+    warnsJsonContract: true,
+  },
+  "diagram.node.generate": {
+    key: "diagram.node.generate",
+    scope: "projectOverridable",
+    description:
+      "System prompt for the diagram node library generator (returns a fenced ```json``` block with a single library item definition).",
+    defaultText: `You are a diagram node type designer. The user will provide a diagram type and a description of a node they want to add to their library.
+
+Your task is to generate a well-designed node type definition.
+
+## Output Contract
+Return ONLY a single \`\`\`json\`\`\` code block containing a JSON object with this exact shape:
+
+\`\`\`json
+{
+  "name": "Node Name",
+  "description": "Brief description of when to use this node",
+  "shape": "rectangle",
+  "icon_name": "Printer",
+  "color": "#64748b",
+  "width": 120,
+  "height": 60,
+  "handle_sides": ["top", "right", "bottom", "left"]
+}
+\`\`\`
+
+No other text before or after the JSON block.
+
+## Field rules
+- \`shape\` must be one of: \`rectangle\`, \`ellipse\`, \`diamond\`, \`cylinder\`, \`hexagon\`, \`parallelogram\`, \`cloud\`, \`actor\`
+- \`icon_name\` must be a valid lucide-react icon name (PascalCase, e.g. \`Printer\`, \`Server\`, \`Database\`, \`Shield\`), or \`null\` if no icon fits.
+- \`color\` must be a hex color string (e.g. \`#3b82f6\`). Choose a color appropriate for the diagram type and node purpose.
+- \`width\` and \`height\` should be appropriate for the node's typical content and shape.
+- \`handle_sides\` controls where connection handles appear. Use all four sides for most nodes. Use fewer sides for directional nodes (e.g. only \`["top", "bottom"]\` for a linear flow element).
+
+## Design principles
+- Choose shapes that carry semantic meaning: decision → diamond, data store → cylinder, external system → cloud, person → actor.
+- Match the color palette of the diagram type (e.g. blue tones for network, green tones for flowchart).
+- Size the node to accommodate a typical label (1–3 words) at the default font size.`,
+    variables: ["diagramType", "diagramTypeName"],
+    warnsJsonContract: true,
+  },
   "tools.lookup_contact.description": {
     key: "tools.lookup_contact.description",
     scope: "global",
@@ -1022,7 +1165,10 @@ export type PromptKey =
   | "business.auto_build.enrich"
   | "tools.lookup_contact.description"
   | "tools.lookup_business.description"
-  | "scripts.chat";
+  | "scripts.chat"
+  | "diagram.generate"
+  | "diagram.edit"
+  | "diagram.node.generate";
 
 /** All registered prompt keys, in declaration order. */
 export const PROMPT_KEYS: PromptKey[] = Object.keys(PROMPTS) as PromptKey[];

@@ -53,6 +53,7 @@ import { handleAgentRoute } from "./agent_routes.ts";
 import { handleSkillRoute } from "./skill_routes.ts";
 import { handleBoardRoute } from "./board_routes.ts";
 import { handleWhiteboardRoute } from "./whiteboard_routes.ts";
+import { handleDiagramRoute } from "./diagram_routes.ts";
 import { handleDocumentRoute } from "./document_routes.ts";
 import { handleContactRoute } from "./contact_routes.ts";
 import { handleBusinessRoute } from "./business_routes.ts";
@@ -166,6 +167,15 @@ export async function handleApi(
     user,
   );
   if (whiteboardResponse) return whiteboardResponse;
+
+  // ── Diagrams (per-project xyflow diagrams) ─────────────────────────────────
+  const diagramResponse = await handleDiagramRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg },
+    user,
+  );
+  if (diagramResponse) return diagramResponse;
 
   // ── Documents (per-project rich-text) ─────────────────────────────────────
   const documentResponse = await handleDocumentRoute(
