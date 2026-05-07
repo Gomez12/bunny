@@ -88,7 +88,7 @@ export default function DiagramStylePanel({
 
   useEffect(() => {
     function onOutsideClick(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+      if (panelRef.current && !panelRef.current.contains(e.target as globalThis.Node)) {
         onClose();
       }
     }
