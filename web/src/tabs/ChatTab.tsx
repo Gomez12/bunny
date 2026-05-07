@@ -95,9 +95,7 @@ export default function ChatTab({
     }
   }, [sessionId]);
 
-  // Bump the sidebar refreshKey on turn end so a new session surfaces in
-  // "Mine"; intentionally do NOT refetch chat history (the live turn is
-  // already rendered — refetching would render it twice).
+  // Bump the sidebar refreshKey on turn end so a new session surfaces in "Mine".
   const { turns, streaming, send, abort, reset, markUserQuestionAnswered } =
     useSSEChat(sessionId, project, () => setRefreshKey((k) => k + 1));
 
@@ -272,6 +270,25 @@ export default function ChatTab({
       .catch((e) => console.error(e))
       .finally(() => setLoadingHistory(false));
   }, [sessionId, reset]);
+
+  // When the last live SSE turn completes, swap it for the DB-backed history
+  // turn so that edit/regenerate/fork actions become available. Both state
+  // updates run in the same React 18 batch (single render, no double display).
+  const lastTurnDone = turns[turns.length - 1]?.done;
+  useEffect(() => {
+    if (!lastTurnDone) return;
+    let cancelled = false;
+    fetchMessages(sessionId)
+      .then((msgs) => {
+        if (cancelled) return;
+        setHistory(groupTurns(reorderReasoning(msgs)));
+        reset();
+      })
+      .catch((e) => console.error(e));
+    return () => {
+      cancelled = true;
+    };
+  }, [lastTurnDone, sessionId, reset]);
 
   // Auto-send the handoff prompt from Documents / Whiteboards / Contacts.
   // Gated on `sessionId === pending.sessionId` so the prompt can't leak into a
@@ -555,7 +572,9 @@ export default function ChatTab({
                       defaultOpen={expandTool}
                     />
                   ))}
-                  {versionContent && <MarkdownContent text={versionContent} />}
+                  {t.isError
+                    ? <div className="bubble__error">error: {versionContent}</div>
+                    : versionContent && <MarkdownContent text={versionContent} />}
                   {isRegenerating && (
                     <div className="bubble__pending">
                       <span className="spinner" /> regenerating…

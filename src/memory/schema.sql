@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS messages (
   session_id   TEXT    NOT NULL,
   ts           INTEGER NOT NULL,           -- Unix ms
   role         TEXT    NOT NULL,           -- system | user | assistant | tool
-  channel      TEXT    NOT NULL DEFAULT 'content', -- content | reasoning | tool_call | tool_result
+  channel      TEXT    NOT NULL DEFAULT 'content', -- content | reasoning | tool_call | tool_result | error
   content      TEXT,
   tool_call_id TEXT,                       -- set on tool_call / tool_result rows
   tool_name    TEXT,

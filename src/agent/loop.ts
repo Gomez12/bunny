@@ -376,7 +376,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
         userId,
         project,
         role: "assistant",
-        channel: "content",
+        channel: "error",
         content: guard.reason,
         author: agentName ?? null,
         fromAutomation: false,

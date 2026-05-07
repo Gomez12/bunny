@@ -12,7 +12,8 @@ export type MessageChannel =
   | "content"
   | "reasoning"
   | "tool_call"
-  | "tool_result";
+  | "tool_result"
+  | "error";
 
 export interface StoredMessage {
   id: number;

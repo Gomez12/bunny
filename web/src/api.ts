@@ -101,7 +101,7 @@ export interface StoredMessage {
   sessionId: string;
   ts: number;
   role: "system" | "user" | "assistant" | "tool";
-  channel: "content" | "reasoning" | "tool_call" | "tool_result";
+  channel: "content" | "reasoning" | "tool_call" | "tool_result" | "error";
   content: string | null;
   toolCallId: string | null;
   toolName: string | null;
@@ -193,6 +193,8 @@ export interface HistoryTurn {
   promptUsername: string | null;
   /** Attachments sent by the user on this turn. */
   attachments: ChatAttachment[];
+  /** True when the assistant response is a blocked-message error (channel="error"). */
+  isError: boolean;
 }
 
 /** Group rows into turns: every user message opens a new turn and all following
@@ -249,6 +251,7 @@ export function groupTurns(messages: StoredMessage[]): HistoryTurn[] {
         promptDisplayName: m.displayName,
         promptUsername: m.username,
         attachments: m.attachments ?? [],
+        isError: false,
       };
       turns.push(current);
       continue;
@@ -276,6 +279,12 @@ export function groupTurns(messages: StoredMessage[]): HistoryTurn[] {
           completionTokens: (current.stats?.completionTokens ?? 0) + (m.completionTokens ?? 0),
         };
       }
+    } else if (m.role === "assistant" && m.channel === "error") {
+      current.content = m.content ?? "";
+      current.contentMessageId = m.id;
+      current.contentEdited = m.editedAt != null;
+      current.isError = true;
+      if (m.author) current.author = m.author;
     } else if (m.role === "assistant" && m.channel === "tool_call") {
       current.toolCalls.push({
         id: m.toolCallId ?? `anon-${m.id}`,
