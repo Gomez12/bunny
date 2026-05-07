@@ -63,7 +63,6 @@ jobs:
           bun-version: ">=1.3.0"
 
       - run: bun install --frozen-lockfile
-      - run: bun install --frozen-lockfile
         working-directory: client
 
       - name: Sync version from tag
@@ -96,22 +95,56 @@ jobs:
         run: bun run tauri build ${{ matrix.tauri-args }}
         working-directory: client
 
+      - name: Collect Linux installers
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          mkdir -p dist-tauri
+          deb=$(find "${{ matrix.bundle-path }}" -name "*.deb" | head -1)
+          [ -n "$deb" ] && cp "$deb" dist-tauri/BunnyClient-linux-x64.deb || true
+          img=$(find "${{ matrix.bundle-path }}" -name "*.AppImage" | head -1)
+          [ -n "$img" ] && cp "$img" dist-tauri/BunnyClient-linux-x64.AppImage || true
+
+      - name: Collect macOS installers
+        if: matrix.platform == 'macos-latest'
+        run: |
+          mkdir -p dist-tauri
+          dmg=$(find "${{ matrix.bundle-path }}" -name "*.dmg" | head -1)
+          [ -n "$dmg" ] && cp "$dmg" dist-tauri/BunnyClient-macos-universal.dmg || true
+
+      - name: Collect Windows installers
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist-tauri | Out-Null
+          $msi = Get-ChildItem -Path "${{ matrix.bundle-path }}" -Filter "*.msi" -Recurse | Select-Object -First 1
+          if ($msi) { Copy-Item $msi.FullName -Destination "dist-tauri/BunnyClient-windows-x64.msi" }
+          $nsis = Get-ChildItem -Path "${{ matrix.bundle-path }}" -Filter "*-setup.exe" -Recurse | Select-Object -First 1
+          if ($nsis) { Copy-Item $nsis.FullName -Destination "dist-tauri/BunnyClient-windows-x64-setup.exe" }
+
       - uses: actions/upload-artifact@v4
         with:
           name: tauri-${{ matrix.platform }}
-          path: ${{ matrix.bundle-path }}
+          path: dist-tauri/
+          if-no-files-found: warn
 
       - name: Create Windows portable zip
         if: matrix.platform == 'windows-latest'
         shell: pwsh
-        run: Compress-Archive -Path client/src-tauri/target/release/Bunny.exe -DestinationPath bunny-windows-x64-portable.zip
+        run: |
+          $exe = "client/src-tauri/target/release/Bunny.exe"
+          if (Test-Path $exe) {
+            Compress-Archive -Path $exe -DestinationPath BunnyClient-windows-x64-portable.zip
+          } else {
+            Write-Warning "Bunny.exe not found at $exe — skipping portable zip"
+          }
 
       - name: Upload Windows portable
         if: matrix.platform == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
           name: tauri-windows-portable
-          path: bunny-windows-x64-portable.zip
+          path: BunnyClient-windows-x64-portable.zip
+          if-no-files-found: warn
 
   create-release:
     needs: [build-server, build-tauri]
