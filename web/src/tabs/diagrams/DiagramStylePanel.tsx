@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import { MarkerType, type Edge, type Node } from "@xyflow/react";
 import { X } from "../../lib/icons";
+import { RADIUS_SHAPES } from "./constants";
 
 const PALETTE = [
   "#ffffff", "#f3f4f6", "#9ca3af", "#6b7280", "#374151", "#111827",
@@ -9,7 +10,6 @@ const PALETTE = [
   "#fef2f2", "#fca5a5", "#ef4444", "#7c3aed", "#ec4899", "#f97316",
 ];
 
-const SHAPES_SUPPORTING_RADIUS = ["rectangle", "cylinder", "cloud", "actor"];
 
 interface Props {
   x: number;
@@ -27,7 +27,7 @@ interface Props {
   onClose: () => void;
 }
 
-function ColorPicker({
+const ColorPicker = memo(function ColorPicker({
   label,
   value,
   onChange,
@@ -60,7 +60,7 @@ function ColorPicker({
       </div>
     </div>
   );
-}
+});
 
 export default function DiagramStylePanel({
   x, y, targetType, nodeId, edgeId,
@@ -169,7 +169,7 @@ export default function DiagramStylePanel({
           </div>
         </div>
 
-        {SHAPES_SUPPORTING_RADIUS.includes(shape) && (
+        {(RADIUS_SHAPES as readonly string[]).includes(shape) && (
           <div className="dn-style-panel__section">
             <div className="dn-style-panel__label">Corner radius</div>
             <div className="dn-style-panel__slider-row">

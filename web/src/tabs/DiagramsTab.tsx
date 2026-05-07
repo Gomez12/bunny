@@ -24,21 +24,9 @@ import {
   type ServerEvent,
 } from "../api";
 import { Plus, Pencil, Trash2, ChevronLeft, Loader2, Shapes } from "../lib/icons";
+import { DIAGRAM_TYPE_LABELS } from "./diagrams/constants";
 
 const AUTOSAVE_MS = 5_000;
-
-const DIAGRAM_TYPE_LABELS: Record<string, string> = {
-  network: "Network",
-  flowchart: "Flowchart",
-  orgchart: "Org Chart",
-  architecture: "Architecture",
-  er: "ER Diagram",
-  sequence: "Sequence",
-  mindmap: "Mind Map",
-  class: "Class Diagram",
-  bpmn: "BPMN",
-  custom: "Custom",
-};
 
 interface Props {
   project: string;

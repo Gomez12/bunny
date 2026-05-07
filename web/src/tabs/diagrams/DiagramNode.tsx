@@ -40,6 +40,7 @@ import {
   GitBranch,
 } from "../../lib/icons";
 import type { ComponentType } from "react";
+import { RADIUS_SHAPES } from "./constants";
 
 export const ICON_MAP: Record<string, ComponentType<{ size?: number; strokeWidth?: number }>> = {
   Router,
@@ -117,8 +118,6 @@ export function AnchorPointNode({ selected }: NodeProps) {
   );
 }
 
-const RADIUS_SHAPES = ["rectangle", "cylinder", "cloud", "actor"];
-
 function DiagramNodeComponent({ data, selected }: DiagramNodeProps) {
   const { label, shape, iconName, color } = data;
   const IconComponent = iconName ? ICON_MAP[iconName] : null;
@@ -144,7 +143,7 @@ function DiagramNodeComponent({ data, selected }: DiagramNodeProps) {
     ...(data.borderWidth !== undefined ? { borderWidth: `${data.borderWidth}px` } : {}),
     ...(data.borderStyle ? { borderStyle: data.borderStyle } : {}),
     ...(data.opacity !== undefined ? { opacity: data.opacity } : {}),
-    ...(data.cornerRadius !== undefined && RADIUS_SHAPES.includes(shape ?? "rectangle")
+    ...(data.cornerRadius !== undefined && (RADIUS_SHAPES as readonly string[]).includes(shape ?? "rectangle")
       ? { borderRadius: `${data.cornerRadius}px` }
       : {}),
   } as React.CSSProperties;

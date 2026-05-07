@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -77,16 +78,23 @@ function DiagramCanvasInner({ initialContent, readOnly, onChangeRef, innerRef }:
   const nodesRef = useRef(nodes);
   const edgesRef = useRef(edges);
 
-  useEffect(() => { nodesRef.current = nodes; }, [nodes]);
-  useEffect(() => { edgesRef.current = edges; }, [edges]);
+  useEffect(() => {
+    nodesRef.current = nodes;
+    edgesRef.current = edges;
+  }, [nodes, edges]);
 
   useEffect(() => {
     setNodes(initialContent.nodes);
     setEdges(initialContent.edges);
   }, [initialContent]);
 
-  // Inject label change callback into each node's data so DiagramNode can update it inline.
-  const nodesWithCallbacks = nodes.map((n) => {
+  const fireChange = useCallback((nextNodes: Node[], nextEdges: Edge[]) => {
+    onChangeRef?.current?.({ nodes: nextNodes, edges: nextEdges });
+  }, [onChangeRef]);
+
+  // Inject label-change callbacks so DiagramNode can update its label inline.
+  // useMemo so xyflow sees stable node references between unrelated re-renders.
+  const nodesWithCallbacks = useMemo(() => nodes.map((n) => {
     if (n.type !== "diagramNode") return n;
     return {
       ...n,
@@ -103,11 +111,7 @@ function DiagramCanvasInner({ initialContent, readOnly, onChangeRef, innerRef }:
         },
       },
     };
-  });
-
-  const fireChange = useCallback((nextNodes: Node[], nextEdges: Edge[]) => {
-    onChangeRef?.current?.({ nodes: nextNodes, edges: nextEdges });
-  }, [onChangeRef]);
+  }), [nodes, fireChange]);
 
   const onNodesChange: OnNodesChange = useCallback((changes) => {
     if (readOnly) return;
@@ -162,9 +166,10 @@ function DiagramCanvasInner({ initialContent, readOnly, onChangeRef, innerRef }:
 
     if ("_type" in item) {
       const isArrow = item._type === "floatingArrow";
-      const startId = `a${Date.now()}`;
-      const endId = `a${Date.now() + 1}`;
-      const edgeId = `e${Date.now()}`;
+      const ts = Date.now();
+      const startId = `a${ts}`;
+      const endId = `a${ts + 1}`;
+      const edgeId = `e${ts}`;
       const startNode: Node = {
         id: startId, type: "anchorPoint",
         position: { x: pos.x - 60, y: pos.y }, data: {}, draggable: true,
@@ -178,12 +183,11 @@ function DiagramCanvasInner({ initialContent, readOnly, onChangeRef, innerRef }:
         markerEnd: isArrow ? { type: MarkerType.ArrowClosed } : undefined,
         label: "", type: "default",
       };
-      setNodes((nds) => {
-        const next = [...nds, startNode, endNode];
-        fireChange(next, [...edgesRef.current, edge]);
-        return next;
-      });
-      setEdges((eds) => [...eds, edge]);
+      const nextNodes = [...nodesRef.current, startNode, endNode];
+      const nextEdges = [...edgesRef.current, edge];
+      setNodes(nextNodes);
+      setEdges(nextEdges);
+      fireChange(nextNodes, nextEdges);
       return;
     }
 

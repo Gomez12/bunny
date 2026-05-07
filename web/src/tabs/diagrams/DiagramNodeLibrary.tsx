@@ -1,21 +1,9 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Plus, Search, Trash2, Loader2, ArrowRight } from "../../lib/icons";
 import { ICON_MAP } from "./DiagramNode";
 import type { DiagramLibraryItem } from "../../api";
 import type { ServerEvent } from "../../api";
-
-const DIAGRAM_TYPE_LABELS: Record<string, string> = {
-  network: "Network",
-  flowchart: "Flowchart",
-  orgchart: "Org Chart",
-  architecture: "Architecture",
-  er: "ER Diagram",
-  sequence: "Sequence",
-  mindmap: "Mind Map",
-  class: "Class Diagram",
-  bpmn: "BPMN",
-  custom: "Custom",
-};
+import { DIAGRAM_TYPE_LABELS } from "./constants";
 
 interface Props {
   items: DiagramLibraryItem[];
@@ -43,26 +31,24 @@ export default function DiagramNodeLibrary({
   const [showAiInput, setShowAiInput] = useState(false);
   const aiInputRef = useRef<HTMLInputElement>(null);
 
-  const filtered = items.filter((it) =>
-    !search || it.name.toLowerCase().includes(search.toLowerCase()),
+  const filtered = useMemo(
+    () => items.filter((it) => !search || it.name.toLowerCase().includes(search.toLowerCase())),
+    [items, search],
   );
 
-  // Group: active type first, then others, seeded first within each group
-  const grouped: Array<{ type: string; label: string; items: DiagramLibraryItem[] }> = [];
-  const typeOrder = [activeDiagramType, "custom", ...Object.keys(DIAGRAM_TYPE_LABELS).filter(
-    (t) => t !== activeDiagramType && t !== "custom",
-  )];
-
-  for (const type of typeOrder) {
-    const typeItems = filtered.filter((it) => it.diagramType === type);
-    if (typeItems.length > 0) {
-      grouped.push({
-        type,
-        label: DIAGRAM_TYPE_LABELS[type] ?? type,
-        items: typeItems,
-      });
+  const grouped = useMemo(() => {
+    const typeOrder = [activeDiagramType, "custom", ...Object.keys(DIAGRAM_TYPE_LABELS).filter(
+      (t) => t !== activeDiagramType && t !== "custom",
+    )];
+    const result: Array<{ type: string; label: string; items: DiagramLibraryItem[] }> = [];
+    for (const type of typeOrder) {
+      const typeItems = filtered.filter((it) => it.diagramType === type);
+      if (typeItems.length > 0) {
+        result.push({ type, label: DIAGRAM_TYPE_LABELS[type] ?? type, items: typeItems });
+      }
     }
-  }
+    return result;
+  }, [filtered, activeDiagramType]);
 
   const handleDragStart = (e: React.DragEvent, item: DiagramLibraryItem) => {
     e.dataTransfer.setData("application/bunny-diagram-node", JSON.stringify(item));
