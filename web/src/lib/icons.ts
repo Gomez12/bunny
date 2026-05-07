@@ -71,6 +71,8 @@ export {
 
   // Domain
   Lock,
+  KeyRound,
+  ShieldAlert,
   User,
   Bot,
   Sparkles,

@@ -3365,3 +3365,105 @@ export function streamScriptChat(
     onEvent,
   );
 }
+
+// ── Code-project secrets ──────────────────────────────────────────────────────
+
+export interface CodeProjectSecret {
+  id: number;
+  codeProjectId: number;
+  name: string;
+  description: string;
+  /** null when the secret is not viewable and the caller is not an admin */
+  value: string | null;
+  isViewable: boolean;
+  llmForbidden: boolean;
+  lastUsedAt: number | null;
+  createdBy: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export async function listCodeProjectSecrets(
+  codeProjectId: number,
+): Promise<CodeProjectSecret[]> {
+  const res = await fetch(`/api/code/${codeProjectId}/secrets`, {
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  return data.secrets as CodeProjectSecret[];
+}
+
+export async function listCodeProjectSecretNames(
+  codeProjectId: number,
+): Promise<{ name: string; description: string }[]> {
+  const res = await fetch(`/api/code/${codeProjectId}/secrets/names`, {
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  return data.names as { name: string; description: string }[];
+}
+
+export async function createCodeProjectSecret(
+  codeProjectId: number,
+  body: {
+    name: string;
+    description?: string;
+    value: string;
+    isViewable?: boolean;
+    llmForbidden?: boolean;
+  },
+): Promise<CodeProjectSecret> {
+  const res = await fetch(`/api/code/${codeProjectId}/secrets`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error ?? res.statusText);
+  }
+  const data = await res.json();
+  return data.secret as CodeProjectSecret;
+}
+
+export async function updateCodeProjectSecret(
+  codeProjectId: number,
+  secretId: number,
+  patch: {
+    name?: string;
+    description?: string;
+    value?: string;
+    isViewable?: boolean;
+    llmForbidden?: boolean;
+  },
+): Promise<CodeProjectSecret> {
+  const res = await fetch(`/api/code/${codeProjectId}/secrets/${secretId}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error ?? res.statusText);
+  }
+  const data = await res.json();
+  return data.secret as CodeProjectSecret;
+}
+
+export async function deleteCodeProjectSecret(
+  codeProjectId: number,
+  secretId: number,
+): Promise<void> {
+  const res = await fetch(`/api/code/${codeProjectId}/secrets/${secretId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error ?? res.statusText);
+  }
+}

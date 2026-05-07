@@ -547,6 +547,7 @@ async function handleChat(
   const body = await readJson<{ sessionId?: string; prompt?: string }>(req);
   const prompt = body?.prompt?.trim();
   if (!prompt) return json({ error: "missing prompt" }, 400);
+
   // Mint a prefixed id for fresh code-chat sessions so the frontend can list
   // them via the generic /api/sessions endpoint + a simple startsWith filter.
   // A caller-supplied id (existing conversation being continued) is used as-is.

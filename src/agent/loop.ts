@@ -50,6 +50,7 @@ import {
   isAgentLinkedToProject,
   listAgentsForProject,
 } from "../memory/agents.ts";
+import { checkSecretGuard } from "../llm/secret_guard.ts";
 import { loadAgentAssets } from "../memory/agent_assets.ts";
 import {
   makeCallAgentTool,
@@ -361,6 +362,28 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
           });
         }
       }
+    }
+  }
+
+  // Guard: block LLM call if prompt contains a value marked as LLM-forbidden.
+  // Run AFTER the user message is already in the DB so the user can edit and
+  // regenerate. Automated paths are exempt (never contain user-typed secrets).
+  if (!opts.originAutomation) {
+    const guard = checkSecretGuard(db, prompt);
+    if (guard.blocked) {
+      insertMessage(db, {
+        sessionId,
+        userId,
+        project,
+        role: "assistant",
+        channel: "content",
+        content: guard.reason,
+        author: agentName ?? null,
+        fromAutomation: false,
+      });
+      renderer.onError(guard.reason);
+      renderer.onTurnEnd();
+      return guard.reason;
     }
   }
 

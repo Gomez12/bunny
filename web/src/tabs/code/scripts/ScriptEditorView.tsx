@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import type { CodeProject, Script, ScriptLanguage } from "../../../api";
-import { fetchScript, patchScript, streamScriptChat, streamScriptRun } from "../../../api";
+import { fetchScript, listCodeProjectSecretNames, patchScript, streamScriptChat, streamScriptRun } from "../../../api";
 import type {
   SseScriptRunFinishedEvent,
   SseScriptRunOutputEvent,
@@ -51,6 +51,7 @@ interface Props {
 
 export default function ScriptEditorView({
   script,
+  codeProject,
   onScriptChange,
   onPromote,
   onDelete,
@@ -79,6 +80,8 @@ export default function ScriptEditorView({
   const [bottomHeight, setBottomHeight] = useState(180);
 
   const abortRef = useRef<{ abort: () => void } | null>(null);
+  const secretNamesRef = useRef<{ name: string; description: string }[]>([]);
+  const completionDisposablesRef = useRef<{ dispose: () => void }[]>([]);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const versionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const outputEndRef = useRef<HTMLDivElement>(null);
@@ -124,6 +127,22 @@ export default function ScriptEditorView({
   useEffect(() => {
     outputEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [runOutput]);
+
+  // Load secret names for Monaco IntelliSense; re-fetch on window focus.
+  useEffect(() => {
+    const load = () => {
+      listCodeProjectSecretNames(codeProject.id)
+        .then((names) => { secretNamesRef.current = names; })
+        .catch(() => {});
+    };
+    load();
+    window.addEventListener("focus", load);
+    return () => {
+      window.removeEventListener("focus", load);
+      for (const d of completionDisposablesRef.current) d.dispose();
+      completionDisposablesRef.current = [];
+    };
+  }, [codeProject.id]);
 
   // Auto-save debounced (2 s) — does NOT create version
   const save = useCallback(
@@ -478,6 +497,58 @@ export default function ScriptEditorView({
             fontSize: 13,
             scrollBeyondLastLine: false,
             automaticLayout: true,
+          }}
+          onMount={(_editor, monaco) => {
+            type ITextModel = Parameters<typeof monaco.languages.registerCompletionItemProvider>[1]["provideCompletionItems"] extends (m: infer M, ...rest: unknown[]) => unknown ? M : never;
+            type IPosition = Parameters<typeof monaco.languages.registerCompletionItemProvider>[1]["provideCompletionItems"] extends (m: unknown, p: infer P, ...rest: unknown[]) => unknown ? P : never;
+
+            // {{secret:NAME}} tag completion
+            const d1 = monaco.languages.registerCompletionItemProvider("*", {
+              triggerCharacters: [":"],
+              provideCompletionItems(model: ITextModel, position: IPosition) {
+                const line = model.getLineContent(position.lineNumber);
+                const before = line.slice(0, position.column - 1);
+                if (!/\{\{secret:[A-Z0-9_]*$/.test(before)) return { suggestions: [] };
+                return {
+                  suggestions: secretNamesRef.current.map((s) => ({
+                    label: s.name,
+                    kind: monaco.languages.CompletionItemKind.Variable,
+                    insertText: `${s.name}}}`,
+                    documentation: s.description || `Secret: ${s.name}`,
+                    range: {
+                      startLineNumber: position.lineNumber,
+                      endLineNumber: position.lineNumber,
+                      startColumn: position.column,
+                      endColumn: position.column,
+                    },
+                  })),
+                };
+              },
+            });
+            // process.env.NAME completion
+            const d2 = monaco.languages.registerCompletionItemProvider("*", {
+              triggerCharacters: ["."],
+              provideCompletionItems(model: ITextModel, position: IPosition) {
+                const line = model.getLineContent(position.lineNumber);
+                const before = line.slice(0, position.column - 1);
+                if (!before.endsWith("process.env.")) return { suggestions: [] };
+                return {
+                  suggestions: secretNamesRef.current.map((s) => ({
+                    label: s.name,
+                    kind: monaco.languages.CompletionItemKind.Variable,
+                    insertText: s.name,
+                    documentation: s.description || `Secret: ${s.name}`,
+                    range: {
+                      startLineNumber: position.lineNumber,
+                      endLineNumber: position.lineNumber,
+                      startColumn: position.column,
+                      endColumn: position.column,
+                    },
+                  })),
+                };
+              },
+            });
+            completionDisposablesRef.current = [d1, d2];
           }}
         />
         {isEditing && (

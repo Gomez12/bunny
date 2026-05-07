@@ -308,6 +308,28 @@ CREATE TABLE IF NOT EXISTS script_versions (
 );
 CREATE INDEX IF NOT EXISTS idx_script_versions_script ON script_versions(script_id, created_at DESC);
 
+-- ── Code-project secrets ──────────────────────────────────────────────────────
+-- Per-code-project key-value secret store. Scripts reference secrets using the
+-- tag syntax {{secret:NAME}} (substituted at run time) or process.env.NAME
+-- (injected as environment variables). See ADR 0039.
+-- Values are stored plaintext in V1 (same model as project_telegram_config.bot_token).
+CREATE TABLE IF NOT EXISTS code_project_secrets (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  code_project_id INTEGER NOT NULL REFERENCES code_projects(id) ON DELETE CASCADE,
+  name            TEXT    NOT NULL,          -- ^[A-Z][A-Z0-9_]*$ (valid env-var name)
+  description     TEXT    NOT NULL DEFAULT '',
+  value           TEXT    NOT NULL DEFAULT '',
+  is_viewable     INTEGER NOT NULL DEFAULT 0, -- 0 = value returned as null for non-admins
+  llm_forbidden   INTEGER NOT NULL DEFAULT 0, -- 1 = value must never appear in an LLM prompt
+  last_used_at    INTEGER,                    -- unix ms; bumped on each script run that uses it
+  created_by      TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at      INTEGER NOT NULL,
+  updated_at      INTEGER NOT NULL,
+  UNIQUE(code_project_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_code_project_secrets_cp ON code_project_secrets(code_project_id, name);
+CREATE INDEX IF NOT EXISTS idx_code_project_secrets_forbidden ON code_project_secrets(llm_forbidden) WHERE llm_forbidden = 1;
+
 -- ── Scheduled tasks ──────────────────────────────────────────────────────────
 -- Generiek scheduler-subsysteem: rijen representeren periodiek werk waarvan de
 -- naam van de handler de enige koppeling is naar de code. De ticker

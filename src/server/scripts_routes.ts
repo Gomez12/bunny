@@ -66,6 +66,12 @@ import {
 import { ToolRegistry } from "../tools/registry.ts";
 import { renderPrompt } from "../prompts/resolve.ts";
 import { paths } from "../paths.ts";
+import {
+  listSecrets,
+  substituteSecrets,
+  secretsToEnv,
+  markSecretsUsed,
+} from "../memory/code_project_secrets.ts";
 
 export interface ScriptRouteCtx {
   db: Database;
@@ -655,8 +661,26 @@ async function handleRun(
   const tmpAbs = join(wsRoot, tmpRel);
   const codeProjectDir = join(wsRoot, `code/${cp.name}`);
 
-  // Write execution temp file (force-save current DB content before run)
-  atomicWrite(tmpAbs, script.content);
+  // Load secrets and resolve {{secret:NAME}} tags before writing the temp file.
+  const secrets = listSecrets(ctx.db, cp.id);
+  const { content: resolvedContent, unknownTags, usedSecretIds } = substituteSecrets(
+    script.content,
+    secrets,
+  );
+  if (unknownTags.length > 0) {
+    return json(
+      {
+        error: "unknown_secret_tags",
+        tags: unknownTags,
+        message: `Script contains unknown secret tags: ${unknownTags.map((t) => `{{secret:${t}}}`).join(", ")}`,
+      },
+      422,
+    );
+  }
+  if (usedSecretIds.length > 0) markSecretsUsed(ctx.db, usedSecretIds);
+
+  // Write execution temp file (force-save resolved content before run)
+  atomicWrite(tmpAbs, resolvedContent);
 
   const runId = crypto.randomUUID();
 
@@ -664,8 +688,18 @@ async function handleRun(
     topic: "scripts",
     kind: "run",
     userId: user.id,
-    data: { id, project: script.project, language: script.language, runId },
+    data: {
+      id,
+      project: script.project,
+      language: script.language,
+      runId,
+      usedSecrets: secrets
+        .filter((s) => usedSecretIds.includes(s.id))
+        .map((s) => s.name),
+    },
   });
+
+  const secretEnv = secretsToEnv(secrets);
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -685,6 +719,7 @@ async function handleRun(
           [runtime.exe, ...runtime.extraArgs, tmpAbs],
           {
             cwd: codeProjectDir,
+            env: { ...process.env, ...secretEnv },
             stdout: "pipe",
             stderr: "pipe",
           },

@@ -58,6 +58,7 @@ import { handleContactRoute } from "./contact_routes.ts";
 import { handleBusinessRoute } from "./business_routes.ts";
 import { handleCodeRoute } from "./code_routes.ts";
 import { handleScriptRoute } from "./scripts_routes.ts";
+import { handleSecretRoute } from "./secrets_routes.ts";
 import { handleWorkflowRoute } from "./workflow_routes.ts";
 import { handleKbRoute } from "./kb_routes.ts";
 import { handleWebNewsRoute } from "./web_news_routes.ts";
@@ -210,6 +211,15 @@ export async function handleApi(
     user,
   );
   if (scriptResponse) return scriptResponse;
+
+  // ── Secrets (per-code-project key-value secret store) ────────────────────
+  const secretResponse = await handleSecretRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue },
+    user,
+  );
+  if (secretResponse) return secretResponse;
 
   // ── Workflows (per-project DAG pipelines) ─────────────────────────────────
   const workflowResponse = await handleWorkflowRoute(
