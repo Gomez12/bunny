@@ -8614,6 +8614,34 @@ button {
 
 /* ── Diagram node shapes ────────────────────────────────────────────────── */
 
+/* xyflow wraps each node in .react-flow__node; we fill it completely so
+   handles land exactly on the visual border. */
+.react-flow__node-diagramNode {
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+/* Tighten the default handle dots — smaller, on the border edge */
+.react-flow__node-diagramNode .react-flow__handle,
+.react-flow__node-anchorPoint .react-flow__handle {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--text-faint);
+  transition: border-color 0.1s, background 0.1s;
+}
+.react-flow__node-diagramNode .react-flow__handle:hover,
+.react-flow__node-anchorPoint .react-flow__handle:hover {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+/* Position handles flush on the node border (centered = -4px offset for 8px handle) */
+.react-flow__node-diagramNode .react-flow__handle-top    { top: -4px; }
+.react-flow__node-diagramNode .react-flow__handle-bottom { bottom: -4px; }
+.react-flow__node-diagramNode .react-flow__handle-left   { left: -4px; }
+.react-flow__node-diagramNode .react-flow__handle-right  { right: -4px; }
+
 .dn-node {
   display: flex;
   align-items: center;
@@ -8626,8 +8654,9 @@ button {
   font-size: 11px;
   font-weight: 500;
   color: var(--text);
-  min-height: 40px;
-  min-width: 80px;
+  width: 100%;
+  height: 100%;
+  min-height: 36px;
   box-sizing: border-box;
   cursor: default;
   user-select: none;
@@ -8647,19 +8676,59 @@ button {
   white-space: nowrap;
   max-width: 120px;
 }
+.dn-node__edit-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text);
+  width: 100%;
+  text-align: center;
+  min-width: 40px;
+}
+
+/* Anchor point node (invisible endpoint for floating arrows/lines) */
+.dn-anchor {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  opacity: 0.4;
+  transition: opacity 0.1s;
+}
+.dn-anchor--selected {
+  opacity: 1;
+  background: var(--accent);
+}
+.react-flow__node-anchorPoint {
+  padding: 0;
+  border: none;
+  background: transparent;
+  width: 8px;
+  height: 8px;
+}
+.react-flow__node-anchorPoint .react-flow__handle {
+  width: 6px;
+  height: 6px;
+}
+.react-flow__node-anchorPoint .react-flow__handle-top    { top: -3px; }
+.react-flow__node-anchorPoint .react-flow__handle-bottom { bottom: -3px; }
+.react-flow__node-anchorPoint .react-flow__handle-left   { left: -3px; }
+.react-flow__node-anchorPoint .react-flow__handle-right  { right: -3px; }
 
 /* Ellipse shape */
 .dn-shape--ellipse {
   border-radius: 50%;
 }
-/* Diamond shape */
+/* Diamond shape — use clip-path so handles land on the diamond tips */
 .dn-shape--diamond {
-  transform: rotate(45deg);
-  border-radius: 4px;
-}
-.dn-shape--diamond .dn-node__icon,
-.dn-shape--diamond .dn-node__label {
-  transform: rotate(-45deg);
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  border: none;
+  background: color-mix(in srgb, var(--dn-color, #6b7280) 25%, var(--bg-elevated));
+  border-radius: 0;
+  /* Simulate border via inset box-shadow — clips with shape */
+  filter: drop-shadow(0 0 0 1px var(--dn-color, #6b7280));
 }
 /* Cylinder (database) */
 .dn-shape--cylinder {
@@ -8689,7 +8758,8 @@ button {
   border-radius: 4px;
 }
 .dn-shape--parallelogram .dn-node__icon,
-.dn-shape--parallelogram .dn-node__label {
+.dn-shape--parallelogram .dn-node__label,
+.dn-shape--parallelogram .dn-node__edit-input {
   transform: skewX(12deg);
 }
 /* Cloud */
@@ -8725,6 +8795,61 @@ button {
   flex-direction: column;
   gap: 2px;
   padding: 8px 12px;
+}
+
+/* ── Context menu ────────────────────────────────────────────────────────── */
+.dn-ctx-menu {
+  position: fixed;
+  z-index: 200;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  padding: 4px;
+  min-width: 140px;
+}
+.dn-ctx-menu__item {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  border-radius: 5px;
+}
+.dn-ctx-menu__item:hover {
+  background: var(--bg);
+}
+.dn-ctx-menu__item--danger {
+  color: var(--err, #ef4444);
+}
+.dn-ctx-menu__sep {
+  height: 1px;
+  background: var(--border);
+  margin: 3px 4px;
+}
+
+/* ── Edge label inline editor popup ─────────────────────────────────────── */
+.dn-edge-label-popup {
+  position: fixed;
+  z-index: 200;
+  background: var(--bg-elevated);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  padding: 2px 4px;
+}
+.dn-edge-label-popup__input {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 12px;
+  color: var(--text);
+  min-width: 120px;
+  padding: 4px 6px;
 }
 
 /* ── Node library panel ──────────────────────────────────────────────────── */
@@ -8839,11 +8964,59 @@ button {
 .dn-library__item--custom {
   font-style: italic;
 }
+/* Replaced by .dn-library__item-preview — kept for legacy if any */
 .dn-library__item-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+/* Shape icon preview in node library */
+.dn-library__item-preview {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--dn-color, #6b7280) 15%, var(--bg-elevated));
+  border: 1px solid var(--dn-color, #6b7280);
+  border-radius: 3px;
+  color: var(--dn-color, #6b7280);
+  font-size: 0;
+}
+.dn-library__item-preview--ellipse {
+  border-radius: 50%;
+}
+.dn-library__item-preview--diamond {
+  transform: rotate(45deg) scale(0.75);
+  border-radius: 2px;
+}
+.dn-library__item-preview--diamond > * {
+  transform: rotate(-45deg);
+}
+.dn-library__item-preview--hexagon {
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  border: none;
+  background: color-mix(in srgb, var(--dn-color, #6b7280) 25%, var(--bg-elevated));
+}
+.dn-library__item-preview--cylinder {
+  border-radius: 3px 3px 2px 2px;
+}
+.dn-library__item-preview--cloud {
+  border-radius: 8px 8px 3px 3px;
+}
+.dn-library__item-preview--actor {
+  border-radius: 50% 50% 3px 3px;
+}
+.dn-library__item-preview--parallelogram {
+  transform: skewX(-10deg);
+}
+.dn-library__item-preview--connector {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
 }
 .dn-library__item-name {
   flex: 1;

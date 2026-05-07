@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { Plus, Search, Trash2, Loader2 } from "../../lib/icons";
+import { Plus, Search, Trash2, Loader2, ArrowRight } from "../../lib/icons";
+import { ICON_MAP } from "./DiagramNode";
 import type { DiagramLibraryItem } from "../../api";
 import type { ServerEvent } from "../../api";
 
@@ -65,6 +66,11 @@ export default function DiagramNodeLibrary({
 
   const handleDragStart = (e: React.DragEvent, item: DiagramLibraryItem) => {
     e.dataTransfer.setData("application/bunny-diagram-node", JSON.stringify(item));
+    e.dataTransfer.effectAllowed = "copy";
+  };
+
+  const handleFloatingDragStart = (e: React.DragEvent, type: "floatingArrow" | "floatingLine") => {
+    e.dataTransfer.setData("application/bunny-diagram-node", JSON.stringify({ _type: type }));
     e.dataTransfer.effectAllowed = "copy";
   };
 
@@ -203,38 +209,66 @@ export default function DiagramNodeLibrary({
       </div>
 
       <div className="dn-library__groups">
+        {/* Floating connectors — always shown at top */}
+        {!search && (
+          <div className="dn-library__group">
+            <div className="dn-library__group-label">Connectors</div>
+            {(["floatingArrow", "floatingLine"] as const).map((type) => (
+              <div
+                key={type}
+                className="dn-library__item"
+                draggable
+                onDragStart={(e) => handleFloatingDragStart(e, type)}
+                title={type === "floatingArrow" ? "Drag to add a floating arrow" : "Drag to add a floating line"}
+              >
+                <span className="dn-library__item-preview dn-library__item-preview--connector">
+                  <ArrowRight size={12} strokeWidth={1.75} style={type === "floatingLine" ? { opacity: 0.5 } : undefined} />
+                </span>
+                <span className="dn-library__item-name">
+                  {type === "floatingArrow" ? "Arrow" : "Line"}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
         {grouped.length === 0 ? (
           <div className="dn-library__empty">No nodes found</div>
         ) : (
           grouped.map((group) => (
             <div key={group.type} className="dn-library__group">
               <div className="dn-library__group-label">{group.label}</div>
-              {group.items.map((item) => (
-                <div
-                  key={item.id}
-                  className={`dn-library__item${item.isSeeded ? "" : " dn-library__item--custom"}`}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, item)}
-                  title={`Drag onto canvas — ${item.description || item.name}`}
-                >
-                  <span
-                    className="dn-library__item-dot"
-                    style={{ background: item.color }}
-                  />
-                  <span className="dn-library__item-name">{item.name}</span>
-                  {!item.isSeeded && canEdit && (
-                    <button
-                      type="button"
-                      className="dn-library__item-del"
-                      onClick={() => onDeleteItem(item.id)}
-                      title="Remove from library"
-                      aria-label={`Remove ${item.name}`}
+              {group.items.map((item) => {
+                const IconComponent = item.iconName ? ICON_MAP[item.iconName] : null;
+                return (
+                  <div
+                    key={item.id}
+                    className={`dn-library__item${item.isSeeded ? "" : " dn-library__item--custom"}`}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, item)}
+                    title={`Drag onto canvas — ${item.description || item.name}`}
+                  >
+                    <span
+                      className={`dn-library__item-preview dn-library__item-preview--${item.shape}`}
+                      style={{ "--dn-color": item.color } as React.CSSProperties}
                     >
-                      <Trash2 size={11} />
-                    </button>
-                  )}
-                </div>
-              ))}
+                      {IconComponent && <IconComponent size={11} strokeWidth={1.75} />}
+                    </span>
+                    <span className="dn-library__item-name">{item.name}</span>
+                    {!item.isSeeded && canEdit && (
+                      <button
+                        type="button"
+                        className="dn-library__item-del"
+                        onClick={() => onDeleteItem(item.id)}
+                        title="Remove from library"
+                        aria-label={`Remove ${item.name}`}
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ))
         )}
