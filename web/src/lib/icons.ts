@@ -33,6 +33,7 @@ export {
   MessageSquareMore,
   LayoutDashboard,
   Settings,
+  Shapes,
 
   // Actions
   Plus,
@@ -45,6 +46,7 @@ export {
   Check,
   X,
   ChevronRight,
+  ChevronLeft,
   ChevronDown,
   Play,
   Square,
@@ -55,6 +57,8 @@ export {
   HardDrive,
   Eraser,
   ExternalLink,
+  ArrowLeft,
+  ArrowRight,
 
   // Visibility
   Eye,
@@ -87,6 +91,31 @@ export {
   Rss,
   ThumbsUp,
   ThumbsDown,
+
+  // Diagram node types
+  Router,
+  Shield,
+  Server,
+  Monitor,
+  Database,
+  Cloud,
+  Printer,
+  Wifi,
+  Shuffle,
+  Timer,
+  Briefcase,
+  Crown,
+  Cpu,
+  Layers,
+  Zap,
+  ListOrdered,
+  Smartphone,
+  Brain,
+  Box,
+  List,
+  Mail,
+  StickyNote,
+  Table2,
 } from "lucide-react";
 
 /**

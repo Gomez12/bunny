@@ -1638,6 +1638,160 @@ export async function askWhiteboard(
   });
 }
 
+// ── Diagrams ─────────────────────────────────────────────────────────────────
+
+export interface DiagramSummary {
+  id: number;
+  name: string;
+  diagramType: string;
+  thumbnail: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface DiagramFull extends DiagramSummary {
+  project: string;
+  description: string;
+  contentJson: string;
+  createdBy: string | null;
+}
+
+export interface DiagramLibraryItem {
+  id: number;
+  project: string | null;
+  diagramType: string;
+  name: string;
+  description: string;
+  shape: string;
+  iconName: string | null;
+  color: string;
+  width: number;
+  height: number;
+  handleSides: string[];
+  isSeeded: boolean;
+  createdAt: number;
+}
+
+export async function fetchDiagrams(project: string): Promise<DiagramSummary[]> {
+  const data = await jsonFetch<{ diagrams: DiagramSummary[] }>(
+    `/api/projects/${encodeURIComponent(project)}/diagrams`,
+  );
+  return data.diagrams;
+}
+
+export async function fetchDiagram(id: number): Promise<DiagramFull> {
+  const data = await jsonFetch<{ diagram: DiagramFull }>(`/api/diagrams/${id}`);
+  return data.diagram;
+}
+
+export async function createDiagram(
+  project: string,
+  body: { name: string; diagramType?: string; description?: string },
+): Promise<DiagramFull> {
+  const data = await jsonFetch<{ diagram: DiagramFull }>(
+    `/api/projects/${encodeURIComponent(project)}/diagrams`,
+    { method: "POST", body: JSON.stringify(body) },
+  );
+  return data.diagram;
+}
+
+export async function patchDiagram(
+  id: number,
+  patch: { name?: string; contentJson?: string; thumbnail?: string | null; description?: string },
+): Promise<DiagramFull> {
+  const data = await jsonFetch<{ diagram: DiagramFull }>(`/api/diagrams/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  return data.diagram;
+}
+
+export async function deleteDiagram(id: number): Promise<void> {
+  await jsonFetch<{ ok: boolean }>(`/api/diagrams/${id}`, { method: "DELETE" });
+}
+
+export async function generateDiagram(
+  id: number,
+  body: { intent: string },
+): Promise<Response> {
+  return fetch(`/api/diagrams/${id}/generate`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function editDiagram(
+  id: number,
+  body: { prompt: string; contentJson: string },
+): Promise<Response> {
+  return fetch(`/api/diagrams/${id}/edit`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function askDiagram(
+  id: number,
+  body: { prompt: string; contentJson?: string },
+): Promise<AskResponse> {
+  return jsonFetch<AskResponse>(`/api/diagrams/${id}/ask`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function fetchDiagramLibrary(
+  project: string,
+  diagramType?: string,
+): Promise<DiagramLibraryItem[]> {
+  const qs = diagramType ? `?type=${encodeURIComponent(diagramType)}` : "";
+  const data = await jsonFetch<{ items: DiagramLibraryItem[] }>(
+    `/api/projects/${encodeURIComponent(project)}/diagrams/library${qs}`,
+  );
+  return data.items;
+}
+
+export async function createDiagramLibraryItem(
+  project: string,
+  item: {
+    diagramType: string;
+    name: string;
+    description?: string;
+    shape?: string;
+    iconName?: string | null;
+    color?: string;
+    width?: number;
+    height?: number;
+    handleSides?: string[];
+  },
+): Promise<DiagramLibraryItem> {
+  const data = await jsonFetch<{ item: DiagramLibraryItem }>(
+    `/api/projects/${encodeURIComponent(project)}/diagrams/library`,
+    { method: "POST", body: JSON.stringify(item) },
+  );
+  return data.item;
+}
+
+export async function deleteDiagramLibraryItem(id: number): Promise<void> {
+  await jsonFetch<{ ok: boolean }>(`/api/diagrams/library/${id}`, { method: "DELETE" });
+}
+
+export async function generateDiagramLibraryItem(
+  project: string,
+  body: { diagramType: string; request: string },
+): Promise<Response> {
+  return fetch(`/api/projects/${encodeURIComponent(project)}/diagrams/library/generate`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 // ── Documents ────────────────────────────────────────────────────────────────
 
 export interface DocumentSummary {

@@ -22,6 +22,7 @@ import {
   Sun,
   Moon,
   Plus,
+  Shapes,
 } from "../lib/icons";
 import type { AuthUser, Theme } from "../api";
 import NotificationBell from "./NotificationBell";
@@ -33,6 +34,7 @@ export type NavTabId =
   | "tasks"
   | "documents"
   | "whiteboard"
+  | "diagrams"
   | "files"
   | "contacts"
   | "businesses"
@@ -75,6 +77,7 @@ const NAV: NavGroup[] = [
     items: [
       { id: "documents", label: "Documents", icon: FileText },
       { id: "whiteboard", label: "Whiteboard", icon: Palette },
+      { id: "diagrams", label: "Diagrams", icon: Shapes },
       { id: "files", label: "Files", icon: Folder },
       { id: "code", label: "Code", icon: Code },
       { id: "contacts", label: "Contacts", icon: Users },
