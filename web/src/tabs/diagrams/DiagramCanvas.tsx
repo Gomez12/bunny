@@ -27,6 +27,7 @@ import DiagramNodeComponent, {
   AnchorPointNode,
   type DiagramNodeData,
 } from "./DiagramNode";
+import DiagramStylePanel from "./DiagramStylePanel";
 import type { DiagramLibraryItem } from "../../api";
 
 const NODE_TYPES = {
@@ -52,11 +53,11 @@ interface Props {
   innerRef: React.Ref<DiagramCanvasRef>;
 }
 
-interface ContextMenuState {
+interface StylePanelState {
   x: number;
   y: number;
-  targetId: string;
   targetType: "node" | "edge";
+  targetId: string;
 }
 
 interface EdgeLabelEdit {
@@ -70,7 +71,7 @@ function DiagramCanvasInner({ initialContent, readOnly, onChangeRef, innerRef }:
   const [nodes, setNodes] = useState<Node[]>(initialContent.nodes);
   const [edges, setEdges] = useState<Edge[]>(initialContent.edges);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
-  const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
+  const [stylePanel, setStylePanel] = useState<StylePanelState | null>(null);
   const [edgeLabelEdit, setEdgeLabelEdit] = useState<EdgeLabelEdit | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const nodesRef = useRef(nodes);
@@ -84,7 +85,7 @@ function DiagramCanvasInner({ initialContent, readOnly, onChangeRef, innerRef }:
     setEdges(initialContent.edges);
   }, [initialContent]);
 
-  // Inject label change callback into each node's data so DiagramNode can update it.
+  // Inject label change callback into each node's data so DiagramNode can update it inline.
   const nodesWithCallbacks = nodes.map((n) => {
     if (n.type !== "diagramNode") return n;
     return {
@@ -160,32 +161,22 @@ function DiagramCanvasInner({ initialContent, readOnly, onChangeRef, innerRef }:
     const pos = rfInstance.screenToFlowPosition({ x: e.clientX, y: e.clientY });
 
     if ("_type" in item) {
-      // Floating arrow / line: create two anchor nodes + one edge
       const isArrow = item._type === "floatingArrow";
       const startId = `a${Date.now()}`;
       const endId = `a${Date.now() + 1}`;
       const edgeId = `e${Date.now()}`;
       const startNode: Node = {
-        id: startId,
-        type: "anchorPoint",
-        position: { x: pos.x - 60, y: pos.y },
-        data: {},
-        draggable: true,
+        id: startId, type: "anchorPoint",
+        position: { x: pos.x - 60, y: pos.y }, data: {}, draggable: true,
       };
       const endNode: Node = {
-        id: endId,
-        type: "anchorPoint",
-        position: { x: pos.x + 60, y: pos.y },
-        data: {},
-        draggable: true,
+        id: endId, type: "anchorPoint",
+        position: { x: pos.x + 60, y: pos.y }, data: {}, draggable: true,
       };
       const edge: Edge = {
-        id: edgeId,
-        source: startId,
-        target: endId,
+        id: edgeId, source: startId, target: endId,
         markerEnd: isArrow ? { type: MarkerType.ArrowClosed } : undefined,
-        label: "",
-        type: "default",
+        label: "", type: "default",
       };
       setNodes((nds) => {
         const next = [...nds, startNode, endNode];
@@ -196,7 +187,6 @@ function DiagramCanvasInner({ initialContent, readOnly, onChangeRef, innerRef }:
       return;
     }
 
-    // Normal library node
     const libItem = item as DiagramLibraryItem;
     const id = `n${Date.now()}`;
     const newNode: Node = {
@@ -213,7 +203,6 @@ function DiagramCanvasInner({ initialContent, readOnly, onChangeRef, innerRef }:
       } satisfies DiagramNodeData,
       style: { width: libItem.width, minHeight: libItem.height },
     };
-
     setNodes((nds) => {
       const next = [...nds, newNode];
       fireChange(next, edgesRef.current);
@@ -221,30 +210,40 @@ function DiagramCanvasInner({ initialContent, readOnly, onChangeRef, innerRef }:
     });
   }, [readOnly, rfInstance, fireChange]);
 
-  // ── Context menu ────────────────────────────────────────────────────────
+  // ── Style panel / context menu ───────────────────────────────────────────
+  const closePanel = useCallback(() => setStylePanel(null), []);
+
   const onNodeContextMenu = useCallback((e: React.MouseEvent, node: Node) => {
     if (readOnly) return;
     e.preventDefault();
-    setCtxMenu({ x: e.clientX, y: e.clientY, targetId: node.id, targetType: "node" });
+    setStylePanel({ x: e.clientX, y: e.clientY, targetId: node.id, targetType: "node" });
   }, [readOnly]);
 
   const onEdgeContextMenu = useCallback((e: React.MouseEvent, edge: Edge) => {
     if (readOnly) return;
     e.preventDefault();
-    setCtxMenu({ x: e.clientX, y: e.clientY, targetId: edge.id, targetType: "edge" });
+    setStylePanel({ x: e.clientX, y: e.clientY, targetId: edge.id, targetType: "edge" });
   }, [readOnly]);
 
-  const closeCtxMenu = useCallback(() => setCtxMenu(null), []);
+  // Panel callbacks — replace whole arrays for real-time preview
+  const handlePanelNodesChange = useCallback((nextNodes: Node[]) => {
+    setNodes(nextNodes);
+    fireChange(nextNodes, edgesRef.current);
+  }, [fireChange]);
 
-  const ctxDelete = useCallback(() => {
-    if (!ctxMenu) return;
-    if (ctxMenu.targetType === "node") {
+  const handlePanelEdgesChange = useCallback((nextEdges: Edge[]) => {
+    setEdges(nextEdges);
+    fireChange(nodesRef.current, nextEdges);
+  }, [fireChange]);
+
+  const handlePanelDelete = useCallback(() => {
+    if (!stylePanel) return;
+    if (stylePanel.targetType === "node") {
       setNodes((nds) => {
-        const next = nds.filter((n) => n.id !== ctxMenu.targetId);
-        // also remove edges connected to deleted node
+        const next = nds.filter((n) => n.id !== stylePanel.targetId);
         setEdges((eds) => {
           const nextE = eds.filter(
-            (e) => e.source !== ctxMenu.targetId && e.target !== ctxMenu.targetId,
+            (e) => e.source !== stylePanel.targetId && e.target !== stylePanel.targetId,
           );
           fireChange(next, nextE);
           return nextE;
@@ -253,70 +252,21 @@ function DiagramCanvasInner({ initialContent, readOnly, onChangeRef, innerRef }:
       });
     } else {
       setEdges((eds) => {
-        const next = eds.filter((e) => e.id !== ctxMenu.targetId);
+        const next = eds.filter((e) => e.id !== stylePanel.targetId);
         fireChange(nodesRef.current, next);
         return next;
       });
     }
-    closeCtxMenu();
-  }, [ctxMenu, closeCtxMenu, fireChange]);
+    closePanel();
+  }, [stylePanel, closePanel, fireChange]);
 
-  const ctxToggleArrow = useCallback(() => {
-    if (!ctxMenu || ctxMenu.targetType !== "edge") return;
-    setEdges((eds) => {
-      const next = eds.map((e) =>
-        e.id === ctxMenu.targetId
-          ? {
-              ...e,
-              markerEnd: e.markerEnd ? undefined : { type: MarkerType.ArrowClosed },
-              markerStart: undefined,
-            }
-          : e,
-      );
-      fireChange(nodesRef.current, next);
-      return next;
-    });
-    closeCtxMenu();
-  }, [ctxMenu, closeCtxMenu, fireChange]);
-
-  const ctxToggleDash = useCallback(() => {
-    if (!ctxMenu || ctxMenu.targetType !== "edge") return;
-    setEdges((eds) => {
-      const next = eds.map((e) =>
-        e.id === ctxMenu.targetId
-          ? { ...e, style: { ...e.style, strokeDasharray: e.style?.strokeDasharray ? undefined : "6 3" } }
-          : e,
-      );
-      fireChange(nodesRef.current, next);
-      return next;
-    });
-    closeCtxMenu();
-  }, [ctxMenu, closeCtxMenu, fireChange]);
-
-  const ctxEditLabel = useCallback(() => {
-    if (!ctxMenu) return;
-    if (ctxMenu.targetType === "edge") {
-      const edge = edgesRef.current.find((e) => e.id === ctxMenu.targetId);
-      if (edge) {
-        setEdgeLabelEdit({
-          edgeId: edge.id,
-          x: ctxMenu.x,
-          y: ctxMenu.y,
-          currentLabel: String(edge.label ?? ""),
-        });
-      }
-    }
-    closeCtxMenu();
-  }, [ctxMenu, closeCtxMenu]);
-
-  const ctxDuplicate = useCallback(() => {
-    if (!ctxMenu || ctxMenu.targetType !== "node") return;
-    const node = nodesRef.current.find((n) => n.id === ctxMenu.targetId);
-    if (!node) { closeCtxMenu(); return; }
+  const handlePanelDuplicate = useCallback(() => {
+    if (!stylePanel || stylePanel.targetType !== "node") return;
+    const node = nodesRef.current.find((n) => n.id === stylePanel.targetId);
+    if (!node) return;
     const id = `n${Date.now()}`;
     const clone: Node = {
-      ...node,
-      id,
+      ...node, id,
       position: { x: node.position.x + 20, y: node.position.y + 20 },
       selected: false,
     };
@@ -325,16 +275,28 @@ function DiagramCanvasInner({ initialContent, readOnly, onChangeRef, innerRef }:
       fireChange(next, edgesRef.current);
       return next;
     });
-    closeCtxMenu();
-  }, [ctxMenu, closeCtxMenu, fireChange]);
+    closePanel();
+  }, [stylePanel, closePanel, fireChange]);
 
-  // ── Edge double-click label editing ─────────────────────────────────────
+  const handlePanelEditLabel = useCallback(() => {
+    if (!stylePanel || stylePanel.targetType !== "edge") return;
+    const edge = edgesRef.current.find((e) => e.id === stylePanel.targetId);
+    if (edge) {
+      setEdgeLabelEdit({
+        edgeId: edge.id,
+        x: stylePanel.x,
+        y: stylePanel.y,
+        currentLabel: String(edge.label ?? ""),
+      });
+    }
+    closePanel();
+  }, [stylePanel, closePanel]);
+
+  // ── Edge double-click label editing ──────────────────────────────────────
   const onEdgeDoubleClick = useCallback((e: React.MouseEvent, edge: Edge) => {
     if (readOnly) return;
     setEdgeLabelEdit({
-      edgeId: edge.id,
-      x: e.clientX,
-      y: e.clientY,
+      edgeId: edge.id, x: e.clientX, y: e.clientY,
       currentLabel: String(edge.label ?? ""),
     });
   }, [readOnly]);
@@ -353,10 +315,7 @@ function DiagramCanvasInner({ initialContent, readOnly, onChangeRef, innerRef }:
 
   useImperativeHandle(innerRef, () => ({
     getContent: () => ({ nodes: nodesRef.current, edges: edgesRef.current }),
-    setContent: (c) => {
-      setNodes(c.nodes);
-      setEdges(c.edges);
-    },
+    setContent: (c) => { setNodes(c.nodes); setEdges(c.edges); },
     captureThumb: () => {
       const svg = containerRef.current?.querySelector<SVGSVGElement>(".react-flow__renderer svg");
       if (!svg) return null;
@@ -372,7 +331,7 @@ function DiagramCanvasInner({ initialContent, readOnly, onChangeRef, innerRef }:
     <div
       ref={containerRef}
       style={{ width: "100%", height: "100%" }}
-      onClick={closeCtxMenu}
+      onClick={closePanel}
       onContextMenu={(e) => e.preventDefault()}
     >
       <ReactFlow
@@ -388,7 +347,7 @@ function DiagramCanvasInner({ initialContent, readOnly, onChangeRef, innerRef }:
         onNodeContextMenu={onNodeContextMenu}
         onEdgeContextMenu={onEdgeContextMenu}
         onEdgeDoubleClick={onEdgeDoubleClick}
-        onPaneClick={closeCtxMenu}
+        onPaneClick={closePanel}
         nodesDraggable={!readOnly}
         nodesConnectable={!readOnly}
         elementsSelectable={!readOnly}
@@ -401,34 +360,24 @@ function DiagramCanvasInner({ initialContent, readOnly, onChangeRef, innerRef }:
         <Controls showInteractive={false} />
       </ReactFlow>
 
-      {/* Context menu */}
-      {ctxMenu && (
-        <div
-          className="dn-ctx-menu"
-          style={{ left: ctxMenu.x, top: ctxMenu.y }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {ctxMenu.targetType === "node" && (
-            <>
-              <button className="dn-ctx-menu__item" onClick={ctxDuplicate}>Duplicate</button>
-              <div className="dn-ctx-menu__sep" />
-            </>
-          )}
-          {ctxMenu.targetType === "edge" && (
-            <>
-              <button className="dn-ctx-menu__item" onClick={ctxEditLabel}>Edit label…</button>
-              <button className="dn-ctx-menu__item" onClick={ctxToggleArrow}>Toggle arrow</button>
-              <button className="dn-ctx-menu__item" onClick={ctxToggleDash}>Toggle dashed</button>
-              <div className="dn-ctx-menu__sep" />
-            </>
-          )}
-          <button className="dn-ctx-menu__item dn-ctx-menu__item--danger" onClick={ctxDelete}>
-            Delete
-          </button>
-        </div>
+      {stylePanel && (
+        <DiagramStylePanel
+          x={stylePanel.x}
+          y={stylePanel.y}
+          targetType={stylePanel.targetType}
+          nodeId={stylePanel.targetType === "node" ? stylePanel.targetId : undefined}
+          edgeId={stylePanel.targetType === "edge" ? stylePanel.targetId : undefined}
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={handlePanelNodesChange}
+          onEdgesChange={handlePanelEdgesChange}
+          onDelete={handlePanelDelete}
+          onDuplicate={stylePanel.targetType === "node" ? handlePanelDuplicate : undefined}
+          onEditLabel={stylePanel.targetType === "edge" ? handlePanelEditLabel : undefined}
+          onClose={closePanel}
+        />
       )}
 
-      {/* Inline edge label editor */}
       {edgeLabelEdit && (
         <EdgeLabelInputPopup
           x={edgeLabelEdit.x}

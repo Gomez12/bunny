@@ -87,6 +87,18 @@ export interface DiagramNodeData {
   color: string;
   description?: string;
   libraryItemId?: number | null;
+  // Style panel overrides
+  fillColor?: string;
+  strokeColor?: string;
+  borderWidth?: number;
+  borderStyle?: string;
+  cornerRadius?: number;
+  textColor?: string;
+  fontSize?: number;
+  fontWeight?: string;
+  fontStyle?: string;
+  textAlign?: string;
+  opacity?: number;
   [key: string]: unknown;
 }
 
@@ -105,6 +117,8 @@ export function AnchorPointNode({ selected }: NodeProps) {
   );
 }
 
+const RADIUS_SHAPES = ["rectangle", "cylinder", "cloud", "actor"];
+
 function DiagramNodeComponent({ data, selected }: DiagramNodeProps) {
   const { label, shape, iconName, color } = data;
   const IconComponent = iconName ? ICON_MAP[iconName] : null;
@@ -119,9 +133,28 @@ function DiagramNodeComponent({ data, selected }: DiagramNodeProps) {
   const commitEdit = () => {
     setEditing(false);
     if (editValue.trim() && editValue !== label) {
-      // Mutate via xyflow's node data update mechanism — caller uses onNodesChange
       (data as DiagramNodeData & { _onLabelChange?: (v: string) => void })._onLabelChange?.(editValue.trim());
     }
+  };
+
+  const borderColor = data.strokeColor ?? color;
+  const nodeStyle: React.CSSProperties = {
+    "--dn-color": borderColor,
+    ...(data.fillColor ? { background: data.fillColor } : {}),
+    ...(data.borderWidth !== undefined ? { borderWidth: `${data.borderWidth}px` } : {}),
+    ...(data.borderStyle ? { borderStyle: data.borderStyle } : {}),
+    ...(data.opacity !== undefined ? { opacity: data.opacity } : {}),
+    ...(data.cornerRadius !== undefined && RADIUS_SHAPES.includes(shape ?? "rectangle")
+      ? { borderRadius: `${data.cornerRadius}px` }
+      : {}),
+  } as React.CSSProperties;
+
+  const labelStyle: React.CSSProperties = {
+    ...(data.textColor ? { color: data.textColor } : {}),
+    ...(data.fontSize ? { fontSize: `${data.fontSize}px` } : {}),
+    ...(data.fontWeight ? { fontWeight: data.fontWeight } : {}),
+    ...(data.fontStyle ? { fontStyle: data.fontStyle } : {}),
+    ...(data.textAlign ? { textAlign: data.textAlign as CanvasTextAlign } : {}),
   };
 
   return (
@@ -143,13 +176,14 @@ function DiagramNodeComponent({ data, selected }: DiagramNodeProps) {
       <Handle type="target" position={Position.Left} id="left" className="dn-handle" />
       <div
         className={`dn-node dn-shape--${shape ?? "rectangle"} ${selected ? "dn-node--selected" : ""}`}
-        style={{ "--dn-color": color } as React.CSSProperties}
+        style={nodeStyle}
         title={!editing ? (data.description || label) : undefined}
         onDoubleClick={handleDoubleClick}
       >
         {editing ? (
           <input
             className="dn-node__edit-input"
+            style={labelStyle}
             value={editValue}
             autoFocus
             onChange={(e) => setEditValue(e.target.value)}
@@ -163,11 +197,11 @@ function DiagramNodeComponent({ data, selected }: DiagramNodeProps) {
         ) : (
           <>
             {IconComponent && (
-              <span className="dn-node__icon">
+              <span className="dn-node__icon" style={data.textColor ? { color: data.textColor } : {}}>
                 <IconComponent size={14} strokeWidth={1.75} />
               </span>
             )}
-            <span className="dn-node__label">{label}</span>
+            <span className="dn-node__label" style={labelStyle}>{label}</span>
           </>
         )}
       </div>
