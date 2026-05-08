@@ -270,18 +270,18 @@ export default function PlanningRoadmapView({
         const before = businessDaysBetween(startDate, timelineStart);
         if (before > 0) return null;
       }
-      // End index: prefer stored plannedEndDate, fallback to startIdx (1-day bar).
-      const endIdx =
-        wish.plannedEndDate && dayKeyToIdx.has(wish.plannedEndDate)
-          ? dayKeyToIdx.get(wish.plannedEndDate)!
-          : startIdx + wish.durationDays - 1; // rough fallback
+      // Always derive end from durationDays — it is the source of truth.
+      // plannedEndDate stored in the DB may lag behind if durationDays was
+      // patched without a corresponding end-date update.
+      const endDate = addBusinessDays(startDate, wish.durationDays - 1, nonWorkingDates);
+      const endIdx = dayKeyToIdx.get(formatISODate(endDate)) ?? (Math.max(0, startIdx) + wish.durationDays - 1);
       return {
         startIdx: Math.max(0, startIdx),
         endIdx: Math.max(Math.max(0, startIdx), endIdx),
         durationDays: wish.durationDays,
       };
     },
-    [dayKeyToIdx, timelineStart],
+    [dayKeyToIdx, timelineStart, nonWorkingDates],
   );
 
   // Move-drag state. Tracks both X (start-date) and Y (team-row reassignment).
