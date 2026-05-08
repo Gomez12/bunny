@@ -24,7 +24,9 @@
     "fmt": "bun x prettier --write src tests",
     "check": "bun run typecheck && bun run web:typecheck && bun test",
     "client:dev": "bun --cwd client run dev",
-    "client:build": "bun --cwd client run build"
+    "client:build": "bun --cwd client run build",
+    "electron:dev": "bun --cwd electron run dev",
+    "electron:build": "bun --cwd electron run build"
   },
   "dependencies": {
     "bunqueue": "latest",

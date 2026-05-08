@@ -29,16 +29,22 @@ bun run check                  # typecheck + test
 bun run docs                   # TypeDoc → docs/api/
 
 bun run web:build              # build web/dist/ (Bun then serves it on :3000 in prod)
-bun run build                  # compile standalone binary via scripts/build.ts (all platforms + Tauri)
+bun run build                  # compile standalone binary via scripts/build.ts (all platforms + Tauri + Electron)
 bun run build:platform darwin-arm64  # single-platform build
 bun run build -- --no-web      # skip Vite build, reuse existing web/dist/
 bun run build -- --no-client   # skip Tauri client build (useful without Rust toolchain)
+bun run build -- --no-electron-client  # skip Electron client build
 bun run build -- --list        # list available build targets
 
 # Tauri desktop client
 cd client && bun install       # install client deps (separate package.json, requires Rust toolchain)
 bun run client:dev             # Tauri dev mode (opens native window)
 bun run client:build           # Tauri production build (platform-specific installer)
+
+# Electron desktop client (future direction — supports microphone on HTTP)
+cd electron && bun install     # install electron deps (separate package.json)
+bun run electron:dev           # Electron dev mode (opens native window)
+bun run electron:build         # Electron production build (portable: dmg+zip / exe / AppImage)
 ```
 
 **Runtime:** Bun ≥ 1.3.0. Node is not supported — the project relies on `bun:sqlite`, `Bun.serve`, `Bun.TOML`, `bun:test`.
@@ -217,7 +223,11 @@ Central registry `src/prompts/registry.ts` — 30 entries (KB definition/illustr
 
 ### Desktop Client (Tauri)
 
-Tauri v2 under `client/`. **Does not embed the server — connects to a running instance.** First launch shows a local setup page asking for server URL; stored via `tauri-plugin-store`. "File → Reset Connection" clears it. Main window built programmatically in `setup()` so `WebviewWindowBuilder::on_navigation` can intercept off-origin navigations and forward to the system browser via `tauri-plugin-opener`. An injected init script rewrites `<a target="_blank">` clicks + `window.open(...)` to plain `window.location.href` so they hit the same filter. **Whitelist = saved server URL origin (scheme+host+port) + the local `tauri.localhost` origin.** `withGlobalTauri: true`, empty `windows` array in `tauri.conf.json`, `csp: null` for remote content. Notifications via `tauri-plugin-notification` (`notification:default` capability). See [ADR 0017](./docs/adr/0017-tauri-client.md).
+Tauri v2 under `client/`. **Does not embed the server — connects to a running instance.** First launch shows a local setup page asking for server URL; stored via `tauri-plugin-store`. "File → Reset Connection" clears it. Main window built programmatically in `setup()` so `WebviewWindowBuilder::on_navigation` can intercept off-origin navigations and forward to the system browser via `tauri-plugin-opener`. An injected init script rewrites `<a target="_blank">` clicks + `window.open(...)` to plain `window.location.href` so they hit the same filter. **Whitelist = saved server URL origin (scheme+host+port) + the local `tauri.localhost` origin.** `withGlobalTauri: true`, empty `windows` array in `tauri.conf.json`, `csp: null` for remote content. Notifications via `tauri-plugin-notification` (`notification:default` capability). **Limitation: `getUserMedia()` does not work on HTTP server connections** — the native WebView enforces the W3C secure-context requirement. See [ADR 0017](./docs/adr/0017-tauri-client.md).
+
+### Desktop Client (Electron)
+
+Electron client under `electron/`. **Future direction — planned replacement for the Tauri client.** Identical functionality (server URL setup, navigation interception, Reset Connection) plus **full microphone support on HTTP** via Chromium's `--unsafely-treat-insecure-origin-as-secure` switch, which is registered with the saved server origin before `app.whenReady()`. `session.setPermissionRequestHandler` approves media/notification/camera requests. Navigation interception at two layers: `webContents.on('will-navigate')` + `webContents.setWindowOpenHandler()`. Server URL stored in `app.getPath('userData')/config.json`. Changing the URL triggers `app.relaunch()` (Chromium switches are fixed at browser-process start — a relaunch registers the new origin). **Portable builds**: macOS `.dmg`+`.zip`, Windows portable `.exe` (no installer), Linux `AppImage`. Each platform must be built natively. See [ADR 0042](./docs/adr/0042-electron-client.md).
 
 ## Conventions
 

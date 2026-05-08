@@ -1,0 +1,44 @@
+{
+  "name": "bunny-electron",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Bunny desktop client (Electron)",
+  "author": "Gomez12",
+  "main": "main.js",
+  "scripts": {
+    "dev": "electron .",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "nl.ez-base.bunny-electron",
+    "productName": "Bunny",
+    "files": [
+      "main.js",
+      "preload.js",
+      "ui/**/*"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "icons/icon.icns",
+      "target": [
+        { "target": "dmg", "arch": ["arm64", "x64"] },
+        { "target": "zip", "arch": ["arm64", "x64"] }
+      ]
+    },
+    "win": {
+      "icon": "icons/icon.ico",
+      "target": [{ "target": "portable", "arch": ["x64"] }]
+    },
+    "linux": {
+      "icon": "icons/icon.png",
+      "target": [{ "target": "AppImage", "arch": ["x64", "arm64"] }]
+    }
+  }
+}

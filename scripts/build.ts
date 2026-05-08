@@ -15,8 +15,9 @@
  *   bun run build                              # build web + all binaries + client
  *   bun run build:platform darwin-arm64        # single platform
  *   bun run scripts/build.ts --list            # list targets
- *   bun run scripts/build.ts --no-web          # skip Vite step (reuse existing web/dist)
- *   bun run scripts/build.ts --no-client       # skip Tauri client build
+ *   bun run scripts/build.ts --no-web                  # skip Vite step (reuse existing web/dist)
+ *   bun run scripts/build.ts --no-client               # skip Tauri client build
+ *   bun run scripts/build.ts --no-electron-client      # skip Electron client build
  *
  * Output:
  *   dist/bunny-darwin-arm64
@@ -25,6 +26,7 @@
  *   dist/bunny-linux-x64
  *   dist/bunny-windows-x64.exe
  *   dist/client/                               # Tauri desktop client bundles
+ *   dist/electron-client/                      # Electron desktop client bundles
  */
 
 import { cpSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync, existsSync } from "node:fs";
@@ -52,6 +54,8 @@ const WEB_DIST     = join(WEB_DIR, "dist");
 const BUNDLE_FILE  = join(ROOT, "src", "server", "web_bundle.ts");
 const CLIENT_DIR   = join(ROOT, "client");
 const CLIENT_DIST  = join(DIST, "client");
+const ELECTRON_DIR  = join(ROOT, "electron");
+const ELECTRON_DIST = join(DIST, "electron-client");
 
 const BUNDLE_STUB = `/**
  * Embedded web bundle manifest.
@@ -88,6 +92,7 @@ const platformArg = (() => {
 
 const skipWeb = args.includes("--no-web");
 const skipClient = args.includes("--no-client");
+const skipElectronClient = args.includes("--no-electron-client");
 
 const targets = platformArg
   ? TARGETS.filter((t) => t.id === platformArg)
@@ -218,6 +223,60 @@ function buildClient(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Electron client
+
+function buildElectronClient(): void {
+  if (skipElectronClient) {
+    process.stdout.write("Skipping Electron client build (--no-electron-client)\n");
+    return;
+  }
+
+  if (!existsSync(join(ELECTRON_DIR, "main.js"))) {
+    process.stdout.write("Skipping Electron client build (electron/main.js not found)\n");
+    return;
+  }
+
+  process.stdout.write("Building Electron client … ");
+
+  if (!existsSync(join(ELECTRON_DIR, "node_modules"))) {
+    const install = Bun.spawnSync(["bun", "install"], { cwd: ELECTRON_DIR });
+    if (install.exitCode !== 0) {
+      process.stderr.write(new TextDecoder().decode(install.stderr));
+      throw new Error("electron: bun install failed");
+    }
+  }
+
+  const build = Bun.spawnSync(["bun", "run", "build"], {
+    cwd: ELECTRON_DIR,
+    env: { ...process.env },
+  });
+
+  if (build.exitCode !== 0) {
+    process.stderr.write(new TextDecoder().decode(build.stderr));
+    throw new Error("electron: electron-builder failed");
+  }
+
+  console.log("✓");
+
+  // electron-builder writes to electron/dist/ (configured in package.json).
+  const electronBuilderDist = join(ELECTRON_DIR, "dist");
+  if (!existsSync(electronBuilderDist)) {
+    console.warn("  ⚠ Electron dist directory not found — skipping copy to dist/electron-client/");
+    return;
+  }
+
+  if (existsSync(ELECTRON_DIST)) rmSync(ELECTRON_DIST, { recursive: true });
+  mkdirSync(ELECTRON_DIST, { recursive: true });
+  cpSync(electronBuilderDist, ELECTRON_DIST, { recursive: true });
+
+  const entries = readdirSync(ELECTRON_DIST, { recursive: true }) as string[];
+  const files = entries.filter((e) => {
+    try { return statSync(join(ELECTRON_DIST, e)).isFile(); } catch { return false; }
+  });
+  process.stdout.write(`Electron bundle: ${files.length} file(s) → dist/electron-client/\n`);
+}
+
+// ---------------------------------------------------------------------------
 // Build
 
 mkdirSync(DIST, { recursive: true });
@@ -301,6 +360,7 @@ try {
   await Promise.all(runners);
 
   buildClient();
+  buildElectronClient();
 } finally {
   // Always restore the stub so git stays clean and `bun test` works.
   restoreBundleStub();

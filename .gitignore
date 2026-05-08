@@ -28,6 +28,10 @@ docs/api/
 # Tauri / Rust build output
 client/src-tauri/target/
 
+# Electron client build output
+electron/dist/
+electron/node_modules/
+
 # Test artefacts
 coverage/
 *.log
