@@ -33,7 +33,6 @@ import {
   formatISODate,
   nextBusinessDay,
   parseISODate,
-  prevBusinessDay,
 } from "../../lib/planningDates";
 import PlanningSuggestionPanel from "./PlanningSuggestionPanel";
 import PlanningWishForm from "./PlanningWishForm";
@@ -446,11 +445,18 @@ export default function PlanningRoadmapView({
         ...(opts.newEnd ? { plannedEndDate: opts.newEnd } : {}),
         ...(opts.newTeamId !== undefined ? { teamId: opts.newTeamId } : {}),
       });
-      // Auto-refresh advice — same UX as resize.
-      await generatePlanningSuggestion(planningProject.id);
+      // Reload first so the bar moves immediately, even if suggestion generation fails.
       await reload();
+      // Best-effort: refresh schedule advice. Failure must not block the UI update.
+      try {
+        await generatePlanningSuggestion(planningProject.id);
+        await reload();
+      } catch {
+        // suggestion failure is non-fatal
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+      await reload(); // always refresh so stale visual state is corrected
     } finally {
       setBusy(false);
     }
@@ -492,18 +498,10 @@ export default function PlanningRoadmapView({
     const dx = e.clientX - r.startX;
     const calDelta = Math.round(dx / dayWidthPx);
     if (calDelta === 0) return;
-    // Convert calendar-day delta to working-day duration.
-    const layout = wishLayout(wish);
-    if (!layout || !wish.plannedStartDate) return;
-    const rawEndIdx = Math.max(layout.startIdx, layout.endIdx + calDelta);
-    const rawEndDate = days[Math.min(rawEndIdx, days.length - 1)]?.date;
-    if (!rawEndDate) return;
-    const snappedEnd = prevBusinessDay(rawEndDate, nonWorkingDates);
-    const startDate = parseISODate(wish.plannedStartDate);
-    const newDuration = Math.max(
-      1,
-      businessDaysBetween(startDate, snappedEnd, nonWorkingDates) + 1,
-    );
+    // Add calendar columns as working days — applyResize uses addBusinessDays
+    // (with nonWorkingDates) to compute the real end date, so any non-working
+    // days within the new span are automatically skipped.
+    const newDuration = Math.max(1, Math.min(9999, r.initialDuration + calDelta));
     if (newDuration === r.initialDuration) return;
     if (confirmEnabled) {
       setConfirmResize({ wish, newDuration });
@@ -524,10 +522,16 @@ export default function PlanningRoadmapView({
         durationDays: newDuration,
         ...(newEnd ? { plannedEndDate: newEnd } : {}),
       });
-      await generatePlanningSuggestion(planningProject.id);
       await reload();
+      try {
+        await generatePlanningSuggestion(planningProject.id);
+        await reload();
+      } catch {
+        // suggestion failure is non-fatal
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+      await reload();
     } finally {
       setBusy(false);
     }
