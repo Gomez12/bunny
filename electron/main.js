@@ -194,6 +194,32 @@ function createWindow() {
     }
     return { action: 'deny' }; // Never open a second BrowserWindow.
   });
+
+  // Inject a floating reload button so dev changes can be picked up without
+  // needing the keyboard shortcut or right-click menu.
+  win.webContents.on('did-finish-load', () => {
+    win.webContents.executeJavaScript(`
+      (function () {
+        if (document.getElementById('__electron-reload-btn__')) return;
+        const btn = document.createElement('button');
+        btn.id = '__electron-reload-btn__';
+        btn.title = 'Reload';
+        btn.textContent = '↺';
+        Object.assign(btn.style, {
+          position: 'fixed', top: '8px', right: '8px', zIndex: '2147483647',
+          width: '30px', height: '30px', borderRadius: '50%', border: 'none',
+          background: 'rgba(0,0,0,0.18)', color: '#fff', fontSize: '17px',
+          cursor: 'pointer', opacity: '0.55', transition: 'opacity 0.15s',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          lineHeight: '1', padding: '0',
+        });
+        btn.addEventListener('mouseenter', () => { btn.style.opacity = '1'; });
+        btn.addEventListener('mouseleave', () => { btn.style.opacity = '0.55'; });
+        btn.addEventListener('click', () => { location.reload(); });
+        document.body.appendChild(btn);
+      })();
+    `).catch(() => {});
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -205,9 +231,5 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
-});
-
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  app.quit();
 });
