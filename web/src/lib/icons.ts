@@ -36,6 +36,8 @@ export {
   Shapes,
   CalendarRange,
   CalendarClock,
+  CalendarDays,
+  CalendarOff,
   Tag,
   Tags,
   Target,

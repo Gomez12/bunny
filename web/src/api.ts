@@ -4320,3 +4320,261 @@ export async function fetchPlanningReportById(
 export function planningReportMarkdownUrl(id: number): string {
   return `/api/planning-reports/${id}/markdown`;
 }
+
+// ── Calendar exceptions ────────────────────────────────────────────────────────
+
+export type ExceptionKind = "non_working" | "workable";
+export type ExceptionSource = "manual" | "auto_holiday";
+export type ExceptionScope =
+  | "global"
+  | "project"
+  | "planning"
+  | "team"
+  | "user";
+
+export interface CalendarException {
+  id: number;
+  date: string;
+  kind: ExceptionKind;
+  name: string;
+  source: ExceptionSource;
+  countryCode: string | null;
+  projectName: string | null;
+  planningProjectId: number | null;
+  planningTeamId: number | null;
+  userId: string | null;
+  createdBy: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface WorkingDayResult {
+  workable: boolean;
+  effectiveScope: ExceptionScope | "weekend" | "weekday_default";
+  reason?: string;
+}
+
+export interface HolidayInsertedEvent {
+  type: "holidays_inserted";
+  count: number;
+  countryCode: string;
+  year: number;
+}
+
+export async function listGlobalCalendarExceptions(): Promise<CalendarException[]> {
+  return jsonFetch<CalendarException[]>("/api/calendar/global");
+}
+
+export async function createGlobalCalendarException(body: {
+  date: string;
+  kind: ExceptionKind;
+  name?: string;
+  countryCode?: string | null;
+}): Promise<CalendarException> {
+  return jsonFetch<CalendarException>("/api/calendar/global", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function listProjectCalendarExceptions(
+  projectName: string,
+): Promise<CalendarException[]> {
+  return jsonFetch<CalendarException[]>(
+    `/api/projects/${encodeURIComponent(projectName)}/calendar`,
+  );
+}
+
+export async function createProjectCalendarException(
+  projectName: string,
+  body: { date: string; kind: ExceptionKind; name?: string },
+): Promise<CalendarException> {
+  return jsonFetch<CalendarException>(
+    `/api/projects/${encodeURIComponent(projectName)}/calendar`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export async function fetchPlanningNonWorkingDates(
+  planningProjectId: number,
+  from: string,
+  to: string,
+): Promise<Set<string>> {
+  const q = new URLSearchParams({ from, to });
+  const data = await jsonFetch<{ nonWorkingDates: string[] }>(
+    `/api/planning/${planningProjectId}/calendar/non-working?${q}`,
+  );
+  return new Set(data.nonWorkingDates);
+}
+
+export async function listPlanningCalendarExceptions(
+  planningProjectId: number,
+): Promise<CalendarException[]> {
+  return jsonFetch<CalendarException[]>(
+    `/api/planning/${planningProjectId}/calendar`,
+  );
+}
+
+export async function createPlanningCalendarException(
+  planningProjectId: number,
+  body: { date: string; kind: ExceptionKind; name?: string },
+): Promise<CalendarException> {
+  return jsonFetch<CalendarException>(
+    `/api/planning/${planningProjectId}/calendar`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export async function listTeamCalendarExceptions(
+  planningTeamId: number,
+): Promise<CalendarException[]> {
+  return jsonFetch<CalendarException[]>(
+    `/api/planning-teams/${planningTeamId}/calendar`,
+  );
+}
+
+export async function createTeamCalendarException(
+  planningTeamId: number,
+  body: { date: string; kind: ExceptionKind; name?: string },
+): Promise<CalendarException> {
+  return jsonFetch<CalendarException>(
+    `/api/planning-teams/${planningTeamId}/calendar`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export async function listUserCalendarExceptions(): Promise<CalendarException[]> {
+  return jsonFetch<CalendarException[]>("/api/users/me/calendar");
+}
+
+export async function createUserCalendarException(body: {
+  date: string;
+  kind: ExceptionKind;
+  name?: string;
+}): Promise<CalendarException> {
+  return jsonFetch<CalendarException>("/api/users/me/calendar", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function updateCalendarException(
+  id: number,
+  patch: { kind?: ExceptionKind; name?: string },
+): Promise<CalendarException> {
+  return jsonFetch<CalendarException>(`/api/calendar/global/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+}
+
+export async function deleteCalendarException(
+  scope: ExceptionScope,
+  id: number,
+  scopeId?: string | number,
+): Promise<void> {
+  let url: string;
+  switch (scope) {
+    case "global":
+      url = `/api/calendar/global/${id}`;
+      break;
+    case "project":
+      url = `/api/projects/${encodeURIComponent(String(scopeId))}/calendar/${id}`;
+      break;
+    case "planning":
+      url = `/api/planning/${scopeId}/calendar/${id}`;
+      break;
+    case "team":
+      url = `/api/planning-teams/${scopeId}/calendar/${id}`;
+      break;
+    case "user":
+      url = `/api/users/me/calendar/${id}`;
+      break;
+  }
+  await jsonFetch<{ ok: boolean }>(url, { method: "DELETE" });
+}
+
+export async function patchCalendarException(
+  scope: ExceptionScope,
+  id: number,
+  patch: { kind?: ExceptionKind; name?: string },
+  scopeId?: string | number,
+): Promise<CalendarException> {
+  let url: string;
+  switch (scope) {
+    case "global":
+      url = `/api/calendar/global/${id}`;
+      break;
+    case "project":
+      url = `/api/projects/${encodeURIComponent(String(scopeId))}/calendar/${id}`;
+      break;
+    case "planning":
+      url = `/api/planning/${scopeId}/calendar/${id}`;
+      break;
+    case "team":
+      url = `/api/planning-teams/${scopeId}/calendar/${id}`;
+      break;
+    case "user":
+      url = `/api/users/me/calendar/${id}`;
+      break;
+  }
+  return jsonFetch<CalendarException>(url, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+}
+
+export async function resolveWorkingDay(params: {
+  date: string;
+  project?: string;
+  planningId?: number;
+  teamId?: number;
+  userId?: string;
+}): Promise<WorkingDayResult> {
+  const q = new URLSearchParams({ date: params.date });
+  if (params.project) q.set("project", params.project);
+  if (params.planningId != null) q.set("planningId", String(params.planningId));
+  if (params.teamId != null) q.set("teamId", String(params.teamId));
+  if (params.userId) q.set("userId", params.userId);
+  return jsonFetch<WorkingDayResult>(`/api/calendar/working-days?${q}`);
+}
+
+export async function markWeekendsAsNonWorking(year: number): Promise<{ count: number }> {
+  return jsonFetch<{ count: number }>("/api/calendar/global/weekends", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ year }),
+  });
+}
+
+export function streamFetchHolidays(
+  countryCode: string,
+  year: number,
+  onEvent: (ev: ServerEvent | HolidayInsertedEvent) => void,
+): { done: Promise<void>; abort: () => void } {
+  return openSseStream(
+    "/api/calendar/global/holidays",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ countryCode, year }),
+    },
+    onEvent as (ev: ServerEvent) => void,
+  );
+}

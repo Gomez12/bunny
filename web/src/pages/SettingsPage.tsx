@@ -1,5 +1,10 @@
-import { lazy, Suspense, useEffect, useState } from "react";
-import type { AuthUser, ScriptRuntimes, SoulInfo } from "../api";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import type {
+  AuthUser,
+  CalendarException,
+  ScriptRuntimes,
+  SoulInfo,
+} from "../api";
 import {
   updateOwnProfile,
   changeOwnPassword,
@@ -7,17 +12,26 @@ import {
   updateOwnSoul,
   fetchScriptRuntimes,
   patchScriptRuntimes,
+  createGlobalCalendarException,
+  deleteCalendarException,
+  listGlobalCalendarExceptions,
+  patchCalendarException,
+  listUserCalendarExceptions,
+  createUserCalendarException,
+  markWeekendsAsNonWorking,
+  streamFetchHolidays,
 } from "../api";
 import ApiKeyList from "../components/ApiKeyList";
 import UserList from "../components/UserList";
 import TelegramLinkCard from "../components/TelegramLinkCard";
+import CalendarExceptionEditor from "../components/CalendarExceptionEditor";
 
 const LogsTab = lazy(() => import("../tabs/LogsTab"));
 const TrashTab = lazy(() => import("../tabs/TrashTab"));
 const PromptsAdminTab = lazy(() => import("../tabs/PromptsAdminTab"));
 const FeedPatternsAdmin = lazy(() => import("../tabs/FeedPatternsAdmin"));
 
-type Tab = "profile" | "keys" | "users" | "prompts" | "trash" | "logs" | "runtimes" | "feed_patterns";
+type Tab = "profile" | "keys" | "users" | "prompts" | "trash" | "logs" | "runtimes" | "feed_patterns" | "calendar";
 
 const WIDE_TABS: ReadonlySet<Tab> = new Set<Tab>([
   "users",
@@ -83,6 +97,11 @@ export default function SettingsPage({
             Feed Patterns
           </button>
         )}
+        {user.role === "admin" && (
+          <button className={tab === "calendar" ? "active" : ""} onClick={() => setTab("calendar")}>
+            Calendar
+          </button>
+        )}
       </nav>
       <section
         className={`settings-body${
@@ -114,6 +133,9 @@ export default function SettingsPage({
           <Suspense fallback={<div className="app-loading">Loading…</div>}>
             <FeedPatternsAdmin />
           </Suspense>
+        )}
+        {tab === "calendar" && user.role === "admin" && (
+          <GlobalCalendarSection />
         )}
       </section>
     </div>
@@ -281,6 +303,8 @@ function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthU
       {err && <div className="auth-error">{err}</div>}
 
       <SoulForm />
+
+      <UserCalendarSection />
 
       <TelegramLinkCard />
     </div>
@@ -479,5 +503,144 @@ function ScriptRuntimesForm() {
       {msg && <div className="auth-ok" style={{ marginTop: "8px" }}>{msg}</div>}
       {err && <div className="auth-error" style={{ marginTop: "8px" }}>{err}</div>}
     </form>
+  );
+}
+
+// ── Global Calendar Admin Section ─────────────────────────────────────────────
+
+function GlobalCalendarSection() {
+  const [exceptions, setExceptions] = useState<CalendarException[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [weekendYear, setWeekendYear] = useState(new Date().getFullYear());
+  const [weekendBusy, setWeekendBusy] = useState(false);
+  const [weekendMsg, setWeekendMsg] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    try {
+      setExceptions(await listGlobalCalendarExceptions());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, []);
+
+  useEffect(() => { void reload(); }, [reload]);
+
+  const handleFetchHolidays = async (countryCode: string, year: number) => {
+    await new Promise<void>((resolve, reject) => {
+      const { done } = streamFetchHolidays(countryCode, year, () => {});
+      done.then(resolve).catch(reject);
+    });
+    await reload();
+  };
+
+  const handleMarkWeekends = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setWeekendBusy(true);
+    setWeekendMsg(null);
+    setError(null);
+    try {
+      const { count } = await markWeekendsAsNonWorking(weekendYear);
+      setWeekendMsg(`Marked ${count} new weekend days as non-working for ${weekendYear}.`);
+      await reload();
+    } catch (ex) {
+      setError(ex instanceof Error ? ex.message : String(ex));
+    } finally {
+      setWeekendBusy(false);
+    }
+  };
+
+  return (
+    <div className="profile">
+      <h2>Global Calendar</h2>
+      <p className="muted" style={{ marginBottom: 16 }}>
+        Non-working days set here apply across all projects and users unless
+        overridden at a lower scope. Use "Fetch holidays" to auto-import national
+        public holidays via an agent.
+      </p>
+
+      <form onSubmit={(e) => void handleMarkWeekends(e)} style={{ display: "flex", alignItems: "flex-end", gap: 8, marginBottom: 16 }}>
+        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={{ fontSize: 12, color: "var(--text-dim)" }}>Mark all weekends as non-working for year</span>
+          <input
+            type="number"
+            min={1970}
+            max={2100}
+            value={weekendYear}
+            onChange={(e) => setWeekendYear(Number(e.target.value))}
+            disabled={weekendBusy}
+            style={{ width: 90 }}
+          />
+        </label>
+        <button type="submit" className="btn btn--sm" disabled={weekendBusy}>
+          {weekendBusy ? "Marking…" : "Mark weekends"}
+        </button>
+        {weekendMsg && <span style={{ fontSize: 12, color: "var(--ok, #38a169)" }}>{weekendMsg}</span>}
+      </form>
+
+      {error && <div className="auth-error">{error}</div>}
+      <CalendarExceptionEditor
+        exceptions={exceptions}
+        canEdit
+        scope="global"
+        onAdd={async (date, kind, name) => {
+          await createGlobalCalendarException({ date, kind, name });
+          await reload();
+        }}
+        onUpdate={async (id, patch) => {
+          await patchCalendarException("global", id, patch);
+          await reload();
+        }}
+        onDelete={async (id) => {
+          await deleteCalendarException("global", id);
+          await reload();
+        }}
+        onFetchHolidays={handleFetchHolidays}
+      />
+    </div>
+  );
+}
+
+// ── User Personal Calendar Section ───────────────────────────────────────────
+
+function UserCalendarSection() {
+  const [exceptions, setExceptions] = useState<CalendarException[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    try {
+      setExceptions(await listUserCalendarExceptions());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, []);
+
+  useEffect(() => { void reload(); }, [reload]);
+
+  return (
+    <div>
+      <h2>My Calendar</h2>
+      <p className="muted" style={{ marginBottom: 16 }}>
+        Mark personal vacation days or working exceptions. Your calendar takes
+        priority over all other scopes.
+      </p>
+      {error && <div className="auth-error">{error}</div>}
+      <CalendarExceptionEditor
+        exceptions={exceptions}
+        canEdit
+        scope="user"
+        onAdd={async (date, kind, name) => {
+          await createUserCalendarException({ date, kind, name });
+          await reload();
+        }}
+        onUpdate={async (id, patch) => {
+          await patchCalendarException("user", id, patch);
+          await reload();
+        }}
+        onDelete={async (id) => {
+          await deleteCalendarException("user", id);
+          await reload();
+        }}
+      />
+    </div>
   );
 }

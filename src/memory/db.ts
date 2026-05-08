@@ -371,6 +371,9 @@ function migrateColumns(db: Database): void {
   );
   // Optional external tracker reference per wish (Jira / GitHub issue key).
   addColumn("ALTER TABLE planning_wishes ADD COLUMN jira_key TEXT");
+  // ── Calendar exceptions (ADR 0044) ──────────────────────────────────────────
+  // Per-project override for the holiday-fetch agent's country code.
+  addColumn("ALTER TABLE projects ADD COLUMN holiday_country_code TEXT");
   db.run(
     `CREATE TABLE IF NOT EXISTS user_project_prefs (
        user_id    TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,

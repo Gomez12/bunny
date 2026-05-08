@@ -1156,6 +1156,33 @@ Entry:
 {{transcription}}`,
     variables: ["transcription"],
   },
+  "calendar.fetch_holidays": {
+    key: "calendar.fetch_holidays",
+    scope: "global",
+    description:
+      "Prompt for the holiday-fetch agent. Uses web_search + web_fetch to find national public holidays for a given country and year. Must return exactly one fenced JSON block.",
+    defaultText: `You are a public-holiday researcher. Find the official national public holidays for country "{{country_code}}" in year {{year}}.
+
+Use web_search and web_fetch to find the holidays from the official government website or a well-known authoritative source. Prefer official government sources (e.g. government.nl, gov.uk, service-public.fr).
+
+Output format — return EXACTLY ONE fenced \`\`\`json\`\`\` block and nothing else:
+
+\`\`\`json
+[
+  { "date": "YYYY-MM-DD", "name": "Holiday name in English" }
+]
+\`\`\`
+
+Rules:
+- Include only national public holidays that are observed country-wide.
+- Do not include regional, optional, or unofficial observances.
+- Use ISO 8601 dates (YYYY-MM-DD) with the correct year {{year}}.
+- Names must be in English.
+- Return an empty array [] if you cannot find reliable information.
+- No prose before or after the JSON block — only the fenced code block.`,
+    variables: ["country_code", "year"],
+    warnsJsonContract: true,
+  },
 };
 
 /**
@@ -1200,7 +1227,8 @@ export type PromptKey =
   | "diagram.edit"
   | "diagram.node.generate"
   | "diary.correct_transcription"
-  | "diary.generate_title";
+  | "diary.generate_title"
+  | "calendar.fetch_holidays";
 
 /** All registered prompt keys, in declaration order. */
 export const PROMPT_KEYS: PromptKey[] = Object.keys(PROMPTS) as PromptKey[];

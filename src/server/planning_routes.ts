@@ -75,6 +75,7 @@ import {
   notifyTeamAssignment,
 } from "../planning/notifications.ts";
 import { computeSchedule, formatDate } from "../planning/scheduler.ts";
+import { buildNonWorkingDateSet } from "../memory/calendar.ts";
 import {
   getLatestReport,
   getReport,
@@ -1152,8 +1153,17 @@ function reportRoute(
   // user-approved placements are honoured. When a wish has no planned dates,
   // it's planned freely.
   const startDate = r.pp.startDate ?? formatDate(new Date());
+  const totalDays = wishes.reduce((s, w) => s + w.durationDays, 0);
+  const horizonDays = Math.max(5 * 365, totalDays * 3);
+  const toDate = new Date(new Date(startDate + "T00:00:00Z").getTime() + horizonDays * 86_400_000)
+    .toISOString().slice(0, 10);
+  const nonWorkingDates = buildNonWorkingDateSet(ctx.db, startDate, toDate, {
+    projectName: r.pp.project,
+    planningProjectId: ppId,
+  });
   const out = computeSchedule({
     startDate,
+    nonWorkingDates,
     wishes: wishes.map((w) => ({
       id: w.id,
       durationDays: w.durationDays,

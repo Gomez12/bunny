@@ -41,6 +41,7 @@ test("registry covers every known prompt key exactly once", () => {
       "agent.skill_catalog_hint",
       "business.auto_build.enrich",
       "business.soul.refresh",
+      "calendar.fetch_holidays",
       "code.ask",
       "code.chat",
       "code.edit",

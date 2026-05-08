@@ -60,6 +60,7 @@ import { handleContactRoute } from "./contact_routes.ts";
 import { handleBusinessRoute } from "./business_routes.ts";
 import { handleCodeRoute } from "./code_routes.ts";
 import { handlePlanningRoute } from "./planning_routes.ts";
+import { handleCalendarRoute } from "./calendar_routes.ts";
 import { handleScriptRoute } from "./scripts_routes.ts";
 import { handleSecretRoute } from "./secrets_routes.ts";
 import { handleWorkflowRoute } from "./workflow_routes.ts";
@@ -224,6 +225,15 @@ export async function handleApi(
     user,
   );
   if (codeResponse) return codeResponse;
+
+  // ── Calendar exceptions (multi-layer working-days system) ────────────────
+  const calendarResponse = await handleCalendarRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue, cfg: ctx.cfg },
+    user,
+  );
+  if (calendarResponse) return calendarResponse;
 
   // ── Planning (per-project Gantt sub-application) ─────────────────────────
   const planningResponse = await handlePlanningRoute(

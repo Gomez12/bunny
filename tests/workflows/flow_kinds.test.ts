@@ -153,6 +153,7 @@ const CFG: BunnyConfig = {
     reportSnapshotEnabled: true,
     maxReportsPerProject: 50,
   },
+  calendar: { countryCode: "NL" },
   sessionId: undefined,
 };
 

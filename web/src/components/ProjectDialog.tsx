@@ -1,11 +1,24 @@
-import { useEffect, useRef, useState } from "react";
-import type { Agent, Project, ProjectVisibility } from "../api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type {
+  Agent,
+  CalendarException,
+  ExceptionKind,
+  Project,
+  ProjectVisibility,
+} from "../api";
+import {
+  createProjectCalendarException,
+  deleteCalendarException,
+  listProjectCalendarExceptions,
+  patchCalendarException,
+} from "../api";
 // Cross-root import: vite is configured with fs.allow: [".."] so the frontend
 // can pin itself to the backend's validation rule instead of drifting.
 import { PROJECT_NAME_RE } from "../../../src/memory/project_name";
 import { validateOverride } from "../lib/forms";
 import Modal from "./Modal";
 import ProjectPromptsSection from "./ProjectPromptsSection";
+import CalendarExceptionEditor from "./CalendarExceptionEditor";
 
 export interface ProjectDialogValue {
   name: string;
@@ -375,6 +388,10 @@ export default function ProjectDialog({
           <ProjectPromptsSection project={initial.name} />
         )}
 
+        {mode === "edit" && initial && (
+          <ProjectCalendarSection projectName={initial.name} />
+        )}
+
         {error && <div className="project-form__error">{error}</div>}
 
         <Modal.Footer>
@@ -396,5 +413,47 @@ export default function ProjectDialog({
         </Modal.Footer>
       </form>
     </Modal>
+  );
+}
+
+function ProjectCalendarSection({ projectName }: { projectName: string }) {
+  const [exceptions, setExceptions] = useState<CalendarException[]>([]);
+
+  const reload = useCallback(async () => {
+    try {
+      setExceptions(await listProjectCalendarExceptions(projectName));
+    } catch {
+      // non-fatal; calendar section is supplementary
+    }
+  }, [projectName]);
+
+  useEffect(() => { void reload(); }, [reload]);
+
+  return (
+    <div className="project-form__section">
+      <h3 className="project-form__section-title">Project calendar</h3>
+      <p className="project-form__hint">
+        Non-working days specific to this project. Overrides the global calendar
+        for all users working in this project.
+      </p>
+      <CalendarExceptionEditor
+        exceptions={exceptions}
+        canEdit
+        scope="project"
+        scopeId={projectName}
+        onAdd={async (date: string, kind: ExceptionKind, name: string) => {
+          await createProjectCalendarException(projectName, { date, kind, name });
+          await reload();
+        }}
+        onUpdate={async (id: number, patch: { kind?: ExceptionKind; name?: string }) => {
+          await patchCalendarException("project", id, patch, projectName);
+          await reload();
+        }}
+        onDelete={async (id: number) => {
+          await deleteCalendarException("project", id, projectName);
+          await reload();
+        }}
+      />
+    </div>
   );
 }

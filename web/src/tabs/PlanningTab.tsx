@@ -21,6 +21,7 @@ import PlanningDeadlinesView from "./planning/PlanningDeadlinesView";
 import PlanningTeamsView from "./planning/PlanningTeamsView";
 import PlanningTagsView from "./planning/PlanningTagsView";
 import PlanningReportView from "./planning/PlanningReportView";
+import PlanningCalendarView from "./planning/PlanningCalendarView";
 
 const FEATURE_STORAGE_KEY = PLANNING_STORAGE.activeFeature;
 const PROJECT_STORAGE_KEY = PLANNING_STORAGE.activeProject;
@@ -32,6 +33,7 @@ const VALID_FEATURES: PlanningFeatureId[] = [
   "teams",
   "tags",
   "report",
+  "calendar",
 ];
 
 function resolveStoredFeature(): PlanningFeatureId {
@@ -220,6 +222,9 @@ export default function PlanningTab({ project, currentUser: _currentUser }: Prop
         )}
         {activePp && activeFeature === "report" && (
           <PlanningReportView planningProject={activePp} />
+        )}
+        {activePp && activeFeature === "calendar" && (
+          <PlanningCalendarView planningProject={activePp} />
         )}
         {loadError && (
           <div className="project-form__hint project-form__hint--error">

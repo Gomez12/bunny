@@ -212,4 +212,68 @@ describe("planning scheduler", () => {
     const out = computeSchedule(input);
     expect(out.placements[0]!.start).toBe("2026-06-01");
   });
+
+  describe("nonWorkingDates calendar integration", () => {
+    test("addBusinessDays skips holidays in nonWorkingDates", () => {
+      // 2026-01-12 is a Monday; mark it as non-working.
+      const nwd = new Set(["2026-01-12"]);
+      const fri = parseDate("2026-01-09");
+      // Without nwd: Fri+1 = Mon Jan 12.
+      expect(formatDate(addBusinessDays(fri, 1))).toBe("2026-01-12");
+      // With nwd: Mon Jan 12 is skipped → Tue Jan 13.
+      expect(formatDate(addBusinessDays(fri, 1, nwd))).toBe("2026-01-13");
+    });
+
+    test("10-day wish skips a mid-week holiday", () => {
+      // Start on Mon 2026-01-05; mark Wed 2026-01-07 as non-working (holiday).
+      const nwd = new Set(["2026-01-07"]);
+      const input: ScheduleInput = {
+        ...emptyInput(),
+        startDate: "2026-01-05",
+        nonWorkingDates: nwd,
+        wishes: [
+          { id: 10, durationDays: 3, teamId: null, deadlineId: null, dependsOnWishes: [], dependsOnTags: [], tagIds: [] },
+        ],
+      };
+      const out = computeSchedule(input);
+      const p = out.placements[0]!;
+      // 3 working days: Mon 5, Tue 6, (Wed 7 skipped), Thu 8 = end
+      expect(p.start).toBe("2026-01-05");
+      expect(p.end).toBe("2026-01-08");
+    });
+
+    test("wish starts day after holiday when project starts on holiday", () => {
+      const nwd = new Set(["2026-01-05"]); // Monday Jan 5 is a holiday
+      const input: ScheduleInput = {
+        ...emptyInput(),
+        startDate: "2026-01-05",
+        nonWorkingDates: nwd,
+        wishes: [
+          { id: 10, durationDays: 1, teamId: null, deadlineId: null, dependsOnWishes: [], dependsOnTags: [], tagIds: [] },
+        ],
+      };
+      const out = computeSchedule(input);
+      // Should start on Tue Jan 6, not on the holiday.
+      expect(out.placements[0]!.start).toBe("2026-01-06");
+    });
+
+    test("dependency end + 1 skips holidays correctly", () => {
+      const nwd = new Set(["2026-01-07"]); // Wed Jan 7 holiday
+      const input: ScheduleInput = {
+        ...emptyInput(),
+        startDate: "2026-01-05",
+        nonWorkingDates: nwd,
+        wishes: [
+          { id: 1, durationDays: 2, teamId: null, deadlineId: null, dependsOnWishes: [], dependsOnTags: [], tagIds: [] },
+          { id: 2, durationDays: 1, teamId: null, deadlineId: null, dependsOnWishes: [1], dependsOnTags: [], tagIds: [] },
+        ],
+      };
+      const out = computeSchedule(input);
+      const w1 = out.placements.find((p) => p.wishId === 1)!;
+      const w2 = out.placements.find((p) => p.wishId === 2)!;
+      // Wish 1: Mon 5, Tue 6 (end). Next working day after Tue 6 = Thu 8 (Wed 7 skipped).
+      expect(w1.end).toBe("2026-01-06");
+      expect(w2.start).toBe("2026-01-08");
+    });
+  });
 });

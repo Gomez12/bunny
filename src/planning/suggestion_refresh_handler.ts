@@ -21,7 +21,8 @@ import { listTeams } from "../memory/planning_teams.ts";
 import { listDeadlines } from "../memory/planning_deadlines.ts";
 import { listTags } from "../memory/planning_tags.ts";
 import { getPlanningProject } from "../memory/planning_projects.ts";
-import { computeSchedule, formatDate } from "./scheduler.ts";
+import { computeSchedule, formatDate, addBusinessDays, parseDate } from "./scheduler.ts";
+import { buildNonWorkingDateSet } from "../memory/calendar.ts";
 
 export const PLANNING_SUGGESTION_REFRESH_HANDLER = "planning.suggestion_refresh";
 
@@ -37,8 +38,22 @@ export function buildAndStoreSuggestion(
   const deadlines = listDeadlines(db, planningProjectId);
   const tags = listTags(db, planningProjectId);
   const startDate = pp.startDate ?? formatDate(new Date());
+
+  // Pre-query all non-working dates for the planning horizon so the pure
+  // scheduler can respect calendar exceptions without touching the DB.
+  // Horizon: whichever is larger — 5 years or 3× the sum of all wish durations.
+  const totalWishDays = wishes.reduce((s, w) => s + w.durationDays, 0);
+  const horizonDays = Math.max(5 * 365, totalWishDays * 3);
+  const horizonDate = addBusinessDays(parseDate(startDate), horizonDays);
+  const toDate = formatDate(horizonDate);
+  const nonWorkingDates = buildNonWorkingDateSet(db, startDate, toDate, {
+    projectName: pp.project,
+    planningProjectId: pp.id,
+  });
+
   const out = computeSchedule({
     startDate,
+    nonWorkingDates,
     wishes: wishes.map((w) => ({
       id: w.id,
       durationDays: w.durationDays,

@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import {
+  CalendarDays,
   CalendarRange,
   ChevronDown,
   Flag,
@@ -24,7 +25,8 @@ export type PlanningFeatureId =
   | "deadlines"
   | "teams"
   | "tags"
-  | "report";
+  | "report"
+  | "calendar";
 
 type IconType = ComponentType<{ size?: number; strokeWidth?: number }>;
 
@@ -49,6 +51,7 @@ const FEATURES: RailGroup[] = [
       { id: "teams", label: "Teams", icon: Users },
       { id: "tags", label: "Tags", icon: Tags },
       { id: "report", label: "Report", icon: ListChecks },
+      { id: "calendar", label: "Calendar", icon: CalendarDays },
     ],
   },
 ];

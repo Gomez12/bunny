@@ -1285,6 +1285,71 @@ CREATE TABLE IF NOT EXISTS planning_reports (
 CREATE INDEX IF NOT EXISTS idx_planning_reports_pp
   ON planning_reports(planning_project_id, generated_at DESC);
 
+-- ── Calendar exceptions ───────────────────────────────────────────────────────
+-- Five-layer non-working/workable-override system. Scope is determined by
+-- which FK column is non-null (all null = global). Most-specific scope wins.
+-- kind='non_working' adds a day off; kind='workable' overrides a higher-scope
+-- non_working day back to working.
+-- source='auto_holiday' rows are bulk-inserted by the holiday-fetch agent and
+-- can be replaced per (date, country_code); 'manual' rows are user-entered
+-- and never overwritten by the agent.
+CREATE TABLE IF NOT EXISTS calendar_exceptions (
+  id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+  date                 TEXT    NOT NULL,  -- ISO YYYY-MM-DD
+  kind                 TEXT    NOT NULL CHECK (kind IN ('non_working', 'workable')),
+  name                 TEXT    NOT NULL DEFAULT '',
+  source               TEXT    NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'auto_holiday')),
+  country_code         TEXT,              -- non-null for global auto_holiday rows (e.g. 'NL')
+  -- Scope FKs — exactly one non-null determines scope; all null = global.
+  project_name         TEXT    REFERENCES projects(name) ON DELETE CASCADE,
+  planning_project_id  INTEGER REFERENCES planning_projects(id) ON DELETE CASCADE,
+  planning_team_id     INTEGER REFERENCES planning_teams(id) ON DELETE CASCADE,
+  user_id              TEXT    REFERENCES users(id) ON DELETE CASCADE,
+  created_by           TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at           INTEGER NOT NULL,
+  updated_at           INTEGER NOT NULL,
+  deleted_at           INTEGER,
+  deleted_by           TEXT
+);
+
+-- Per-scope unique partial indexes (soft-deleted rows excluded so re-adds work).
+-- Global manual and auto_holiday can coexist on the same date (different source).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_calex_global_manual
+  ON calendar_exceptions(date)
+  WHERE project_name IS NULL AND planning_project_id IS NULL
+    AND planning_team_id IS NULL AND user_id IS NULL
+    AND source = 'manual' AND deleted_at IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_calex_global_auto
+  ON calendar_exceptions(date, country_code)
+  WHERE project_name IS NULL AND planning_project_id IS NULL
+    AND planning_team_id IS NULL AND user_id IS NULL
+    AND source = 'auto_holiday' AND deleted_at IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_calex_project
+  ON calendar_exceptions(project_name, date)
+  WHERE project_name IS NOT NULL AND planning_project_id IS NULL
+    AND planning_team_id IS NULL AND user_id IS NULL AND deleted_at IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_calex_planning
+  ON calendar_exceptions(planning_project_id, date)
+  WHERE planning_project_id IS NOT NULL AND planning_team_id IS NULL
+    AND user_id IS NULL AND deleted_at IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_calex_team
+  ON calendar_exceptions(planning_team_id, date)
+  WHERE planning_team_id IS NOT NULL AND user_id IS NULL AND deleted_at IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_calex_user
+  ON calendar_exceptions(user_id, date)
+  WHERE user_id IS NOT NULL AND deleted_at IS NULL;
+
+-- Performance indexes for resolver queries.
+CREATE INDEX IF NOT EXISTS idx_calex_project_date  ON calendar_exceptions(project_name, date) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_calex_planning_date ON calendar_exceptions(planning_project_id, date) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_calex_team_date     ON calendar_exceptions(planning_team_id, date) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_calex_user_date     ON calendar_exceptions(user_id, date) WHERE deleted_at IS NULL;
+
 -- ── Embeddings ───────────────────────────────────────────────────────────────
 -- Created dynamically by db.ts using the configured dimension (default 1536)
 -- because the dimension must be baked into the vec0 CREATE statement.

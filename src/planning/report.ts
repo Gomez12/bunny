@@ -24,6 +24,7 @@ import { listTeams } from "../memory/planning_teams.ts";
 import { listDeadlines } from "../memory/planning_deadlines.ts";
 import { listTags } from "../memory/planning_tags.ts";
 import { computeSchedule, formatDate, parseDate } from "./scheduler.ts";
+import { buildNonWorkingDateSet } from "../memory/calendar.ts";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -313,8 +314,18 @@ export function buildReportPayload(
   // bottleneck list reflects the user's current plan, not a hypothetical
   // schedule.
   const scheduleStart = pp.startDate ?? today;
+  const totalDays = wishes.reduce((s, w) => s + w.durationDays, 0);
+  const horizonDays = Math.max(5 * 365, totalDays * 3);
+  const toDate = new Date(
+    new Date(scheduleStart + "T00:00:00Z").getTime() + horizonDays * 86_400_000,
+  ).toISOString().slice(0, 10);
+  const nonWorkingDates = buildNonWorkingDateSet(db, scheduleStart, toDate, {
+    projectName: pp.project,
+    planningProjectId: pp.id,
+  });
   const scheduleOut = computeSchedule({
     startDate: scheduleStart,
+    nonWorkingDates,
     wishes: wishes.map((w) => ({
       id: w.id,
       durationDays: w.durationDays,

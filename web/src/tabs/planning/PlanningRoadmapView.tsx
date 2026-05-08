@@ -8,6 +8,7 @@ import {
   type PlanningWish,
   createPlanningWish,
   fetchPlanningSuggestion,
+  fetchPlanningNonWorkingDates,
   generatePlanningSuggestion,
   listPlanningDeadlines,
   listPlanningTags,
@@ -29,6 +30,7 @@ import {
   addBusinessDays,
   businessDaysBetween,
   formatISODate,
+  hasHolidayGap,
   parseISODate,
   workingDayRange,
 } from "../../lib/planningDates";
@@ -83,6 +85,7 @@ export default function PlanningRoadmapView({
   const [teams, setTeams] = useState<PlanningTeam[]>([]);
   const [deadlines, setDeadlines] = useState<PlanningDeadline[]>([]);
   const [suggestion, setSuggestion] = useState<PlanningSuggestion | null>(null);
+  const [nonWorkingDates, setNonWorkingDates] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -175,6 +178,20 @@ export default function PlanningRoadmapView({
     }
   }, [planningProject.id]);
 
+  // Fetch non-working dates for the visible timeline window. Re-fetched when
+  // the planning project changes; the window is derived from the project start
+  // + a generous horizon (10 years) so we cover all possible wish placements.
+  useEffect(() => {
+    const projectStart = planningProject.startDate ?? formatISODate(new Date());
+    const from = projectStart;
+    const toDate = new Date(parseISODate(projectStart).getTime());
+    toDate.setUTCFullYear(toDate.getUTCFullYear() + 10);
+    const to = formatISODate(toDate);
+    fetchPlanningNonWorkingDates(planningProject.id, from, to)
+      .then(setNonWorkingDates)
+      .catch(() => setNonWorkingDates(new Set())); // non-fatal: degrade to weekends-only
+  }, [planningProject.id, planningProject.startDate]);
+
   useEffect(() => {
     void reload();
   }, [reload]);
@@ -206,13 +223,13 @@ export default function PlanningRoadmapView({
 
     const start = parseISODate(formatISODate(minDate));
     // Working days between start and maxDate, with a floor.
-    const span = businessDaysBetween(start, maxDate);
+    const span = businessDaysBetween(start, maxDate, nonWorkingDates);
     const count = Math.max(span, MIN_TIMELINE_DAYS);
     return {
       timelineStart: start,
-      days: workingDayRange(start, count),
+      days: workingDayRange(start, count, nonWorkingDates),
     };
-  }, [planningProject.startDate, deadlines, wishes]);
+  }, [planningProject.startDate, deadlines, wishes, nonWorkingDates]);
 
   const dayKeyToIdx = useMemo(() => {
     const m = new Map<string, number>();
@@ -729,15 +746,25 @@ export default function PlanningRoadmapView({
             className="planning-gantt__row-label"
             style={{ width: HEADER_ROW_LABEL_WIDTH }}
           />
-          {days.map((d, i) => (
-            <div
-              key={i}
-              className="planning-gantt__day"
-              style={{ width: dayWidthPx }}
-            >
-              {d.getUTCDate()}
-            </div>
-          ))}
+          {days.map((d, i) => {
+            const prevDay = days[i - 1];
+            const isPostHoliday =
+              prevDay != null && hasHolidayGap(prevDay, d);
+            return (
+              <div
+                key={i}
+                className={`planning-gantt__day${isPostHoliday ? " planning-gantt__day--post-holiday" : ""}`}
+                style={{ width: dayWidthPx }}
+                title={
+                  isPostHoliday
+                    ? `Holiday / non-working day(s) before ${formatISODate(d)}`
+                    : undefined
+                }
+              >
+                {d.getUTCDate()}
+              </div>
+            );
+          })}
         </div>
         {/* Body rows */}
         {teamRows.map((row) => {

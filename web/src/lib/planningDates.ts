@@ -1,6 +1,8 @@
 /**
- * Working-day (Mon-Fri) arithmetic for the Planning Gantt. Mirrors the
- * server-side helpers in `src/planning/scheduler.ts`.
+ * Working-day arithmetic for the Planning Gantt. Mirrors the server-side
+ * helpers in `src/planning/scheduler.ts`. All functions accept an optional
+ * `nonWorkingDates` Set of ISO date strings (pre-fetched calendar exceptions)
+ * so the Gantt respects holidays in addition to weekends.
  */
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -23,41 +25,50 @@ export function isWeekend(d: Date): boolean {
   return dow === 0 || dow === 6;
 }
 
-export function nextBusinessDay(d: Date): Date {
+function isNonWorkingDay(d: Date, nwd?: Set<string>): boolean {
+  if (nwd?.has(formatISODate(d))) return true;
+  return isWeekend(d);
+}
+
+export function nextBusinessDay(d: Date, nwd?: Set<string>): Date {
   const out = new Date(d.getTime());
-  while (isWeekend(out)) out.setUTCDate(out.getUTCDate() + 1);
+  while (isNonWorkingDay(out, nwd)) out.setUTCDate(out.getUTCDate() + 1);
   return out;
 }
 
-export function prevBusinessDay(d: Date): Date {
+export function prevBusinessDay(d: Date, nwd?: Set<string>): Date {
   const out = new Date(d.getTime());
-  while (isWeekend(out)) out.setUTCDate(out.getUTCDate() - 1);
+  while (isNonWorkingDay(out, nwd)) out.setUTCDate(out.getUTCDate() - 1);
   return out;
 }
 
-export function addBusinessDays(d: Date, n: number): Date {
-  const out = nextBusinessDay(new Date(d.getTime()));
+export function addBusinessDays(d: Date, n: number, nwd?: Set<string>): Date {
+  const out = nextBusinessDay(new Date(d.getTime()), nwd);
   let remaining = n;
   while (remaining > 0) {
     out.setUTCDate(out.getUTCDate() + 1);
-    if (!isWeekend(out)) remaining -= 1;
+    if (!isNonWorkingDay(out, nwd)) remaining -= 1;
   }
   return out;
 }
 
 /**
- * Inclusive count of business days between `from` (rounded forward) and `to`
+ * Inclusive count of working days between `from` (rounded forward) and `to`
  * (rounded backward). `to <= from` returns 0.
  */
-export function businessDaysBetween(from: Date, to: Date): number {
+export function businessDaysBetween(
+  from: Date,
+  to: Date,
+  nwd?: Set<string>,
+): number {
   if (to.getTime() < from.getTime()) return 0;
-  const start = nextBusinessDay(from);
-  const end = prevBusinessDay(to);
+  const start = nextBusinessDay(from, nwd);
+  const end = prevBusinessDay(to, nwd);
   if (end.getTime() < start.getTime()) return 0;
   let count = 0;
   const cursor = new Date(start.getTime());
   while (cursor.getTime() <= end.getTime()) {
-    if (!isWeekend(cursor)) count += 1;
+    if (!isNonWorkingDay(cursor, nwd)) count += 1;
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
   return count;
@@ -66,14 +77,34 @@ export function businessDaysBetween(from: Date, to: Date): number {
 /**
  * Generate the contiguous list of working days starting at `start` (rounded
  * forward) up to and including a date that is `count` working days later.
+ * Calendar exceptions in `nwd` are skipped in addition to weekends.
  */
-export function workingDayRange(start: Date, count: number): Date[] {
+export function workingDayRange(
+  start: Date,
+  count: number,
+  nwd?: Set<string>,
+): Date[] {
   const out: Date[] = [];
-  const cursor = nextBusinessDay(new Date(start.getTime()));
+  const cursor = nextBusinessDay(new Date(start.getTime()), nwd);
   while (out.length < count) {
     out.push(new Date(cursor.getTime()));
     cursor.setUTCDate(cursor.getUTCDate() + 1);
-    while (isWeekend(cursor)) cursor.setUTCDate(cursor.getUTCDate() + 1);
+    while (isNonWorkingDay(cursor, nwd)) cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
   return out;
+}
+
+/**
+ * Return true when the gap between `prev` and `curr` (both working days)
+ * contains at least one extra non-working day beyond a plain weekend.
+ *
+ * Normal gaps: 1 day (Mon-Fri consecutive), 3 days (Fri→Mon weekend).
+ * Any other gap, or a 3-day gap where `prev` is NOT a Friday, means a holiday.
+ */
+export function hasHolidayGap(prev: Date, curr: Date): boolean {
+  const gapDays =
+    (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
+  if (gapDays <= 1) return false;
+  if (gapDays === 3 && prev.getUTCDay() === 5) return false; // Fri→Mon weekend
+  return true;
 }

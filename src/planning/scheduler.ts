@@ -3,8 +3,13 @@
  * returns placements + bottlenecks. Reused by the HTTP "Generate suggestion"
  * route and the periodic refresh handler.
  *
- * Working calendar is hard-coded Monday–Friday (Mon-Fri). Holidays are out
- * of scope for v1; per-team calendars likewise.
+ * Working calendar is hard-coded Monday–Friday (Mon-Fri). Holidays and
+ * per-team calendars are managed by the calendar_exceptions subsystem
+ * (ADR 0044) but not yet wired into this scheduler (Phase 2).
+ *
+ * Calendar exceptions are integrated via `ScheduleInput.nonWorkingDates`
+ * (a pre-queried Set<string> of ISO dates). The caller pre-queries via
+ * buildNonWorkingDateSet(db, from, to, ctx) — keeps this function DB-free.
  *
  * Design choices:
  *   - All dates are ISO YYYY-MM-DD strings. We work in UTC-naive day numbers
@@ -56,6 +61,9 @@ export interface ScheduleInput {
   teams: ScheduleTeam[];
   deadlines: ScheduleDeadline[];
   tags: ScheduleTag[];
+  /** Pre-queried non-working dates (holidays + calendar exceptions). When
+   *  provided, these dates are treated as non-working in addition to weekends. */
+  nonWorkingDates?: Set<string>;
 }
 
 export interface SchedulePlacement {
@@ -109,27 +117,33 @@ function isWeekend(d: Date): boolean {
   return dow === 0 || dow === 6;
 }
 
+function isNonWorkingDay(d: Date, nwd?: Set<string>): boolean {
+  if (nwd?.has(formatDate(d))) return true;
+  return isWeekend(d);
+}
+
 /**
- * Round forward to the next working day if `d` falls on a weekend.
- * Returns a new Date — does not mutate.
+ * Round forward to the next working day if `d` falls on a weekend or is in
+ * `nwd`. Returns a new Date — does not mutate.
  */
-export function nextBusinessDay(d: Date): Date {
+export function nextBusinessDay(d: Date, nwd?: Set<string>): Date {
   const out = new Date(d.getTime());
-  while (isWeekend(out)) out.setUTCDate(out.getUTCDate() + 1);
+  while (isNonWorkingDay(out, nwd)) out.setUTCDate(out.getUTCDate() + 1);
   return out;
 }
 
 /**
  * Add `n` working days to `d`. n=0 returns the same day (after rounding to
- * a working day). n=1 returns the next working day. Used to compute end =
- * start + (durationDays - 1).
+ * a working day). n=1 returns the next working day. `nwd` extends the
+ * non-working set beyond weekends (calendar exceptions). Used to compute
+ * end = start + (durationDays - 1).
  */
-export function addBusinessDays(d: Date, n: number): Date {
-  let out = nextBusinessDay(d);
+export function addBusinessDays(d: Date, n: number, nwd?: Set<string>): Date {
+  let out = nextBusinessDay(d, nwd);
   let remaining = n;
   while (remaining > 0) {
     out.setUTCDate(out.getUTCDate() + 1);
-    if (!isWeekend(out)) remaining -= 1;
+    if (!isNonWorkingDay(out, nwd)) remaining -= 1;
   }
   return out;
 }
@@ -160,17 +174,18 @@ function findTeamSlot(
   earliest: Date,
   durationDays: number,
   maxParallel: number,
+  nwd?: Set<string>,
 ): { start: Date; end: Date } {
-  let candidateStart = nextBusinessDay(earliest);
+  let candidateStart = nextBusinessDay(earliest, nwd);
   while (true) {
-    const candidateEnd = addBusinessDays(candidateStart, durationDays - 1);
-    if (overlapWithinCap(intervals, candidateStart, candidateEnd, maxParallel)) {
+    const candidateEnd = addBusinessDays(candidateStart, durationDays - 1, nwd);
+    if (overlapWithinCap(intervals, candidateStart, candidateEnd, maxParallel, nwd)) {
       return { start: candidateStart, end: candidateEnd };
     }
     // Advance one working day and try again.
     let next = new Date(candidateStart.getTime());
     next.setUTCDate(next.getUTCDate() + 1);
-    candidateStart = nextBusinessDay(next);
+    candidateStart = nextBusinessDay(next, nwd);
   }
 }
 
@@ -179,11 +194,12 @@ function overlapWithinCap(
   start: Date,
   end: Date,
   cap: number,
+  nwd?: Set<string>,
 ): boolean {
   // Walk every working day in [start, end] and count overlapping intervals.
   const cursor = new Date(start.getTime());
   while (cursor.getTime() <= end.getTime()) {
-    if (!isWeekend(cursor)) {
+    if (!isNonWorkingDay(cursor, nwd)) {
       let count = 0;
       for (const iv of intervals) {
         if (cursor.getTime() >= iv.start.getTime() && cursor.getTime() <= iv.end.getTime())
@@ -251,6 +267,7 @@ function topologicalSort(wishes: ScheduleWish[]): TopoResult {
 // ── Main entry ─────────────────────────────────────────────────────────────
 
 export function computeSchedule(input: ScheduleInput): ScheduleOutput {
+  const nwd = input.nonWorkingDates;
   const projectStart = parseDate(input.startDate);
 
   const wishById = new Map<number, ScheduleWish>();
@@ -347,7 +364,7 @@ export function computeSchedule(input: ScheduleInput): ScheduleOutput {
     for (const e of depEnds) {
       const next = new Date(e.getTime());
       next.setUTCDate(next.getUTCDate() + 1);
-      const nb = nextBusinessDay(next);
+      const nb = nextBusinessDay(next, nwd);
       if (nb.getTime() > earliest.getTime()) earliest = nb;
     }
 
@@ -367,7 +384,7 @@ export function computeSchedule(input: ScheduleInput): ScheduleOutput {
     }
     const cap = team ? team.maxParallel : 99999; // null team = unlimited
     const intervals = getIntervals(wish.teamId);
-    const slot = findTeamSlot(intervals, earliest, wish.durationDays, cap);
+    const slot = findTeamSlot(intervals, earliest, wish.durationDays, cap, nwd);
     reserveInterval(intervals, slot.start, slot.end);
     placements.set(wish.id, slot);
 

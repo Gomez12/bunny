@@ -261,6 +261,13 @@ export interface DiaryConfig {
   whisperTimeoutMs: number;
 }
 
+export interface CalendarConfig {
+  /** ISO 3166-1 alpha-2 country code used as the global default when fetching
+   *  national public holidays. Individual projects may override this via
+   *  `projects.holiday_country_code`. */
+  countryCode: string;
+}
+
 export interface PlanningConfig {
   /** Cron expression for the planning suggestion-refresh handler. */
   suggestionRefreshCron: string;
@@ -298,6 +305,7 @@ export interface BunnyConfig {
   scripts: ScriptsConfig;
   diary: DiaryConfig;
   planning: PlanningConfig;
+  calendar: CalendarConfig;
   sessionId: string | undefined;
 }
 
@@ -418,6 +426,9 @@ interface TomlShape {
     report_snapshot_cron: string;
     report_snapshot_enabled: boolean;
     max_reports_per_project: number;
+  }>;
+  calendar?: Partial<{
+    country_code: string;
   }>;
 }
 
@@ -563,6 +574,9 @@ When you are done, reply with your final answer without making any more tool cal
     reportSnapshotCron: "0 8 * * 1",
     reportSnapshotEnabled: true,
     maxReportsPerProject: 50,
+  },
+  calendar: {
+    countryCode: "NL",
   },
 } as const;
 
@@ -947,6 +961,13 @@ export function loadConfig(
     ),
   };
 
+  const calendar: CalendarConfig = {
+    countryCode:
+      env["BUNNY_CALENDAR_COUNTRY_CODE"] ??
+      toml.calendar?.country_code ??
+      DEFAULTS.calendar.countryCode,
+  };
+
   return {
     llm,
     embed,
@@ -966,6 +987,7 @@ export function loadConfig(
     scripts,
     diary,
     planning,
+    calendar,
     sessionId: env["BUNNY_SESSION"],
   };
 }
