@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, Menu, shell, session, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, MenuItem, shell, session, ipcMain } = require('electron');
 const { readFileSync, writeFileSync, mkdirSync } = require('node:fs');
 const { join } = require('node:path');
 
@@ -195,30 +195,37 @@ function createWindow() {
     return { action: 'deny' }; // Never open a second BrowserWindow.
   });
 
-  // Inject a floating reload button so dev changes can be picked up without
-  // needing the keyboard shortcut or right-click menu.
-  win.webContents.on('did-finish-load', () => {
-    win.webContents.executeJavaScript(`
-      (function () {
-        if (document.getElementById('__electron-reload-btn__')) return;
-        const btn = document.createElement('button');
-        btn.id = '__electron-reload-btn__';
-        btn.title = 'Reload';
-        btn.textContent = '↺';
-        Object.assign(btn.style, {
-          position: 'fixed', top: '8px', right: '8px', zIndex: '2147483647',
-          width: '30px', height: '30px', borderRadius: '50%', border: 'none',
-          background: 'rgba(0,0,0,0.18)', color: '#fff', fontSize: '17px',
-          cursor: 'pointer', opacity: '0.55', transition: 'opacity 0.15s',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          lineHeight: '1', padding: '0',
-        });
-        btn.addEventListener('mouseenter', () => { btn.style.opacity = '1'; });
-        btn.addEventListener('mouseleave', () => { btn.style.opacity = '0.55'; });
-        btn.addEventListener('click', () => { location.reload(); });
-        document.body.appendChild(btn);
-      })();
-    `).catch(() => {});
+  // Right-click context menu.
+  win.webContents.on('context-menu', (_event, params) => {
+    const { editFlags, selectionText, isEditable, pageURL } = params;
+    const items = [];
+
+    if (win.webContents.canGoBack()) {
+      items.push(new MenuItem({ label: 'Back', click: () => win.webContents.goBack() }));
+      items.push(new MenuItem({ type: 'separator' }));
+    }
+
+    items.push(new MenuItem({ label: 'Reload', click: () => win.webContents.reload() }));
+
+    const externalUrl = params.linkURL || pageURL;
+    if (externalUrl && !externalUrl.startsWith('file:') && !externalUrl.startsWith('about:')) {
+      items.push(new MenuItem({
+        label: 'Open in Browser',
+        click: () => shell.openExternal(externalUrl),
+      }));
+    }
+
+    const hasText = selectionText.length > 0;
+    if (isEditable || hasText) {
+      items.push(new MenuItem({ type: 'separator' }));
+      if (isEditable) items.push(new MenuItem({ label: 'Cut', role: 'cut', enabled: editFlags.canCut }));
+      items.push(new MenuItem({ label: 'Copy', role: 'copy', enabled: editFlags.canCopy && hasText }));
+      if (isEditable) items.push(new MenuItem({ label: 'Paste', role: 'paste', enabled: editFlags.canPaste }));
+    }
+
+    if (items.length > 0) {
+      Menu.buildFromTemplate(items).popup({ window: win });
+    }
   });
 }
 
