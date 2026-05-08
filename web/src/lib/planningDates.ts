@@ -94,6 +94,39 @@ export function workingDayRange(
   return out;
 }
 
+/** Descriptor for a single day in the Gantt all-calendar-day timeline. */
+export interface DayInfo {
+  date: Date;
+  iso: string;
+  isWorkingDay: boolean;
+}
+
+/**
+ * Generate an array covering ALL calendar days from `start` through the date
+ * that is `workingDayCount` working days after `start` (inclusive). Non-working
+ * days (weekends + `nwd` exceptions) are included in the array but flagged with
+ * `isWorkingDay: false`. This is the Gantt all-calendar timeline.
+ */
+export function calendarDayRange(
+  start: Date,
+  workingDayCount: number,
+  nwd?: Set<string>,
+): DayInfo[] {
+  if (workingDayCount <= 0) return [];
+  // The range ends on the workingDayCount-th working day from start (inclusive).
+  const firstWorkingDay = nextBusinessDay(start, nwd);
+  const lastWorkingDay = addBusinessDays(firstWorkingDay, workingDayCount - 1, nwd);
+  const out: DayInfo[] = [];
+  const cursor = new Date(start.getTime());
+  while (cursor.getTime() <= lastWorkingDay.getTime()) {
+    const date = new Date(cursor.getTime());
+    const iso = formatISODate(date);
+    out.push({ date, iso, isWorkingDay: !isNonWorkingDay(date, nwd) });
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return out;
+}
+
 /**
  * Return true when the gap between `prev` and `curr` (both working days)
  * contains at least one extra non-working day beyond a plain weekend.

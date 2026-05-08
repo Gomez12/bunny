@@ -9979,11 +9979,11 @@ button {
   border-right: 1px solid var(--border);
 }
 
-/* First working day after a holiday gap — orange left border + warm tint */
-.planning-gantt__day--post-holiday {
-  border-left: 3px solid #f97316;
-  background: color-mix(in srgb, #f97316 10%, transparent);
-  color: var(--text-dim);
+/* Non-working day column header (weekend or holiday) */
+.planning-gantt__day--nonworking {
+  color: var(--text-faint);
+  background: color-mix(in srgb, var(--border) 30%, transparent);
+  opacity: 0.7;
 }
 .planning-gantt__row {
   display: flex;
@@ -10019,6 +10019,9 @@ button {
   position: absolute;
   top: 0;
   border-right: 1px dashed var(--border);
+}
+.planning-gantt__lane-cell--nonworking {
+  background: color-mix(in srgb, var(--border) 25%, transparent);
 }
 .planning-gantt__bar {
   position: absolute;

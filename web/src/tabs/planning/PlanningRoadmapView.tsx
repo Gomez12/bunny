@@ -29,10 +29,12 @@ import {
 import {
   addBusinessDays,
   businessDaysBetween,
+  calendarDayRange,
+  type DayInfo,
   formatISODate,
-  hasHolidayGap,
+  nextBusinessDay,
   parseISODate,
-  workingDayRange,
+  prevBusinessDay,
 } from "../../lib/planningDates";
 import PlanningSuggestionPanel from "./PlanningSuggestionPanel";
 import PlanningWishForm from "./PlanningWishForm";
@@ -72,8 +74,9 @@ const TIMELINE_BUFFER_DAYS = 14; // calendar days padding on each side of derive
 const MIN_TIMELINE_DAYS = 60; // working-day floor — small projects still get a roomy axis
 
 interface BarLayout {
-  startIdx: number;
-  durationDays: number;
+  startIdx: number;   // calendar-day index of planned start
+  endIdx: number;     // calendar-day index of planned end
+  durationDays: number; // working days (for label + resize delta computation)
 }
 
 export default function PlanningRoadmapView({
@@ -222,22 +225,22 @@ export default function PlanningRoadmapView({
     maxDate.setUTCDate(maxDate.getUTCDate() + TIMELINE_BUFFER_DAYS);
 
     const start = parseISODate(formatISODate(minDate));
-    // Working days between start and maxDate, with a floor.
+    // Working-day count between start and maxDate, with a floor.
     const span = businessDaysBetween(start, maxDate, nonWorkingDates);
     const count = Math.max(span, MIN_TIMELINE_DAYS);
+    // calendarDayRange returns ALL days (Mon–Sun) so weekends are visible.
     return {
       timelineStart: start,
-      days: workingDayRange(start, count, nonWorkingDates),
+      days: calendarDayRange(start, count, nonWorkingDates),
     };
   }, [planningProject.startDate, deadlines, wishes, nonWorkingDates]);
 
   const dayKeyToIdx = useMemo(() => {
     const m = new Map<string, number>();
-    days.forEach((d, i) => m.set(formatISODate(d), i));
+    days.forEach((d, i) => m.set(d.iso, i));
     return m;
   }, [days]);
-  const timelineLastIso =
-    days.length > 0 ? formatISODate(days[days.length - 1]!) : "";
+  const timelineLastIso = days.length > 0 ? days[days.length - 1]!.iso : "";
 
   // Group wishes by team for row dispatch.
   const teamRows: Array<{ id: number; name: string; team: PlanningTeam | null }> =
@@ -263,13 +266,22 @@ export default function PlanningRoadmapView({
     (wish: PlanningWish): BarLayout | null => {
       if (!wish.plannedStartDate) return null;
       const startDate = parseISODate(wish.plannedStartDate);
-      const startIdx = dayKeyToIdx.get(formatISODate(startDate)) ?? -1;
+      const startIdx = dayKeyToIdx.get(wish.plannedStartDate) ?? -1;
       if (startIdx < 0) {
         // Out of timeline — clamp left.
         const before = businessDaysBetween(startDate, timelineStart);
         if (before > 0) return null;
       }
-      return { startIdx: Math.max(0, startIdx), durationDays: wish.durationDays };
+      // End index: prefer stored plannedEndDate, fallback to startIdx (1-day bar).
+      const endIdx =
+        wish.plannedEndDate && dayKeyToIdx.has(wish.plannedEndDate)
+          ? dayKeyToIdx.get(wish.plannedEndDate)!
+          : startIdx + wish.durationDays - 1; // rough fallback
+      return {
+        startIdx: Math.max(0, startIdx),
+        endIdx: Math.max(Math.max(0, startIdx), endIdx),
+        durationDays: wish.durationDays,
+      };
     },
     [dayKeyToIdx, timelineStart],
   );
@@ -384,13 +396,17 @@ export default function PlanningRoadmapView({
         : drag.initialTeamId;
     const newIdx = Math.max(0, drag.initialIdx + deltaDays);
     if (newIdx >= days.length) return; // dropped past visible window — ignore
-    const newStart = days[newIdx];
-    if (!newStart) return;
-    const newStartIso = formatISODate(newStart);
+    const rawDay = days[newIdx];
+    if (!rawDay) return;
+    // Snap to next working day when dropping on a weekend/holiday.
+    const snappedStart = nextBusinessDay(rawDay.date, nonWorkingDates);
+    const snappedIdx = dayKeyToIdx.get(formatISODate(snappedStart)) ?? newIdx;
+    const newStartIso = formatISODate(snappedStart);
     const newEndIso = formatISODate(
-      addBusinessDays(newStart, wish.durationDays - 1),
+      addBusinessDays(snappedStart, wish.durationDays - 1, nonWorkingDates),
     );
-    const startChanged = newIdx !== drag.initialIdx;
+    // Use snapped index to detect whether start actually changed.
+    const startChanged = snappedIdx !== drag.initialIdx;
     const teamChanged = targetTeamId !== drag.initialTeamId;
     if (!startChanged && !teamChanged) return;
 
@@ -475,9 +491,20 @@ export default function PlanningRoadmapView({
     if (!r) return;
     (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
     const dx = e.clientX - r.startX;
-    const deltaDays = Math.round(dx / dayWidthPx);
-    if (deltaDays === 0) return;
-    const newDuration = Math.max(1, Math.min(9999, r.initialDuration + deltaDays));
+    const calDelta = Math.round(dx / dayWidthPx);
+    if (calDelta === 0) return;
+    // Convert calendar-day delta to working-day duration.
+    const layout = wishLayout(wish);
+    if (!layout || !wish.plannedStartDate) return;
+    const rawEndIdx = Math.max(layout.startIdx, layout.endIdx + calDelta);
+    const rawEndDate = days[Math.min(rawEndIdx, days.length - 1)]?.date;
+    if (!rawEndDate) return;
+    const snappedEnd = prevBusinessDay(rawEndDate, nonWorkingDates);
+    const startDate = parseISODate(wish.plannedStartDate);
+    const newDuration = Math.max(
+      1,
+      businessDaysBetween(startDate, snappedEnd, nonWorkingDates) + 1,
+    );
     if (newDuration === r.initialDuration) return;
     if (confirmEnabled) {
       setConfirmResize({ wish, newDuration });
@@ -491,7 +518,7 @@ export default function PlanningRoadmapView({
     try {
       const newEnd = wish.plannedStartDate
         ? formatISODate(
-            addBusinessDays(parseISODate(wish.plannedStartDate), newDuration - 1),
+            addBusinessDays(parseISODate(wish.plannedStartDate), newDuration - 1, nonWorkingDates),
           )
         : undefined;
       await patchPlanningWish(wish.id, {
@@ -508,9 +535,10 @@ export default function PlanningRoadmapView({
   };
 
   const handleScheduleAtStart = async (wish: PlanningWish) => {
-    const startIso = formatISODate(timelineStart);
+    const snappedStart = nextBusinessDay(timelineStart, nonWorkingDates);
+    const startIso = formatISODate(snappedStart);
     const endIso = formatISODate(
-      addBusinessDays(timelineStart, wish.durationDays - 1),
+      addBusinessDays(snappedStart, wish.durationDays - 1, nonWorkingDates),
     );
     try {
       await patchPlanningWish(wish.id, {
@@ -542,7 +570,7 @@ export default function PlanningRoadmapView({
     let currentWeek: { idx: number; span: number; label: string } | null = null;
     for (let i = 0; i < days.length; i++) {
       const d = days[i]!;
-      const isoYearWeek = isoWeek(d);
+      const isoYearWeek = isoWeek(d.date);
       if (!currentWeek || currentWeek.label !== isoYearWeek) {
         if (currentWeek) headers.push(currentWeek);
         currentWeek = { idx: i, span: 1, label: isoYearWeek };
@@ -572,21 +600,26 @@ export default function PlanningRoadmapView({
     () => {
       const dur = planningProject.sprintDurationDays;
       if (!dur || dur <= 0) return [];
-      const startIso =
-        planningProject.startDate ?? formatISODate(timelineStart);
-      let projectStartIdx = dayKeyToIdx.get(startIso);
-      if (projectStartIdx === undefined) {
-        // Project start lies before the buffer — pin to 0.
-        projectStartIdx = 0;
-      }
+      const startIso = planningProject.startDate ?? formatISODate(timelineStart);
+      const startDate = parseISODate(startIso);
       const result: { idx: number; spanDays: number; label: string }[] = [];
       let n = 1;
-      let cursor = projectStartIdx;
-      while (cursor < days.length) {
-        const span = Math.min(dur, days.length - cursor);
-        result.push({ idx: cursor, spanDays: span, label: `S${n}` });
+      let sprintStart = nextBusinessDay(startDate, nonWorkingDates);
+      while (true) {
+        const sprintStartIdx = dayKeyToIdx.get(formatISODate(sprintStart));
+        if (sprintStartIdx === undefined || sprintStartIdx >= days.length) break;
+        const sprintEnd = addBusinessDays(sprintStart, dur - 1, nonWorkingDates);
+        const sprintEndIdx = dayKeyToIdx.get(formatISODate(sprintEnd));
+        const span =
+          sprintEndIdx !== undefined
+            ? sprintEndIdx - sprintStartIdx + 1
+            : days.length - sprintStartIdx;
+        result.push({ idx: sprintStartIdx, spanDays: span, label: `S${n}` });
         n += 1;
-        cursor += dur;
+        sprintStart = nextBusinessDay(
+          addBusinessDays(sprintEnd, 1, nonWorkingDates),
+          nonWorkingDates,
+        );
       }
       return result;
     },
@@ -595,7 +628,8 @@ export default function PlanningRoadmapView({
       planningProject.startDate,
       timelineStart,
       dayKeyToIdx,
-      days.length,
+      days,
+      nonWorkingDates,
     ],
   );
 
@@ -746,25 +780,16 @@ export default function PlanningRoadmapView({
             className="planning-gantt__row-label"
             style={{ width: HEADER_ROW_LABEL_WIDTH }}
           />
-          {days.map((d, i) => {
-            const prevDay = days[i - 1];
-            const isPostHoliday =
-              prevDay != null && hasHolidayGap(prevDay, d);
-            return (
-              <div
-                key={i}
-                className={`planning-gantt__day${isPostHoliday ? " planning-gantt__day--post-holiday" : ""}`}
-                style={{ width: dayWidthPx }}
-                title={
-                  isPostHoliday
-                    ? `Holiday / non-working day(s) before ${formatISODate(d)}`
-                    : undefined
-                }
-              >
-                {d.getUTCDate()}
-              </div>
-            );
-          })}
+          {days.map((d, i) => (
+            <div
+              key={i}
+              className={`planning-gantt__day${d.isWorkingDay ? "" : " planning-gantt__day--nonworking"}`}
+              style={{ width: dayWidthPx }}
+              title={d.isWorkingDay ? undefined : d.iso}
+            >
+              {d.date.getUTCDate()}
+            </div>
+          ))}
         </div>
         {/* Body rows */}
         {teamRows.map((row) => {
@@ -779,11 +804,11 @@ export default function PlanningRoadmapView({
             const layout = wishLayout(w);
             if (!layout) continue;
             const lo = Math.max(0, layout.startIdx);
-            const hi = Math.min(
-              days.length - 1,
-              layout.startIdx + layout.durationDays - 1,
-            );
-            for (let i = lo; i <= hi; i++) overload[i]! += 1;
+            const hi = Math.min(days.length - 1, layout.endIdx);
+            // Only count working days toward capacity overload.
+            for (let i = lo; i <= hi; i++) {
+              if (days[i]?.isWorkingDay) overload[i]! += 1;
+            }
           }
           // Build contiguous spans of conflict (overload[i] > cap).
           const conflictSpans: Array<{ start: number; end: number }> = [];
@@ -807,7 +832,7 @@ export default function PlanningRoadmapView({
               const layout = wishLayout(w);
               if (!layout) continue;
               const wLo = layout.startIdx;
-              const wHi = layout.startIdx + layout.durationDays - 1;
+              const wHi = layout.endIdx;
               for (const cs of conflictSpans) {
                 if (wLo <= cs.end && wHi >= cs.start) {
                   conflictWishIds.add(w.id);
@@ -857,11 +882,11 @@ export default function PlanningRoadmapView({
                   height: ROW_HEIGHT_PX,
                 }}
               >
-                {/* Day grid background */}
-                {days.map((_, i) => (
+                {/* Day grid background — non-working columns get a gray tint */}
+                {days.map((d, i) => (
                   <div
                     key={i}
-                    className="planning-gantt__lane-cell"
+                    className={`planning-gantt__lane-cell${d.isWorkingDay ? "" : " planning-gantt__lane-cell--nonworking"}`}
                     style={{
                       left: i * dayWidthPx,
                       width: dayWidthPx,
@@ -915,12 +940,18 @@ export default function PlanningRoadmapView({
                   const drag = dragDelta?.wishId === wish.id ? dragDelta : null;
                   const resize =
                     resizeDelta?.wishId === wish.id ? resizeDelta : null;
+                  // Bar start: shift by drag.deltaDays calendar columns.
                   const idx = drag
                     ? Math.max(0, layout.startIdx + drag.deltaDays)
                     : layout.startIdx;
-                  const previewDuration = resize
-                    ? Math.max(1, layout.durationDays + resize.deltaDays)
-                    : layout.durationDays;
+                  // Bar end: shift endIdx by calendar-day resize delta.
+                  const previewEndIdx = resize
+                    ? Math.max(idx, layout.endIdx + resize.deltaDays)
+                    : layout.endIdx;
+                  const barWidthPx = Math.max(
+                    dayWidthPx - 4,
+                    (previewEndIdx - idx + 1) * dayWidthPx - 4,
+                  );
                   const dragYPx = drag ? drag.deltaRows * ROW_HEIGHT_PX : 0;
                   const isConflict = conflictWishIds.has(wish.id);
                   return (
@@ -929,12 +960,12 @@ export default function PlanningRoadmapView({
                       className={`planning-gantt__bar ${drag ? "planning-gantt__bar--dragging" : ""} ${isConflict ? "planning-gantt__bar--conflict" : ""}`}
                       style={{
                         left: idx * dayWidthPx + 2,
-                        width: previewDuration * dayWidthPx - 4,
+                        width: barWidthPx,
                         background: row.team?.color ?? undefined,
                         transform: dragYPx ? `translateY(${dragYPx}px)` : undefined,
                         zIndex: drag || resize ? 5 : undefined,
                       }}
-                      title={`${wish.jiraKey ? `[${wish.jiraKey}] ` : ""}${wish.title} (${previewDuration}d${resize ? " — drag right edge to resize" : ""}${isConflict ? " — overlaps another wish on this team" : ""}) — double-click to edit`}
+                      title={`${wish.jiraKey ? `[${wish.jiraKey}] ` : ""}${wish.title} (${layout.durationDays}d${resize ? " — drag right edge to resize" : ""}${isConflict ? " — overlaps another wish on this team" : ""}) — double-click to edit`}
                       onPointerDown={(e) => onBarPointerDown(e, wish, layout)}
                       onPointerMove={onBarPointerMove}
                       onPointerUp={(e) => onBarPointerUp(e, wish)}
@@ -954,7 +985,7 @@ export default function PlanningRoadmapView({
                           </span>
                         )}
                         {wish.title}
-                        {resize && resize.deltaDays !== 0 ? ` (${previewDuration}d)` : ""}
+                        {resize && resize.deltaDays !== 0 ? ` (${layout.durationDays}d)` : ""}
                       </span>
                       <div
                         className="planning-gantt__bar-handle"
