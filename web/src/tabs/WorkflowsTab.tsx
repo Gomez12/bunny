@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AuthUser } from "../api";
+import { useProjectUiPrefs } from "../hooks/useProjectUiPrefs";
 import {
   createWorkflow,
   deleteWorkflow,
@@ -33,8 +34,10 @@ interactive = true
 
 export default function WorkflowsTab({ project, currentUser }: Props) {
   const storageKey = `${ACTIVE_KEY_PREFIX}${project}`;
+  const { prefs, setPref } = useProjectUiPrefs(project);
   const [items, setItems] = useState<WorkflowDto[] | null>(null);
   const [activeId, setActiveId] = useState<number | null>(() => {
+    if (prefs.activeWorkflowId != null) return prefs.activeWorkflowId;
     const raw = localStorage.getItem(storageKey);
     const n = raw ? Number(raw) : NaN;
     return Number.isFinite(n) ? n : null;
@@ -51,6 +54,7 @@ export default function WorkflowsTab({ project, currentUser }: Props) {
       if (activeId != null && !rows.some((r) => r.id === activeId)) {
         setActiveId(null);
         localStorage.removeItem(storageKey);
+        setPref("activeWorkflowId", undefined);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -66,8 +70,9 @@ export default function WorkflowsTab({ project, currentUser }: Props) {
     (id: number) => {
       setActiveId(id);
       localStorage.setItem(storageKey, String(id));
+      setPref("activeWorkflowId", id);
     },
-    [storageKey],
+    [storageKey, setPref],
   );
 
   const onCreate = useCallback(async () => {
@@ -100,6 +105,7 @@ export default function WorkflowsTab({ project, currentUser }: Props) {
       if (activeId === id) {
         setActiveId(null);
         localStorage.removeItem(storageKey);
+        setPref("activeWorkflowId", undefined);
       }
       await reload();
     } catch (e) {

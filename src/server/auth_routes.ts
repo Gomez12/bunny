@@ -48,6 +48,7 @@ function publicUser(u: User) {
     expandThinkBubbles: u.expandThinkBubbles,
     expandToolBubbles: u.expandToolBubbles,
     preferredLanguage: u.preferredLanguage,
+    uiPrefs: u.uiPrefs,
     soul: u.soul,
     soulStatus: u.soulStatus,
     soulError: u.soulError,

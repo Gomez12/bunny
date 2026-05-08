@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useProjectUiPrefs } from "../hooks/useProjectUiPrefs";
+import { useUiPrefs } from "../hooks/useUiPrefs";
 import {
   createNewsTopic,
   deleteNewsTopic,
@@ -90,22 +92,39 @@ function readStoredTemplate(): TemplateId {
 }
 
 export default function WebNewsTab({ project, currentUser }: Props) {
+  const { prefs: projectPrefs, setPref: setProjectPref } = useProjectUiPrefs(project);
+  const { prefs: globalPrefs, setPref: setGlobalPref } = useUiPrefs();
+
   const [topics, setTopics] = useState<NewsTopic[]>([]);
   const [items, setItems] = useState<NewsItem[]>([]);
-  const [template, setTemplateRaw] = useState<TemplateId>(readStoredTemplate);
+  const [template, setTemplateRaw] = useState<TemplateId>(() =>
+    globalPrefs.newsTemplate ?? readStoredTemplate(),
+  );
   const [dialog, setDialog] = useState<DialogState>({ kind: "closed" });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [confirmDeleteTopic, setConfirmDeleteTopic] = useState<NewsTopic | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [hiddenTopicIds, setHiddenTopicIds] = useState<Set<number>>(
-    () => loadHiddenTopics(project, currentUser.id),
+    () => new Set(projectPrefs.hiddenTopicIds ?? loadHiddenTopics(project, currentUser.id)),
   );
 
-  // Reset hidden topics when project changes
+  // Reset hidden topics when project changes.
   useEffect(() => {
-    setHiddenTopicIds(loadHiddenTopics(project, currentUser.id));
-  }, [project, currentUser.id]);
+    const fromServer = projectPrefs.hiddenTopicIds;
+    setHiddenTopicIds(
+      fromServer != null
+        ? new Set(fromServer)
+        : loadHiddenTopics(project, currentUser.id),
+    );
+  }, [project, currentUser.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Adopt server-preferred news template once it arrives.
+  useEffect(() => {
+    if (globalPrefs.newsTemplate) {
+      setTemplateRaw(globalPrefs.newsTemplate);
+    }
+  }, [globalPrefs.newsTemplate]);
 
   const toggleTopicVisibility = (topicId: number) => {
     setHiddenTopicIds((prev) => {
@@ -116,6 +135,7 @@ export default function WebNewsTab({ project, currentUser }: Props) {
         next.add(topicId);
       }
       saveHiddenTopics(project, currentUser.id, next);
+      setProjectPref("hiddenTopicIds", [...next]);
       return next;
     });
   };
@@ -125,6 +145,7 @@ export default function WebNewsTab({ project, currentUser }: Props) {
   const setTemplate = (t: TemplateId) => {
     localStorage.setItem(TEMPLATE_STORAGE_KEY, t);
     setTemplateRaw(t);
+    setGlobalPref("newsTemplate", t);
   };
 
   const refresh = useCallback(async () => {

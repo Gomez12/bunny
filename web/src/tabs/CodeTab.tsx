@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AuthUser, CodeProject } from "../api";
+import { useProjectUiPrefs } from "../hooks/useProjectUiPrefs";
 import {
   createCodeProject,
   deleteCodeProject,
@@ -48,11 +49,13 @@ interface Props {
  * dialogs, and dispatches to the selected feature view in the main pane.
  */
 export default function CodeTab({ project, currentUser }: Props) {
+  const { prefs, synced: prefsSynced, setPref } = useProjectUiPrefs(project);
+
   const [items, setItems] = useState<CodeProject[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [activeCodeProjectId, setActiveIdRaw] = useState<number | null>(() =>
-    resolveStoredProjectId(project),
+    prefs.activeCodeProjectId ?? resolveStoredProjectId(project),
   );
   const [activeFeature, setActiveFeatureRaw] = useState<CodeFeatureId>(
     resolveStoredFeature,
@@ -69,9 +72,19 @@ export default function CodeTab({ project, currentUser }: Props) {
         localStorage.removeItem(CODE_PROJECT_STORAGE_KEY(project));
       else localStorage.setItem(CODE_PROJECT_STORAGE_KEY(project), String(id));
       setActiveIdRaw(id);
+      if (id != null) setPref("activeCodeProjectId", id);
     },
-    [project],
+    [project, setPref],
   );
+
+  // Adopt server-preferred code project once server prefs arrive.
+  useEffect(() => {
+    if (!prefsSynced || prefs.activeCodeProjectId == null) return;
+    if (prefs.activeCodeProjectId !== activeCodeProjectId) {
+      setActiveIdRaw(prefs.activeCodeProjectId);
+    }
+    // Only run once when synced flips to true.
+  }, [prefsSynced]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setActiveFeature = useCallback((f: CodeFeatureId) => {
     localStorage.setItem(CODE_FEATURE_STORAGE_KEY, f);

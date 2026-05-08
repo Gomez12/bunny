@@ -72,6 +72,7 @@ import { handleNotificationRoute } from "./notification_routes.ts";
 import { handleTrashRoute } from "./trash_routes.ts";
 import { handlePromptRoute } from "./prompt_routes.ts";
 import { handleMemoryRoute } from "./memory_routes.ts";
+import { handleUiPrefsRoute } from "./ui_prefs_routes.ts";
 import {
   handleTelegramPublicRoute,
   handleTelegramRoute,
@@ -349,6 +350,15 @@ export async function handleApi(
     user,
   );
   if (memoryResponse) return memoryResponse;
+
+  // ── UI preferences (per-user global + per-project) ────────────────────────
+  const uiPrefsResponse = await handleUiPrefsRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue },
+    user,
+  );
+  if (uiPrefsResponse) return uiPrefsResponse;
 
   // ── UI config (public subset of bunny.config.toml) ────────────────────────
   if (pathname === "/api/config/ui" && req.method === "GET") {

@@ -512,6 +512,20 @@ export function streamChat(
 
 export type UserRole = "admin" | "user";
 
+export interface GlobalUiPrefs {
+  theme?: "light" | "dark";
+  activeProject?: string;
+  activeTab?: string;
+  newsTemplate?: "list" | "newspaper";
+}
+
+export interface ProjectUiPrefs {
+  activeCodeProjectId?: number;
+  activeDiagramId?: number;
+  activeWorkflowId?: number;
+  hiddenTopicIds?: number[];
+}
+
 export interface AuthUser {
   id: string;
   username: string;
@@ -522,6 +536,8 @@ export interface AuthUser {
   expandThinkBubbles: boolean;
   expandToolBubbles: boolean;
   preferredLanguage: string | null;
+  /** Cross-device UI preferences (theme, last active project/tab, etc.). */
+  uiPrefs?: GlobalUiPrefs;
   /** Auto-curated personality + style. Populated since the soul subsystem (ADR 0034). */
   soul?: string;
   soulStatus?: "idle" | "refreshing" | "error";
@@ -634,6 +650,43 @@ export async function updateOwnProfile(patch: {
     body: JSON.stringify(patch),
   });
   return user;
+}
+
+export async function fetchGlobalUiPrefs(): Promise<GlobalUiPrefs> {
+  const { prefs } = await jsonFetch<{ prefs: GlobalUiPrefs }>(
+    "/api/users/me/ui-prefs",
+  );
+  return prefs;
+}
+
+export async function updateGlobalUiPrefs(
+  patch: Partial<GlobalUiPrefs>,
+): Promise<GlobalUiPrefs> {
+  const { prefs } = await jsonFetch<{ prefs: GlobalUiPrefs }>(
+    "/api/users/me/ui-prefs",
+    { method: "PUT", body: JSON.stringify(patch) },
+  );
+  return prefs;
+}
+
+export async function fetchProjectUiPrefs(
+  project: string,
+): Promise<ProjectUiPrefs> {
+  const { prefs } = await jsonFetch<{ prefs: ProjectUiPrefs }>(
+    `/api/projects/${encodeURIComponent(project)}/ui-prefs/me`,
+  );
+  return prefs;
+}
+
+export async function updateProjectUiPrefs(
+  project: string,
+  patch: Partial<ProjectUiPrefs>,
+): Promise<ProjectUiPrefs> {
+  const { prefs } = await jsonFetch<{ prefs: ProjectUiPrefs }>(
+    `/api/projects/${encodeURIComponent(project)}/ui-prefs/me`,
+    { method: "PUT", body: JSON.stringify(patch) },
+  );
+  return prefs;
 }
 
 export async function fetchOwnSoul(): Promise<SoulInfo> {

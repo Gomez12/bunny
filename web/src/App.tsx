@@ -1,13 +1,16 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import {
   createSession,
   fetchMeInfo,
   logout,
   setSessionQuickChat,
+  updateGlobalUiPrefs,
   type AuthUser,
+  type GlobalUiPrefs,
   type OpenInChatPayload,
   type Theme,
 } from "./api";
+import { useUiPrefs } from "./hooks/useUiPrefs";
 import { DefaultAgentProvider } from "./contexts/DefaultAgentContext";
 import {
   loadActiveAgent,
@@ -156,10 +159,16 @@ export default function App() {
   const [user, setUser] = useState<AuthUser | null | undefined>(undefined);
   const [defaultAgent, setDefaultAgent] = useState<string>("bunny");
   const [theme, setThemeRaw] = useState<Theme>(resolveStoredTheme);
+  const themeSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const setTheme = (t: Theme) => {
     localStorage.setItem(THEME_STORAGE_KEY, t);
     applyTheme(t);
     setThemeRaw(t);
+    // Debounce sync to server so rapid toggles don't spam the API.
+    if (themeSyncTimer.current) clearTimeout(themeSyncTimer.current);
+    themeSyncTimer.current = setTimeout(() => {
+      void updateGlobalUiPrefs({ theme: t });
+    }, 500);
   };
 
   useEffect(() => {
@@ -183,6 +192,13 @@ export default function App() {
       }
       setUser(me.user);
       setDefaultAgent(me.defaultAgent || "bunny");
+      // Reconcile theme: server wins over stale localStorage (after first login).
+      const serverTheme = me.user.uiPrefs?.theme;
+      if (serverTheme && serverTheme !== localStorage.getItem(THEME_STORAGE_KEY)) {
+        applyTheme(serverTheme);
+        localStorage.setItem(THEME_STORAGE_KEY, serverTheme);
+        setThemeRaw(serverTheme);
+      }
     });
   }, []);
 
@@ -204,6 +220,7 @@ export default function App() {
         theme={theme}
         setTheme={setTheme}
         defaultAgent={defaultAgent}
+        initialUiPrefs={user.uiPrefs}
       />
     </DefaultAgentProvider>
   );
@@ -215,6 +232,7 @@ interface ShellProps {
   theme: Theme;
   setTheme: (t: Theme) => void;
   defaultAgent: string;
+  initialUiPrefs?: GlobalUiPrefs;
 }
 
 function AuthenticatedShell({
@@ -223,8 +241,17 @@ function AuthenticatedShell({
   theme,
   setTheme,
   defaultAgent,
+  initialUiPrefs,
 }: ShellProps) {
-  const [tab, setTabRaw] = useState<Tab>(resolveStoredTab);
+  // Server is the source of truth for cross-device prefs. The hook initialises
+  // from localStorage immediately (no flash), then merges in server values.
+  const { prefs: globalPrefs, setPref: setGlobalPref } = useUiPrefs(initialUiPrefs);
+
+  const [tab, setTabRaw] = useState<Tab>(() => {
+    const fromServer = globalPrefs.activeTab;
+    if (fromServer && VALID_TABS.has(fromServer)) return fromServer as Tab;
+    return resolveStoredTab();
+  });
   const [initialWorkspaceSub] = useState<"projects" | "agents" | "skills">(
     () => {
       const stored = localStorage.getItem(TAB_STORAGE_KEY);
@@ -234,12 +261,16 @@ function AuthenticatedShell({
   const setTab = useCallback((t: Tab) => {
     localStorage.setItem(TAB_STORAGE_KEY, t);
     setTabRaw(t);
-  }, []);
+    setGlobalPref("activeTab", t);
+  }, [setGlobalPref]);
   const [sessionId, setSessionId] = useState<string | null>(() =>
     localStorage.getItem(SESSION_STORAGE_KEY),
   );
   const [activeProject, setActiveProject] = useState<string>(
-    () => localStorage.getItem(PROJECT_STORAGE_KEY) || DEFAULT_PROJECT,
+    () =>
+      globalPrefs.activeProject ||
+      localStorage.getItem(PROJECT_STORAGE_KEY) ||
+      DEFAULT_PROJECT,
   );
   const [activeAgent, setActiveAgentRaw] = useState<string>(() =>
     sessionId ? loadActiveAgent(sessionId, defaultAgent) : defaultAgent,
@@ -291,8 +322,10 @@ function AuthenticatedShell({
 
   useEffect(() => {
     if (pendingDeepLink) {
-      if (pendingDeepLink.project)
+      if (pendingDeepLink.project) {
         setActiveProject(adoptProject(pendingDeepLink.project));
+        setGlobalPref("activeProject", pendingDeepLink.project);
+      }
       if (pendingDeepLink.session)
         setSessionId(adoptSession(pendingDeepLink.session));
       if (pendingDeepLink.tab) setTab(pendingDeepLink.tab);
@@ -324,7 +357,10 @@ function AuthenticatedShell({
       const nextProject = u.searchParams.get("project");
       const nextSession = u.searchParams.get("session");
       const nextTab = u.searchParams.get("tab");
-      if (nextProject) setActiveProject(adoptProject(nextProject));
+      if (nextProject) {
+        setActiveProject(adoptProject(nextProject));
+        setGlobalPref("activeProject", nextProject);
+      }
       if (nextSession) setSessionId(adoptSession(nextSession));
       if (nextTab && VALID_TABS.has(nextTab)) setTab(nextTab as Tab);
     },
@@ -374,6 +410,7 @@ function AuthenticatedShell({
 
   const onPickProject = async (name: string) => {
     setActiveProject(adoptProject(name));
+    setGlobalPref("activeProject", name);
     try {
       setSessionId(adoptSession(await createSession()));
     } catch {

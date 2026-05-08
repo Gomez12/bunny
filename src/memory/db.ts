@@ -346,6 +346,24 @@ function migrateColumns(db: Database): void {
   );
   db.run("CREATE INDEX IF NOT EXISTS idx_events_user ON events(user_id, ts)");
 
+  // Per-user UI preferences (global + per-project).
+  addColumn(
+    "ALTER TABLE users ADD COLUMN ui_prefs TEXT NOT NULL DEFAULT '{}'",
+  );
+  db.run(
+    `CREATE TABLE IF NOT EXISTS user_project_prefs (
+       user_id    TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+       project    TEXT    NOT NULL REFERENCES projects(name) ON DELETE CASCADE,
+       prefs_json TEXT    NOT NULL DEFAULT '{}',
+       updated_at INTEGER NOT NULL,
+       PRIMARY KEY (user_id, project)
+     )`,
+  );
+  db.run(
+    `CREATE INDEX IF NOT EXISTS idx_user_project_prefs_user
+       ON user_project_prefs(user_id)`,
+  );
+
   db.run("PRAGMA optimize");
 
   // Auto-seed the 'general' project so every install has a default workspace.

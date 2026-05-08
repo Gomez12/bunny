@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useProjectUiPrefs } from "../hooks/useProjectUiPrefs";
 import EmptyState from "../components/EmptyState";
 import DiagramCanvas, { type DiagramCanvasRef, type DiagramContent } from "./diagrams/DiagramCanvas";
 import DiagramNodeLibrary from "./diagrams/DiagramNodeLibrary";
@@ -39,6 +40,7 @@ function emptyContent(): DiagramContent {
 }
 
 export default function DiagramsTab({ project, currentUser, onOpenInChat }: Props) {
+  const { prefs, setPref } = useProjectUiPrefs(project);
   const [diagrams, setDiagrams] = useState<DiagramSummary[]>([]);
   const [activeDiagram, setActiveDiagram] = useState<DiagramFull | null>(null);
   const [libraryItems, setLibraryItems] = useState<DiagramLibraryItem[]>([]);
@@ -129,6 +131,7 @@ export default function DiagramsTab({ project, currentUser, onOpenInChat }: Prop
       setDirty(false);
       const stored = localStorage.getItem(`bunny.activeDiagram.${project}`);
       if (String(id) !== stored) localStorage.setItem(`bunny.activeDiagram.${project}`, String(id));
+      setPref("activeDiagramId", id);
     } catch (e) {
       setError(String(e));
     }
@@ -276,14 +279,19 @@ export default function DiagramsTab({ project, currentUser, onOpenInChat }: Prop
     setLibraryItems((prev) => [...prev, item]);
   };
 
-  // Restore last active diagram on mount
+  // Restore last active diagram on mount — prefer server pref, fall back to localStorage.
   useEffect(() => {
+    const serverId = prefs.activeDiagramId;
+    if (serverId) {
+      void handleSelect(serverId);
+      return;
+    }
     const stored = localStorage.getItem(`bunny.activeDiagram.${project}`);
     if (stored) {
       const id = Number(stored);
       if (!isNaN(id)) void handleSelect(id);
     }
-  }, [project]);
+  }, [project]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!activeDiagram) {
     return (

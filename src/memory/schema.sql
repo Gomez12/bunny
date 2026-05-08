@@ -136,6 +136,7 @@ CREATE TABLE IF NOT EXISTS users (
   expand_think_bubbles INTEGER NOT NULL DEFAULT 0,
   expand_tool_bubbles  INTEGER NOT NULL DEFAULT 0,
   preferred_language   TEXT,                          -- ISO 639-1; null = inherit project default
+  ui_prefs       TEXT    NOT NULL DEFAULT '{}',        -- JSON: { theme?, activeProject?, activeTab?, newsTemplate? }
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
 );
@@ -177,6 +178,19 @@ CREATE TABLE IF NOT EXISTS session_visibility (
   PRIMARY KEY (user_id, session_id)
 );
 CREATE INDEX IF NOT EXISTS idx_session_visibility_session ON session_visibility(session_id);
+
+-- ── Per-(user, project) UI preferences ───────────────────────────────────────
+-- Cross-device UI state scoped to a (user, project) pair. Written via debounced
+-- PUT from the frontend; server is source of truth.
+-- Shape: { activeCodeProjectId?, activeDiagramId?, activeWorkflowId?, hiddenTopicIds?: number[] }
+CREATE TABLE IF NOT EXISTS user_project_prefs (
+  user_id     TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  project     TEXT    NOT NULL REFERENCES projects(name) ON DELETE CASCADE,
+  prefs_json  TEXT    NOT NULL DEFAULT '{}',
+  updated_at  INTEGER NOT NULL,
+  PRIMARY KEY (user_id, project)
+);
+CREATE INDEX IF NOT EXISTS idx_user_project_prefs_user ON user_project_prefs(user_id);
 
 -- ── Boards ───────────────────────────────────────────────────────────────────
 -- Trello-style kanban per project: configurable swimlanes (columns) with cards

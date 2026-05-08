@@ -5,6 +5,7 @@
 import type { Database } from "bun:sqlite";
 import { hashPassword } from "./password.ts";
 import { MEMORY_FIELD_CHAR_LIMIT } from "../memory/memory_constants.ts";
+import { type GlobalUiPrefs, parseGlobalUiPrefs } from "../memory/ui_prefs.ts";
 
 export type UserRole = "admin" | "user";
 
@@ -21,6 +22,8 @@ export interface User {
   expandThinkBubbles: boolean;
   expandToolBubbles: boolean;
   preferredLanguage: string | null;
+  /** Cross-device UI preferences (theme, last active project/tab, etc.). */
+  uiPrefs?: GlobalUiPrefs;
   /**
    * Free-text personality + style + demographics. Auto-curated hourly; max
    * 4 000 chars. Optional in the type only — `rowToUser` always populates it
@@ -48,6 +51,7 @@ interface UserRow {
   expand_think_bubbles: number;
   expand_tool_bubbles: number;
   preferred_language: string | null;
+  ui_prefs: string | null;
   soul: string | null;
   soul_status: string | null;
   soul_error: string | null;
@@ -92,6 +96,7 @@ function rowToUser(r: UserRow): User {
     expandThinkBubbles: r.expand_think_bubbles === 1,
     expandToolBubbles: r.expand_tool_bubbles === 1,
     preferredLanguage: r.preferred_language,
+    uiPrefs: parseGlobalUiPrefs(r.ui_prefs ?? "{}"),
     soul: r.soul ?? "",
     soulStatus: normaliseSoulStatus(r.soul_status),
     soulError: r.soul_error ?? null,
@@ -144,6 +149,7 @@ export async function createUser(
     expandThinkBubbles: false,
     expandToolBubbles: false,
     preferredLanguage: null,
+    uiPrefs: {},
     soul: "",
     soulStatus: "idle",
     soulError: null,
