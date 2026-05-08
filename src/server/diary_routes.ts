@@ -118,7 +118,12 @@ export async function handleDiaryRoute(
         topic: "diary",
         kind: "create",
         userId: user.id,
-        data: { id: entry.id, project },
+        data: {
+          id: entry.id,
+          project,
+          title: entry.title || null,
+          language: entry.language,
+        },
       });
       return json({ entry: entryToDto(entry) }, 201);
     }
@@ -162,7 +167,15 @@ export async function handleDiaryRoute(
       topic: "diary",
       kind: "update",
       userId: user.id,
-      data: { id, project: entry.project },
+      data: {
+        id,
+        project: entry.project,
+        changes: {
+          ...(body.title !== undefined ? { title: body.title } : {}),
+          ...(body.language !== undefined ? { language: body.language } : {}),
+        },
+        transcriptionStatus: entry.transcriptionStatus,
+      },
     });
     return json({ entry: entryToDto(updated!) });
   }
@@ -177,7 +190,14 @@ export async function handleDiaryRoute(
       topic: "diary",
       kind: "delete",
       userId: user.id,
-      data: { id, project: entry.project },
+      data: {
+        id,
+        project: entry.project,
+        title: entry.title || null,
+        transcriptionStatus: entry.transcriptionStatus,
+        hadAudio: !!entry.audioPath,
+        hadTranscription: !!entry.transcription,
+      },
     });
     return json({ ok: true });
   }
@@ -227,7 +247,14 @@ export async function handleDiaryRoute(
       topic: "diary",
       kind: "audio.upload",
       userId: user.id,
-      data: { id, project: entry.project, sizeB: buffer.byteLength },
+      data: {
+        id,
+        project: entry.project,
+        sizeB: buffer.byteLength,
+        durationS: Number.isFinite(parsedDuration) ? parsedDuration : null,
+        language: entry.language,
+        relPath,
+      },
     });
 
     return json({ entry: entryToDto(updated!) }, 201);
@@ -295,6 +322,22 @@ export async function handleDiaryRoute(
       return json({ error: "transcription already in progress" }, 409);
     }
 
+    void ctx.queue.log({
+      topic: "diary",
+      kind: "transcribe.start",
+      userId: user.id,
+      data: {
+        id,
+        project: entry.project,
+        language: entry.language || whisperLanguage,
+        audioPath: entry.audioPath,
+        audioSizeB: entry.audioSizeB,
+        audioDurationS: entry.audioDurationS,
+        whisperCppPath,
+        whisperModelPath,
+      },
+    });
+
     let wavAbs: string;
     try {
       ({ abs: wavAbs } = safeWorkspacePath(entry.project, entry.audioPath));
@@ -312,6 +355,7 @@ export async function handleDiaryRoute(
 
         const abortCtrl = new AbortController();
         let timedOut = false;
+        const startMs = Date.now();
         const timer = setTimeout(() => {
           timedOut = true;
           abortCtrl.abort();
@@ -362,10 +406,12 @@ export async function handleDiaryRoute(
           }
 
           const exitCode = proc.exitCode;
+          const stderr = new TextDecoder()
+            .decode(Buffer.concat(stderrChunks))
+            .trim();
+          const elapsedMs = Date.now() - startMs;
+
           if (exitCode !== 0) {
-            const stderr = new TextDecoder()
-              .decode(Buffer.concat(stderrChunks))
-              .trim();
             throw new Error(
               `whisper.cpp exited with code ${exitCode}${stderr ? `: ${stderr}` : ""}`,
             );
@@ -386,9 +432,21 @@ export async function handleDiaryRoute(
             topic: "diary",
             kind: "transcribe.done",
             userId: user.id,
-            data: { id, project: entry.project, chars: raw.length },
+            data: {
+              id,
+              project: entry.project,
+              language,
+              chars: raw.length,
+              elapsedMs,
+              exitCode,
+              transcriptionPreview: raw.length > 0 ? raw.slice(0, 500) : null,
+              stdoutBytes: Buffer.concat(stdoutChunks).byteLength,
+              stderrBytes: stderr.length,
+              stderrTail: stderr.length > 0 ? stderr.slice(-500) : null,
+            },
           });
         } catch (e) {
+          const elapsedMs = Date.now() - startMs;
           clearTimeout(timer);
           const msg = timedOut
             ? `whisper.cpp timed out after ${Math.round(whisperTimeoutMs / 1000)}s`
@@ -403,7 +461,17 @@ export async function handleDiaryRoute(
             topic: "diary",
             kind: "transcribe.error",
             userId: user.id,
-            data: { id, project: entry.project, error: msg },
+            data: {
+              id,
+              project: entry.project,
+              language,
+              timedOut,
+              elapsedMs,
+              exitCode: proc?.exitCode ?? null,
+              error: msg,
+              audioSizeB: entry.audioSizeB,
+              audioDurationS: entry.audioDurationS,
+            },
           });
         } finally {
           finishSse(sink);
