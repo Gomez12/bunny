@@ -346,6 +346,11 @@ function migrateColumns(db: Database): void {
   );
   db.run("CREATE INDEX IF NOT EXISTS idx_events_user ON events(user_id, ts)");
 
+  // ── Diary: LLM correction + auto-generated title ─────────────────────────
+  addColumn("ALTER TABLE diary_entries ADD COLUMN raw_transcription TEXT");
+  addColumn(
+    "ALTER TABLE diary_entries ADD COLUMN correction_status TEXT NOT NULL DEFAULT 'idle'",
+  );
   // Per-user UI preferences (global + per-project).
   addColumn(
     "ALTER TABLE users ADD COLUMN ui_prefs TEXT NOT NULL DEFAULT '{}'",

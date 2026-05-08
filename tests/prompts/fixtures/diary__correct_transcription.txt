@@ -1,0 +1,8 @@
+Fix obvious spelling and grammar mistakes in the following voice transcription. Rules:
+- Keep the exact same language as the input text; do not translate.
+- Preserve the content, tone, and meaning exactly — only fix clear errors.
+- Do not add, remove, or rephrase ideas; only correct spelling and grammar.
+- Return only the corrected text, no explanation, no preamble.
+
+Transcription:
+{{rawTranscription}}

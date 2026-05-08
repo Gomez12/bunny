@@ -11,6 +11,7 @@ registerTrashable({
 });
 
 export type TranscriptionStatus = "idle" | "transcribing" | "done" | "error";
+export type CorrectionStatus = "idle" | "correcting" | "done" | "error";
 
 export interface DiaryEntry {
   id: number;
@@ -22,9 +23,11 @@ export interface DiaryEntry {
   audioSizeB: number | null;
   language: string;
   transcription: string | null;
+  rawTranscription: string | null;
   transcriptionStatus: TranscriptionStatus;
   transcriptionError: string | null;
   transcribedAt: number | null;
+  correctionStatus: CorrectionStatus;
   createdAt: number;
   updatedAt: number;
 }
@@ -39,9 +42,11 @@ interface DiaryRow {
   audio_size_b: number | null;
   language: string;
   transcription: string | null;
+  raw_transcription: string | null;
   transcription_status: string;
   transcription_error: string | null;
   transcribed_at: number | null;
+  correction_status: string;
   created_at: number;
   updated_at: number;
 }
@@ -57,9 +62,11 @@ function rowToEntry(row: DiaryRow): DiaryEntry {
     audioSizeB: row.audio_size_b,
     language: row.language,
     transcription: row.transcription,
+    rawTranscription: row.raw_transcription ?? null,
     transcriptionStatus: row.transcription_status as TranscriptionStatus,
     transcriptionError: row.transcription_error,
     transcribedAt: row.transcribed_at,
+    correctionStatus: (row.correction_status ?? "idle") as CorrectionStatus,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -173,12 +180,42 @@ export function setTranscriptionDone(
   id: number,
   text: string,
 ): void {
+  const now = Date.now();
   db.prepare(
     `UPDATE diary_entries
-     SET transcription = ?, transcription_status = 'done',
-         transcription_error = NULL, transcribed_at = ?, updated_at = ?
+     SET transcription = ?, raw_transcription = ?,
+         transcription_status = 'done', transcription_error = NULL,
+         transcribed_at = ?, correction_status = 'idle', updated_at = ?
      WHERE id = ?`,
-  ).run(text, Date.now(), Date.now(), id);
+  ).run(text, text, now, now, id);
+}
+
+export function setCorrecting(db: Database, id: number): void {
+  db.prepare(
+    `UPDATE diary_entries
+     SET correction_status = 'correcting', updated_at = ?
+     WHERE id = ?`,
+  ).run(Date.now(), id);
+}
+
+export function setCorrectionDone(
+  db: Database,
+  id: number,
+  correctedText: string,
+): void {
+  db.prepare(
+    `UPDATE diary_entries
+     SET transcription = ?, correction_status = 'done', updated_at = ?
+     WHERE id = ?`,
+  ).run(correctedText, Date.now(), id);
+}
+
+export function setCorrectionError(db: Database, id: number): void {
+  db.prepare(
+    `UPDATE diary_entries
+     SET correction_status = 'error', updated_at = ?
+     WHERE id = ?`,
+  ).run(Date.now(), id);
 }
 
 export function setTranscriptionError(

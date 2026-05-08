@@ -1126,6 +1126,36 @@ No other text before or after the JSON block.
     defaultText: SCRIPTS_CHAT_DEFAULT,
     variables: ["scriptName", "scriptLanguage", "scriptContent", "codeProjectName"],
   },
+  "diary.correct_transcription": {
+    key: "diary.correct_transcription",
+    scope: "projectOverridable",
+    description:
+      "Prompt used to correct spelling and grammar in a raw whisper.cpp transcription. Keep the same language as the input. Returns only the corrected text.",
+    defaultText: `Fix obvious spelling and grammar mistakes in the following voice transcription. Rules:
+- Keep the exact same language as the input text; do not translate.
+- Preserve the content, tone, and meaning exactly — only fix clear errors.
+- Do not add, remove, or rephrase ideas; only correct spelling and grammar.
+- Return only the corrected text, no explanation, no preamble.
+
+Transcription:
+{{rawTranscription}}`,
+    variables: ["rawTranscription"],
+  },
+  "diary.generate_title": {
+    key: "diary.generate_title",
+    scope: "projectOverridable",
+    description:
+      "Prompt used to generate a short title for a diary entry based on its text. Returns a single short title in the same language as the text.",
+    defaultText: `Generate a short, descriptive title for the following diary entry. Rules:
+- Use the same language as the entry text.
+- Maximum 6 words.
+- No punctuation at the end.
+- Return only the title, nothing else.
+
+Entry:
+{{transcription}}`,
+    variables: ["transcription"],
+  },
 };
 
 /**
@@ -1168,7 +1198,9 @@ export type PromptKey =
   | "scripts.chat"
   | "diagram.generate"
   | "diagram.edit"
-  | "diagram.node.generate";
+  | "diagram.node.generate"
+  | "diary.correct_transcription"
+  | "diary.generate_title";
 
 /** All registered prompt keys, in declaration order. */
 export const PROMPT_KEYS: PromptKey[] = Object.keys(PROMPTS) as PromptKey[];

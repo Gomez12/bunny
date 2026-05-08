@@ -14,9 +14,11 @@ interface DiaryEntry {
   audioSizeB: number | null;
   language: string;
   transcription: string | null;
+  rawTranscription: string | null;
   transcriptionStatus: string;
   transcriptionError: string | null;
   transcribedAt: number | null;
+  correctionStatus: string;
   createdAt: number;
   updatedAt: number;
 }

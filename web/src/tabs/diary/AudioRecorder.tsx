@@ -8,12 +8,19 @@ export type RecordingState =
   | "processing"
   | "uploading"
   | "transcribing"
+  | "correcting"
   | "done"
   | "error";
 
+export interface TranscriptionResult {
+  transcription: string;
+  rawTranscription?: string;
+  generatedTitle?: string;
+}
+
 interface Props {
   entryId: number;
-  onDone: (transcription: string) => void;
+  onDone: (result: TranscriptionResult) => void;
   onError: (msg: string) => void;
 }
 
@@ -27,6 +34,7 @@ const STATUS_LABEL: Record<string, string> = {
   processing: "Converting…",
   uploading: "Uploading…",
   transcribing: "Transcribing…",
+  correcting: "Correcting…",
 };
 
 export default function AudioRecorder({ entryId, onDone, onError }: Props) {
@@ -151,6 +159,7 @@ export default function AudioRecorder({ entryId, onDone, onError }: Props) {
 
       const dec = new TextDecoder();
       let buf = "";
+      let result: TranscriptionResult = { transcription: "" };
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -163,21 +172,39 @@ export default function AudioRecorder({ entryId, onDone, onError }: Props) {
             const ev = JSON.parse(line.slice(6)) as {
               type: string;
               transcription?: string;
+              rawTranscription?: string;
+              title?: string;
               error?: string;
             };
             if (ev.type === "diary_transcription_done") {
-              setState("done");
-              onDone(ev.transcription ?? "");
-              return;
+              result = {
+                transcription: ev.rawTranscription ?? "",
+                rawTranscription: ev.rawTranscription,
+              };
+              setState("correcting");
+            }
+            if (ev.type === "diary_correction_done") {
+              result = {
+                ...result,
+                transcription: ev.transcription ?? result.transcription,
+              };
+            }
+            if (ev.type === "diary_title_generated" && ev.title) {
+              result = { ...result, generatedTitle: ev.title };
             }
             if (ev.type === "diary_transcription_error") {
               throw new Error(ev.error ?? "transcription failed");
             }
-          } catch {
+          } catch (parseErr) {
+            if (parseErr instanceof Error && parseErr.message.includes("transcription failed")) {
+              throw parseErr;
+            }
             // skip malformed event lines
           }
         }
       }
+      setState("done");
+      onDone(result);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unknown error";
       setErrorMsg(msg);
@@ -243,7 +270,8 @@ export default function AudioRecorder({ entryId, onDone, onError }: Props) {
 
       {(state === "processing" ||
         state === "uploading" ||
-        state === "transcribing") && (
+        state === "transcribing" ||
+        state === "correcting") && (
         <div className="audio-recorder__busy">
           <Loader2 size={18} className="spin" />
           <span>{STATUS_LABEL[state]}</span>

@@ -26,6 +26,9 @@ import {
   deleteDiaryEntry,
   getDiaryEntry,
   listDiaryEntries,
+  setCorrecting,
+  setCorrectionDone,
+  setCorrectionError,
   setTranscribing,
   setTranscriptionDone,
   setTranscriptionError,
@@ -41,6 +44,8 @@ import {
   finishSse,
   type SseSink,
 } from "../agent/render_sse.ts";
+import { chatSync } from "../llm/adapter.ts";
+import { resolvePrompt, interpolate } from "../prompts/resolve.ts";
 
 export interface DiaryRouteCtx {
   db: Database;
@@ -71,9 +76,11 @@ function entryToDto(entry: DiaryEntry) {
     audioSizeB: entry.audioSizeB,
     language: entry.language,
     transcription: entry.transcription,
+    rawTranscription: entry.rawTranscription,
     transcriptionStatus: entry.transcriptionStatus,
     transcriptionError: entry.transcriptionError,
     transcribedAt: entry.transcribedAt,
+    correctionStatus: entry.correctionStatus,
     createdAt: entry.createdAt,
     updatedAt: entry.updatedAt,
   };
@@ -425,7 +432,7 @@ export async function handleDiaryRoute(
           sendSse(sink, {
             type: "diary_transcription_done",
             entryId: id,
-            transcription: raw,
+            rawTranscription: raw,
           });
 
           void ctx.queue.log({
@@ -445,6 +452,89 @@ export async function handleDiaryRoute(
               stderrTail: stderr.length > 0 ? stderr.slice(-500) : null,
             },
           });
+
+          // ── LLM correction phase ──────────────────────────────────────────
+          let corrected = raw;
+          if (raw.length > 0) {
+            setCorrecting(ctx.db, id);
+            sendSse(sink, { type: "diary_correction_started", entryId: id });
+            try {
+              const correctionPrompt = interpolate(
+                resolvePrompt("diary.correct_transcription", {
+                  project: entry.project,
+                }),
+                { rawTranscription: raw },
+              );
+              const correctionRes = await chatSync(ctx.cfg.llm, {
+                model: ctx.cfg.llm.model,
+                messages: [{ role: "user", content: correctionPrompt }],
+              });
+              corrected = (correctionRes.message.content ?? raw).trim();
+              if (corrected.length === 0) corrected = raw;
+              setCorrectionDone(ctx.db, id, corrected);
+              sendSse(sink, {
+                type: "diary_correction_done",
+                entryId: id,
+                transcription: corrected,
+              });
+              void ctx.queue.log({
+                topic: "diary",
+                kind: "correction.done",
+                userId: user.id,
+                data: { id, project: entry.project, chars: corrected.length },
+              });
+            } catch (corrErr) {
+              setCorrectionError(ctx.db, id);
+              sendSse(sink, {
+                type: "diary_correction_error",
+                entryId: id,
+                error: errorMessage(corrErr),
+              });
+              void ctx.queue.log({
+                topic: "diary",
+                kind: "correction.error",
+                userId: user.id,
+                data: {
+                  id,
+                  project: entry.project,
+                  error: errorMessage(corrErr),
+                },
+              });
+            }
+          }
+
+          // ── Auto-title generation (only when title is empty) ─────────────
+          if (!entry.title.trim() && corrected.length > 0) {
+            try {
+              const titlePrompt = interpolate(
+                resolvePrompt("diary.generate_title", {
+                  project: entry.project,
+                }),
+                { transcription: corrected.slice(0, 2000) },
+              );
+              const titleRes = await chatSync(ctx.cfg.llm, {
+                model: ctx.cfg.llm.model,
+                messages: [{ role: "user", content: titlePrompt }],
+              });
+              const generatedTitle = (titleRes.message.content ?? "").trim();
+              if (generatedTitle) {
+                updateDiaryEntry(ctx.db, id, { title: generatedTitle });
+                sendSse(sink, {
+                  type: "diary_title_generated",
+                  entryId: id,
+                  title: generatedTitle,
+                });
+                void ctx.queue.log({
+                  topic: "diary",
+                  kind: "title.generate.done",
+                  userId: user.id,
+                  data: { id, project: entry.project, title: generatedTitle },
+                });
+              }
+            } catch {
+              // Non-fatal — title stays empty, user can fill it in manually.
+            }
+          }
         } catch (e) {
           const elapsedMs = Date.now() - startMs;
           clearTimeout(timer);

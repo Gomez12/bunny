@@ -7,6 +7,9 @@ import {
   createDiaryEntry,
   getDiaryEntry,
   listDiaryEntries,
+  setCorrecting,
+  setCorrectionDone,
+  setCorrectionError,
   setTranscribing,
   setTranscriptionDone,
   setTranscriptionError,
@@ -140,5 +143,81 @@ describe("transcription status machine", () => {
 
     const reclaimed = setTranscribing(db, entry.id);
     expect(reclaimed).toBe(true);
+  });
+});
+
+describe("LLM correction status machine", () => {
+  test("setTranscriptionDone stores raw in both transcription and rawTranscription", async () => {
+    const userId = await setup();
+    const entry = createDiaryEntry(db, { project: "testproject", userId });
+    setTranscribing(db, entry.id);
+    setTranscriptionDone(db, entry.id, "hallo wreld dit is een test");
+
+    const done = getDiaryEntry(db, entry.id)!;
+    expect(done.transcription).toBe("hallo wreld dit is een test");
+    expect(done.rawTranscription).toBe("hallo wreld dit is een test");
+    expect(done.correctionStatus).toBe("idle");
+  });
+
+  test("setCorrectionDone replaces transcription but preserves rawTranscription", async () => {
+    const userId = await setup();
+    const entry = createDiaryEntry(db, { project: "testproject", userId });
+    setTranscribing(db, entry.id);
+    setTranscriptionDone(db, entry.id, "hallo wreld dit is een test");
+    setCorrecting(db, entry.id);
+    setCorrectionDone(db, entry.id, "Hallo wereld, dit is een test");
+
+    const corrected = getDiaryEntry(db, entry.id)!;
+    expect(corrected.transcription).toBe("Hallo wereld, dit is een test");
+    expect(corrected.rawTranscription).toBe("hallo wreld dit is een test");
+    expect(corrected.correctionStatus).toBe("done");
+  });
+
+  test("setCorrectionError keeps transcription as raw fallback", async () => {
+    const userId = await setup();
+    const entry = createDiaryEntry(db, { project: "testproject", userId });
+    setTranscribing(db, entry.id);
+    setTranscriptionDone(db, entry.id, "ruwe tekst");
+    setCorrecting(db, entry.id);
+    setCorrectionError(db, entry.id);
+
+    const errored = getDiaryEntry(db, entry.id)!;
+    expect(errored.transcription).toBe("ruwe tekst");
+    expect(errored.rawTranscription).toBe("ruwe tekst");
+    expect(errored.correctionStatus).toBe("error");
+  });
+
+  test("retranscribe resets correctionStatus to idle", async () => {
+    const userId = await setup();
+    const entry = createDiaryEntry(db, { project: "testproject", userId });
+    setTranscribing(db, entry.id);
+    setTranscriptionDone(db, entry.id, "eerste keer");
+    setCorrectionDone(db, entry.id, "eerste keer gecorrigeerd");
+
+    // Second transcription run
+    setTranscribing(db, entry.id);
+    setTranscriptionDone(db, entry.id, "tweede keer");
+
+    const refreshed = getDiaryEntry(db, entry.id)!;
+    expect(refreshed.rawTranscription).toBe("tweede keer");
+    expect(refreshed.correctionStatus).toBe("idle");
+  });
+
+  test("generated title updates title field, does not overwrite existing title", async () => {
+    const userId = await setup();
+    const withTitle = createDiaryEntry(db, {
+      project: "testproject",
+      userId,
+      title: "Handmatige titel",
+    });
+    const withoutTitle = createDiaryEntry(db, { project: "testproject", userId });
+
+    updateDiaryEntry(db, withoutTitle.id, { title: "Gegenereerde titel" });
+    const updated = getDiaryEntry(db, withoutTitle.id)!;
+    expect(updated.title).toBe("Gegenereerde titel");
+
+    // Existing title should be unchanged
+    const existing = getDiaryEntry(db, withTitle.id)!;
+    expect(existing.title).toBe("Handmatige titel");
   });
 });

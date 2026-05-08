@@ -12,9 +12,11 @@ interface DiaryEntry {
   audioSizeB: number | null;
   language: string;
   transcription: string | null;
+  rawTranscription: string | null;
   transcriptionStatus: string;
   transcriptionError: string | null;
   transcribedAt: number | null;
+  correctionStatus: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -77,12 +79,20 @@ export default function DiaryEntryView({ entry, onBack, onUpdate }: Props) {
     void patch({ language: v });
   }
 
-  function handleRecordingDone(transcription: string) {
+  function handleRecordingDone(result: {
+    transcription: string;
+    rawTranscription?: string;
+    generatedTitle?: string;
+  }) {
     const updated: DiaryEntry = {
       ...localEntry,
-      transcription,
+      transcription: result.transcription,
+      rawTranscription: result.rawTranscription ?? result.transcription,
+      correctionStatus: "done",
       transcriptionStatus: "done",
+      title: result.generatedTitle ?? localEntry.title,
     };
+    if (result.generatedTitle) setTitle(result.generatedTitle);
     setLocalEntry(updated);
     onUpdate(updated);
   }
@@ -115,21 +125,43 @@ export default function DiaryEntryView({ entry, onBack, onUpdate }: Props) {
             const ev = JSON.parse(line.slice(6)) as {
               type: string;
               transcription?: string;
+              rawTranscription?: string;
+              title?: string;
               error?: string;
             };
             if (ev.type === "diary_transcription_done") {
               setLocalEntry((prev) => ({
                 ...prev,
-                transcription: ev.transcription ?? "",
+                rawTranscription: ev.rawTranscription ?? "",
+                transcription: ev.rawTranscription ?? "",
                 transcriptionStatus: "done",
                 transcriptionError: null,
+                correctionStatus: "idle",
               }));
-              onUpdate({
-                ...localEntry,
-                transcription: ev.transcription ?? "",
-                transcriptionStatus: "done",
-                transcriptionError: null,
-              });
+            }
+            if (ev.type === "diary_correction_started") {
+              setLocalEntry((prev) => ({
+                ...prev,
+                correctionStatus: "correcting",
+              }));
+            }
+            if (ev.type === "diary_correction_done") {
+              setLocalEntry((prev) => ({
+                ...prev,
+                transcription: ev.transcription ?? prev.transcription,
+                correctionStatus: "done",
+              }));
+            }
+            if (ev.type === "diary_correction_error") {
+              setLocalEntry((prev) => ({
+                ...prev,
+                correctionStatus: "error",
+              }));
+            }
+            if (ev.type === "diary_title_generated" && ev.title) {
+              setTitle(ev.title);
+              setLocalEntry((prev) => ({ ...prev, title: ev.title! }));
+              onUpdate({ ...localEntry, title: ev.title });
             }
             if (ev.type === "diary_transcription_error") {
               setLocalEntry((prev) => ({
@@ -143,6 +175,11 @@ export default function DiaryEntryView({ entry, onBack, onUpdate }: Props) {
           }
         }
       }
+      // After stream ends, sync the parent with the final state.
+      setLocalEntry((prev) => {
+        onUpdate(prev);
+        return prev;
+      });
     } catch {
       // error shown via SSE
     } finally {
@@ -268,12 +305,35 @@ export default function DiaryEntryView({ entry, onBack, onUpdate }: Props) {
               </div>
             )}
 
-            {localEntry.transcriptionStatus === "done" &&
-              localEntry.transcription && (
-                <div className="diary-entry__transcription-text">
-                  {localEntry.transcription}
-                </div>
-              )}
+            {localEntry.transcriptionStatus === "done" && (
+              <>
+                {localEntry.correctionStatus === "correcting" && (
+                  <div className="diary-entry__transcription-busy">
+                    <Loader2 size={14} className="spin" />
+                    <span>Correcting…</span>
+                  </div>
+                )}
+
+                {localEntry.correctionStatus !== "correcting" &&
+                  localEntry.transcription && (
+                    <div className="diary-entry__transcription-text">
+                      {localEntry.transcription}
+                    </div>
+                  )}
+
+                {localEntry.rawTranscription &&
+                  localEntry.rawTranscription !== localEntry.transcription && (
+                    <details className="diary-entry__raw-transcription">
+                      <summary className="diary-entry__raw-summary">
+                        Raw transcription
+                      </summary>
+                      <div className="diary-entry__transcription-text diary-entry__transcription-text--raw">
+                        {localEntry.rawTranscription}
+                      </div>
+                    </details>
+                  )}
+              </>
+            )}
 
             {localEntry.transcriptionStatus === "error" && (
               <div className="diary-entry__transcription-error">

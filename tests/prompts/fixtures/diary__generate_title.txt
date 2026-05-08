@@ -1,0 +1,8 @@
+Generate a short, descriptive title for the following diary entry. Rules:
+- Use the same language as the entry text.
+- Maximum 6 words.
+- No punctuation at the end.
+- Return only the title, nothing else.
+
+Entry:
+{{transcription}}
