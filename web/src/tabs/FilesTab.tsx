@@ -20,6 +20,7 @@ const PROTECTED = new Set(["input", "output"]);
 
 import { formatSize } from "../lib/format";
 import EmptyState from "../components/EmptyState";
+import { Lock } from "../lib/icons";
 
 function formatTime(ms: number): string {
   return new Date(ms).toLocaleString();
@@ -238,7 +239,13 @@ export default function FilesTab({ project, currentUser }: Props) {
                         disabled={e.kind === "file"}
                       >
                         {e.kind === "dir" ? "📁" : "📄"} {e.name}
-                        {locked && <span title="protected" style={{ marginLeft: 4 }}>🔒</span>}
+                        {locked && (
+                          <Lock
+                            size={12}
+                            aria-label="protected"
+                            style={{ marginLeft: 4, verticalAlign: "middle" }}
+                          />
+                        )}
                       </button>
                     </td>
                     <td>{e.kind === "dir" ? "—" : formatSize(e.size)}</td>

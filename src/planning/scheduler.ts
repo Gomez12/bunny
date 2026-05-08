@@ -70,6 +70,7 @@ export interface SchedulePlacement {
   wishId: number;
   start: string;
   end: string;
+  reason: PlacementReason;
 }
 
 export type BottleneckKind =
@@ -82,6 +83,20 @@ export interface ScheduleBottleneck {
   wishId: number;
   kind: BottleneckKind;
   message: string;
+}
+
+export type PlacementReasonKind =
+  | "project_start"      // no deps or team constraint — placed at the project start date
+  | "dependency"         // dependency on other wish(es) or tag(s) pushed the start forward
+  | "team_capacity"      // team slot search had to skip forward past busy periods
+  | "dependency_and_team"; // both dependency and team capacity contributed
+
+export interface PlacementReason {
+  kind: PlacementReasonKind;
+  /** IDs of explicit wish dependencies that drove the earliest-start constraint. */
+  blockingWishIds: number[];
+  /** Tag names whose dependent wishes drove the earliest-start constraint. */
+  blockingTagNames: string[];
 }
 
 export interface ScheduleOutput {
@@ -294,7 +309,7 @@ export function computeSchedule(input: ScheduleInput): ScheduleOutput {
 
   const { order, cycleNodes } = topologicalSort(input.wishes);
 
-  const placements = new Map<number, { start: Date; end: Date }>();
+  const placements = new Map<number, { start: Date; end: Date; reason: PlacementReason }>();
   const bottlenecks: ScheduleBottleneck[] = [];
 
   for (const id of cycleNodes) {
@@ -324,6 +339,7 @@ export function computeSchedule(input: ScheduleInput): ScheduleOutput {
     // Collect dep end-dates: explicit wishes + tag-implied wishes.
     const depEnds: Date[] = [];
     let depMissing = false;
+    const explicitDepWishIds: number[] = [];
     for (const depId of wish.dependsOnWishes) {
       const dep = placements.get(depId);
       if (!dep) {
@@ -331,8 +347,10 @@ export function computeSchedule(input: ScheduleInput): ScheduleOutput {
         continue;
       }
       depEnds.push(dep.end);
+      explicitDepWishIds.push(depId);
     }
     let tagUnmet: string | null = null;
+    const depTagNames: string[] = [];
     for (const tagName of wish.dependsOnTags) {
       const tagWishes = tagNameToWishIds.get(tagName);
       if (!tagWishes || tagWishes.length === 0) {
@@ -340,6 +358,7 @@ export function computeSchedule(input: ScheduleInput): ScheduleOutput {
         continue;
       }
       let allPlaced = true;
+      let tagHasDep = false;
       for (const tWishId of tagWishes) {
         if (tWishId === wish.id) continue; // self-tag never blocks itself
         const tDep = placements.get(tWishId);
@@ -348,8 +367,10 @@ export function computeSchedule(input: ScheduleInput): ScheduleOutput {
           continue;
         }
         depEnds.push(tDep.end);
+        tagHasDep = true;
       }
       if (!allPlaced) tagUnmet = tagUnmet ?? tagName;
+      if (tagHasDep) depTagNames.push(tagName);
     }
     if (tagUnmet !== null) {
       bottlenecks.push({
@@ -386,7 +407,21 @@ export function computeSchedule(input: ScheduleInput): ScheduleOutput {
     const intervals = getIntervals(wish.teamId);
     const slot = findTeamSlot(intervals, earliest, wish.durationDays, cap, nwd);
     reserveInterval(intervals, slot.start, slot.end);
-    placements.set(wish.id, slot);
+
+    const depWasBinding = explicitDepWishIds.length > 0 || depTagNames.length > 0;
+    const teamWasBinding = slot.start.getTime() > earliest.getTime();
+    let reasonKind: PlacementReasonKind;
+    if (depWasBinding && teamWasBinding) reasonKind = "dependency_and_team";
+    else if (depWasBinding) reasonKind = "dependency";
+    else if (teamWasBinding) reasonKind = "team_capacity";
+    else reasonKind = "project_start";
+    const reason: PlacementReason = {
+      kind: reasonKind,
+      blockingWishIds: explicitDepWishIds,
+      blockingTagNames: depTagNames,
+    };
+
+    placements.set(wish.id, { start: slot.start, end: slot.end, reason });
 
     if (wish.deadlineId !== null) {
       const dl = deadlineById.get(wish.deadlineId);
@@ -417,6 +452,7 @@ export function computeSchedule(input: ScheduleInput): ScheduleOutput {
       wishId,
       start: formatDate(p.start),
       end: formatDate(p.end),
+      reason: p.reason,
     })),
     bottlenecks,
   };

@@ -343,7 +343,13 @@ export default function ChatTab({
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    if (stickToBottomRef.current) el.scrollTop = el.scrollHeight;
+    if (!stickToBottomRef.current) return;
+    // Coalesce rapid SSE-delta scroll writes into a single layout per frame.
+    const raf = requestAnimationFrame(() => {
+      if (!stickToBottomRef.current) return;
+      el.scrollTop = el.scrollHeight;
+    });
+    return () => cancelAnimationFrame(raf);
   }, [history, turns]);
 
   const isEmpty = !loadingHistory && history.length === 0 && turns.length === 0;

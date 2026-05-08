@@ -429,24 +429,35 @@ function openSseStream(
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buf = "";
-    while (true) {
-      const { value, done: streamDone } = await reader.read();
-      if (streamDone) break;
-      buf += decoder.decode(value, { stream: true });
-      let idx: number;
-      while ((idx = buf.indexOf("\n\n")) !== -1) {
-        const frame = buf.slice(0, idx);
-        buf = buf.slice(idx + 2);
-        for (const line of frame.split("\n")) {
-          if (!line.startsWith("data:")) continue;
-          const payload = line.slice(5).trim();
-          if (!payload) continue;
-          try {
-            onEvent(JSON.parse(payload) as ServerEvent);
-          } catch {
-            // skip malformed frames rather than killing the stream
+    try {
+      while (true) {
+        const { value, done: streamDone } = await reader.read();
+        if (streamDone) break;
+        buf += decoder.decode(value, { stream: true });
+        let idx: number;
+        while ((idx = buf.indexOf("\n\n")) !== -1) {
+          const frame = buf.slice(0, idx);
+          buf = buf.slice(idx + 2);
+          for (const line of frame.split("\n")) {
+            if (!line.startsWith("data:")) continue;
+            const payload = line.slice(5).trim();
+            if (!payload) continue;
+            try {
+              onEvent(JSON.parse(payload) as ServerEvent);
+            } catch {
+              // skip malformed frames rather than killing the stream
+            }
           }
         }
+      }
+    } finally {
+      // Cancel the reader on any exit path (abort, error, normal close) so the
+      // underlying connection releases promptly. Errors here are swallowed —
+      // the original error (if any) still propagates from the outer await.
+      try {
+        await reader.cancel();
+      } catch {
+        // already closed / aborted
       }
     }
   })();
@@ -3769,10 +3780,15 @@ export interface PlanningWish {
   updatedAt: number;
 }
 
+import type { PlacementReason, PlacementReasonKind } from "../../src/planning/scheduler";
+export type { PlacementReason, PlacementReasonKind };
+
 export interface PlanningSuggestionPlacement {
   wishId: number;
   start: string;
   end: string;
+  /** Why the scheduler placed this wish here. Absent on old suggestions — treat as "project_start". */
+  reason?: PlacementReason;
 }
 
 export type PlanningBottleneckKind =

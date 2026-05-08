@@ -158,6 +158,58 @@ describe("boardAutoRunHandler", () => {
     expect(after.autoRun).toBe(false);
   });
 
+  test("caps how many candidates are processed per tick", async () => {
+    const { userId } = await seedProjectWithAgent();
+    const lane = listSwimlanes(db, "demo").find((l) => l.name === "Todo")!;
+    updateSwimlane(db, lane.id, { autoRun: true });
+
+    // Seed 10 eligible cards. The handler is supposed to claim at most
+    // MAX_PER_TICK = 3 per invocation so a runaway lane can't fan out
+    // beyond the LLM gate's capacity.
+    const cards: number[] = [];
+    for (let i = 0; i < 10; i++) {
+      const c = createCard(db, {
+        project: "demo",
+        swimlaneId: lane.id,
+        title: `do ${i}`,
+        assigneeAgent: "A",
+        createdBy: userId,
+      });
+      cards.push(c.id);
+    }
+
+    await boardAutoRunHandler({
+      db,
+      queue,
+      cfg,
+      task: {
+        id: "sys-1",
+        kind: "system",
+        handler: "board.auto_run_scan",
+        name: "scan",
+        description: null,
+        cronExpr: "*/5 * * * *",
+        payload: null,
+        enabled: true,
+        ownerUserId: null,
+        lastRunAt: null,
+        lastStatus: null,
+        lastError: null,
+        nextRunAt: 0,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+      payload: null,
+      now: Date.now(),
+    }).catch(() => undefined);
+
+    // clearAutoRun is called for every candidate the handler tries to run, so
+    // counting still-flagged cards equals (total - processed_per_tick).
+    const stillFlagged = cards.filter((id) => getCard(db, id)?.autoRun).length;
+    expect(stillFlagged).toBeGreaterThanOrEqual(7);
+    expect(10 - stillFlagged).toBeLessThanOrEqual(3);
+  });
+
   test("leaves cards in non-auto-run lanes untouched", async () => {
     const { userId } = await seedProjectWithAgent();
     const lane = listSwimlanes(db, "demo").find((l) => l.name === "Todo")!;

@@ -18,6 +18,19 @@
   --tool-bg: #141823;
   --ok: #22c55e;
   --err: #ef4444;
+  --warn: #ea580c;
+  /* Status colour for "running / busy" pills. Adjacent to --accent but
+   * distinguishable so a busy state reads at a glance. */
+  --status-busy: #a78bfa;
+  /* Per-source news badge tints (RSS feed vs. site monitor). Foreground is
+   * tinted; background uses an alpha blend of the same hue. */
+  --news-rss-fg: #d96d27;
+  --news-site-fg: #2878d9;
+  /* Diagram node accent palette — mirrors --ok/--warn/--err but kept as
+   * dedicated tokens so theme tweaks can move independently. */
+  --diagram-ok: #16a34a;
+  --diagram-warn: #92400e;
+  --diagram-err: #ef4444;
   /* Code/preformatted blocks — dark in both themes by convention. */
   --code-bg: #1e1e2e;
   --code-fg: #cdd6f4;
@@ -52,6 +65,13 @@
   --tool-bg: #f2f4f8;
   --ok: #16a34a;
   --err: #dc2626;
+  --warn: #c2410c;
+  --status-busy: #7c3aed;
+  --news-rss-fg: #b65a1f;
+  --news-site-fg: #1d63b8;
+  --diagram-ok: #15803d;
+  --diagram-warn: #78350f;
+  --diagram-err: #dc2626;
   --inline-code-bg: rgba(0, 0, 0, 0.06);
   --shadow-soft: rgba(15, 17, 22, 0.08);
   --hover-bg: rgba(15, 17, 22, 0.04);
@@ -2230,7 +2250,7 @@ button {
   border-color: var(--err);
   color: white;
 }
-.btn--danger:hover { background: #dc2626; }
+.btn--danger:hover { background: var(--err); filter: brightness(0.92); }
 .btn--sm {
   padding: 3px 8px;
   font-size: 12px;
@@ -3026,7 +3046,7 @@ button {
 
 .dash-feed-topic {
   background: rgba(124, 92, 255, 0.12);
-  color: #a78bfa;
+  color: var(--status-busy);
   padding: 1px 6px;
   border-radius: 4px;
   font-size: 11px;
@@ -3068,10 +3088,10 @@ button {
   font-size: 12px;
   font-weight: 500;
 }
-.dash-run-pill--done { background: rgba(52, 211, 153, 0.15); color: #34d399; }
-.dash-run-pill--error { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
-.dash-run-pill--running { background: rgba(124, 92, 255, 0.15); color: #a78bfa; }
-.dash-run-pill--queued { background: rgba(156, 163, 175, 0.15); color: #9ca3af; }
+.dash-run-pill--done { background: rgba(52, 211, 153, 0.15); color: var(--ok); }
+.dash-run-pill--error { background: rgba(239, 68, 68, 0.15); color: var(--err); }
+.dash-run-pill--running { background: rgba(124, 92, 255, 0.15); color: var(--status-busy); }
+.dash-run-pill--queued { background: rgba(156, 163, 175, 0.15); color: var(--text-dim); }
 
 /* Empty state */
 .dash-empty {
@@ -5420,8 +5440,8 @@ button {
   vertical-align: middle;
   opacity: 0.85;
 }
-.news-type-badge--rss  { background: rgba(255,120,50,0.15);  color: #d96d27; }
-.news-type-badge--site { background: rgba(50,140,255,0.15);  color: #2878d9; }
+.news-type-badge--rss  { background: rgba(255,120,50,0.15);  color: var(--news-rss-fg); }
+.news-type-badge--site { background: rgba(50,140,255,0.15);  color: var(--news-site-fg); }
 .news-status-dot {
   width: 8px;
   height: 8px;
@@ -5486,9 +5506,74 @@ button {
   min-height: 0;
 }
 .news-template--list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 18px;
+  padding: 16px 24px;
+}
+.news-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.news-list__item {
+  position: relative;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  transition: border-color 0.15s;
+}
+.news-list__item:hover {
+  border-color: var(--accent-soft);
+}
+.news-list__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+}
+.news-list__topic {
+  color: var(--accent);
+  font-weight: 600;
+}
+.news-list__source {
+  color: var(--text-faint);
+}
+.news-list__date {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.news-list__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text);
+}
+.news-list__title a {
+  color: inherit;
+  text-decoration: none;
+  display: inline-flex;
+  gap: 4px;
+  align-items: baseline;
+}
+.news-list__title a:hover {
+  color: var(--accent);
+}
+.news-list__summary {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.5;
 }
 .news-card {
   display: flex;
@@ -10119,7 +10204,7 @@ button {
   z-index: 1;
 }
 .planning-gantt__bar--conflict {
-  outline: 2px solid #dc2626;
+  outline: 2px solid var(--err);
   outline-offset: -1px;
 }
 .planning-gantt__bar-warn {
@@ -10127,7 +10212,7 @@ button {
   align-items: center;
   margin-right: 4px;
   color: #fff;
-  background: #dc2626;
+  background: var(--err);
   border-radius: 999px;
   width: 16px;
   height: 16px;
@@ -10137,7 +10222,7 @@ button {
 .planning-gantt__row-warn {
   display: inline-flex;
   align-items: center;
-  color: #dc2626;
+  color: var(--err);
   margin-left: 4px;
 }
 .planning-gantt__bar-label {
@@ -10386,7 +10471,7 @@ button {
   font-size: 12px;
 }
 .planning-suggestion__item--conflict {
-  border-left: 3px solid #ea580c;
+  border-left: 3px solid var(--warn);
 }
 .planning-suggestion__item-head {
   display: flex;
@@ -10403,7 +10488,7 @@ button {
   padding: 1px 6px;
   border-radius: 999px;
   background: rgba(234, 88, 12, 0.15);
-  color: #ea580c;
+  color: var(--warn);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -10430,6 +10515,12 @@ button {
   font-size: 11px;
   color: var(--text-faint);
 }
+.planning-suggestion__item-reason {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--text-faint);
+  font-style: italic;
+}
 .planning-suggestion__item-bottlenecks {
   list-style: none;
   margin: 4px 0 0;
@@ -10438,7 +10529,7 @@ button {
   flex-direction: column;
   gap: 2px;
   font-size: 11px;
-  color: #ea580c;
+  color: var(--warn);
 }
 .planning-suggestion__item-bottlenecks li {
   display: inline-flex;
@@ -10544,13 +10635,13 @@ button {
   gap: 12px;
 }
 .planning-report__summary--on_track {
-  border-left: 4px solid #16a34a;
+  border-left: 4px solid var(--ok);
 }
 .planning-report__summary--at_risk {
-  border-left: 4px solid #ea580c;
+  border-left: 4px solid var(--warn);
 }
 .planning-report__summary--slipping {
-  border-left: 4px solid #dc2626;
+  border-left: 4px solid var(--err);
 }
 .planning-report__summary--no_data {
   border-left: 4px solid var(--text-faint);
@@ -10572,13 +10663,13 @@ button {
   color: var(--text-dim);
 }
 .planning-report__status-dot--on_track {
-  color: #16a34a;
+  color: var(--ok);
 }
 .planning-report__status-dot--at_risk {
-  color: #ea580c;
+  color: var(--warn);
 }
 .planning-report__status-dot--slipping {
-  color: #dc2626;
+  color: var(--err);
 }
 .planning-report__status-dot--no_data {
   color: var(--text-faint);
@@ -10683,7 +10774,7 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #16a34a;
+  color: var(--ok);
   font-size: 13px;
   margin: 0;
 }
@@ -10733,18 +10824,18 @@ button {
 }
 .planning-report__badge--on_track {
   background: rgba(22, 163, 74, 0.12);
-  border-color: #16a34a;
-  color: #16a34a;
+  border-color: var(--ok);
+  color: var(--ok);
 }
 .planning-report__badge--at_risk {
   background: rgba(234, 88, 12, 0.12);
-  border-color: #ea580c;
-  color: #ea580c;
+  border-color: var(--warn);
+  color: var(--warn);
 }
 .planning-report__badge--missed {
   background: rgba(220, 38, 38, 0.12);
-  border-color: #dc2626;
-  color: #dc2626;
+  border-color: var(--err);
+  color: var(--err);
 }
 .planning-report__badge--completed {
   background: var(--bg);
@@ -10775,10 +10866,10 @@ button {
   align-items: center;
 }
 .planning-report__risk--high {
-  border-left: 3px solid #dc2626;
+  border-left: 3px solid var(--err);
 }
 .planning-report__risk--medium {
-  border-left: 3px solid #ea580c;
+  border-left: 3px solid var(--warn);
 }
 .planning-report__risk--low {
   border-left: 3px solid var(--text-faint);
@@ -10793,11 +10884,11 @@ button {
 }
 .planning-report__sev--high {
   background: rgba(220, 38, 38, 0.15);
-  color: #dc2626;
+  color: var(--err);
 }
 .planning-report__sev--medium {
   background: rgba(234, 88, 12, 0.15);
-  color: #ea580c;
+  color: var(--warn);
 }
 .planning-report__sev--low {
   background: var(--bg-elevated);
@@ -10970,14 +11061,14 @@ button {
 
 /* Explicit non_working exception — solid red, always visible regardless of theme */
 .cal-editor__cell--off {
-  background: #dc2626;
+  background: var(--err);
   border-color: #b91c1c;
   color: #fff;
 }
 
 /* Explicit workable override — solid green */
 .cal-editor__cell--work {
-  background: #16a34a;
+  background: var(--ok);
   border-color: #15803d;
   color: #fff;
 }
@@ -11006,7 +11097,7 @@ button {
 }
 
 .cal-editor__dot--off {
-  background: #dc2626;
+  background: var(--err);
   display: inline-block;
   width: 8px;
   height: 8px;
@@ -11015,7 +11106,7 @@ button {
 }
 
 .cal-editor__dot--work {
-  background: #16a34a;
+  background: var(--ok);
   display: inline-block;
   width: 8px;
   height: 8px;
@@ -11048,12 +11139,12 @@ button {
 }
 
 .cal-editor__legend-swatch--off {
-  background: #dc2626;
+  background: var(--err);
   border-color: #b91c1c;
 }
 
 .cal-editor__legend-swatch--work {
-  background: #16a34a;
+  background: var(--ok);
   border-color: #15803d;
 }
 

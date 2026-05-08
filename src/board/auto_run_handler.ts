@@ -13,6 +13,9 @@ import { isAgentLinkedToProject } from "../memory/agents.ts";
 
 export const BOARD_AUTO_RUN_HANDLER = "board.auto_run_scan";
 
+const MAX_PER_TICK = 3;
+const SELECT_HARD_CAP = 1000;
+
 interface Candidate {
   id: number;
   project: string;
@@ -35,16 +38,17 @@ function selectCandidates(db: Database): Candidate[] {
             SELECT 1 FROM board_card_runs r
              WHERE r.card_id = c.id
                AND r.status IN ('queued','running')
-          )`,
+          )
+        LIMIT ?`,
     )
-    .all() as Candidate[];
+    .all(SELECT_HARD_CAP) as Candidate[];
 }
 
 export async function boardAutoRunHandler(
   ctx: TaskHandlerContext,
 ): Promise<void> {
   const { db, queue, cfg } = ctx;
-  const candidates = selectCandidates(db);
+  const candidates = selectCandidates(db).slice(0, MAX_PER_TICK);
   if (candidates.length === 0) return;
 
   for (const cand of candidates) {

@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  type PlacementReason,
   type PlanningBottleneck,
   type PlanningSuggestion,
   type PlanningSuggestionPlacement,
@@ -41,6 +42,20 @@ type ItemRow = {
   bottlenecks: PlanningBottleneck[];
 };
 
+function formatReason(
+  reason: PlacementReason | undefined,
+  wishById: Map<number, PlanningWish>,
+): string | null {
+  if (!reason || reason.kind === "project_start") return null;
+  if (reason.kind === "team_capacity") return "Team at capacity — moved to next available slot";
+  const depParts = [
+    ...reason.blockingWishIds.map((id) => wishById.get(id)?.title ?? `#${id}`),
+    ...reason.blockingTagNames.map((t) => `"${t}"`),
+  ];
+  const depStr = depParts.length > 0 ? `Pushed after: ${depParts.join(", ")}` : "Dependency";
+  return reason.kind === "dependency" ? depStr : `${depStr}; team also at capacity`;
+}
+
 function readMode(): SuggestionMode {
   const raw = localStorage.getItem(PLANNING_STORAGE.suggestionMode);
   return raw === "conflicts_only" ? "conflicts_only" : "all";
@@ -64,17 +79,20 @@ export default function PlanningSuggestionPanel({
     null | "apply-all" | "reject-all" | "item"
   >(null);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setModeRaw] = useState<SuggestionMode>(readMode);
-  const [showHidden, setShowHiddenRaw] = useState<boolean>(readShowHidden);
+  const [mode, setMode] = useState<SuggestionMode>(readMode);
+  const [showHidden, setShowHidden] = useState<boolean>(readShowHidden);
 
-  const setMode = (m: SuggestionMode) => {
-    localStorage.setItem(PLANNING_STORAGE.suggestionMode, m);
-    setModeRaw(m);
-  };
-  const setShowHidden = (v: boolean) => {
-    localStorage.setItem(PLANNING_STORAGE.suggestionShowHidden, v ? "1" : "0");
-    setShowHiddenRaw(v);
-  };
+  // Persist filter state after render rather than synchronously during the
+  // click handler — keeps event handlers off the storage write path.
+  useEffect(() => {
+    localStorage.setItem(PLANNING_STORAGE.suggestionMode, mode);
+  }, [mode]);
+  useEffect(() => {
+    localStorage.setItem(
+      PLANNING_STORAGE.suggestionShowHidden,
+      showHidden ? "1" : "0",
+    );
+  }, [showHidden]);
 
   const wishById = useMemo(
     () => new Map(wishes.map((w) => [w.id, w])),
@@ -310,6 +328,7 @@ export default function PlanningSuggestionPanel({
                   key={`v-${it.wish.id}`}
                   item={it}
                   disabled={itemDisabled}
+                  wishById={wishById}
                   onApply={() => void handleApplyItem(it)}
                   onHide={() => void handleHideItem(it)}
                 />
@@ -329,6 +348,7 @@ export default function PlanningSuggestionPanel({
                     item={it}
                     disabled={itemDisabled}
                     isHidden
+                    wishById={wishById}
                     onApply={() => void handleApplyItem(it)}
                     onUnhide={() => void handleUnhideItem(it)}
                   />
@@ -410,6 +430,7 @@ function ItemRowView({
   item,
   disabled,
   isHidden = false,
+  wishById,
   onApply,
   onHide,
   onUnhide,
@@ -417,6 +438,7 @@ function ItemRowView({
   item: ItemRow;
   disabled: boolean;
   isHidden?: boolean;
+  wishById: Map<number, PlanningWish>;
   onApply: () => void;
   onHide?: () => void;
   onUnhide?: () => void;
@@ -424,6 +446,7 @@ function ItemRowView({
   const { wish, placement, isConflict, bottlenecks } = item;
   const startChanged = wish.plannedStartDate !== placement.start;
   const endChanged = wish.plannedEndDate !== placement.end;
+  const reasonText = formatReason(placement.reason, wishById);
   return (
     <li
       className={`planning-suggestion__item ${isConflict ? "planning-suggestion__item--conflict" : ""}`}
@@ -449,6 +472,9 @@ function ItemRowView({
           {startChanged && endChanged ? " · moved" : startChanged ? " · start changed" : endChanged ? " · end changed" : ""}
         </span>
       </div>
+      {reasonText && (
+        <p className="planning-suggestion__item-reason">{reasonText}</p>
+      )}
       {bottlenecks.length > 0 && (
         <ul className="planning-suggestion__item-bottlenecks">
           {bottlenecks.map((b, i) => (

@@ -213,6 +213,89 @@ describe("planning scheduler", () => {
     expect(out.placements[0]!.start).toBe("2026-06-01");
   });
 
+  describe("placement reasons", () => {
+    test("single wish with no deps gets project_start reason", () => {
+      const input: ScheduleInput = {
+        ...emptyInput(),
+        wishes: [
+          { id: 10, durationDays: 1, teamId: null, deadlineId: null, dependsOnWishes: [], dependsOnTags: [], tagIds: [] },
+        ],
+      };
+      const out = computeSchedule(input);
+      const p = out.placements.find((x) => x.wishId === 10)!;
+      expect(p.reason.kind).toBe("project_start");
+      expect(p.reason.blockingWishIds).toEqual([]);
+      expect(p.reason.blockingTagNames).toEqual([]);
+    });
+
+    test("wish blocked by explicit wish dep gets dependency reason", () => {
+      const input: ScheduleInput = {
+        ...emptyInput(),
+        wishes: [
+          { id: 10, durationDays: 2, teamId: null, deadlineId: null, dependsOnWishes: [], dependsOnTags: [], tagIds: [] },
+          { id: 11, durationDays: 1, teamId: null, deadlineId: null, dependsOnWishes: [10], dependsOnTags: [], tagIds: [] },
+        ],
+      };
+      const out = computeSchedule(input);
+      const p11 = out.placements.find((x) => x.wishId === 11)!;
+      expect(p11.reason.kind).toBe("dependency");
+      expect(p11.reason.blockingWishIds).toContain(10);
+      expect(p11.reason.blockingTagNames).toEqual([]);
+    });
+
+    test("wish blocked only by team capacity gets team_capacity reason", () => {
+      // Two wishes on the same team with maxParallel=1; second must wait.
+      const input: ScheduleInput = {
+        ...emptyInput(),
+        teams: [{ id: 1, maxParallel: 1 }],
+        wishes: [
+          { id: 10, durationDays: 2, teamId: 1, deadlineId: null, dependsOnWishes: [], dependsOnTags: [], tagIds: [] },
+          { id: 11, durationDays: 1, teamId: 1, deadlineId: null, dependsOnWishes: [], dependsOnTags: [], tagIds: [] },
+        ],
+      };
+      const out = computeSchedule(input);
+      const p11 = out.placements.find((x) => x.wishId === 11)!;
+      expect(p11.reason.kind).toBe("team_capacity");
+      expect(p11.reason.blockingWishIds).toEqual([]);
+    });
+
+    test("wish blocked by both dep and team capacity gets dependency_and_team reason", () => {
+      // Team maxParallel=1: wish 10 (5 days) occupies team Mon-Fri.
+      // Wish 11 depends on wish 10 and is on the same team — team also
+      // has another 5-day wish (12) starting right after 10, so wish 11
+      // gets pushed again by team capacity.
+      const input: ScheduleInput = {
+        ...emptyInput(),
+        teams: [{ id: 1, maxParallel: 1 }],
+        wishes: [
+          { id: 10, durationDays: 5, teamId: 1, deadlineId: null, dependsOnWishes: [], dependsOnTags: [], tagIds: [] },
+          // Wish 12 fills the slot right after wish 10 so wish 11 is pushed further.
+          { id: 12, durationDays: 5, teamId: 1, deadlineId: null, dependsOnWishes: [], dependsOnTags: [], tagIds: [] },
+          { id: 11, durationDays: 1, teamId: 1, deadlineId: null, dependsOnWishes: [10], dependsOnTags: [], tagIds: [] },
+        ],
+      };
+      const out = computeSchedule(input);
+      const p11 = out.placements.find((x) => x.wishId === 11)!;
+      expect(p11.reason.kind).toBe("dependency_and_team");
+      expect(p11.reason.blockingWishIds).toContain(10);
+    });
+
+    test("wish blocked by tag dep gets dependency reason with tag name", () => {
+      const input: ScheduleInput = {
+        ...emptyInput(),
+        tags: [{ id: 100, name: "infra" }],
+        wishes: [
+          { id: 10, durationDays: 2, teamId: null, deadlineId: null, dependsOnWishes: [], dependsOnTags: [], tagIds: [100] },
+          { id: 11, durationDays: 1, teamId: null, deadlineId: null, dependsOnWishes: [], dependsOnTags: ["infra"], tagIds: [] },
+        ],
+      };
+      const out = computeSchedule(input);
+      const p11 = out.placements.find((x) => x.wishId === 11)!;
+      expect(p11.reason.kind).toBe("dependency");
+      expect(p11.reason.blockingTagNames).toContain("infra");
+    });
+  });
+
   describe("nonWorkingDates calendar integration", () => {
     test("addBusinessDays skips holidays in nonWorkingDates", () => {
       // 2026-01-12 is a Monday; mark it as non-working.

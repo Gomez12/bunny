@@ -7,6 +7,7 @@
  */
 
 import type { Database } from "bun:sqlite";
+import type { PlacementReason } from "../planning/scheduler.ts";
 
 export type SuggestionStatus = "pending" | "accepted" | "rejected";
 
@@ -14,6 +15,9 @@ export interface SuggestionPlacement {
   wishId: number;
   start: string;
   end: string;
+  /** Why the scheduler placed this wish here. Absent on suggestions generated
+   *  before this field was introduced — treated as "project_start" in the UI. */
+  reason?: PlacementReason;
 }
 
 export type BottleneckKind =

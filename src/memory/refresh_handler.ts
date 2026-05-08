@@ -64,6 +64,17 @@ export const MEMORY_REFRESH_HANDLER = "memory.refresh";
 const DEFAULT_BATCH_SIZE = 50;
 const DEFAULT_MAX_MESSAGES_PER_ROW = 200;
 const DEFAULT_STUCK_THRESHOLD_MS = 30 * 60 * 1000;
+const PARALLEL_REFRESHES = 3;
+
+async function runInBatches<T>(
+  items: T[],
+  batchSize: number,
+  fn: (item: T) => Promise<void>,
+): Promise<void> {
+  for (let i = 0; i < items.length; i += batchSize) {
+    await Promise.allSettled(items.slice(i, i + batchSize).map(fn));
+  }
+}
 
 interface ActiveUserProjectPair {
   userId: string;
@@ -301,24 +312,29 @@ export async function memoryRefreshHandler(
   // predicate then matches every real row (no false-empty result).
   const systemUserId = getUserByUsername(db, SYSTEM_USERNAME)?.id ?? "";
 
-  // 2. (user, project) memory.
+  // 2. (user, project) memory. Claim sequentially (race-safe) then refresh in
+  // parallel batches — each refresh awaits an LLM roundtrip, so wall-clock
+  // benefits when cfg.llm.maxConcurrentRequests > 1.
   const userPairs = listActiveUserProjectPairs(db, budget);
+  const claimedUserPairs: typeof userPairs = [];
   for (const pair of userPairs) {
-    if (budget <= 0) break;
-    const userId = pair.userId;
-    const project = pair.project;
+    if (claimedUserPairs.length >= budget) break;
     try {
-      ensureUserProjectMemory(db, userId, project);
+      ensureUserProjectMemory(db, pair.userId, pair.project);
     } catch {
       continue;
     }
-    if (!claimUserProjectMemoryForRefresh(db, userId, project, now)) continue;
-    budget -= 1;
+    if (!claimUserProjectMemoryForRefresh(db, pair.userId, pair.project, now))
+      continue;
+    claimedUserPairs.push(pair);
+  }
+  budget -= claimedUserPairs.length;
+  await runInBatches(claimedUserPairs, PARALLEL_REFRESHES, async (pair) => {
     try {
       await refreshUserProjectMemory({
         ctx,
-        userId,
-        project,
+        userId: pair.userId,
+        project: pair.project,
         watermark: pair.watermark,
         maxMessagesPerRow: conf.maxMessagesPerRow,
         runUserId: systemUserId,
@@ -326,25 +342,26 @@ export async function memoryRefreshHandler(
     } catch (e) {
       const msg = errorMessage(e);
       try {
-        setUserProjectMemoryError(db, userId, project, msg);
+        setUserProjectMemoryError(db, pair.userId, pair.project, msg);
       } catch {
         /* ignore */
       }
       void queue.log({
         topic: "memory",
         kind: "user_project.refresh.error",
-        userId,
-        data: { project },
+        userId: pair.userId,
+        data: { project: pair.project },
         error: msg,
       });
     }
-  }
+  });
 
   // 3. (agent, project) memory.
   if (budget > 0) {
     const agentPairs = listActiveAgentProjectPairs(db, budget);
+    const claimedAgentPairs: typeof agentPairs = [];
     for (const pair of agentPairs) {
-      if (budget <= 0) break;
+      if (claimedAgentPairs.length >= budget) break;
       try {
         ensureAgentProjectMemory(db, pair.agent, pair.project);
       } catch {
@@ -352,7 +369,10 @@ export async function memoryRefreshHandler(
       }
       if (!claimAgentProjectMemoryForRefresh(db, pair.agent, pair.project, now))
         continue;
-      budget -= 1;
+      claimedAgentPairs.push(pair);
+    }
+    budget -= claimedAgentPairs.length;
+    await runInBatches(claimedAgentPairs, PARALLEL_REFRESHES, async (pair) => {
       try {
         await refreshAgentProjectMemory({
           ctx,
@@ -376,16 +396,20 @@ export async function memoryRefreshHandler(
           error: msg,
         });
       }
-    }
+    });
   }
 
   // 4. User soul.
   if (budget > 0) {
     const soulCandidates = listActiveSoulUsers(db, budget);
+    const claimedSouls: typeof soulCandidates = [];
     for (const cand of soulCandidates) {
-      if (budget <= 0) break;
+      if (claimedSouls.length >= budget) break;
       if (!claimUserSoulForRefresh(db, cand.userId, now)) continue;
-      budget -= 1;
+      claimedSouls.push(cand);
+    }
+    budget -= claimedSouls.length;
+    await runInBatches(claimedSouls, PARALLEL_REFRESHES, async (cand) => {
       try {
         await refreshUserSoul({
           ctx,
@@ -412,7 +436,7 @@ export async function memoryRefreshHandler(
           error: msg,
         });
       }
-    }
+    });
   }
 }
 

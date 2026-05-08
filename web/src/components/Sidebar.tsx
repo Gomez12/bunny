@@ -148,7 +148,14 @@ export default function Sidebar({
       >
         {open ? <X size={16} /> : <Menu size={16} />}
       </button>
-      <nav className={`nav ${open ? "nav--open" : ""}`} aria-label="Primary">
+      <nav
+        className={`nav ${open ? "nav--open" : ""}`}
+        aria-label="Primary"
+        onMouseLeave={(e) => {
+          const focused = e.currentTarget.querySelector(":focus") as HTMLElement | null;
+          focused?.blur();
+        }}
+      >
         <div className="nav__brand">
           <span className="nav__brand-rabbit">
             <Rabbit size={20} />

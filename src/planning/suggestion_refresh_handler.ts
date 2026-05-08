@@ -75,6 +75,7 @@ export function buildAndStoreSuggestion(
         wishId: p.wishId,
         start: p.start,
         end: p.end,
+        reason: p.reason,
       })),
       bottlenecks: out.bottlenecks.map((b) => ({
         wishId: b.wishId,
