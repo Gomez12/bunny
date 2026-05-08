@@ -355,6 +355,22 @@ function migrateColumns(db: Database): void {
   addColumn(
     "ALTER TABLE users ADD COLUMN ui_prefs TEXT NOT NULL DEFAULT '{}'",
   );
+  // ── Planning wish advice-hide tuple ──────────────────────────────────────
+  // When the user dismisses a per-wish suggestion item, we record the
+  // (proposed start, proposed end, proposed team) tuple. The /suggestion
+  // route filters those into a separate `hiddenPlacements` array so the
+  // panel can show "X items hidden" without nagging on every refresh.
+  addColumn("ALTER TABLE planning_wishes ADD COLUMN advice_hide_start TEXT");
+  addColumn("ALTER TABLE planning_wishes ADD COLUMN advice_hide_end TEXT");
+  addColumn(
+    "ALTER TABLE planning_wishes ADD COLUMN advice_hide_team_id INTEGER",
+  );
+  // Sprint cadence (working days) per planning project. NULL or 0 = sprints off.
+  addColumn(
+    "ALTER TABLE planning_projects ADD COLUMN sprint_duration_days INTEGER",
+  );
+  // Optional external tracker reference per wish (Jira / GitHub issue key).
+  addColumn("ALTER TABLE planning_wishes ADD COLUMN jira_key TEXT");
   db.run(
     `CREATE TABLE IF NOT EXISTS user_project_prefs (
        user_id    TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,

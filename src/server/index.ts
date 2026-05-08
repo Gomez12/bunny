@@ -98,6 +98,14 @@ import {
   registerScriptsSyncHandler,
   seedScriptsSyncTask,
 } from "../scripts/sync_handler.ts";
+import {
+  PLANNING_SUGGESTION_REFRESH_HANDLER,
+  registerPlanningSuggestionRefresh,
+} from "../planning/suggestion_refresh_handler.ts";
+import {
+  PLANNING_REPORT_SNAPSHOT_HANDLER,
+  registerPlanningReportSnapshot,
+} from "../planning/report_snapshot_handler.ts";
 
 const DEFAULT_PORT = 3000;
 
@@ -203,6 +211,8 @@ export async function startServer(
   registerBusinessSoulSweep(defaultHandlerRegistry);
   registerBusinessAutoBuild(defaultHandlerRegistry);
   registerScriptsSyncHandler(defaultHandlerRegistry);
+  registerPlanningSuggestionRefresh(defaultHandlerRegistry);
+  registerPlanningReportSnapshot(defaultHandlerRegistry);
   const bootNow = Date.now();
   const boardAutoRunCron = "*/5 * * * *";
   try {
@@ -410,6 +420,36 @@ export async function startServer(
     seedScriptsSyncTask(db, cfg.scripts.syncCron);
   } catch (e) {
     console.warn("[bunny] failed to seed scripts.sync_scan:", errorMessage(e));
+  }
+  const planningSuggestionRefreshCron = cfg.planning.suggestionRefreshCron;
+  try {
+    ensureSystemTask(db, PLANNING_SUGGESTION_REFRESH_HANDLER, {
+      name: "Planning suggestion refresh",
+      description:
+        "Recompute the pending schedule suggestion for stale planning projects (every 5 minutes by default). The user accepts or rejects in one click.",
+      cronExpr: planningSuggestionRefreshCron,
+      nextRunAt: computeNextRun(planningSuggestionRefreshCron, bootNow),
+    });
+  } catch (e) {
+    console.warn(
+      "[bunny] failed to seed planning.suggestion_refresh:",
+      errorMessage(e),
+    );
+  }
+  const planningReportSnapshotCron = cfg.planning.reportSnapshotCron;
+  try {
+    ensureSystemTask(db, PLANNING_REPORT_SNAPSHOT_HANDLER, {
+      name: "Planning report snapshot",
+      description:
+        "Generate an executive-grade roadmap status report per planning project (default Mondays 08:00). Snapshots feed the report history picker and the comparison-vs-last-week panel.",
+      cronExpr: planningReportSnapshotCron,
+      nextRunAt: computeNextRun(planningReportSnapshotCron, bootNow),
+    });
+  } catch (e) {
+    console.warn(
+      "[bunny] failed to seed planning.report_snapshot:",
+      errorMessage(e),
+    );
   }
   const quickChatHideCron = "*/5 * * * *";
   try {

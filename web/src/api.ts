@@ -3683,3 +3683,640 @@ export async function deleteCodeProjectSecret(
     throw new Error((data as { error?: string }).error ?? res.statusText);
   }
 }
+
+// ── Planning module ─────────────────────────────────────────────────────────
+
+export interface PlanningProject {
+  id: number;
+  project: string;
+  name: string;
+  description: string;
+  startDate: string | null;
+  /** Sprint cadence in working days. null/0 = sprints off. */
+  sprintDurationDays: number | null;
+  createdBy: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface PlanningDeadline {
+  id: number;
+  planningProjectId: number;
+  project: string;
+  name: string;
+  description: string;
+  dueDate: string;
+  color: string | null;
+  createdBy: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface PlanningTeam {
+  id: number;
+  planningProjectId: number;
+  project: string;
+  name: string;
+  description: string;
+  color: string | null;
+  maxParallel: number;
+  members: string[];
+  createdBy: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface PlanningTag {
+  id: number;
+  planningProjectId: number;
+  project: string;
+  name: string;
+  description: string;
+  color: string | null;
+  createdBy: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type PlanningWishStatus = "planned" | "in_progress" | "done";
+
+export interface PlanningAdviceHide {
+  start: string | null;
+  end: string | null;
+  teamId: number | null;
+}
+
+export interface PlanningWish {
+  id: number;
+  planningProjectId: number;
+  project: string;
+  title: string;
+  description: string;
+  durationDays: number;
+  teamId: number | null;
+  deadlineId: number | null;
+  plannedStartDate: string | null;
+  plannedEndDate: string | null;
+  status: PlanningWishStatus;
+  dependsOnWishes: number[];
+  dependsOnTags: string[];
+  tagIds: number[];
+  /** Optional external tracker reference (e.g. `PROJ-123`). */
+  jiraKey: string | null;
+  adviceHide: PlanningAdviceHide;
+  createdBy: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface PlanningSuggestionPlacement {
+  wishId: number;
+  start: string;
+  end: string;
+}
+
+export type PlanningBottleneckKind =
+  | "deadline_overrun"
+  | "cycle"
+  | "tag_unmet"
+  | "missing_team";
+
+export interface PlanningBottleneck {
+  wishId: number;
+  kind: PlanningBottleneckKind;
+  message: string;
+}
+
+export interface PlanningSuggestion {
+  id: number;
+  planningProjectId: number;
+  generatedAt: number;
+  status: "pending" | "accepted" | "rejected";
+  payload: {
+    placements: PlanningSuggestionPlacement[];
+    /** Placements matching a wish's advice-hide tuple. Returned by the
+     *  server alongside `placements`; the panel surfaces them only when
+     *  "Show hidden" is toggled. */
+    hiddenPlacements?: PlanningSuggestionPlacement[];
+    bottlenecks: PlanningBottleneck[];
+  };
+  generatedByUserId: string | null;
+  decidedByUserId: string | null;
+  decidedAt: number | null;
+  decisionComment: string;
+}
+
+export async function listPlanningProjects(
+  project: string,
+): Promise<PlanningProject[]> {
+  const data = await jsonFetch<{ planningProjects: PlanningProject[] }>(
+    `/api/projects/${encodeURIComponent(project)}/planning`,
+  );
+  return data.planningProjects;
+}
+
+export async function createPlanningProject(
+  project: string,
+  body: {
+    name: string;
+    description?: string;
+    startDate?: string | null;
+    sprintDurationDays?: number | null;
+  },
+): Promise<PlanningProject> {
+  const data = await jsonFetch<{ planningProject: PlanningProject }>(
+    `/api/projects/${encodeURIComponent(project)}/planning`,
+    { method: "POST", body: JSON.stringify(body) },
+  );
+  return data.planningProject;
+}
+
+export async function patchPlanningProject(
+  id: number,
+  patch: {
+    description?: string;
+    startDate?: string | null;
+    sprintDurationDays?: number | null;
+  },
+): Promise<PlanningProject> {
+  const data = await jsonFetch<{ planningProject: PlanningProject }>(
+    `/api/planning/${id}`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+  );
+  return data.planningProject;
+}
+
+export async function deletePlanningProject(id: number): Promise<void> {
+  await jsonFetch<{ ok: true }>(`/api/planning/${id}`, { method: "DELETE" });
+}
+
+export async function listPlanningDeadlines(
+  planningProjectId: number,
+): Promise<PlanningDeadline[]> {
+  const data = await jsonFetch<{ deadlines: PlanningDeadline[] }>(
+    `/api/planning/${planningProjectId}/deadlines`,
+  );
+  return data.deadlines;
+}
+
+export async function createPlanningDeadline(
+  planningProjectId: number,
+  body: { name: string; description?: string; dueDate: string; color?: string | null },
+): Promise<PlanningDeadline> {
+  const data = await jsonFetch<{ deadline: PlanningDeadline }>(
+    `/api/planning/${planningProjectId}/deadlines`,
+    { method: "POST", body: JSON.stringify(body) },
+  );
+  return data.deadline;
+}
+
+export async function patchPlanningDeadline(
+  id: number,
+  patch: {
+    name?: string;
+    description?: string;
+    dueDate?: string;
+    color?: string | null;
+  },
+): Promise<PlanningDeadline> {
+  const data = await jsonFetch<{ deadline: PlanningDeadline }>(
+    `/api/planning-deadlines/${id}`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+  );
+  return data.deadline;
+}
+
+export async function deletePlanningDeadline(id: number): Promise<void> {
+  await jsonFetch<{ ok: true }>(`/api/planning-deadlines/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function listPlanningTeams(
+  planningProjectId: number,
+): Promise<PlanningTeam[]> {
+  const data = await jsonFetch<{ teams: PlanningTeam[] }>(
+    `/api/planning/${planningProjectId}/teams`,
+  );
+  return data.teams;
+}
+
+export async function createPlanningTeam(
+  planningProjectId: number,
+  body: {
+    name: string;
+    description?: string;
+    color?: string | null;
+    maxParallel?: number;
+    members?: string[];
+  },
+): Promise<PlanningTeam> {
+  const data = await jsonFetch<{ team: PlanningTeam }>(
+    `/api/planning/${planningProjectId}/teams`,
+    { method: "POST", body: JSON.stringify(body) },
+  );
+  return data.team;
+}
+
+export async function patchPlanningTeam(
+  id: number,
+  patch: {
+    name?: string;
+    description?: string;
+    color?: string | null;
+    maxParallel?: number;
+  },
+): Promise<PlanningTeam> {
+  const data = await jsonFetch<{ team: PlanningTeam }>(
+    `/api/planning-teams/${id}`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+  );
+  return data.team;
+}
+
+export async function deletePlanningTeam(id: number): Promise<void> {
+  await jsonFetch<{ ok: true }>(`/api/planning-teams/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function addPlanningTeamMember(
+  teamId: number,
+  userId: string,
+): Promise<PlanningTeam> {
+  const data = await jsonFetch<{ team: PlanningTeam }>(
+    `/api/planning-teams/${teamId}/members`,
+    { method: "POST", body: JSON.stringify({ userId }) },
+  );
+  return data.team;
+}
+
+export async function removePlanningTeamMember(
+  teamId: number,
+  userId: string,
+): Promise<PlanningTeam> {
+  const data = await jsonFetch<{ team: PlanningTeam }>(
+    `/api/planning-teams/${teamId}/members/${encodeURIComponent(userId)}`,
+    { method: "DELETE" },
+  );
+  return data.team;
+}
+
+export async function listPlanningTags(
+  planningProjectId: number,
+): Promise<PlanningTag[]> {
+  const data = await jsonFetch<{ tags: PlanningTag[] }>(
+    `/api/planning/${planningProjectId}/tags`,
+  );
+  return data.tags;
+}
+
+export async function createPlanningTag(
+  planningProjectId: number,
+  body: { name: string; description?: string; color?: string | null },
+): Promise<PlanningTag> {
+  const data = await jsonFetch<{ tag: PlanningTag }>(
+    `/api/planning/${planningProjectId}/tags`,
+    { method: "POST", body: JSON.stringify(body) },
+  );
+  return data.tag;
+}
+
+export async function patchPlanningTag(
+  id: number,
+  patch: { name?: string; description?: string; color?: string | null },
+): Promise<PlanningTag> {
+  const data = await jsonFetch<{ tag: PlanningTag }>(
+    `/api/planning-tags/${id}`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+  );
+  return data.tag;
+}
+
+export async function deletePlanningTag(id: number): Promise<void> {
+  await jsonFetch<{ ok: true }>(`/api/planning-tags/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function listPlanningWishes(
+  planningProjectId: number,
+): Promise<PlanningWish[]> {
+  const data = await jsonFetch<{ wishes: PlanningWish[] }>(
+    `/api/planning/${planningProjectId}/wishes`,
+  );
+  return data.wishes;
+}
+
+export interface PlanningWishCreateBody {
+  title: string;
+  description?: string;
+  durationDays?: number;
+  teamId?: number | null;
+  deadlineId?: number | null;
+  plannedStartDate?: string | null;
+  plannedEndDate?: string | null;
+  status?: PlanningWishStatus;
+  dependsOnWishes?: number[];
+  dependsOnTags?: string[];
+  tagIds?: number[];
+  jiraKey?: string | null;
+}
+
+export async function createPlanningWish(
+  planningProjectId: number,
+  body: PlanningWishCreateBody,
+): Promise<PlanningWish> {
+  const data = await jsonFetch<{ wish: PlanningWish }>(
+    `/api/planning/${planningProjectId}/wishes`,
+    { method: "POST", body: JSON.stringify(body) },
+  );
+  return data.wish;
+}
+
+export async function patchPlanningWish(
+  id: number,
+  patch: Partial<PlanningWishCreateBody>,
+): Promise<PlanningWish> {
+  const data = await jsonFetch<{ wish: PlanningWish }>(
+    `/api/planning-wishes/${id}`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+  );
+  return data.wish;
+}
+
+export async function deletePlanningWish(id: number): Promise<void> {
+  await jsonFetch<{ ok: true }>(`/api/planning-wishes/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function setPlanningWishAdviceHide(
+  id: number,
+  body: { start: string; end: string; teamId: number | null },
+): Promise<PlanningWish> {
+  const data = await jsonFetch<{ wish: PlanningWish }>(
+    `/api/planning-wishes/${id}/advice-hide`,
+    { method: "POST", body: JSON.stringify(body) },
+  );
+  return data.wish;
+}
+
+export async function clearPlanningWishAdviceHide(
+  id: number,
+): Promise<PlanningWish> {
+  const data = await jsonFetch<{ wish: PlanningWish }>(
+    `/api/planning-wishes/${id}/advice-hide`,
+    { method: "DELETE" },
+  );
+  return data.wish;
+}
+
+export async function generatePlanningSuggestion(
+  planningProjectId: number,
+): Promise<PlanningSuggestion | null> {
+  const data = await jsonFetch<{ suggestion: PlanningSuggestion | null }>(
+    `/api/planning/${planningProjectId}/suggestion/generate`,
+    { method: "POST" },
+  );
+  return data.suggestion;
+}
+
+export async function fetchPlanningSuggestion(
+  planningProjectId: number,
+): Promise<PlanningSuggestion | null> {
+  const data = await jsonFetch<{ suggestion: PlanningSuggestion | null }>(
+    `/api/planning/${planningProjectId}/suggestion`,
+  );
+  return data.suggestion;
+}
+
+export async function applyPlanningSuggestion(
+  planningProjectId: number,
+  comment?: string,
+): Promise<void> {
+  await jsonFetch<{ ok: true }>(
+    `/api/planning/${planningProjectId}/suggestion/apply`,
+    { method: "POST", body: JSON.stringify({ comment: comment ?? "" }) },
+  );
+}
+
+export async function rejectPlanningSuggestion(
+  planningProjectId: number,
+  comment?: string,
+): Promise<void> {
+  await jsonFetch<{ ok: true }>(
+    `/api/planning/${planningProjectId}/suggestion/reject`,
+    { method: "POST", body: JSON.stringify({ comment: comment ?? "" }) },
+  );
+}
+
+export async function fetchPlanningReport(
+  planningProjectId: number,
+): Promise<{
+  bottlenecks: PlanningBottleneck[];
+  placements: PlanningSuggestionPlacement[];
+}> {
+  return jsonFetch(`/api/planning/${planningProjectId}/report`);
+}
+
+// ── Executive report snapshots ──────────────────────────────────────────────
+
+export type ReportOverallStatus =
+  | "on_track"
+  | "at_risk"
+  | "slipping"
+  | "no_data";
+
+export type ReportDeadlineStatus =
+  | "completed"
+  | "on_track"
+  | "at_risk"
+  | "missed"
+  | "no_data";
+
+export type ReportRiskKind =
+  | "deadline_overrun"
+  | "cycle"
+  | "tag_unmet"
+  | "missing_team"
+  | "no_team"
+  | "no_deadline"
+  | "no_start_date";
+
+export type ReportRiskSeverity = "high" | "medium" | "low";
+
+export interface ReportSummary {
+  overallStatus: ReportOverallStatus;
+  headline: string;
+  paragraph: string;
+  totals: {
+    wishes: number;
+    done: number;
+    inProgress: number;
+    planned: number;
+    unscheduled: number;
+    completionPercent: number;
+    deadlines: number;
+    deadlinesAtRisk: number;
+    deadlinesMissed: number;
+    teams: number;
+    durationDaysPlanned: number;
+  };
+}
+
+export interface ReportDeadlineRow {
+  id: number;
+  name: string;
+  dueDate: string;
+  status: ReportDeadlineStatus;
+  daysUntilDue: number;
+  wishesLinked: number;
+  wishesDone: number;
+  wishesAtRisk: number;
+  worstOverrunDays: number;
+}
+
+export interface ReportTeamRow {
+  id: number;
+  name: string;
+  maxParallel: number;
+  members: number;
+  activeWishes: number;
+  queuedWishes: number;
+  doneWishes: number;
+  unscheduledWishes: number;
+  totalDurationDaysOpen: number;
+  estimatedWorkingDaysOfWork: number;
+  earliestFreeDate: string | null;
+}
+
+export interface ReportRisk {
+  severity: ReportRiskSeverity;
+  kind: ReportRiskKind;
+  wishId?: number;
+  title: string;
+  detail: string;
+}
+
+export interface ReportGapWishRef {
+  id: number;
+  title: string;
+  durationDays: number;
+  teamId: number | null;
+}
+
+export interface ReportGaps {
+  wishesWithoutTeam: ReportGapWishRef[];
+  wishesWithoutDeadline: ReportGapWishRef[];
+  unscheduledWishes: ReportGapWishRef[];
+  deadlinesWithoutWishes: Array<{ id: number; name: string; dueDate: string }>;
+  unusedTags: Array<{ id: number; name: string }>;
+  teamsWithoutMembers: Array<{ id: number; name: string }>;
+}
+
+export interface ReportUpcomingItem {
+  wishId: number;
+  title: string;
+  team: string | null;
+  date: string;
+}
+
+export interface ReportUpcoming {
+  windowDays: number;
+  startingSoon: ReportUpcomingItem[];
+  endingSoon: ReportUpcomingItem[];
+  deadlinesSoon: Array<{ id: number; name: string; dueDate: string }>;
+}
+
+export interface ReportComparison {
+  previousReportId: number;
+  previousGeneratedAt: number;
+  deltaWishesDone: number;
+  deltaWishesAtRisk: number;
+  deltaUnscheduled: number;
+  newRisks: number;
+  resolvedRisks: number;
+  summary: string;
+}
+
+export interface ReportPayload {
+  generatedAt: number;
+  planningProject: {
+    id: number;
+    name: string;
+    description: string;
+    startDate: string | null;
+  };
+  summary: ReportSummary;
+  deadlines: ReportDeadlineRow[];
+  teams: ReportTeamRow[];
+  risks: ReportRisk[];
+  gaps: ReportGaps;
+  upcoming: ReportUpcoming;
+  comparison?: ReportComparison;
+}
+
+export type ReportTrigger = "manual" | "scheduled";
+
+export interface PlanningReportRow {
+  id: number;
+  planningProjectId: number;
+  generatedAt: number;
+  trigger: ReportTrigger;
+  generatedByUserId: string | null;
+  payload: ReportPayload;
+  markdown: string;
+  headline: string;
+}
+
+export interface PlanningReportListItem {
+  id: number;
+  generatedAt: number;
+  trigger: ReportTrigger;
+  generatedByUserId: string | null;
+  headline: string;
+}
+
+export async function generatePlanningReport(
+  planningProjectId: number,
+): Promise<PlanningReportRow> {
+  const data = await jsonFetch<{ report: PlanningReportRow }>(
+    `/api/planning/${planningProjectId}/report/generate`,
+    { method: "POST" },
+  );
+  return data.report;
+}
+
+export async function fetchLatestPlanningReport(
+  planningProjectId: number,
+): Promise<PlanningReportRow | null> {
+  const data = await jsonFetch<{ report: PlanningReportRow | null }>(
+    `/api/planning/${planningProjectId}/report/latest`,
+  );
+  return data.report;
+}
+
+export async function listPlanningReports(
+  planningProjectId: number,
+): Promise<PlanningReportListItem[]> {
+  const data = await jsonFetch<{ reports: PlanningReportListItem[] }>(
+    `/api/planning/${planningProjectId}/reports`,
+  );
+  return data.reports;
+}
+
+export async function fetchPlanningReportById(
+  id: number,
+): Promise<PlanningReportRow> {
+  const data = await jsonFetch<{ report: PlanningReportRow }>(
+    `/api/planning-reports/${id}`,
+  );
+  return data.report;
+}
+
+/** Returns the absolute URL for the markdown download endpoint. Use as href
+ *  on a download anchor — the route forces a `Content-Disposition` attachment. */
+export function planningReportMarkdownUrl(id: number): string {
+  return `/api/planning-reports/${id}/markdown`;
+}

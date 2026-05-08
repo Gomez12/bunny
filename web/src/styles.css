@@ -9490,6 +9490,22 @@ button {
   border-radius: 8px;
   padding: 10px 14px;
 }
+.diary-entry__raw-transcription {
+  margin-top: 10px;
+}
+.diary-entry__raw-summary {
+  font-size: 12px;
+  color: var(--text-faint);
+  cursor: pointer;
+  user-select: none;
+  padding: 4px 0;
+}
+.diary-entry__raw-summary:hover { color: var(--text-muted); }
+.diary-entry__transcription-text--raw {
+  margin-top: 8px;
+  opacity: 0.75;
+  font-size: 13px;
+}
 
 /* ── AudioRecorder ───────────────────────────────────────────────────────── */
 .audio-recorder { display: flex; flex-direction: column; align-items: center; gap: 16px; }
@@ -9629,4 +9645,1228 @@ button {
   color: var(--text-faint);
   line-height: 1.55;
   margin: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Planning module — Gantt + lists + suggestion panel.
+   Reuses .code-shell + .code-rail base classes for the shell/rail.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.planning-view {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 20px;
+  overflow-y: auto;
+  height: 100%;
+}
+.planning-view__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.planning-view__header--roadmap {
+  align-items: flex-start;
+}
+.planning-view__header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+.planning-view__desc {
+  margin: 4px 0 0;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.planning-view__header-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* Card-list pattern shared across Planning sub-views (Wishes / Deadlines /
+   Teams / Tags). Mirrors .kb-card so the visual language stays consistent
+   with the rest of the app. Each row is an elevated card with absolute
+   action buttons that fade in on hover. */
+.planning-card-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.planning-card {
+  position: relative;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.planning-card:hover {
+  border-color: var(--accent-soft);
+}
+.planning-card__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.planning-card__name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+  min-width: 0;
+}
+.planning-card__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.planning-card__date {
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.planning-card__desc {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.planning-card__chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.planning-card__swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: none;
+}
+.planning-card__actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: none;
+  gap: 4px;
+}
+.planning-card:hover .planning-card__actions,
+.planning-card:focus-within .planning-card__actions {
+  display: flex;
+}
+.planning-card__action-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.planning-card__action-btn:hover {
+  background: var(--border);
+  color: var(--text);
+}
+.kb-chip--jira {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.02em;
+}
+.kb-chip--deadline {
+  color: var(--accent);
+  border-color: var(--accent-soft);
+}
+
+/* Inline error banner — same shape as .contacts-tab__error / .doc-tab__error
+   so the look is consistent across tabs. */
+.planning-tab__error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 60, 60, 0.12);
+  color: var(--err);
+  font-size: 13px;
+  border-radius: var(--radius);
+}
+
+.planning-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+}
+.planning-form h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.planning-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.planning-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.planning-members__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: 12px;
+}
+.planning-members__remove {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+  color: var(--text-faint);
+  display: inline-flex;
+  align-items: center;
+}
+.planning-members__remove:hover {
+  color: var(--text);
+}
+
+.planning-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.planning-tags__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+  background: var(--bg);
+  color: var(--text);
+}
+.planning-tags__chip input {
+  margin: 0;
+}
+.planning-tags__chip--on {
+  border-color: var(--accent);
+  background: var(--bg-elevated);
+}
+
+/* ── Roadmap (Gantt) ─────────────────────────────────────────────────────── */
+.planning-roadmap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 20px;
+  overflow: auto;
+  height: 100%;
+}
+.planning-gantt {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  overflow: hidden;
+  position: relative;
+}
+.planning-gantt__header {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.planning-gantt__corner {
+  flex: none;
+  border-right: 1px solid var(--border);
+}
+.planning-gantt__weeks {
+  display: flex;
+}
+.planning-gantt__week {
+  font-size: 11px;
+  text-align: center;
+  padding: 4px 0;
+  border-right: 1px solid var(--border);
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+/* Sprint band — sits between weeks header and the day-numbers row.
+   Visible only when sprint_duration_days is set on the planning project. */
+.planning-gantt__sprints {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  height: 18px;
+}
+.planning-gantt__row-label--sprint {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  display: flex;
+  align-items: center;
+  height: 18px;
+}
+.planning-gantt__sprint-track {
+  position: relative;
+  flex: none;
+  height: 18px;
+}
+.planning-gantt__sprint {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  border-right: 1px dashed var(--border);
+  pointer-events: none;
+  user-select: none;
+}
+.planning-gantt__sprint--a {
+  background: rgba(124, 92, 255, 0.04);
+}
+.planning-gantt__sprint--b {
+  background: rgba(124, 92, 255, 0.08);
+}
+.planning-gantt__sprint-line {
+  position: absolute;
+  top: 0;
+  width: 0;
+  border-left: 1px dashed rgba(124, 92, 255, 0.35);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.planning-gantt__days {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.planning-gantt__day {
+  font-size: 10px;
+  text-align: center;
+  padding: 2px 0;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  border-right: 1px solid var(--border);
+}
+.planning-gantt__row {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.planning-gantt__row-label {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-right: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg-elevated);
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+.planning-gantt__row-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--text-faint);
+}
+.planning-gantt__lane {
+  position: relative;
+  flex: none;
+}
+.planning-gantt__lane-cell {
+  position: absolute;
+  top: 0;
+  border-right: 1px dashed var(--border);
+}
+.planning-gantt__bar {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 5px;
+  cursor: grab;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.planning-gantt__bar:active {
+  cursor: grabbing;
+}
+.planning-gantt__bar--dragging {
+  opacity: 0.85;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  transition: none;
+}
+.planning-gantt-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 4px 2px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.planning-gantt-toolbar__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+.planning-gantt-toolbar__check input {
+  margin: 0;
+}
+.planning-gantt-toolbar__hint {
+  color: var(--text-faint);
+  font-size: 11px;
+}
+.planning-gantt-toolbar__spacer {
+  flex: 1 1 auto;
+}
+.planning-gantt-toolbar__zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 6px;
+  background: var(--bg);
+  color: var(--text-faint);
+}
+.planning-gantt-toolbar__zoom-btn {
+  background: transparent;
+  border: 0;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.planning-gantt-toolbar__zoom-btn:hover {
+  background: var(--bg-elevated);
+}
+.planning-gantt-toolbar__zoom-btn--on {
+  background: var(--accent);
+  color: white;
+}
+.planning-gantt-toolbar__zoom-btn--on:hover {
+  background: var(--accent);
+}
+
+/* Conflict overlay (red translucent strip on overloaded working days) */
+.planning-gantt__conflict {
+  position: absolute;
+  top: 0;
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(220, 38, 38, 0.15) 0,
+    rgba(220, 38, 38, 0.15) 6px,
+    rgba(220, 38, 38, 0.28) 6px,
+    rgba(220, 38, 38, 0.28) 12px
+  );
+  border-top: 1px solid rgba(220, 38, 38, 0.55);
+  border-bottom: 1px solid rgba(220, 38, 38, 0.55);
+  pointer-events: none;
+  z-index: 1;
+}
+.planning-gantt__bar--conflict {
+  outline: 2px solid #dc2626;
+  outline-offset: -1px;
+}
+.planning-gantt__bar-warn {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+  color: #fff;
+  background: #dc2626;
+  border-radius: 999px;
+  width: 16px;
+  height: 16px;
+  justify-content: center;
+  flex: none;
+}
+.planning-gantt__row-warn {
+  display: inline-flex;
+  align-items: center;
+  color: #dc2626;
+  margin-left: 4px;
+}
+.planning-gantt__bar-label {
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1 1 auto;
+}
+.planning-gantt__bar-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.18) 60%,
+    rgba(255, 255, 255, 0.32) 100%
+  );
+  border-top-right-radius: 5px;
+  border-bottom-right-radius: 5px;
+  touch-action: none;
+}
+.planning-gantt__bar-handle:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+.planning-gantt__bar-jira {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 3px;
+  letter-spacing: 0.02em;
+  flex: none;
+}
+.planning-gantt__deadline {
+  position: absolute;
+  top: 0;
+  width: 0;
+  border-left: 2px dashed var(--accent);
+  z-index: 0;
+}
+.planning-gantt__hint {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin: 0;
+}
+
+.planning-unscheduled {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  padding: 12px 16px;
+}
+.planning-unscheduled h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.planning-unscheduled ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.planning-unscheduled li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.planning-unscheduled__title {
+  font-weight: 500;
+}
+.planning-unscheduled__meta {
+  color: var(--text-dim);
+  font-size: 12px;
+  flex: 1 1 auto;
+}
+
+/* ── Suggestion panel ───────────────────────────────────────────────────── */
+.planning-suggestion {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.planning-suggestion__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.planning-suggestion__header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.planning-suggestion__meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.planning-suggestion__empty {
+  font-size: 13px;
+  color: var(--text-faint);
+  margin: 0;
+}
+.planning-suggestion__bottlenecks,
+.planning-suggestion__diffs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+.planning-suggestion__bottlenecks li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+}
+.planning-suggestion__diffs li {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.planning-suggestion__title {
+  font-weight: 500;
+}
+.planning-suggestion__from,
+.planning-suggestion__to {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+}
+.planning-suggestion__arrow {
+  color: var(--text-faint);
+}
+.planning-suggestion__comment {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  resize: vertical;
+}
+.planning-suggestion__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.planning-suggestion__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.planning-suggestion__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-dim);
+  user-select: none;
+  cursor: pointer;
+}
+.planning-suggestion__check input {
+  margin: 0;
+}
+.planning-suggestion__mode {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg);
+}
+.planning-suggestion__mode-btn {
+  background: transparent;
+  border: 0;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: inherit;
+}
+.planning-suggestion__mode-btn--on {
+  background: var(--accent);
+  color: white;
+}
+.planning-suggestion__mode-btn:not(.planning-suggestion__mode-btn--on):hover {
+  background: var(--bg-elevated);
+}
+
+.planning-suggestion__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.planning-suggestion__item {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+.planning-suggestion__item--conflict {
+  border-left: 3px solid #ea580c;
+}
+.planning-suggestion__item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+.planning-suggestion__item-title {
+  font-weight: 600;
+  color: var(--text);
+}
+.planning-suggestion__item-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(234, 88, 12, 0.15);
+  color: #ea580c;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.planning-suggestion__item-detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+}
+.planning-suggestion__item-from {
+  color: var(--text-faint);
+}
+.planning-suggestion__item-arrow {
+  color: var(--text-faint);
+}
+.planning-suggestion__item-to {
+  color: var(--text);
+}
+.planning-suggestion__item-meta {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.planning-suggestion__item-bottlenecks {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: #ea580c;
+}
+.planning-suggestion__item-bottlenecks li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.planning-suggestion__item-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.btn--xs {
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+.planning-suggestion__hidden {
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  padding: 8px;
+}
+.planning-suggestion__hidden summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.planning-suggestion__bulk {
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Report ─────────────────────────────────────────────────────────────── */
+.planning-report {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 20px;
+  overflow-y: auto;
+  height: 100%;
+}
+.planning-report__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.planning-report__header h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 600;
+}
+.planning-report__actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.planning-report__history {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.planning-report__history select {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-family: inherit;
+  font-size: 12px;
+  max-width: 600px;
+}
+.planning-report__empty {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-dim);
+  padding: 16px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.planning-report__doc {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ── Summary card ───────────────────────────────────────────────────────── */
+.planning-report__summary {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.planning-report__summary--on_track {
+  border-left: 4px solid #16a34a;
+}
+.planning-report__summary--at_risk {
+  border-left: 4px solid #ea580c;
+}
+.planning-report__summary--slipping {
+  border-left: 4px solid #dc2626;
+}
+.planning-report__summary--no_data {
+  border-left: 4px solid var(--text-faint);
+}
+.planning-report__summary-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+.planning-report__summary-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+.planning-report__status-dot--on_track {
+  color: #16a34a;
+}
+.planning-report__status-dot--at_risk {
+  color: #ea580c;
+}
+.planning-report__status-dot--slipping {
+  color: #dc2626;
+}
+.planning-report__status-dot--no_data {
+  color: var(--text-faint);
+}
+.planning-report__summary-headline {
+  margin: 4px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+.planning-report__summary-meta {
+  font-size: 11px;
+  color: var(--text-faint);
+  text-align: right;
+}
+.planning-report__summary-paragraph {
+  margin: 0;
+  color: var(--text-dim);
+  line-height: 1.55;
+  font-size: 13px;
+}
+.planning-report__progress {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.planning-report__progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease-out;
+}
+.planning-report__metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 8px;
+  margin-top: 4px;
+}
+.planning-report__metric {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: var(--bg);
+}
+.planning-report__metric--accent {
+  border-color: var(--accent);
+}
+.planning-report__metric-value {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.planning-report__metric-label {
+  font-size: 10px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Comparison ─────────────────────────────────────────────────────────── */
+.planning-report__comparison {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.planning-report__comparison h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.planning-report__comparison-meta {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+/* ── Sections ───────────────────────────────────────────────────────────── */
+.planning-report__section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.planning-report__section h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.planning-report__empty-section {
+  color: var(--text-faint);
+  font-size: 13px;
+  margin: 0;
+}
+.planning-report__ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #16a34a;
+  font-size: 13px;
+  margin: 0;
+}
+
+/* ── Tables ─────────────────────────────────────────────────────────────── */
+.planning-report__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.planning-report__table th,
+.planning-report__table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.planning-report__table th {
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--bg);
+}
+.planning-report__num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.planning-report__row--at_risk td {
+  background: rgba(234, 88, 12, 0.06);
+}
+.planning-report__row--missed td {
+  background: rgba(220, 38, 38, 0.08);
+}
+.planning-report__row--completed td {
+  color: var(--text-dim);
+}
+
+/* ── Status badges ──────────────────────────────────────────────────────── */
+.planning-report__badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+}
+.planning-report__badge--on_track {
+  background: rgba(22, 163, 74, 0.12);
+  border-color: #16a34a;
+  color: #16a34a;
+}
+.planning-report__badge--at_risk {
+  background: rgba(234, 88, 12, 0.12);
+  border-color: #ea580c;
+  color: #ea580c;
+}
+.planning-report__badge--missed {
+  background: rgba(220, 38, 38, 0.12);
+  border-color: #dc2626;
+  color: #dc2626;
+}
+.planning-report__badge--completed {
+  background: var(--bg);
+  color: var(--text-dim);
+}
+.planning-report__badge--no_data {
+  color: var(--text-faint);
+}
+
+/* ── Risks list ─────────────────────────────────────────────────────────── */
+.planning-report__risks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.planning-report__risk {
+  display: grid;
+  grid-template-columns: auto auto 1fr 2fr;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 13px;
+  align-items: center;
+}
+.planning-report__risk--high {
+  border-left: 3px solid #dc2626;
+}
+.planning-report__risk--medium {
+  border-left: 3px solid #ea580c;
+}
+.planning-report__risk--low {
+  border-left: 3px solid var(--text-faint);
+}
+.planning-report__sev {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.planning-report__sev--high {
+  background: rgba(220, 38, 38, 0.15);
+  color: #dc2626;
+}
+.planning-report__sev--medium {
+  background: rgba(234, 88, 12, 0.15);
+  color: #ea580c;
+}
+.planning-report__sev--low {
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+}
+.planning-report__risk-kind {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.planning-report__risk-title {
+  font-weight: 600;
+}
+.planning-report__risk-detail {
+  color: var(--text-dim);
+}
+
+/* ── Gaps + upcoming ────────────────────────────────────────────────────── */
+.planning-report__gaps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.planning-report__upcoming {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  font-size: 13px;
+}
+.planning-report__upcoming h4 {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.planning-report__upcoming ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* ── Print ──────────────────────────────────────────────────────────────── */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body,
+  html {
+    background: white !important;
+    color: black !important;
+  }
+  .app-shell,
+  .app-shell__main,
+  .code-shell,
+  .code-shell__main {
+    background: white !important;
+    overflow: visible !important;
+  }
+  .planning-report {
+    overflow: visible !important;
+    height: auto !important;
+    padding: 0 !important;
+  }
+  .planning-report__doc {
+    color: black !important;
+  }
+  .planning-report__section,
+  .planning-report__summary,
+  .planning-report__comparison,
+  .planning-report__metric,
+  .planning-report__risk,
+  .planning-report__table th,
+  .planning-report__row {
+    background: white !important;
+    color: black !important;
+    border-color: #888 !important;
+  }
+  .planning-report__metric-label,
+  .planning-report__summary-meta,
+  .planning-report__summary-paragraph,
+  .planning-report__risk-detail,
+  .planning-report__risk-kind,
+  .planning-report__comparison-meta,
+  .planning-report__upcoming h4,
+  .planning-report__table th {
+    color: #555 !important;
+  }
+  .planning-report__progress-fill {
+    background: #555 !important;
+  }
 }

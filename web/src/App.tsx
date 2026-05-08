@@ -38,6 +38,7 @@ const BusinessesTab = lazy(() => import("./tabs/BusinessesTab"));
 const KnowledgeBaseTab = lazy(() => import("./tabs/KnowledgeBaseTab"));
 const WebNewsTab = lazy(() => import("./tabs/WebNewsTab"));
 const CodeTab = lazy(() => import("./tabs/CodeTab"));
+const PlanningTab = lazy(() => import("./tabs/PlanningTab"));
 const WorkflowsTab = lazy(() => import("./tabs/WorkflowsTab"));
 const DiaryTab = lazy(() => import("./tabs/DiaryTab"));
 const WorkspaceTab = lazy(() => import("./tabs/WorkspaceTab"));
@@ -530,6 +531,9 @@ function AuthenticatedShell({
           )}
           {tab === "code" && (
             <CodeTab project={activeProject} currentUser={user} />
+          )}
+          {tab === "planning" && (
+            <PlanningTab project={activeProject} currentUser={user} />
           )}
           {tab === "workflows" && (
             <WorkflowsTab project={activeProject} currentUser={user} />

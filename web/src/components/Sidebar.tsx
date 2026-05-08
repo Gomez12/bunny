@@ -12,6 +12,7 @@ import {
   Library,
   Newspaper,
   Code,
+  CalendarRange,
   Workflow,
   LayoutDashboard,
   Settings,
@@ -43,6 +44,7 @@ export type NavTabId =
   | "knowledge-base"
   | "news"
   | "code"
+  | "planning"
   | "workspace"
   | "dashboard"
   | "notifications"
@@ -71,6 +73,7 @@ const NAV: NavGroup[] = [
     items: [
       { id: "chat", label: "Chat", icon: MessageCircle },
       { id: "board", label: "Board", icon: Kanban },
+      { id: "planning", label: "Planning", icon: CalendarRange },
       { id: "workflows", label: "Workflows", icon: Workflow },
       { id: "diary", label: "Diary", icon: BookOpen },
     ],

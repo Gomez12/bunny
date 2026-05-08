@@ -34,6 +34,15 @@ export {
   LayoutDashboard,
   Settings,
   Shapes,
+  CalendarRange,
+  CalendarClock,
+  Tag,
+  Tags,
+  Target,
+  GitPullRequestArrow,
+  Lightbulb,
+  Flag,
+  ListChecks,
 
   // Actions
   Plus,
@@ -63,6 +72,8 @@ export {
   // Visibility
   Eye,
   EyeOff,
+  ZoomIn,
+  ZoomOut,
 
   // Status
   AlertCircle,

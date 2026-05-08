@@ -1092,10 +1092,12 @@ CREATE TABLE IF NOT EXISTS diary_entries (
   audio_duration_s       INTEGER,           -- seconds, estimated from recording timer
   audio_size_b           INTEGER,           -- bytes
   language               TEXT    NOT NULL DEFAULT 'nl',
-  transcription          TEXT,              -- NULL until transcription completes
+  transcription          TEXT,              -- NULL until transcription completes (corrected if correction ran)
+  raw_transcription      TEXT,              -- original whisper.cpp output before LLM correction
   transcription_status   TEXT    NOT NULL DEFAULT 'idle', -- idle | transcribing | done | error
   transcription_error    TEXT,
   transcribed_at         INTEGER,
+  correction_status      TEXT    NOT NULL DEFAULT 'idle', -- idle | correcting | done | error
   created_at             INTEGER NOT NULL,
   updated_at             INTEGER NOT NULL,
   deleted_at             INTEGER,           -- ms; non-null = soft-deleted
@@ -1104,6 +1106,184 @@ CREATE TABLE IF NOT EXISTS diary_entries (
 CREATE INDEX IF NOT EXISTS idx_diary_project ON diary_entries(project, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_diary_user    ON diary_entries(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_diary_trash   ON diary_entries(deleted_at) WHERE deleted_at IS NOT NULL;
+
+-- ── Planning module ─────────────────────────────────────────────────────────
+-- Per-Bunny-project sub-application — multiple "planning projects" per Bunny
+-- project, each owning its own deadlines, teams, tags, and "wishes" (work
+-- items with a duration in working days, optional team assignment, optional
+-- deadline, plus dependencies on other wishes / tags). The user is in lead
+-- for scheduling; the system only ever produces a complete schedule
+-- *suggestion* (planning_suggestions) that the user accepts or rejects in
+-- one click. See ADR 0043.
+CREATE TABLE IF NOT EXISTS planning_projects (
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  project               TEXT    NOT NULL,
+  name                  TEXT    NOT NULL,         -- slug, doubles as picker label
+  description           TEXT    NOT NULL DEFAULT '',
+  start_date            TEXT,                     -- ISO YYYY-MM-DD; NULL = "today" at compute time
+  -- Sprint cadence in working days (5 = 1 week, 10 = bi-weekly, …). NULL or 0
+  -- disables sprint indicators on the roadmap. Aligned to start_date.
+  sprint_duration_days  INTEGER,
+  created_by            TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at            INTEGER NOT NULL,
+  updated_at            INTEGER NOT NULL,
+  deleted_at            INTEGER,
+  deleted_by            TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  UNIQUE(project, name)
+);
+CREATE INDEX IF NOT EXISTS idx_planning_projects_project ON planning_projects(project, updated_at);
+CREATE INDEX IF NOT EXISTS idx_planning_projects_trash   ON planning_projects(deleted_at) WHERE deleted_at IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS planning_deadlines (
+  id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+  planning_project_id  INTEGER NOT NULL REFERENCES planning_projects(id),
+  project              TEXT    NOT NULL,           -- denormalised for queries / trash list
+  name                 TEXT    NOT NULL,
+  description          TEXT    NOT NULL DEFAULT '',
+  due_date             TEXT    NOT NULL,           -- ISO YYYY-MM-DD
+  color                TEXT,
+  created_by           TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at           INTEGER NOT NULL,
+  updated_at           INTEGER NOT NULL,
+  deleted_at           INTEGER,
+  deleted_by           TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  UNIQUE(planning_project_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_planning_deadlines_pp    ON planning_deadlines(planning_project_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_planning_deadlines_trash ON planning_deadlines(deleted_at) WHERE deleted_at IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS planning_teams (
+  id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+  planning_project_id  INTEGER NOT NULL REFERENCES planning_projects(id),
+  project              TEXT    NOT NULL,
+  name                 TEXT    NOT NULL,
+  description          TEXT    NOT NULL DEFAULT '',
+  color                TEXT,
+  max_parallel         INTEGER NOT NULL DEFAULT 1, -- how many wishes the team can run simultaneously
+  created_by           TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at           INTEGER NOT NULL,
+  updated_at           INTEGER NOT NULL,
+  deleted_at           INTEGER,
+  deleted_by           TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  UNIQUE(planning_project_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_planning_teams_pp    ON planning_teams(planning_project_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_planning_teams_trash ON planning_teams(deleted_at) WHERE deleted_at IS NOT NULL;
+
+-- Membership is optional — a team can exist without users; users are only
+-- needed for notification fan-out. Hard delete on user/team removal.
+CREATE TABLE IF NOT EXISTS planning_team_members (
+  planning_team_id  INTEGER NOT NULL REFERENCES planning_teams(id) ON DELETE CASCADE,
+  user_id           TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at        INTEGER NOT NULL,
+  PRIMARY KEY (planning_team_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_planning_team_members_user ON planning_team_members(user_id);
+
+CREATE TABLE IF NOT EXISTS planning_tags (
+  id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+  planning_project_id  INTEGER NOT NULL REFERENCES planning_projects(id),
+  project              TEXT    NOT NULL,
+  name                 TEXT    NOT NULL,
+  description          TEXT    NOT NULL DEFAULT '',
+  color                TEXT,
+  created_by           TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at           INTEGER NOT NULL,
+  updated_at           INTEGER NOT NULL,
+  deleted_at           INTEGER,
+  deleted_by           TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  UNIQUE(planning_project_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_planning_tags_pp    ON planning_tags(planning_project_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_planning_tags_trash ON planning_tags(deleted_at) WHERE deleted_at IS NOT NULL;
+
+-- Wishes are the work items. depends_on_wishes / depends_on_tags are JSON
+-- arrays parsed at scheduler / route time. Title is not unique (titles repeat
+-- naturally) — soft-delete uses no rename dance.
+CREATE TABLE IF NOT EXISTS planning_wishes (
+  id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+  planning_project_id  INTEGER NOT NULL REFERENCES planning_projects(id),
+  project              TEXT    NOT NULL,
+  title                TEXT    NOT NULL,
+  description          TEXT    NOT NULL DEFAULT '',
+  duration_days        INTEGER NOT NULL DEFAULT 1, -- working days (Mon-Fri)
+  team_id              INTEGER REFERENCES planning_teams(id) ON DELETE SET NULL,
+  deadline_id          INTEGER REFERENCES planning_deadlines(id) ON DELETE SET NULL,
+  planned_start_date   TEXT,                       -- user-set; NULL = not yet placed
+  planned_end_date     TEXT,                       -- derived; cached to avoid recompute
+  status               TEXT    NOT NULL DEFAULT 'planned', -- planned | in_progress | done
+  depends_on_wishes    TEXT    NOT NULL DEFAULT '[]', -- JSON array of wish ids
+  depends_on_tags      TEXT    NOT NULL DEFAULT '[]', -- JSON array of tag names
+  -- Optional external tracker reference (Jira issue key, GitHub issue number,
+  -- etc.). Stored verbatim as user-entered; not validated against any
+  -- specific tracker format.
+  jira_key             TEXT,
+  -- Advice-hide tuple: when set, the user has dismissed the schedule advice
+  -- for *this exact* proposed change. The suggestion endpoint compares the
+  -- pending placement against (advice_hide_start, advice_hide_end,
+  -- advice_hide_team_id) and routes the placement into a `hiddenPlacements`
+  -- list when all three match. The hide auto-expires when the suggestion
+  -- proposes anything different (different dates or team).
+  advice_hide_start    TEXT,
+  advice_hide_end      TEXT,
+  advice_hide_team_id  INTEGER,
+  created_by           TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  created_at           INTEGER NOT NULL,
+  updated_at           INTEGER NOT NULL,
+  deleted_at           INTEGER,
+  deleted_by           TEXT    REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_planning_wishes_pp       ON planning_wishes(planning_project_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_planning_wishes_team     ON planning_wishes(team_id) WHERE team_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_planning_wishes_deadline ON planning_wishes(deadline_id) WHERE deadline_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_planning_wishes_trash    ON planning_wishes(deleted_at) WHERE deleted_at IS NOT NULL;
+
+-- Many-to-many between wishes and tags. Cascade deletion mirrors how the
+-- contacts/groups M:N table behaves.
+CREATE TABLE IF NOT EXISTS planning_wish_tags (
+  wish_id  INTEGER NOT NULL REFERENCES planning_wishes(id) ON DELETE CASCADE,
+  tag_id   INTEGER NOT NULL REFERENCES planning_tags(id) ON DELETE CASCADE,
+  PRIMARY KEY (wish_id, tag_id)
+);
+CREATE INDEX IF NOT EXISTS idx_planning_wish_tags_tag ON planning_wish_tags(tag_id);
+
+-- One pending suggestion per planning project; new computations replace the
+-- previous pending row. Accepted/rejected rows stay around for audit + the
+-- "decision_comment for next round" history.
+CREATE TABLE IF NOT EXISTS planning_suggestions (
+  id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+  planning_project_id  INTEGER NOT NULL REFERENCES planning_projects(id) ON DELETE CASCADE,
+  generated_at         INTEGER NOT NULL,
+  status               TEXT    NOT NULL DEFAULT 'pending', -- pending | accepted | rejected
+  payload_json         TEXT    NOT NULL,                   -- {placements:[...], bottlenecks:[...]}
+  generated_by_user_id TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  decided_by_user_id   TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  decided_at           INTEGER,
+  decision_comment     TEXT    NOT NULL DEFAULT ''
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_planning_suggestions_pending
+  ON planning_suggestions(planning_project_id) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_planning_suggestions_pp
+  ON planning_suggestions(planning_project_id, generated_at DESC);
+
+-- Snapshot history of executive-grade roadmap status reports. Generated either
+-- on demand (POST /api/planning/:id/report/generate) or by the periodic
+-- handler `planning.report_snapshot`. `payload_json` is the structured
+-- report; `markdown` is the exportable rendition; `headline` powers the
+-- snapshot picker. Pruned to the most recent N rows per planning project on
+-- insert (default 50, configurable).
+CREATE TABLE IF NOT EXISTS planning_reports (
+  id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+  planning_project_id  INTEGER NOT NULL REFERENCES planning_projects(id) ON DELETE CASCADE,
+  generated_at         INTEGER NOT NULL,
+  trigger              TEXT    NOT NULL DEFAULT 'manual', -- 'manual' | 'scheduled'
+  generated_by_user_id TEXT    REFERENCES users(id) ON DELETE SET NULL,
+  payload_json         TEXT    NOT NULL,
+  markdown             TEXT    NOT NULL DEFAULT '',
+  headline             TEXT    NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_planning_reports_pp
+  ON planning_reports(planning_project_id, generated_at DESC);
 
 -- ── Embeddings ───────────────────────────────────────────────────────────────
 -- Created dynamically by db.ts using the configured dimension (default 1536)

@@ -261,6 +261,24 @@ export interface DiaryConfig {
   whisperTimeoutMs: number;
 }
 
+export interface PlanningConfig {
+  /** Cron expression for the planning suggestion-refresh handler. */
+  suggestionRefreshCron: string;
+  /** Max planning projects re-scheduled per tick. */
+  suggestionRefreshBatchSize: number;
+  /** Window in ms during which a duplicate deadline-conflict notification
+   *  is suppressed for the same wish + recipient. Default 24 h. */
+  notifyDeadlineConflictDedupMs: number;
+  /** Cron expression for the executive report snapshot handler. Default
+   *  every Monday at 08:00. */
+  reportSnapshotCron: string;
+  /** When false, the scheduled handler skips even when its task is enabled
+   *  — useful for dev environments that want only on-demand reports. */
+  reportSnapshotEnabled: boolean;
+  /** Cap on the rolling window of saved report rows per planning project. */
+  maxReportsPerProject: number;
+}
+
 export interface BunnyConfig {
   llm: LlmConfig;
   embed: EmbedConfig;
@@ -279,6 +297,7 @@ export interface BunnyConfig {
   businesses: BusinessesConfig;
   scripts: ScriptsConfig;
   diary: DiaryConfig;
+  planning: PlanningConfig;
   sessionId: string | undefined;
 }
 
@@ -391,6 +410,14 @@ interface TomlShape {
     whisper_model_path: string;
     whisper_language: string;
     whisper_timeout_ms: number;
+  }>;
+  planning?: Partial<{
+    suggestion_refresh_cron: string;
+    suggestion_refresh_batch_size: number;
+    notify_deadline_conflict_dedup_ms: number;
+    report_snapshot_cron: string;
+    report_snapshot_enabled: boolean;
+    max_reports_per_project: number;
   }>;
 }
 
@@ -528,6 +555,14 @@ When you are done, reply with your final answer without making any more tool cal
     whisperModelPath: "",
     whisperLanguage: "nl",
     whisperTimeoutMs: 5 * 60 * 1000,
+  },
+  planning: {
+    suggestionRefreshCron: "*/5 * * * *",
+    suggestionRefreshBatchSize: 5,
+    notifyDeadlineConflictDedupMs: 24 * 60 * 60 * 1000,
+    reportSnapshotCron: "0 8 * * 1",
+    reportSnapshotEnabled: true,
+    maxReportsPerProject: 50,
   },
 } as const;
 
@@ -888,6 +923,30 @@ export function loadConfig(
     ),
   };
 
+  const planning: PlanningConfig = {
+    suggestionRefreshCron:
+      toml.planning?.suggestion_refresh_cron ??
+      DEFAULTS.planning.suggestionRefreshCron,
+    suggestionRefreshBatchSize: Number(
+      toml.planning?.suggestion_refresh_batch_size ??
+        DEFAULTS.planning.suggestionRefreshBatchSize,
+    ),
+    notifyDeadlineConflictDedupMs: Number(
+      toml.planning?.notify_deadline_conflict_dedup_ms ??
+        DEFAULTS.planning.notifyDeadlineConflictDedupMs,
+    ),
+    reportSnapshotCron:
+      toml.planning?.report_snapshot_cron ??
+      DEFAULTS.planning.reportSnapshotCron,
+    reportSnapshotEnabled:
+      toml.planning?.report_snapshot_enabled ??
+      DEFAULTS.planning.reportSnapshotEnabled,
+    maxReportsPerProject: Number(
+      toml.planning?.max_reports_per_project ??
+        DEFAULTS.planning.maxReportsPerProject,
+    ),
+  };
+
   return {
     llm,
     embed,
@@ -906,6 +965,7 @@ export function loadConfig(
     businesses,
     scripts,
     diary,
+    planning,
     sessionId: env["BUNNY_SESSION"],
   };
 }

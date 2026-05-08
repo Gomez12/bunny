@@ -145,6 +145,14 @@ const CFG: BunnyConfig = {
     whisperLanguage: "nl",
     whisperTimeoutMs: 300000,
   },
+  planning: {
+    suggestionRefreshCron: "*/5 * * * *",
+    suggestionRefreshBatchSize: 5,
+    notifyDeadlineConflictDedupMs: 86_400_000,
+    reportSnapshotCron: "0 8 * * 1",
+    reportSnapshotEnabled: true,
+    maxReportsPerProject: 50,
+  },
   sessionId: undefined,
 };
 

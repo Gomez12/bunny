@@ -34,7 +34,12 @@ export type TrashKind =
   | "business"
   | "script"
   | "diagram"
-  | "diary_entry";
+  | "diary_entry"
+  | "planning_project"
+  | "planning_deadline"
+  | "planning_team"
+  | "planning_tag"
+  | "planning_wish";
 
 export type RestoreOutcome = "ok" | "not_found" | "name_conflict";
 
