@@ -30,7 +30,6 @@ import {
   addBusinessDays,
   businessDaysBetween,
   calendarDayRange,
-  type DayInfo,
   formatISODate,
   nextBusinessDay,
   parseISODate,
