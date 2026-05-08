@@ -200,9 +200,9 @@ async function translateOne(
     embedCfg: ctx.cfg.embed,
     memoryCfg: ctx.cfg.memory,
     agentCfg: ctx.cfg.agent,
-    // Translation explicitly does not enable web tools — consistency with the
-    // source beats extra information gathering.
+    // Translation needs no tools — all content is in the prompt.
     tools: toolsRegistry,
+    toolWhitelist: [],
     db: ctx.db,
     queue: ctx.queue,
     renderer,

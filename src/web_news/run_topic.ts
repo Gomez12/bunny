@@ -146,6 +146,7 @@ export async function runTopic(opts: RunTopicOpts): Promise<RunTopicResult> {
       agentCfg: cfg.agent,
       webCfg: cfg.web,
       tools,
+      toolWhitelist: ["web_fetch", "web_search"],
       db,
       queue,
       renderer: silentRenderer(),

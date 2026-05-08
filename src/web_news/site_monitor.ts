@@ -148,6 +148,7 @@ ${md}`;
       agentCfg: cfg.agent,
       webCfg: undefined,
       tools,
+      toolWhitelist: [],
       db,
       queue,
       renderer: silentRenderer(),

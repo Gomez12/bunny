@@ -177,6 +177,11 @@ export interface RunAgentOptions {
    *  flag is auto-propagated to nested sub-agents via the `{ ...opts }`
    *  spread in `invokeSubagent`. See ADR 0034. */
   originAutomation?: boolean;
+  /** When set, restricts available tools to this list. Acts as a fallback when
+   *  no named agent with its own tool whitelist is used. Pass `[]` for handlers
+   *  that need no tools at all (translation, memory refresh); pass specific
+   *  tool names for focused tasks (e.g. `["web_fetch", "web_search"]`). */
+  toolWhitelist?: string[];
 }
 
 /** Run one user turn through the agent loop. Returns the final assistant response. */
@@ -413,6 +418,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
     boardCtx: { db, project, userId: userId ?? "system" },
     skillNames,
     webCfg: opts.webCfg,
+    runtimeWhitelist: opts.toolWhitelist,
     askUserCtx: askUserAvailable
       ? {
           sessionId,
@@ -652,6 +658,7 @@ interface BuildRunRegistryOpts {
   boardCtx: BoardToolContext;
   skillNames: string[];
   webCfg?: WebConfig;
+  runtimeWhitelist?: string[];
   invokeSubagent: (name: string, prompt: string) => Promise<string>;
   askUserCtx?: {
     sessionId: string;
@@ -662,7 +669,7 @@ interface BuildRunRegistryOpts {
 
 function buildRunRegistry(opts: BuildRunRegistryOpts): ToolRegistry {
   const { baseTools, agentAssets } = opts;
-  const whitelist = agentAssets?.tools; // undefined = all tools
+  const whitelist = agentAssets?.tools ?? opts.runtimeWhitelist; // undefined = all tools
   const allowedSubagents = agentAssets?.allowedSubagents ?? [];
 
   const extras: ToolDescriptor[] = [];

@@ -302,6 +302,7 @@ export async function runBusinessAutoBuild(
           agentCfg: cfg.agent,
           webCfg: cfg.web,
           tools: toolRegistry,
+          toolWhitelist: ["web_fetch", "web_search"],
           db,
           queue,
           renderer: silentRenderer(),
