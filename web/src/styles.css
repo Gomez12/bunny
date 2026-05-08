@@ -10168,6 +10168,23 @@ button {
 .planning-gantt__bar-handle:hover {
   background: rgba(255, 255, 255, 0.4);
 }
+.planning-gantt__bar-handle--left {
+  right: auto;
+  left: 0;
+  background: linear-gradient(
+    270deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.18) 60%,
+    rgba(255, 255, 255, 0.32) 100%
+  );
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-top-left-radius: 5px;
+  border-bottom-left-radius: 5px;
+}
+.planning-gantt__bar-handle--left:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
 .planning-gantt__bar-jira {
   display: inline-block;
   margin-right: 6px;

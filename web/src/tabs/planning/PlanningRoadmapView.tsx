@@ -310,7 +310,7 @@ export default function PlanningRoadmapView({
     newTeamName: string;
   } | null>(null);
 
-  // Resize-drag state. Tracks rightward drag of the bar's right-edge handle.
+  // Right-edge resize-drag state.
   const resizeRef = useRef<{
     wishId: number;
     startX: number;
@@ -322,6 +322,22 @@ export default function PlanningRoadmapView({
   } | null>(null);
   const [confirmResize, setConfirmResize] = useState<{
     wish: PlanningWish;
+    newDuration: number;
+  } | null>(null);
+
+  // Left-edge resize-drag state (changes start date, end date stays fixed).
+  const leftResizeRef = useRef<{
+    wishId: number;
+    startX: number;
+    initialStartIdx: number;
+  } | null>(null);
+  const [leftResizeDelta, setLeftResizeDelta] = useState<{
+    wishId: number;
+    deltaDays: number;
+  } | null>(null);
+  const [confirmLeftResize, setConfirmLeftResize] = useState<{
+    wish: PlanningWish;
+    newStartIso: string;
     newDuration: number;
   } | null>(null);
 
@@ -529,6 +545,95 @@ export default function PlanningRoadmapView({
       } catch {
         // suggestion failure is non-fatal
       }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      await reload();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onLeftResizePointerDown = (
+    e: React.PointerEvent<HTMLDivElement>,
+    wish: PlanningWish,
+    layout: BarLayout,
+  ) => {
+    e.stopPropagation();
+    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+    leftResizeRef.current = {
+      wishId: wish.id,
+      startX: e.clientX,
+      initialStartIdx: layout.startIdx,
+    };
+    setLeftResizeDelta({ wishId: wish.id, deltaDays: 0 });
+  };
+
+  const onLeftResizePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    const r = leftResizeRef.current;
+    if (!r) return;
+    const deltaDays = Math.round((e.clientX - r.startX) / dayWidthPx);
+    setLeftResizeDelta({ wishId: r.wishId, deltaDays });
+  };
+
+  const onLeftResizePointerUp = (
+    e: React.PointerEvent<HTMLDivElement>,
+    wish: PlanningWish,
+    layout: BarLayout,
+  ) => {
+    e.stopPropagation();
+    const r = leftResizeRef.current;
+    leftResizeRef.current = null;
+    setLeftResizeDelta(null);
+    if (!r || !wish.plannedStartDate) return;
+    (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
+    const calDelta = Math.round((e.clientX - r.startX) / dayWidthPx);
+    if (calDelta === 0) return;
+    // Snap new start to nearest working day.
+    const newStartIdx = Math.max(0, layout.startIdx + calDelta);
+    const rawDate = days[Math.min(newStartIdx, days.length - 1)]?.date;
+    if (!rawDate) return;
+    const snappedStart = nextBusinessDay(rawDate, nonWorkingDates);
+    const newStartIso = formatISODate(snappedStart);
+    // End date stays fixed (derived from current duration + start).
+    const endDate = addBusinessDays(
+      parseISODate(wish.plannedStartDate),
+      wish.durationDays - 1,
+      nonWorkingDates,
+    );
+    // Count working days from new start to fixed end.
+    const newDuration = Math.max(
+      1,
+      businessDaysBetween(snappedStart, endDate, nonWorkingDates),
+    );
+    if (newStartIso === wish.plannedStartDate && newDuration === wish.durationDays) return;
+    if (confirmEnabled) {
+      setConfirmLeftResize({ wish, newStartIso, newDuration });
+    } else {
+      void applyLeftResize(wish, newStartIso, newDuration);
+    }
+  };
+
+  const applyLeftResize = async (
+    wish: PlanningWish,
+    newStartIso: string,
+    newDuration: number,
+  ) => {
+    setBusy(true);
+    try {
+      const newEnd = formatISODate(
+        addBusinessDays(parseISODate(newStartIso), newDuration - 1, nonWorkingDates),
+      );
+      await patchPlanningWish(wish.id, {
+        plannedStartDate: newStartIso,
+        durationDays: newDuration,
+        plannedEndDate: newEnd,
+      });
+      await reload();
+      try {
+        await generatePlanningSuggestion(planningProject.id);
+        await reload();
+      } catch {}
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       await reload();
@@ -941,22 +1046,31 @@ export default function PlanningRoadmapView({
                   const layout = wishLayout(wish);
                   if (!layout) return null;
                   const drag = dragDelta?.wishId === wish.id ? dragDelta : null;
-                  const resize =
-                    resizeDelta?.wishId === wish.id ? resizeDelta : null;
-                  // Bar start: shift by drag.deltaDays calendar columns.
+                  const resize = resizeDelta?.wishId === wish.id ? resizeDelta : null;
+                  const leftResize = leftResizeDelta?.wishId === wish.id ? leftResizeDelta : null;
+
+                  // Start: move shifts it, left-resize shifts it, otherwise fixed.
                   const idx = drag
                     ? Math.max(0, layout.startIdx + drag.deltaDays)
-                    : layout.startIdx;
-                  // Bar end: shift endIdx by calendar-day resize delta.
-                  const previewEndIdx = resize
-                    ? Math.max(idx, layout.endIdx + resize.deltaDays)
-                    : layout.endIdx;
+                    : leftResize
+                      ? Math.max(0, layout.startIdx + leftResize.deltaDays)
+                      : layout.startIdx;
+
+                  // End: move shifts BOTH (bar moves intact), right-resize shifts
+                  // end only, left-resize keeps end fixed.
+                  const previewEndIdx = drag
+                    ? layout.endIdx + drag.deltaDays   // ← move: end moves with start
+                    : resize
+                      ? Math.max(idx, layout.endIdx + resize.deltaDays)
+                      : layout.endIdx;                 // left-resize: end stays fixed
+
                   const barWidthPx = Math.max(
                     dayWidthPx - 4,
                     (previewEndIdx - idx + 1) * dayWidthPx - 4,
                   );
                   const dragYPx = drag ? drag.deltaRows * ROW_HEIGHT_PX : 0;
                   const isConflict = conflictWishIds.has(wish.id);
+                  const isDragging = !!(drag || resize || leftResize);
                   return (
                     <div
                       key={wish.id}
@@ -966,16 +1080,22 @@ export default function PlanningRoadmapView({
                         width: barWidthPx,
                         background: row.team?.color ?? undefined,
                         transform: dragYPx ? `translateY(${dragYPx}px)` : undefined,
-                        zIndex: drag || resize ? 5 : undefined,
+                        zIndex: isDragging ? 5 : undefined,
                       }}
-                      title={`${wish.jiraKey ? `[${wish.jiraKey}] ` : ""}${wish.title} (${layout.durationDays}d${resize ? " — drag right edge to resize" : ""}${isConflict ? " — overlaps another wish on this team" : ""}) — double-click to edit`}
+                      title={`${wish.jiraKey ? `[${wish.jiraKey}] ` : ""}${wish.title} (${layout.durationDays}d${isConflict ? " — overlaps another wish on this team" : ""}) — double-click to edit`}
                       onPointerDown={(e) => onBarPointerDown(e, wish, layout)}
                       onPointerMove={onBarPointerMove}
                       onPointerUp={(e) => onBarPointerUp(e, wish)}
-                      onDoubleClick={() =>
-                        setWishModal({ kind: "edit", wish })
-                      }
+                      onDoubleClick={() => setWishModal({ kind: "edit", wish })}
                     >
+                      {/* Left handle — drag to change start date */}
+                      <div
+                        className="planning-gantt__bar-handle planning-gantt__bar-handle--left"
+                        title="Drag to change start date"
+                        onPointerDown={(e) => onLeftResizePointerDown(e, wish, layout)}
+                        onPointerMove={onLeftResizePointerMove}
+                        onPointerUp={(e) => onLeftResizePointerUp(e, wish, layout)}
+                      />
                       {isConflict && (
                         <span className="planning-gantt__bar-warn" aria-hidden="true">
                           <AlertCircle size={12} />
@@ -988,11 +1108,15 @@ export default function PlanningRoadmapView({
                           </span>
                         )}
                         {wish.title}
-                        {resize && resize.deltaDays !== 0 ? ` (${layout.durationDays}d)` : ""}
+                        {(resize && resize.deltaDays !== 0) ||
+                        (leftResize && leftResize.deltaDays !== 0)
+                          ? ` (${layout.durationDays}d)`
+                          : ""}
                       </span>
+                      {/* Right handle — drag to change end date */}
                       <div
                         className="planning-gantt__bar-handle"
-                        title="Drag to change duration"
+                        title="Drag to change end date"
                         onPointerDown={(e) => onResizePointerDown(e, wish)}
                         onPointerMove={onResizePointerMove}
                         onPointerUp={(e) => onResizePointerUp(e, wish)}
@@ -1058,6 +1182,35 @@ export default function PlanningRoadmapView({
           if (c) void applyResize(c.wish, c.newDuration);
         }}
         onCancel={() => setConfirmResize(null)}
+      />
+
+      <ConfirmDialog
+        open={confirmLeftResize !== null}
+        title="Change start date"
+        message={
+          confirmLeftResize ? (
+            <>
+              Move the start of{" "}
+              <strong>{confirmLeftResize.wish.title}</strong> to{" "}
+              <strong>{confirmLeftResize.newStartIso}</strong>?{" "}
+              Duration changes to{" "}
+              <strong>{confirmLeftResize.newDuration}</strong> working day
+              {confirmLeftResize.newDuration === 1 ? "" : "s"}.
+              A new schedule advice will be generated automatically.
+            </>
+          ) : (
+            ""
+          )
+        }
+        confirmLabel="Change start"
+        cancelLabel="Cancel"
+        onConfirm={() => {
+          const c = confirmLeftResize;
+          setConfirmLeftResize(null);
+          if (!c) return;
+          void applyLeftResize(c.wish, c.newStartIso, c.newDuration);
+        }}
+        onCancel={() => setConfirmLeftResize(null)}
       />
 
       <ConfirmDialog
