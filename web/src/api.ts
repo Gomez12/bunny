@@ -3553,8 +3553,8 @@ export async function listCodeProjectSecrets(
     credentials: "include",
   });
   if (!res.ok) throw new Error(await res.text());
-  const data = await res.json();
-  return data.secrets as CodeProjectSecret[];
+  const data = (await res.json()) as { secrets: CodeProjectSecret[] };
+  return data.secrets;
 }
 
 export async function listCodeProjectSecretNames(
@@ -3564,8 +3564,8 @@ export async function listCodeProjectSecretNames(
     credentials: "include",
   });
   if (!res.ok) throw new Error(await res.text());
-  const data = await res.json();
-  return data.names as { name: string; description: string }[];
+  const data = (await res.json()) as { names: { name: string; description: string }[] };
+  return data.names;
 }
 
 export async function createCodeProjectSecret(
@@ -3588,8 +3588,8 @@ export async function createCodeProjectSecret(
     const data = await res.json().catch(() => ({}));
     throw new Error((data as { error?: string }).error ?? res.statusText);
   }
-  const data = await res.json();
-  return data.secret as CodeProjectSecret;
+  const data = (await res.json()) as { secret: CodeProjectSecret };
+  return data.secret;
 }
 
 export async function updateCodeProjectSecret(
@@ -3613,8 +3613,8 @@ export async function updateCodeProjectSecret(
     const data = await res.json().catch(() => ({}));
     throw new Error((data as { error?: string }).error ?? res.statusText);
   }
-  const data = await res.json();
-  return data.secret as CodeProjectSecret;
+  const data = (await res.json()) as { secret: CodeProjectSecret };
+  return data.secret;
 }
 
 export async function deleteCodeProjectSecret(
