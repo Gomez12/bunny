@@ -14,6 +14,13 @@ Archive lives in [`tasklistarchive.md`](./tasklistarchive.md). Keep at most 50 `
 | done | docs/dev/architecture/calendar-and-working-days.md | 5m | Fix non-existent --post-holiday CSS class reference |
 | done | docs/dev/architecture/entities/planning.md | 20m | Add left-edge handle; remove "holidays out of v1" stale claim |
 | done | docs/dev/components/shell-and-navigation.md | 15m | Add 6 missing tabs to NAV snippet |
+| done | docs/dev/styleguide/README.md | 1h | Sync §1 tokens, §4 button variants, §5 icon table, §8 empty-state guidance with current code |
+| done | docs/dev/components/component-library.md | 30m | Grow inventory from 13 to 36 components, document <Modal>/<ConfirmDialog>/<EmptyState> rules |
+| done | web/src/components/ConfirmDialog.tsx | 30m | Replace 4× `window.confirm` in planning views with `<ConfirmDialog>` |
+| done | web/src/components/EmptyState.tsx | 15m | Use `<EmptyState>` in TrashTab; styleguide §8 clarifies page-level vs section-level vs always-on-CTA |
+| done | web/src/components/PageHeader.tsx | 2h | Add `<PageHeader>` primitive; migrate Projects/Agents/Skills/Tasks/Board/Diary tabs |
+| done | web/src/components/SubTabs.tsx | 1h | Add `<SubTabs>` primitive; migrate WorkspaceTab + KnowledgeBaseTab; document filter-pill / view-mode-picker as separate sanctioned patterns |
+| done | docs/dev/styleguide/README.md (§3 Card grid) | 30m | Normalise card-grid gaps to 16 px; add `.agent-card`/`.skill-card` as CSS aliases of `.project-card`; document the two sanctioned card sizes |
 | open | docs/dev/follow-ups/docs-check-script.md | 2h | Implement `bun run docs:check` (plans-referenced, max-50-done, job-inventory diff) |
 | open | docs/dev/follow-ups/i18n-check-script.md | 2h | Implement `bun run i18n:check` for missing translation keys |
 | open | docs/dev/architecture/job-inventory.md | 1h | Populate `job-inventory.md` from `registerAllAgents` / `registerTaxonomyPurgeHandlers` |
