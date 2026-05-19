@@ -13,6 +13,7 @@ import {
   RotateCcw,
   Trash2,
 } from "../lib/icons";
+import EmptyState from "../components/EmptyState";
 
 const KIND_LABEL: Record<TrashKind, string> = {
   document: "Document",
@@ -160,7 +161,10 @@ export default function TrashTab() {
       {error && <div className="trash__error">Error: {error}</div>}
 
       {items && items.length === 0 && (
-        <div className="trash__empty">The bin is empty.</div>
+        <EmptyState
+          title="The bin is empty"
+          description="Items you delete from any tab land here. Anything older than 30 days is purged automatically."
+        />
       )}
 
       {items && items.length > 0 && (

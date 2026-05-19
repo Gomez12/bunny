@@ -300,7 +300,9 @@ Events may carry `author` (agent name) — when set, render `@name` instead of t
 
 ## 8. Empty / loading / error states
 
-- **Empty:** `<EmptyState>` with rabbit + title + optional CTA. Never ship a blank screen.
+- **Empty (page-level):** `<EmptyState>` — rabbit (120 px) + title + optional description + optional CTA. Use this when an entire tab body has nothing to show (the Bin is empty, the Notifications list is empty, a planning project has no wishes yet). Never ship a blank tab. `<EmptyState size="sm">` shrinks the rabbit to 80 px and tightens the padding — use it inside a wide panel that isn't the full tab.
+- **Empty (section-level / inside a card / table):** a minimal one-line muted-text node is fine (`color: var(--text-dim)`, centered, 16 px padding) — see `.tasks-empty` in `web/src/tabs/TasksTab.tsx` for the canonical inline pattern. Don't put a 120 px rabbit inside a table cell or a 240 px sidebar.
+- **Tab with an always-on "+ New" CTA card:** if the list grid always renders a `+ New <thing>` tile (Agents, Skills, Projects), that *is* the empty state — no separate `<EmptyState>` needed. Don't break the always-on CTA pattern when adding a new card grid.
 - **Loading:** inline `Loading…` text with the existing `.app-loading` class for full-screen, or a small spinner from `lucide-react` (`Loader2` with `animate-spin`) for in-panel loads. No skeleton screens (adds weight for little gain).
 - **Error:** red banner (`--err` on `--bg-elevated`) with an `AlertCircle` icon + message + optional retry button. Never swallow errors silently; if a fetch fails, say so.
 
