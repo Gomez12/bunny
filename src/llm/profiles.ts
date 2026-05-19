@@ -86,19 +86,25 @@ const PROFILES: Record<LlmProfile, Profile> = {
   "anthropic-compat": anthropicCompatProfile,
 };
 
-/** Guess profile from base URL when no explicit override is set. */
+/** Guess profile from base URL when no explicit override is set.
+ *  Matches on the parsed hostname only — a plain `.includes()` on the full URL
+ *  would let `https://evil.com/api.openai.com` masquerade as OpenAI. */
 export function detectProfile(baseUrl: string): LlmProfile {
-  const lower = baseUrl.toLowerCase();
-  if (lower.includes("api.openai.com")) return "openai";
-  if (lower.includes("openrouter.ai")) return "openrouter";
-  if (lower.includes("deepseek.com")) return "deepseek";
-  if (
-    lower.includes("localhost") ||
-    lower.includes("127.0.0.1") ||
-    lower.includes("ollama")
-  )
+  let host = "";
+  try {
+    host = new URL(baseUrl).hostname.toLowerCase();
+  } catch {
+    return "openai"; // unparseable URL: safest fallback
+  }
+  const matches = (suffix: string): boolean =>
+    host === suffix || host.endsWith(`.${suffix}`);
+
+  if (matches("openai.com")) return "openai";
+  if (matches("openrouter.ai")) return "openrouter";
+  if (matches("deepseek.com")) return "deepseek";
+  if (host === "localhost" || host === "127.0.0.1" || host.includes("ollama"))
     return "ollama";
-  if (lower.includes("anthropic") || lower.includes("litellm"))
+  if (host.includes("anthropic") || host.includes("litellm"))
     return "anthropic-compat";
   return "openai"; // safest fallback: no-op reasoning extraction
 }

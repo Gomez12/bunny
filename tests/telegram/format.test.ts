@@ -33,6 +33,15 @@ describe("markdownToTelegramHtml", () => {
     expect(bad).toBe("x");
   });
 
+  test("escapes double quotes inside href attribute (CodeQL js/incomplete-html-attribute-sanitization)", () => {
+    // The link regex stops at the first whitespace/`)`, so a hostile URL with
+    // a literal `"` can reach renderLink. Without attribute-escape it would
+    // break out of the href="..." and inject `onerror=`-style attributes.
+    const out = markdownToTelegramHtml('[t](https://x.com/a"onerror=alert(1))');
+    expect(out).toContain("&quot;");
+    expect(out).not.toMatch(/href="[^"]*"[^>]*onerror/i);
+  });
+
   test("handles inline code spans", () => {
     expect(markdownToTelegramHtml("use `foo` here")).toBe(
       "use <code>foo</code> here",

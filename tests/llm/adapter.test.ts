@@ -250,4 +250,22 @@ describe("profile detection", () => {
       "openai",
     );
   });
+
+  test("rejects path-based spoofing of vendor hosts (CodeQL js/incomplete-url-substring-sanitization)", async () => {
+    const { detectProfile } = await import("../../src/llm/profiles.ts");
+    // A hostile baseUrl with a vendor host smuggled into the path must NOT
+    // be classified as that vendor — the old `.includes()` check did. We
+    // assert against deepseek/openrouter rather than openai because openai
+    // is the safe-fallback for any unknown host anyway.
+    expect(detectProfile("https://evil.com/deepseek.com/v1")).not.toBe(
+      "deepseek",
+    );
+    expect(detectProfile("https://evil.com/openrouter.ai/v1")).not.toBe(
+      "openrouter",
+    );
+    // The new hostname-suffix logic still accepts legitimate subdomains.
+    expect(detectProfile("https://eu.api.openai.com/v1")).toBe("openai");
+    // Unparseable URL falls back to safest default.
+    expect(detectProfile("not a url")).toBe("openai");
+  });
 });

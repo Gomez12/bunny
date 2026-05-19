@@ -20,7 +20,10 @@
  * rendering readable than complete.
  */
 
-import { escapeTelegramHtml as escapeHtml } from "./util.ts";
+import {
+  escapeTelegramHtml as escapeHtml,
+  escapeTelegramHtmlAttr as escapeHtmlAttr,
+} from "./util.ts";
 
 function renderLink(text: string, href: string): string {
   // Telegram accepts `http`, `https`, `tg://`. Reject anything else so hostile
@@ -28,7 +31,7 @@ function renderLink(text: string, href: string): string {
   if (!/^(https?|tg):\/\//i.test(href)) {
     return escapeHtml(text);
   }
-  return `<a href="${escapeHtml(href)}">${escapeHtml(text)}</a>`;
+  return `<a href="${escapeHtmlAttr(href)}">${escapeHtml(text)}</a>`;
 }
 
 /**

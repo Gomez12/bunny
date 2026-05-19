@@ -508,7 +508,12 @@ export async function startServer(
             res = await maybeGzip(res, req);
           }
         } catch (e) {
-          res = new Response(JSON.stringify({ error: errorMessage(e) }), {
+          // Don't leak internal error details (file paths, SQL fragments,
+          // library names) to API clients. Log the real error server-side and
+          // return a generic message. Per-route 400 validation errors flow
+          // through their own catch blocks where the message is intentional.
+          console.error("[bunny/api] unhandled error:", e);
+          res = new Response(JSON.stringify({ error: "Internal server error" }), {
             status: 500,
             headers: { "Content-Type": "application/json" },
           });

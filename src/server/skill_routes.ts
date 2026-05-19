@@ -218,10 +218,21 @@ async function handleInstallSkill(
   const rawUrl = typeof body.url === "string" ? body.url.trim() : "";
   if (!rawUrl) return json({ error: "'url' is required" }, 400);
   try {
-    const isSkillsSh =
-      rawUrl.includes("skills.sh") ||
-      (!rawUrl.includes("github.com") &&
-        /^[a-z0-9_-]+\/[a-z0-9_-]+/i.test(rawUrl));
+    // Parse first so we route on hostname, not substring. `.includes("github.com")`
+    // on the raw URL would match `https://evil.com/?ref=github.com` too.
+    let host: string | null = null;
+    try {
+      host = new URL(rawUrl).hostname.toLowerCase();
+    } catch {
+      /* not a full URL — could still be `owner/name` short form */
+    }
+    const matches = (suffix: string): boolean =>
+      host === suffix || (host?.endsWith(`.${suffix}`) ?? false);
+    const isGitHubHost = matches("github.com");
+    const isSkillsShHost = matches("skills.sh");
+    const isShortForm =
+      host === null && /^[a-z0-9_-]+\/[a-z0-9_-]+/i.test(rawUrl);
+    const isSkillsSh = isSkillsShHost || (isShortForm && !isGitHubHost);
     const result = isSkillsSh
       ? await installSkillFromSkillsSh(
           rawUrl.replace(/^https?:\/\/skills\.sh\//, ""),
