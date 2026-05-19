@@ -8,8 +8,8 @@ The guiding rule: *if a write happened, `events` knows about it*. The Dashboard,
 
 ## Where it lives
 
-- `src/queue/bunqueue.ts` — wrapper around the [bunqueue](https://github.com/egeominotti/bunqueue) library.
-- `src/queue/types.ts` — `LogPayload` with optional `userId`.
+- `src/queue/bunqueue.ts` — wrapper around the [bunqueue](https://github.com/egeominotti/bunqueue) library; also exports the `LogPayload` interface (with optional `userId`) and `BunnyQueue`.
+- `src/queue/events.ts` — query helpers over the `events` table.
 - `src/memory/schema.sql` — `events` table + `idx_events_session` + `idx_events_topic`.
 - `src/memory/stats.ts` — Dashboard queries that roll up `events`.
 

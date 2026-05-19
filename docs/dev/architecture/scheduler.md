@@ -8,18 +8,21 @@ Two kinds of tasks: `system` (admin-managed, seeded at boot) and `user` (created
 
 ## Where it lives
 
-- `src/scheduler/schema.sql` — `scheduled_tasks` table definition (also lives in `src/memory/schema.sql`).
-- `src/scheduler/ticker.ts` — one-per-minute `tick()`.
-- `src/scheduler/handler_registry.ts` — `HandlerRegistry.register`, `get`, `list`.
+- `src/memory/schema.sql` — `scheduled_tasks` table definition.
+- `src/memory/scheduled_tasks.ts` — typed CRUD plus `claimDueTasks`, `setTaskResult`, `ensureSystemTask`.
+- `src/scheduler/ticker.ts` — one-per-minute `tick()`; exports `startScheduler` and the `SchedulerHandle` (with `tick`, `runTask`, `stop`).
+- `src/scheduler/handlers.ts` — `HandlerRegistry` interface plus `createHandlerRegistry()` factory and the `defaultHandlerRegistry` instance.
 - `src/scheduler/cron.ts:computeNextRun` — parses 5-field cron, returns next ms.
-- `src/scheduler/tasks.ts` — CRUD, `claimDueTasks`, `setTaskResult`, `runTask`.
 - `src/server/scheduled_task_routes.ts` — `/api/tasks*`.
-- Handler modules register themselves:
+- Each domain ships a `registerXxx(registry)` function. Boot wiring lives in `src/server/index.ts` and seeds the matching system task via `ensureSystemTask`. Examples:
   - `src/board/auto_run_handler.ts` → `board.auto_run_scan`
   - `src/translation/auto_translate_handler.ts` → `translation.auto_translate_scan`
   - `src/translation/sweep_stuck_handler.ts` → `translation.sweep_stuck`
   - `src/web_news/auto_run_handler.ts` → `web_news.auto_run_scan`
   - `src/telegram/poll_handler.ts` → `telegram.poll`
+  - `src/planning/suggestion_refresh_handler.ts` → `planning.suggestion_refresh`
+  - `src/kb/auto_generate_handler.ts` → `kb.auto_generate`
+  - `src/businesses/auto_build_handler.ts` → `businesses.auto_build`
 
 ## Schema
 
@@ -48,18 +51,24 @@ CREATE TABLE scheduled_tasks (
 ```
 every minute:
   claimDueTasks(now):
+    # one transaction:
+    SELECT * FROM scheduled_tasks
+      WHERE enabled = 1 AND next_run_at <= :now
+      ORDER BY next_run_at ASC;
     UPDATE scheduled_tasks
-    SET next_run_at = :one_minute_ahead
-    WHERE enabled = 1 AND next_run_at <= :now
-    RETURNING *;
+      SET next_run_at = :now + 60_000, updated_at = :now
+      WHERE id IN (...claimed ids);
   # atomic claim — no other tick picks the same row
 
   for each claimed row:
     try:
-      HandlerRegistry.get(row.handler)(ctx, row)
-      setTaskResult(row, 'ok', computeNextRun(row.cron_expr, now))
+      registry.get(row.handler)(ctx)        # ctx exposes db, queue, cfg, task
+      setTaskResult(row.id, { status: 'ok',
+                              nextRunAt: computeNextRun(row.cron_expr, now) })
     catch err:
-      setTaskResult(row, 'error', computeNextRun(row.cron_expr, now), err.message)
+      setTaskResult(row.id, { status: 'error',
+                              nextRunAt: computeNextRun(row.cron_expr, now),
+                              error: err.message })
     # malformed cron → park the row one hour out instead of crashing
 ```
 
@@ -67,27 +76,32 @@ every minute:
 
 ```ts
 // src/your_module/handler.ts
-import { registerHandler } from "../scheduler/handler_registry";
-import { ensureSystemTask } from "../scheduler/tasks";
+import type { HandlerRegistry, TaskHandlerContext } from "../scheduler/handlers.ts";
 
-export function register(deps: HandlerDeps) {
-  registerHandler("your_module.scan", async (ctx, row) => {
-    // ... do the work, returning void
-  });
+export const YOUR_MODULE_SCAN = "your_module.scan";
+
+async function yourModuleHandler(ctx: TaskHandlerContext): Promise<void> {
+  // ctx: { db, queue, cfg, task }
+  // ... do the work, returning void
+}
+
+export function registerYourModule(registry: HandlerRegistry): void {
+  registry.register(YOUR_MODULE_SCAN, yourModuleHandler);
 }
 
 // boot-time (src/server/index.ts):
-import { register as registerYourHandler } from "./your_module/handler";
-registerYourHandler(deps);
-ensureSystemTask(db, {
-  id: "system:your_module:scan",
-  handler: "your_module.scan",
-  cron_expr: "*/5 * * * *",
+import { registerYourModule, YOUR_MODULE_SCAN } from "./your_module/handler.ts";
+import { ensureSystemTask } from "../memory/scheduled_tasks.ts";
+
+registerYourModule(registry);
+ensureSystemTask(db, YOUR_MODULE_SCAN, {
   name: "Your module scan",
+  cronExpr: "*/5 * * * *",
+  nextRunAt: Date.now(),
 });
 ```
 
-`ensureSystemTask` is idempotent — re-registering a boot-time task doesn't duplicate.
+`ensureSystemTask` is idempotent — re-registering a boot-time task doesn't duplicate. It identifies an existing row by `(kind='system', handler)`, so the handler kind must be globally unique.
 
 ## Visibility + permissions
 

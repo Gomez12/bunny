@@ -23,8 +23,8 @@ Not every component in `components/` is equally shared — some are specialised 
 | `ToastStack.tsx` | Toast container, top-right. | Used by notifications. |
 | `NotificationBell.tsx` | Sidebar footer bell + unread badge. | Routes to the `notifications` tab on click. |
 | `Rabbit.tsx` | Brand mascot. | See `./icons-and-rabbit.md`. |
-| `Composer.tsx` | Chat input box + send button. | Re-used by the chat tab and (in simplified form) by `DocumentComposer` / `WhiteboardComposer`. |
-| `DocumentComposer.tsx` / `WhiteboardComposer.tsx` | Edit/ask mode toggle + prompt box. | Same two-mode pattern for each content entity. |
+| `Composer.tsx` | Chat input box + send button. | Used by the chat tab and elsewhere as the standalone prompt control. |
+| `EntityComposer.tsx` | Edit/question mode toggle + prompt box. | Shared two-mode pattern used by `DocumentTab`, `WhiteboardTab`, and other content entities. |
 | `TranslationsPanel.tsx` | The tabstrip + tabs for the translation UI. | Used inside every entity dialog. |
 
 ## Dialog primitives

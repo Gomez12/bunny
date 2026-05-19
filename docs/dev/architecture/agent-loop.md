@@ -12,7 +12,7 @@ The loop has a hard cap of `MAX_TOOL_ITERATIONS = 20` inner iterations per turn;
 - `src/agent/prompt.ts:buildSystemMessage` — composes the system prompt (base + agent + project + hybrid recall).
 - `src/agent/render.ts` — the transport-agnostic `Renderer` interface.
 - `src/agent/render_sse.ts:createSseRenderer` — SSE implementation for the web.
-- `src/agent/tool_registry.ts` — `ToolRegistry`, `subset`, closure-bound dynamic tools.
+- `src/tools/registry.ts` — `ToolRegistry` class plus the `subset(filter, extras)` method that yields a new registry with closure-bound dynamic tools injected.
 - `src/agent/mention.ts:parseMention` — strips leading `@agent` off a prompt.
 - `src/agent/ask_user_registry.ts` — blocking-question primitive, keyed by `sessionId::questionId`.
 

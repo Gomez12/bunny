@@ -61,8 +61,9 @@ hardcoded weekend rule.
 
 **Frontend Gantt**: fetches `GET /api/planning/:id/calendar/non-working?from&to`
 on load, passes the result to `workingDayRange(start, count, nwd)` so holidays
-are excluded from the working-day timeline. Day-header columns that immediately
-follow a holiday gap get `.planning-gantt__day--post-holiday` (orange left-border).
+are excluded from the working-day timeline. Non-working day-header columns get
+`.planning-gantt__day--nonworking` (see `PlanningRoadmapView.tsx:894` and
+`web/src/styles.css:10068`) — weekends and holidays share the same highlight.
 
 `buildNonWorkingDateSet` in `src/memory/calendar.ts` uses a bulk UNION ALL query
 across all applicable scopes, resolves priority in memory (user > team > planning

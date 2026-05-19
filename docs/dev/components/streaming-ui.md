@@ -9,7 +9,7 @@ SSE lands via **`fetch` body-reader**, not `EventSource`, because the chat endpo
 ## Where it lives
 
 - `web/src/hooks/useSSEChat.ts` — the fetch + reader + `Turn` accumulator.
-- `web/src/api.ts` — `SseEvent` type import + `parseSseFrame` helper.
+- `web/src/api.ts` — re-exports the `SseEvent` type from the backend and performs inline SSE-frame parsing (TextDecoder + split on `\n\n`, strip `data:` prefix, JSON-parse) inside the streaming helpers.
 - `web/src/components/MessageBubble.tsx` — renders one message row.
 - `web/src/components/ReasoningBlock.tsx`, `ToolCallCard.tsx`, `UserQuestionCard.tsx` — compose inside the bubble.
 - `src/agent/sse_events.ts` — the shared type union (also used by the backend).

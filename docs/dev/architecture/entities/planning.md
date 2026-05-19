@@ -37,7 +37,7 @@ Algorithm:
    - Reserve `[start, end]` in the team's interval list.
    - If the wish has a deadline and `end > deadline.due_date`, emit a `deadline_overrun` bottleneck.
 
-Working calendar: Mon-Fri. Per-team calendars and holidays are out of v1 scope.
+Working calendar: Mon-Fri by default, with per-scope exceptions (user > team > planning > project > global) layered on top via `buildNonWorkingDateSet` in `src/memory/calendar.ts`. The scheduler accepts an optional `nonWorkingDates: Set<string>` and skips those dates when reserving intervals — see [ADR 0044](../../decisions/0044-calendar-exceptions.md) and [`../calendar-and-working-days.md`](../calendar-and-working-days.md).
 
 ## HTTP routes (`src/server/planning_routes.ts`)
 
@@ -100,6 +100,7 @@ The Gantt bar supports three drag interactions. All three feed the same `applyDr
 |---|---|---|
 | Bar body, horizontal | One working day per `DAY_WIDTH_PX` | `planned_start_date` (and derived `planned_end_date`) |
 | Bar body, vertical | One row per `ROW_HEIGHT_PX` | `team_id` — drag onto another team's row, or onto the "Unassigned" lane |
+| Left-edge handle | One working day | `planned_start_date` (end date stays fixed; `duration_days` derived from the new span) |
 | Right-edge handle | One working day | `duration_days` (and derived `planned_end_date`) |
 
 When confirmations are enabled, releasing the pointer opens a `<ConfirmDialog>` listing every change about to be written ("Start date: X → Y", "Team: A → B", or "duration N → M"). On confirm: PATCH the wish + auto-call `/suggestion/generate` so the user immediately sees the ripple effects (downstream wishes, deadline conflicts) without a second click. When confirmations are off the dialog is skipped — drag-and-drop applies straight away.
@@ -201,8 +202,6 @@ Topic `planning`. Kinds (non-exhaustive):
 
 - Drag on deadlines (currently fixed once set).
 - Translation registration on wishes / deadlines / teams / tags.
-- Per-team working calendars; holidays.
-- Resize handles on Gantt bars (duration is edited via the wish form).
 - iCal / CSV export.
 - Dependency arrows overlay on the Gantt.
 - Telegram outbound for deadline-conflict notifications.
