@@ -26,12 +26,26 @@ Dual theme (light + dark). The default palette under `:root` is dark; `[data-the
 | `--tool-bg` | `#141823` | `#f2f4f8` | Tool-call / tool-result blocks |
 | `--ok` | `#22c55e` | `#16a34a` | Success / healthy status |
 | `--err` | `#ef4444` | `#dc2626` | Error / destructive |
+| `--warn` | `#ea580c` | `#c2410c` | Warning / caution (parallel to `--ok` and `--err`) |
+| `--status-busy` | `#a78bfa` | `#7c3aed` | Running / busy pills (agents, runs, generations) |
+| `--news-rss-fg` | `#d96d27` | `#b65a1f` | RSS source badge tint in Web News |
+| `--news-site-fg` | `#2878d9` | `#1d63b8` | Site source badge tint in Web News |
+| `--diagram-ok` | `#16a34a` | `#15803d` | Healthy diagram node accent |
+| `--diagram-warn` | `#92400e` | `#78350f` | Warning diagram node accent |
+| `--diagram-err` | `#ef4444` | `#dc2626` | Failed diagram node accent |
 | `--code-bg` | `#1e1e2e` | `#1e1e2e` | Preformatted / syntax-highlighted blocks (stays dark in both themes so `github-dark.css` keeps working) |
 | `--code-fg` | `#cdd6f4` | `#cdd6f4` | Code text inside `--code-bg` |
 | `--inline-code-bg` | `rgba(255,255,255,.08)` | `rgba(0,0,0,.06)` | Inline `<code>` tint |
 | `--shadow-soft` | `rgba(0,0,0,.35)` | `rgba(15,17,22,.08)` | Default card shadow |
 | `--hover-bg` | `rgba(255,255,255,.03)` | `rgba(15,17,22,.04)` | Row hover tint (tables, feeds, logs) |
 | `--hairline` | `rgba(255,255,255,.05)` | `rgba(15,17,22,.06)` | Ultra-subtle separator |
+
+Modal sizing variables (used by `<Modal size>`):
+
+| Token | Value | Use |
+| --- | --- | --- |
+| `--modal-size-sm` | `420px` | Default. Confirmations + simple pickers. |
+| `--modal-size-md` | `600px` | Entity create/edit forms. |
 
 **Rules:**
 - No new hex literals in component CSS — add a token or reuse one. If you need a one-off semantic (e.g. a warning amber), add it to the token table and document it here.
@@ -100,12 +114,20 @@ Within a tab (e.g. Workspace: Projects | Agents | Skills, Settings: Profile | AP
 | Class | Purpose |
 | --- | --- |
 | `.btn` | Default — neutral bg, 1 px border, 8 px radius |
-| `.btn--send` | Primary action — accent fill, white text |
-| `.btn--stop` | Destructive / cancel — `--err` fill, white text |
+| `.btn--send` | Primary action — accent fill, white text. **Canonical name for the primary CTA.** |
+| `.btn--primary` | Alias-style variant for primary actions in admin / settings surfaces. Treat as a synonym of `.btn--send`; pick one per surface and stay consistent. |
+| `.btn--accent` | Accent-outlined neutral button (border-only emphasis). Used where `.btn--send` would be too strong. |
+| `.btn--secondary` | Hover-elevates to accent — used as the partner button next to `.btn--primary` in forms. |
+| `.btn--stop` | Destructive / cancel — `--err` fill, white text. **Canonical name for destructive in the composer.** |
+| `.btn--danger` | Destructive variant used inside `<ConfirmDialog>` and admin destructive rows (e.g. delete user). Same visual as `.btn--stop`; pick one per surface. |
 | `.btn--ghost` | Transparent, no border — use in toolbars and sub-tabs |
+| `.btn--active` | Modifier added on top of `.btn--ghost` to mark the active item in a segmented control. Paired with `aria-current="page"` or `aria-pressed`. |
 | `.btn--attach` | Chat composer attach button — circular |
+| `.btn--icon` | Icon-only button (24-28 px square). Always carries an `aria-label`. |
+| `.btn--sm` | Modifier — slightly smaller padding + font (used in inline toolbars). |
+| `.btn--xs` | Modifier — table-row scale. Use sparingly. |
 
-Height settles around 28-32 px. Don't introduce a new `.btn--foo` variant without adding it to this table.
+Height settles around 28-32 px (`--sm` ≈ 26 px, `--xs` ≈ 22 px). Don't introduce a new `.btn--foo` variant without adding it to this table. When in doubt, reuse — there are already two near-duplicate pairs (`--send`/`--primary`, `--stop`/`--danger`); the open follow-up is to mark one canonical per surface, not to add a third.
 
 ### Dialogs
 
@@ -210,6 +232,27 @@ Sanctioned icon usage at the time of writing (see `web/src/lib/icons.ts` for the
 | Notifications (idle) | `Bell` |
 | Notifications (has unread) | `BellRing` |
 | Mention target | `AtSign` |
+| Planning | `CalendarRange` |
+| Workflows | `Workflow` |
+| Diary | `BookOpen` |
+| Diary (recording) | `Mic` / `MicOff` / `AudioLines` |
+| Diagrams | `Shapes` |
+| Code project | `FolderGit2` |
+| Code branch | `GitBranch` |
+| Businesses | `Building2` |
+| News (RSS feed) | `Rss` |
+| Send (composer fallback) | `Send` |
+| Feedback (positive) | `ThumbsUp` |
+| Feedback (negative) | `ThumbsDown` |
+| Theme (light) | `Sun` |
+| Theme (dark) | `Moon` |
+| Tag | `Tag` / `Tags` |
+| Wish (planning) | `Target` |
+| Deadline (planning) | `Flag` |
+| Sprint / task list | `ListChecks` |
+| Suggestion / hint | `Lightbulb` |
+
+The barrel exports ~95 icons; the table above lists the *sanctioned UI contexts*. If you add a new tab or feature surface, add its mapping here when you wire up the icon — the barrel is the canonical set; this table tells you which icon belongs to which surface.
 
 ---
 
