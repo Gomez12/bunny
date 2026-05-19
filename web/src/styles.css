@@ -1605,9 +1605,14 @@ button {
 .projects-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 14px;
+  gap: 16px;
 }
-.project-card {
+/* `.agent-card` and `.skill-card` are sanctioned aliases of `.project-card` —
+   the Workspace sub-tabs render the same card shape with different content.
+   Keeping the classes lets the styleguide name them while the CSS stays DRY. */
+.project-card,
+.agent-card,
+.skill-card {
   position: relative;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
@@ -2897,7 +2902,7 @@ button {
 .dash-kpi-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
+  gap: 16px;
 }
 
 .dash-kpi {
@@ -4063,7 +4068,7 @@ button {
 .contacts-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 18px;
+  gap: 16px;
   padding: 16px 24px;
   overflow-y: auto;
   align-content: start;
