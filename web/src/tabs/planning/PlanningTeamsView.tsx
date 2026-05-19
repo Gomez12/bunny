@@ -12,6 +12,7 @@ import {
   removePlanningTeamMember,
 } from "../../api";
 import { Pencil, Plus, Trash2, Users, X } from "../../lib/icons";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import EmptyState from "../../components/EmptyState";
 import Modal from "../../components/Modal";
 
@@ -25,6 +26,7 @@ export default function PlanningTeamsView({ planningProject }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<PlanningTeam | null>(null);
   const [creating, setCreating] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<PlanningTeam | null>(null);
 
   const reload = useCallback(async () => {
     try {
@@ -108,18 +110,7 @@ export default function PlanningTeamsView({ planningProject }: Props) {
                   <button
                     type="button"
                     className="planning-card__action-btn"
-                    onClick={async () => {
-                      if (
-                        !window.confirm(`Move team "${team.name}" to the trash?`)
-                      )
-                        return;
-                      try {
-                        await deletePlanningTeam(team.id);
-                        void reload();
-                      } catch (e) {
-                        setError(e instanceof Error ? e.message : String(e));
-                      }
-                    }}
+                    onClick={() => setConfirmDelete(team)}
                     aria-label="Delete"
                     title="Delete"
                   >
@@ -131,6 +122,28 @@ export default function PlanningTeamsView({ planningProject }: Props) {
           ))}
         </ul>
       )}
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title="Move team to trash"
+        message={
+          confirmDelete
+            ? `Move team "${confirmDelete.name}" to the trash?`
+            : ""
+        }
+        confirmLabel="Move to trash"
+        onConfirm={async () => {
+          const target = confirmDelete;
+          setConfirmDelete(null);
+          if (!target) return;
+          try {
+            await deletePlanningTeam(target.id);
+            void reload();
+          } catch (e) {
+            setError(e instanceof Error ? e.message : String(e));
+          }
+        }}
+        onCancel={() => setConfirmDelete(null)}
+      />
       {(creating || editing) && (
         <Modal
           onClose={() => {

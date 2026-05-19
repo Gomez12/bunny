@@ -14,6 +14,7 @@ import {
   patchPlanningWish,
 } from "../../api";
 import { Pencil, Plus, Trash2 } from "../../lib/icons";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import EmptyState from "../../components/EmptyState";
 import Modal from "../../components/Modal";
 import PlanningWishForm from "./PlanningWishForm";
@@ -30,6 +31,7 @@ export default function PlanningWishesView({ planningProject }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<PlanningWish | null>(null);
   const [creating, setCreating] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<PlanningWish | null>(null);
 
   const reload = useCallback(async () => {
     try {
@@ -180,16 +182,7 @@ export default function PlanningWishesView({ planningProject }: Props) {
                     <button
                       type="button"
                       className="planning-card__action-btn"
-                      onClick={async () => {
-                        if (!window.confirm(`Move wish "${w.title}" to the trash?`))
-                          return;
-                        try {
-                          await deletePlanningWish(w.id);
-                          void reload();
-                        } catch (e) {
-                          setError(e instanceof Error ? e.message : String(e));
-                        }
-                      }}
+                      onClick={() => setConfirmDelete(w)}
                       aria-label="Delete"
                       title="Delete"
                     >
@@ -202,6 +195,28 @@ export default function PlanningWishesView({ planningProject }: Props) {
           })}
         </ul>
       )}
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title="Move wish to trash"
+        message={
+          confirmDelete
+            ? `Move wish "${confirmDelete.title}" to the trash?`
+            : ""
+        }
+        confirmLabel="Move to trash"
+        onConfirm={async () => {
+          const target = confirmDelete;
+          setConfirmDelete(null);
+          if (!target) return;
+          try {
+            await deletePlanningWish(target.id);
+            void reload();
+          } catch (e) {
+            setError(e instanceof Error ? e.message : String(e));
+          }
+        }}
+        onCancel={() => setConfirmDelete(null)}
+      />
       {(creating || editing) && (
         <Modal
           onClose={() => {
