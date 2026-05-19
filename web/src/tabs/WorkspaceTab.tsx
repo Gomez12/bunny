@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState } from "react";
 import type { AuthUser } from "../api";
+import SubTabs from "../components/SubTabs";
 
 const ProjectsTab = lazy(() => import("./ProjectsTab"));
 const AgentsTab = lazy(() => import("./AgentsTab"));
@@ -26,48 +27,18 @@ export default function WorkspaceTab({
 
   return (
     <div className="workspace-tab">
-      <nav className="subtabs" aria-label="Workspace sections">
-        <button
-          type="button"
-          className={`subtab ${sub === "projects" ? "subtab--active" : ""}`}
-          aria-current={sub === "projects" ? "page" : undefined}
-          onClick={() => setSub("projects")}
-        >
-          Projects
-        </button>
-        <button
-          type="button"
-          className={`subtab ${sub === "agents" ? "subtab--active" : ""}`}
-          aria-current={sub === "agents" ? "page" : undefined}
-          onClick={() => setSub("agents")}
-        >
-          Agents
-        </button>
-        <button
-          type="button"
-          className={`subtab ${sub === "skills" ? "subtab--active" : ""}`}
-          aria-current={sub === "skills" ? "page" : undefined}
-          onClick={() => setSub("skills")}
-        >
-          Skills
-        </button>
-        <button
-          type="button"
-          className={`subtab ${sub === "memory" ? "subtab--active" : ""}`}
-          aria-current={sub === "memory" ? "page" : undefined}
-          onClick={() => setSub("memory")}
-        >
-          Memory
-        </button>
-        <button
-          type="button"
-          className={`subtab ${sub === "integrations" ? "subtab--active" : ""}`}
-          aria-current={sub === "integrations" ? "page" : undefined}
-          onClick={() => setSub("integrations")}
-        >
-          Integrations
-        </button>
-      </nav>
+      <SubTabs<Sub>
+        ariaLabel="Workspace sections"
+        current={sub}
+        onChange={setSub}
+        items={[
+          { id: "projects", label: "Projects" },
+          { id: "agents", label: "Agents" },
+          { id: "skills", label: "Skills" },
+          { id: "memory", label: "Memory" },
+          { id: "integrations", label: "Integrations" },
+        ]}
+      />
       <Suspense fallback={<div className="app-loading">Loading…</div>}>
         {sub === "projects" && (
           <ProjectsTab

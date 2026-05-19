@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import type { AuthUser } from "../api";
+import SubTabs from "../components/SubTabs";
 
 const DefinitionsTab = lazy(() => import("./kb/DefinitionsTab"));
 
@@ -18,15 +19,12 @@ export default function KnowledgeBaseTab({ project, currentUser, initialSub = "d
 
   return (
     <div className="workspace-tab">
-      <nav className="subtabs" aria-label="Knowledge Base sections">
-        <button
-          type="button"
-          className={`subtab ${sub === "definitions" ? "subtab--active" : ""}`}
-          aria-current={sub === "definitions" ? "page" : undefined}
-        >
-          Definitions
-        </button>
-      </nav>
+      <SubTabs<Sub>
+        ariaLabel="Knowledge Base sections"
+        current={sub}
+        onChange={() => {}}
+        items={[{ id: "definitions", label: "Definitions" }]}
+      />
       <Suspense fallback={<div className="app-loading">Loading…</div>}>
         {sub === "definitions" && (
           <DefinitionsTab project={project} currentUser={currentUser} />

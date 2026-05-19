@@ -4792,6 +4792,17 @@ button {
   color: var(--text);
   border-bottom-color: var(--accent);
 }
+.subtab[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.subtab__trailing {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  color: var(--text-faint);
+  font-size: 12px;
+}
 
 /* ── Workspace sub-tab body ─────────────────────────────────── */
 /* Make `.workspace-tab` a flex column so each sub-tab body fills the
