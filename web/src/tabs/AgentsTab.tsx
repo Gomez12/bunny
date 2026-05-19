@@ -14,6 +14,7 @@ import {
 } from "../api";
 import AgentDialog, { type AgentDialogValue } from "../components/AgentDialog";
 import ConfirmDialog from "../components/ConfirmDialog";
+import PageHeader from "../components/PageHeader";
 
 interface Props {
   currentUser: AuthUser;
@@ -100,13 +101,15 @@ export default function AgentsTab({ currentUser, activeProject }: Props) {
 
   return (
     <div className="projects">
-      <div className="projects__header">
-        <h1>Agents</h1>
-        <p>
-          Named personalities with their own system prompt and tool set. Call an agent in Chat by
-          prefixing your message with <code>@name</code>.
-        </p>
-      </div>
+      <PageHeader
+        title="Agents"
+        description={
+          <>
+            Named personalities with their own system prompt and tool set. Call an agent in Chat by
+            prefixing your message with <code>@name</code>.
+          </>
+        }
+      />
 
       {error && <div className="projects__error">{error}</div>}
 

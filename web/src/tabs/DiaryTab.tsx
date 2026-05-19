@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, BookOpen, Loader2, Trash2, Mic } from "../lib/icons";
 import EmptyState from "../components/EmptyState";
+import PageHeader from "../components/PageHeader";
 import type { AuthUser } from "../api";
 import DiaryEntryView from "./diary/DiaryEntryView";
 
@@ -130,24 +131,28 @@ export default function DiaryTab({
 
   return (
     <div className="diary-tab">
-      <div className="diary-tab__toolbar">
-        <h2 className="diary-tab__title">
-          <BookOpen size={17} />
-          Diary
-        </h2>
-        <button
-          className="btn btn--primary btn--sm"
-          onClick={() => void handleCreate()}
-          disabled={creating}
-        >
-          {creating ? (
-            <Loader2 size={13} className="spin" />
-          ) : (
-            <Plus size={13} />
-          )}
-          New entry
-        </button>
-      </div>
+      <PageHeader
+        title={
+          <span className="page-header__title-with-icon">
+            <BookOpen size={18} />
+            Diary
+          </span>
+        }
+        actions={
+          <button
+            className="btn btn--send btn--sm"
+            onClick={() => void handleCreate()}
+            disabled={creating}
+          >
+            {creating ? (
+              <Loader2 size={13} className="spin" />
+            ) : (
+              <Plus size={13} />
+            )}
+            New entry
+          </button>
+        }
+      />
 
       {loading ? (
         <div className="diary-tab__loading">

@@ -11,6 +11,7 @@ import {
   type TaskKind,
 } from "../api";
 import ConfirmDialog from "../components/ConfirmDialog";
+import PageHeader from "../components/PageHeader";
 
 interface Props {
   currentUser: AuthUser;
@@ -199,15 +200,18 @@ export default function TasksTab({ currentUser, initialErrorsOnly = false }: Pro
 
   return (
     <div className="tasks">
-      <div className="tasks__header">
-        <div>
-          <h1>Tasks</h1>
-          <p>Periodic background work. System tasks ship with Bunny; you can add your own user tasks.</p>
-        </div>
-        <button className="tasks__new" onClick={() => setDialog({ kind: "create" })}>
-          + New task
-        </button>
-      </div>
+      <PageHeader
+        title="Tasks"
+        description="Periodic background work. System tasks ship with Bunny; you can add your own user tasks."
+        actions={
+          <button
+            className="btn btn--send"
+            onClick={() => setDialog({ kind: "create" })}
+          >
+            + New task
+          </button>
+        }
+      />
 
       {error && <div className="tasks__error">{error}</div>}
 

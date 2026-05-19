@@ -14,6 +14,7 @@ import {
 } from "../api";
 import SkillDialog, { type SkillDialogValue } from "../components/SkillDialog";
 import ConfirmDialog from "../components/ConfirmDialog";
+import PageHeader from "../components/PageHeader";
 
 interface Props {
   currentUser: AuthUser;
@@ -119,14 +120,16 @@ export default function SkillsTab({ currentUser, activeProject }: Props) {
 
   return (
     <div className="projects">
-      <div className="projects__header">
-        <h1>Skills</h1>
-        <p>
-          Reusable instruction packages that give agents specialized capabilities on demand.
-          Skills follow the <a href="https://agentskills.io" target="_blank" rel="noreferrer">agentskills.io</a> open
-          standard.
-        </p>
-      </div>
+      <PageHeader
+        title="Skills"
+        description={
+          <>
+            Reusable instruction packages that give agents specialized capabilities on demand.
+            Skills follow the <a href="https://agentskills.io" target="_blank" rel="noreferrer">agentskills.io</a> open
+            standard.
+          </>
+        }
+      />
 
       {error && <div className="projects__error">{error}</div>}
 

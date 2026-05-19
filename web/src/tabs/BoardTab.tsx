@@ -33,6 +33,7 @@ import BoardColumn from "../components/BoardColumn";
 import { BoardCardPreview } from "../components/BoardCard";
 import CardDialog, { type CardDialogValue } from "../components/CardDialog";
 import SwimlaneDialog, { type SwimlaneDialogValue } from "../components/SwimlaneDialog";
+import PageHeader from "../components/PageHeader";
 import ConfirmDialog from "../components/ConfirmDialog";
 
 interface Props {
@@ -346,14 +347,16 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
 
   return (
     <div className="board">
-      <header className="board__header">
-        <h1>Board · {project}</h1>
-        {canManageLane && (
-          <button className="board__add-lane" onClick={handleAddLane}>
-            + swimlane
-          </button>
-        )}
-      </header>
+      <PageHeader
+        title={<>Board · {project}</>}
+        actions={
+          canManageLane ? (
+            <button className="btn btn--send" onClick={handleAddLane}>
+              + swimlane
+            </button>
+          ) : null
+        }
+      />
 
       {error && <div className="board__error">{error}</div>}
 

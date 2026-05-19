@@ -13,6 +13,7 @@ import {
 } from "../api";
 import ProjectDialog, { type ProjectDialogValue } from "../components/ProjectDialog";
 import ConfirmDialog from "../components/ConfirmDialog";
+import PageHeader from "../components/PageHeader";
 
 interface Props {
   currentUser: AuthUser;
@@ -110,10 +111,10 @@ export default function ProjectsTab({ currentUser, activeProject, onPickProject 
 
   return (
     <div className="projects">
-      <div className="projects__header">
-        <h1>Projects</h1>
-        <p>Each project has its own on-disk directory and system prompt.</p>
-      </div>
+      <PageHeader
+        title="Projects"
+        description="Each project has its own on-disk directory and system prompt."
+      />
 
       {error && <div className="projects__error">{error}</div>}
 
