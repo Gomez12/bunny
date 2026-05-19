@@ -48,6 +48,11 @@ interface Props {
   onNewSession: () => void;
   /** Optional: start a brand-new session AND mark it as a Quick Chat. */
   onNewQuickChat?: () => void;
+  /** Compact (mini-window) layout — hides the session sidebar and the admin
+   *  Mine/All scope toggle so the chat fills a 520×660 BrowserWindow. */
+  compact?: boolean;
+  /** Focus the composer textarea on first mount (Quick Chat). */
+  autoFocusComposer?: boolean;
   /** Handoff payload from Documents / Whiteboards / Contacts "ask". The tab
    * auto-sends this prompt (once) after the session prop catches up. */
   pendingChatSend?: {
@@ -71,6 +76,8 @@ export default function ChatTab({
   onNewQuickChat,
   pendingChatSend,
   onConsumePendingChatSend,
+  compact = false,
+  autoFocusComposer = false,
 }: Props) {
   const expandThink = currentUser.expandThinkBubbles;
   const expandTool = currentUser.expandToolBubbles;
@@ -466,29 +473,31 @@ export default function ChatTab({
   }, [history, regenIndex]);
 
   return (
-    <div className="chat">
-      <SessionSidebar
-        activeId={sessionId}
-        onPick={onPickSession}
-        onNew={onNewSession}
-        onNewQuickChat={onNewQuickChat}
-        refreshKey={refreshKey}
-        project={project}
-        excludeHidden={!showHidden && adminScope === "mine"}
-        showHiddenToggle={
-          adminScope === "mine"
-            ? { value: showHidden, onChange: setShowHidden }
-            : undefined
-        }
-        allowToggleHidden
-        scope={currentUser.role === "admin" ? adminScope : undefined}
-        showOwner={sidebarShowOwner}
-        scopeToggle={
-          currentUser.role === "admin"
-            ? { value: adminScope, onChange: setAdminScope }
-            : undefined
-        }
-      />
+    <div className={"chat" + (compact ? " chat--compact" : "")}>
+      {!compact && (
+        <SessionSidebar
+          activeId={sessionId}
+          onPick={onPickSession}
+          onNew={onNewSession}
+          onNewQuickChat={onNewQuickChat}
+          refreshKey={refreshKey}
+          project={project}
+          excludeHidden={!showHidden && adminScope === "mine"}
+          showHiddenToggle={
+            adminScope === "mine"
+              ? { value: showHidden, onChange: setShowHidden }
+              : undefined
+          }
+          allowToggleHidden
+          scope={currentUser.role === "admin" ? adminScope : undefined}
+          showOwner={sidebarShowOwner}
+          scopeToggle={
+            currentUser.role === "admin"
+              ? { value: adminScope, onChange: setAdminScope }
+              : undefined
+          }
+        />
+      )}
       <div
         className={"chat__main" + (isDragOver ? " chat__main--dragover" : "")}
         onDragEnter={onDragEnter}
@@ -698,6 +707,7 @@ export default function ChatTab({
                 activeAgent={activeAgent}
                 defaultAgent={defaultAgent}
                 onChangeActiveAgent={onChangeActiveAgent}
+                autoFocus={autoFocusComposer}
               />
               <label className="chat__qctoggle" title="Mark this session as a Quick Chat (auto-hides after 15 min of inactivity)">
                 <input

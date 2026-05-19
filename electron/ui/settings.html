@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bunny — Settings</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="card card--settings">
+    <h1>Settings</h1>
+
+    <section class="settings-section">
+      <h2>Quick Chat hotkey</h2>
+      <p class="hint">
+        Global shortcut to toggle the Quick Chat window. Default
+        <code>Ctrl+B</code> (<code>⌘B</code> on macOS) is system-wide; many
+        editors use it for Bold — change or disable here if that conflicts.
+      </p>
+      <div class="row">
+        <input id="hotkey" type="text" readonly placeholder="(none)" />
+        <button type="button" id="hotkey-record" class="btn-secondary">Record</button>
+        <button type="button" id="hotkey-disable" class="btn-secondary">Disable</button>
+      </div>
+      <p class="error-text" id="hotkey-error" style="display:none"></p>
+      <p class="hint" id="hotkey-status"></p>
+    </section>
+
+    <section class="settings-section">
+      <h2>Window behaviour</h2>
+      <label class="checkbox-row">
+        <input id="close-to-tray" type="checkbox" />
+        <span>Close button hides to system tray (keep app running in background)</span>
+      </label>
+    </section>
+
+    <section class="settings-section">
+      <h2>Connection</h2>
+      <button type="button" id="reset" class="btn-secondary">Reset connection…</button>
+      <p class="hint">Wipes the saved server address and restarts the app.</p>
+    </section>
+
+    <div class="row row--actions">
+      <button type="button" id="close" class="btn-primary">Done</button>
+    </div>
+  </div>
+
+  <script src="settings.js" type="module"></script>
+</body>
+</html>

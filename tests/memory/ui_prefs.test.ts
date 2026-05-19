@@ -39,13 +39,20 @@ describe("parseGlobalUiPrefs", () => {
       activeProject: "my-project",
       activeTab: "chat",
       newsTemplate: "newspaper",
+      defaultQuickChatProject: "scratch",
     });
     expect(parseGlobalUiPrefs(raw)).toEqual({
       theme: "light",
       activeProject: "my-project",
       activeTab: "chat",
       newsTemplate: "newspaper",
+      defaultQuickChatProject: "scratch",
     });
+  });
+
+  test("drops empty / null defaultQuickChatProject", () => {
+    expect(parseGlobalUiPrefs('{"defaultQuickChatProject":""}')).toEqual({});
+    expect(parseGlobalUiPrefs('{"defaultQuickChatProject":null}')).toEqual({});
   });
 
   test("returns empty object for corrupt JSON", () => {
@@ -79,6 +86,24 @@ describe("validateGlobalUiPrefsPatch", () => {
 
   test("accepts empty object", () => {
     expect(validateGlobalUiPrefsPatch({})).toEqual({});
+  });
+
+  test("accepts defaultQuickChatProject as string or null; coerces empty to null", () => {
+    expect(validateGlobalUiPrefsPatch({ defaultQuickChatProject: "scratch" })).toEqual({
+      defaultQuickChatProject: "scratch",
+    });
+    expect(validateGlobalUiPrefsPatch({ defaultQuickChatProject: null })).toEqual({
+      defaultQuickChatProject: null,
+    });
+    expect(validateGlobalUiPrefsPatch({ defaultQuickChatProject: "" })).toEqual({
+      defaultQuickChatProject: null,
+    });
+  });
+
+  test("rejects defaultQuickChatProject of wrong type", () => {
+    expect(() =>
+      validateGlobalUiPrefsPatch({ defaultQuickChatProject: 7 }),
+    ).toThrow("defaultQuickChatProject must be a string or null");
   });
 });
 

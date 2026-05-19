@@ -19,7 +19,8 @@
     "files": [
       "main.js",
       "preload.js",
-      "ui/**/*"
+      "ui/**/*",
+      "icons/**/*"
     ],
     "directories": {
       "output": "dist"

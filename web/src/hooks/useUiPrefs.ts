@@ -26,6 +26,9 @@ const LS_KEYS: Record<keyof GlobalUiPrefs, string> = {
   activeProject: "bunny.activeProject",
   activeTab: "bunny.activeTab",
   newsTemplate: "bunny.webNews.template",
+  // Mirrored to localStorage so the mini-window's first paint can read it
+  // without waiting for /auth/me.
+  defaultQuickChatProject: "bunny.defaultQuickChatProject",
 };
 
 function readFromLocalStorage(): GlobalUiPrefs {
@@ -38,6 +41,8 @@ function readFromLocalStorage(): GlobalUiPrefs {
   if (tab) out.activeTab = tab;
   const tpl = localStorage.getItem(LS_KEYS.newsTemplate);
   if (tpl === "list" || tpl === "newspaper") out.newsTemplate = tpl;
+  const dqcp = localStorage.getItem(LS_KEYS.defaultQuickChatProject);
+  if (dqcp) out.defaultQuickChatProject = dqcp;
   return out;
 }
 
@@ -46,6 +51,13 @@ function writeToLocalStorage(prefs: GlobalUiPrefs): void {
   if (prefs.activeProject) localStorage.setItem(LS_KEYS.activeProject, prefs.activeProject);
   if (prefs.activeTab) localStorage.setItem(LS_KEYS.activeTab, prefs.activeTab);
   if (prefs.newsTemplate) localStorage.setItem(LS_KEYS.newsTemplate, prefs.newsTemplate);
+  // null/empty clears the cache so the mini-window falls through to its
+  // localStorage fallback path on next open.
+  if (prefs.defaultQuickChatProject === null || prefs.defaultQuickChatProject === "") {
+    localStorage.removeItem(LS_KEYS.defaultQuickChatProject);
+  } else if (prefs.defaultQuickChatProject) {
+    localStorage.setItem(LS_KEYS.defaultQuickChatProject, prefs.defaultQuickChatProject);
+  }
 }
 
 export interface UseUiPrefsResult {
@@ -97,8 +109,12 @@ export function useUiPrefs(initialServerPrefs?: GlobalUiPrefs): UseUiPrefsResult
 
   const setPref = useCallback(
     <K extends keyof GlobalUiPrefs>(key: K, value: GlobalUiPrefs[K]) => {
-      if (value !== undefined && LS_KEYS[key]) {
-        localStorage.setItem(LS_KEYS[key], String(value));
+      if (LS_KEYS[key]) {
+        if (value === null || value === undefined || value === "") {
+          localStorage.removeItem(LS_KEYS[key]);
+        } else {
+          localStorage.setItem(LS_KEYS[key], String(value));
+        }
       }
       setPrefs((prev) => ({ ...prev, [key]: value }));
       pendingRef.current = { ...pendingRef.current, [key]: value };

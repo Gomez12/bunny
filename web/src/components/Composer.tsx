@@ -32,6 +32,9 @@ interface Props {
   activeAgent?: string;
   defaultAgent?: string;
   onChangeActiveAgent?: (agent: string) => void;
+  /** Focus the textarea on first mount. Used by the Quick Chat mini-window so
+   *  the user can type immediately without clicking. */
+  autoFocus?: boolean;
 }
 
 export const ALLOWED_IMAGE_MIME = new Set([
@@ -125,6 +128,7 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer(
     activeAgent,
     defaultAgent,
     onChangeActiveAgent,
+    autoFocus = false,
   },
   ref,
 ) {
@@ -240,6 +244,15 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer(
     }),
     [addFiles],
   );
+
+  // Auto-focus the textarea on mount when requested. Defers one frame so the
+  // mini-window's BrowserWindow has a chance to claim the OS focus first —
+  // otherwise macOS occasionally swallows the .focus() call on cold open.
+  useEffect(() => {
+    if (!autoFocus) return;
+    const id = requestAnimationFrame(() => taRef.current?.focus());
+    return () => cancelAnimationFrame(id);
+  }, [autoFocus]);
 
   // Close the agent picker on outside click / Escape.
   useEffect(() => {

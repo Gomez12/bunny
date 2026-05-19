@@ -528,6 +528,10 @@ export interface GlobalUiPrefs {
   activeProject?: string;
   activeTab?: string;
   newsTemplate?: "list" | "newspaper";
+  /** Project to seed new Quick Chat sessions in (Electron mini-window etc.).
+   *  `null` / absent = no preference; the mini-window then falls back to the
+   *  currently-active project, or `general`. */
+  defaultQuickChatProject?: string | null;
 }
 
 export interface ProjectUiPrefs {

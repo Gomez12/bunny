@@ -12,6 +12,9 @@ export interface GlobalUiPrefs {
   activeProject?: string;
   activeTab?: string;
   newsTemplate?: "list" | "newspaper";
+  /** Project to seed new Quick Chat sessions in (Electron mini-window etc.).
+   *  Empty string / null on patch clears the field; absent → no preference. */
+  defaultQuickChatProject?: string | null;
 }
 
 const ALLOWED_KEYS = new Set<string>([
@@ -19,6 +22,7 @@ const ALLOWED_KEYS = new Set<string>([
   "activeProject",
   "activeTab",
   "newsTemplate",
+  "defaultQuickChatProject",
 ]);
 
 export function parseGlobalUiPrefs(raw: string): GlobalUiPrefs {
@@ -34,6 +38,9 @@ export function parseGlobalUiPrefs(raw: string): GlobalUiPrefs {
     const newsTemplate = obj["newsTemplate"];
     if (newsTemplate === "list" || newsTemplate === "newspaper")
       out.newsTemplate = newsTemplate;
+    const dqcp = obj["defaultQuickChatProject"];
+    if (typeof dqcp === "string" && dqcp.length > 0)
+      out.defaultQuickChatProject = dqcp;
     return out;
   } catch {
     return {};
@@ -72,6 +79,16 @@ export function validateGlobalUiPrefsPatch(patch: unknown): GlobalUiPrefs {
     if (v !== "list" && v !== "newspaper")
       throw new Error("newsTemplate must be 'list' or 'newspaper'");
     out.newsTemplate = v;
+  }
+  if ("defaultQuickChatProject" in p) {
+    const v = p["defaultQuickChatProject"];
+    if (v !== null && typeof v !== "string")
+      throw new Error("defaultQuickChatProject must be a string or null");
+    // Empty string / null both mean "no preference" — store as null so the
+    // parser drops it on the next read. Project-name validation lives in
+    // `getProject` at usage time; we don't fail the PUT if the project is
+    // currently inaccessible (the user may regain access later).
+    out.defaultQuickChatProject = v && v.length > 0 ? v : null;
   }
   return out;
 }

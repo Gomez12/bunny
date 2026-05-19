@@ -136,7 +136,7 @@ CREATE TABLE IF NOT EXISTS users (
   expand_think_bubbles INTEGER NOT NULL DEFAULT 0,
   expand_tool_bubbles  INTEGER NOT NULL DEFAULT 0,
   preferred_language   TEXT,                          -- ISO 639-1; null = inherit project default
-  ui_prefs       TEXT    NOT NULL DEFAULT '{}',        -- JSON: { theme?, activeProject?, activeTab?, newsTemplate? }
+  ui_prefs       TEXT    NOT NULL DEFAULT '{}',        -- JSON: { theme?, activeProject?, activeTab?, newsTemplate?, defaultQuickChatProject? }
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
 );

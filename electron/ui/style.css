@@ -182,3 +182,127 @@ button[type="submit"]:hover {
   border-color: var(--accent);
   color: var(--accent);
 }
+
+/* ── Settings window ───────────────────────────────────────────────────── */
+
+.card--settings {
+  text-align: left;
+  max-width: 420px;
+}
+
+.card--settings h1 {
+  text-align: left;
+  margin-bottom: 1rem;
+}
+
+.settings-section {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-section:last-of-type {
+  border-bottom: none;
+}
+
+.settings-section h2 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text);
+}
+
+.settings-section .hint {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.settings-section .hint code {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+  font-size: 0.75rem;
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.row input[type="text"] {
+  flex: 1 1 auto;
+  padding: 0.5rem 0.625rem;
+  font-size: 0.875rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.row .btn-secondary,
+.row .btn-primary {
+  padding: 0.5rem 0.875rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.row .btn-secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.row .btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: transparent;
+}
+
+.row .btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+.row--actions {
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  margin: 0;
+}
+
+.checkbox-row input[type="checkbox"] {
+  margin-top: 0.15rem;
+}
+
+.settings-section .btn-secondary {
+  display: inline-block;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text);
+}
+
+.settings-section .btn-secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}

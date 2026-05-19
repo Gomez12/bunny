@@ -20,6 +20,9 @@ import {
   createUserCalendarException,
   markWeekendsAsNonWorking,
   streamFetchHolidays,
+  fetchProjects,
+  updateGlobalUiPrefs,
+  type Project,
 } from "../api";
 import ApiKeyList from "../components/ApiKeyList";
 import UserList from "../components/UserList";
@@ -169,6 +172,10 @@ function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthU
   const [expandThink, setExpandThink] = useState(user.expandThinkBubbles);
   const [expandTool, setExpandTool] = useState(user.expandToolBubbles);
   const [preferredLang, setPreferredLang] = useState<string>(user.preferredLanguage ?? "");
+  const [defaultQcProject, setDefaultQcProject] = useState<string>(
+    user.uiPrefs?.defaultQuickChatProject ?? "",
+  );
+  const [projects, setProjects] = useState<Project[]>([]);
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -180,7 +187,20 @@ function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthU
     setExpandThink(user.expandThinkBubbles);
     setExpandTool(user.expandToolBubbles);
     setPreferredLang(user.preferredLanguage ?? "");
+    setDefaultQcProject(user.uiPrefs?.defaultQuickChatProject ?? "");
   }, [user]);
+
+  // Load the user's accessible projects once so the Quick-Chat-default
+  // dropdown can offer them. The endpoint is already filtered by visibility.
+  useEffect(() => {
+    let cancelled = false;
+    fetchProjects()
+      .then((list) => !cancelled && setProjects(list))
+      .catch(() => !cancelled && setProjects([]));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -194,7 +214,13 @@ function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthU
         expandToolBubbles: expandTool,
         preferredLanguage: preferredLang || null,
       });
-      onUpdated(u);
+      // Persist the Quick-Chat default through the uiPrefs endpoint and merge
+      // the result onto the user the parent holds, so a remount renders the
+      // saved value without a fresh /auth/me round-trip.
+      const nextPrefs = await updateGlobalUiPrefs({
+        defaultQuickChatProject: defaultQcProject || null,
+      });
+      onUpdated({ ...u, uiPrefs: { ...(u.uiPrefs ?? {}), ...nextPrefs } });
       setMsg("Profile saved.");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Save failed");
@@ -254,6 +280,25 @@ function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthU
             Determines the language you author new entities in and the first
             tab shown when you open existing entities. If a project doesn't
             support this language, we use that project's default.
+          </span>
+        </label>
+        <label>
+          <span>Default Quick Chat project</span>
+          <select
+            value={defaultQcProject}
+            onChange={(e) => setDefaultQcProject(e.target.value)}
+          >
+            <option value="">(none — use the active project)</option>
+            {projects.map((p) => (
+              <option key={p.name} value={p.name}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <span className="muted" style={{ fontSize: 12 }}>
+            Project (and its agents) used when the Electron tray spawns a
+            Quick Chat. Leave empty to fall back to whichever project is
+            active in the main window.
           </span>
         </label>
         <h3>Chat display</h3>
