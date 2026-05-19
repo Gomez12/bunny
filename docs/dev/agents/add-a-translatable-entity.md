@@ -78,6 +78,6 @@ Manual:
 
 ## Related
 
-- [`../concepts/translation-pipeline.md`](../concepts/translation-pipeline.md)
-- [ADR 0022 — Multi-language translation](../../adr/0022-multi-language-translation.md)
+- [`../architecture/translation-pipeline.md`](../architecture/translation-pipeline.md)
+- [ADR 0022 — Multi-language translation](../decisions/0022-multi-language-translation.md)
 - `src/memory/documents.ts` — reference implementation.

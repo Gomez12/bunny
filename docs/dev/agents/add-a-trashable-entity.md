@@ -74,6 +74,6 @@ Manual: Create row → DELETE → verify gone from list → verify in `GET /api/
 
 ## Related
 
-- [`../concepts/soft-delete-and-trash.md`](../concepts/soft-delete-and-trash.md)
-- [ADR 0025 — Soft-delete and trash bin](../../adr/0025-soft-delete-and-trash.md)
+- [`../architecture/soft-delete-and-trash.md`](../architecture/soft-delete-and-trash.md)
+- [ADR 0025 — Soft-delete and trash bin](../decisions/0025-soft-delete-and-trash.md)
 - `src/memory/documents.ts` — reference implementation.

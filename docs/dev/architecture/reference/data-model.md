@@ -2,7 +2,7 @@
 
 SQLite + FTS5 + sqlite-vec. Canonical DDL is `src/memory/schema.sql`. This page groups the tables by domain for orientation.
 
-**Rule: the schema is append-only.** Never drop or rename columns. Add new columns with safe defaults. See [`../getting-started/conventions.md`](../getting-started/conventions.md).
+**Rule: the schema is append-only.** Never drop or rename columns. Add new columns with safe defaults. See [`../../setup/conventions.md`](../../setup/conventions.md).
 
 ## Events + messages
 
@@ -115,5 +115,5 @@ One per translatable entity. Shape: `(entity_id, lang, <source fields>, status, 
 ## Related
 
 - Canonical DDL: [`src/memory/schema.sql`](../../../src/memory/schema.sql).
-- [`../getting-started/conventions.md`](../getting-started/conventions.md) — the append-only rule.
+- [`../../setup/conventions.md`](../../setup/conventions.md) — the append-only rule.
 - Each entity page under [`../entities/`](../entities/) — what uses which tables.

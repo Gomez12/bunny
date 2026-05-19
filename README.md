@@ -4,7 +4,7 @@ A Bun-native AI agent. Minimal architecture, queue-backed logging, hybrid memory
 
 ## Status
 
-Phase 1 (MVP) — in development. See [`docs/README.md`](./docs/README.md) for architecture and [`docs/adr/`](./docs/adr/) for design decisions.
+Phase 1 (MVP) — in development. See [`docs/README.md`](./docs/README.md) for architecture and [`docs/dev/decisions/`](./docs/dev/decisions/) for design decisions.
 
 ## Quick start
 
@@ -24,11 +24,11 @@ Every message belongs to a **project** — a logical workspace with its own syst
 bun run src/index.ts --project alpha "write an intro for this project"
 ```
 
-The CLI auto-creates the DB row and directory if they don't exist yet. Switching projects starts a new session — one session belongs to exactly one project. See [ADR 0008](./docs/adr/0008-projects.md).
+The CLI auto-creates the DB row and directory if they don't exist yet. Switching projects starts a new session — one session belongs to exactly one project. See [ADR 0008](./docs/dev/decisions/0008-projects.md).
 
 ### Multi-language translation
 
-A project can declare a list of **languages** plus a default. Every KB definition, document, contact `notes`, and board card is authored in one source language (picked from the project's list, defaulting to the user's preferred language when set) and automatically translated into the project's other languages by a scheduled task (every 5 minutes). Translations are read-only; only the source is editable. Editing a source field marks translations `stale`; edit-and-revert is a zero-cost no-op because we hash the source fields. Open any entity dialog to see the language tabstrip — the source tab is editable, the others show the translated content with a status pill and a "Translate now" button. Set your own `preferred_language` in Settings to control both which language new entities are authored in and which tab opens first when you view an existing one. See [ADR 0022](./docs/adr/0022-multi-language-translation.md).
+A project can declare a list of **languages** plus a default. Every KB definition, document, contact `notes`, and board card is authored in one source language (picked from the project's list, defaulting to the user's preferred language when set) and automatically translated into the project's other languages by a scheduled task (every 5 minutes). Translations are read-only; only the source is editable. Editing a source field marks translations `stale`; edit-and-revert is a zero-cost no-op because we hash the source fields. Open any entity dialog to see the language tabstrip — the source tab is editable, the others show the translated content with a status pill and a "Translate now" button. Set your own `preferred_language` in Settings to control both which language new entities are authored in and which tab opens first when you view an existing one. See [ADR 0022](./docs/dev/decisions/0022-multi-language-translation.md).
 
 ### Agents
 
@@ -38,13 +38,13 @@ An **agent** is a named personality with its own system prompt and a restricted 
 @bob find out whether there are duplicate functions in src/tools
 ```
 
-Agents can also talk to each other: enable `is_subagent` on an agent and add it to an orchestrator's `allowed_subagents`, then the orchestrator receives the `call_agent(name, prompt)` tool. The context scope (`full` or `own`) determines whether an agent can see the whole session or only its own previous answers — handy for one-shot specialists. See [ADR 0009](./docs/adr/0009-agents.md).
+Agents can also talk to each other: enable `is_subagent` on an agent and add it to an orchestrator's `allowed_subagents`, then the orchestrator receives the `call_agent(name, prompt)` tool. The context scope (`full` or `own`) determines whether an agent can see the whole session or only its own previous answers — handy for one-shot specialists. See [ADR 0009](./docs/dev/decisions/0009-agents.md).
 
 ### Boards
 
 Every project has its own **kanban board**. Open the **Board** tab in the web UI: by default you see the Todo / Doing / Done swimlanes, drag cards between them or rename/delete lanes as admin or project-owner. A card can be assigned to a **user** or an **agent** — not both at once.
 
-Cards with an agent-assignee can be executed via the **Run** button in the card dialog: bunny sends `title + description` as the prompt to the agent, streams the output live into the card, and persists the final answer on the run row. "Open in Chat" deep-links to the matching session so you can review the full trace (including tool-calls and reasoning). Re-runs remain as history on the card. See [ADR 0010](./docs/adr/0010-project-boards.md).
+Cards with an agent-assignee can be executed via the **Run** button in the card dialog: bunny sends `title + description` as the prompt to the agent, streams the output live into the card, and persists the final answer on the run row. "Open in Chat" deep-links to the matching session so you can review the full trace (including tool-calls and reasoning). Re-runs remain as history on the card. See [ADR 0010](./docs/dev/decisions/0010-project-boards.md).
 
 ## Web UI
 
@@ -74,7 +74,7 @@ At `build` time the Vite bundle is embedded into the binary as `import … with 
 
 Pre-built binaries for darwin/linux/windows (x64 + arm64) are available on the [GitHub Releases](https://github.com/Gomez12/bunny/releases) page — built automatically by the `Release` workflow on every `v*` tag.
 
-See [`docs/adr/0006-web-ui.md`](./docs/adr/0006-web-ui.md) for the architectural choices.
+See [`docs/dev/decisions/0006-web-ui.md`](./docs/dev/decisions/0006-web-ui.md) for the architectural choices.
 
 ## Authentication
 
@@ -103,7 +103,7 @@ default_agent   = "bunny"               # override via BUNNY_DEFAULT_AGENT
 
 The Composer has a per-session agent picker (remembered in `localStorage["bunny.activeAgent.<sessionId>"]`) and the sidebar has a **New chat with…** entry that starts a fresh session pre-bound to a picked agent. Assistant bubbles render as `@<agent>`; user bubbles render as the user's display name.
 
-See [`docs/adr/0031-every-chat-is-agent-bound.md`](./docs/adr/0031-every-chat-is-agent-bound.md) for the details.
+See [`docs/dev/decisions/0031-every-chat-is-agent-bound.md`](./docs/dev/decisions/0031-every-chat-is-agent-bound.md) for the details.
 
 ### CLI with an API key
 
@@ -117,7 +117,7 @@ bun run src/index.ts --api-key bny_xxxx_yyyy "hi"
 
 Without a key the CLI runs under the seeded `system` user (backward-compat).
 
-See [`docs/adr/0007-auth-and-users.md`](./docs/adr/0007-auth-and-users.md) for the architectural choices.
+See [`docs/dev/decisions/0007-auth-and-users.md`](./docs/dev/decisions/0007-auth-and-users.md) for the architectural choices.
 
 ## Development
 

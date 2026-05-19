@@ -129,6 +129,6 @@ Token values are *never* logged — only `tokenTail` (last 4 chars).
 
 ## Related
 
-- [ADR 0028 — Per-project Telegram integration](../../adr/0028-telegram-integration.md)
+- [ADR 0028 — Per-project Telegram integration](../decisions/0028-telegram-integration.md)
 - [`notifications-and-fanout.md`](./notifications-and-fanout.md) — the @mention hook point.
-- [`../entities/integrations.md`](../entities/integrations.md) — UI surface.
+- [`./entities/integrations.md`](./entities/integrations.md) — UI surface.

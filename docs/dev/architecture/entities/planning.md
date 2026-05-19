@@ -4,7 +4,7 @@ Per-Bunny-project sub-application that groups deadlines, teams, tags, and "wishe
 
 The user is in lead. The system never silently changes user-approved dates. It produces one *pending* schedule advice the user accepts or rejects in one click.
 
-See [ADR 0043](../../adr/0043-planning-subsystem.md).
+See [ADR 0043](../../decisions/0043-planning-subsystem.md).
 
 ## Tables
 

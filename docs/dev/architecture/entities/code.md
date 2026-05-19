@@ -8,7 +8,7 @@ Per-Bunny-project source-code areas, the first subsystem to own a **secondary 56
 - **Chat** — persistent per-code-project conversation, SSE-streamed, scoped to the workspace tools.
 - **Graph** — Bun-native code-graph extraction (tree-sitter AST for ten programming languages plus optional LLM-subagent extraction for MD/PDF/DOCX) with Louvain clustering and an in-app `@xyflow/react` + `dagre` view.
 
-See [ADR 0030](../../adr/0030-code-sub-application.md) for the sub-app shape and [ADR 0033](../../adr/0033-bun-native-code-graph.md) for the graph subsystem.
+See [ADR 0030](../../decisions/0030-code-sub-application.md) for the sub-app shape and [ADR 0033](../../decisions/0033-bun-native-code-graph.md) for the graph subsystem.
 
 ## Data model
 
@@ -101,7 +101,7 @@ Three prompt-registry entries (`code.ask`, `code.chat`, `code.edit`) plus two gr
 
 ## Extension hooks
 
-- **Trash:** yes — registered via `registerTrashable({...})` like documents/whiteboards/contacts/kb_definitions/workflows. Soft-delete renames + `code/<name>/` is left on disk (cleanup is a separate hard-delete concern). See [ADR 0025](../../adr/0025-soft-delete-and-trash.md).
+- **Trash:** yes — registered via `registerTrashable({...})` like documents/whiteboards/contacts/kb_definitions/workflows. Soft-delete renames + `code/<name>/` is left on disk (cleanup is a separate hard-delete concern). See [ADR 0025](../../decisions/0025-soft-delete-and-trash.md).
 - **Translation:** no.
 - **Notifications:** v1 = no `@user`-mention surface (`/edit` and `/chat` set `mentionsEnabled = false`).
 - **Scheduler:** v1 = no auto-run (graph runs are user-triggered). Adding a scheduled re-graph would be a `HandlerRegistry` registration in `src/code/graph/`.
@@ -162,10 +162,10 @@ Re-attach via GET /api/code/:id/graph/stream — replays from the in-memory fano
 
 ## Related
 
-- [ADR 0030 — Code sub-application with a secondary icon rail](../../adr/0030-code-sub-application.md)
-- [ADR 0033 — Bun-native code graph](../../adr/0033-bun-native-code-graph.md)
-- [ADR 0025 — Soft-delete and trash](../../adr/0025-soft-delete-and-trash.md)
-- [ADR 0029 — Prompt registry and two-tier overrides](../../adr/0029-prompt-registry-and-two-tier-overrides.md)
+- [ADR 0030 — Code sub-application with a secondary icon rail](../../decisions/0030-code-sub-application.md)
+- [ADR 0033 — Bun-native code graph](../../decisions/0033-bun-native-code-graph.md)
+- [ADR 0025 — Soft-delete and trash](../../decisions/0025-soft-delete-and-trash.md)
+- [ADR 0029 — Prompt registry and two-tier overrides](../../decisions/0029-prompt-registry-and-two-tier-overrides.md)
 - [`./chat.md`](./chat.md) — chronological items timeline + sticky-bottom autoscroll, shared by `CodeChatView`.
 - [`./files.md`](./files.md) — workspace tools + `safeWorkspacePath`.
 - [`./workflows.md`](./workflows.md) — sibling subsystem with the same detached-runner + fanout pattern.

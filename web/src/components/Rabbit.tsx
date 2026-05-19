@@ -1,5 +1,5 @@
 /**
- * Rabbit mascot. See docs/styleguide.md §6 for sanctioned placements:
+ * Rabbit mascot. See docs/dev/styleguide/README.md §6 for sanctioned placements:
  *   - brand logo (20 px)
  *   - background watermark (~200 px, opacity 0.04, set by CSS)
  *   - empty state (120 px)

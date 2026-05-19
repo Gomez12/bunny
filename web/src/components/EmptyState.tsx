@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import Rabbit from "./Rabbit";
 
 /**
- * Empty state. See docs/styleguide.md §4 (Components) and §8.
+ * Empty state. See docs/dev/styleguide/README.md §4 (Components) and §8.
  * Always uses the rabbit mascot so "nothing here yet" still feels on-brand.
  */
 type Props = {

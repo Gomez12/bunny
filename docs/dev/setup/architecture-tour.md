@@ -4,8 +4,8 @@ A mental model in three principles, one data flow, and one code map. Spend 20 mi
 
 ## Three design principles
 
-1. **Minimal agent loop.** `src/agent/loop.ts:runAgent` is the only orchestrator: build system prompt → stream LLM → execute tools in parallel → repeat until the model answers without tools. Hard cap `MAX_TOOL_ITERATIONS = 20`. Everything else is support scaffolding. See [ADR 0001](../../adr/0001-bun-runtime.md) and Mihail Eric's *The Emperor Has No Clothes*.
-2. **Queue is the spine.** Every meaningful action is a fire-and-forget job on `bunqueue` (`src/queue/`) that writes to `events` in SQLite. This covers LLM requests, tool calls, memory writes, **and every HTTP mutation** (project/board/agent/task CRUD, auth events). Every route context carries `queue: BunnyQueue`. Nothing is invisible; nothing blocks the caller. See [ADR 0004](../../adr/0004-bunqueue-as-spine.md) and [`concepts/queue-and-logging.md`](../concepts/queue-and-logging.md).
+1. **Minimal agent loop.** `src/agent/loop.ts:runAgent` is the only orchestrator: build system prompt → stream LLM → execute tools in parallel → repeat until the model answers without tools. Hard cap `MAX_TOOL_ITERATIONS = 20`. Everything else is support scaffolding. See [ADR 0001](../decisions/0001-bun-runtime.md) and Mihail Eric's *The Emperor Has No Clothes*.
+2. **Queue is the spine.** Every meaningful action is a fire-and-forget job on `bunqueue` (`src/queue/`) that writes to `events` in SQLite. This covers LLM requests, tool calls, memory writes, **and every HTTP mutation** (project/board/agent/task CRUD, auth events). Every route context carries `queue: BunnyQueue`. Nothing is invisible; nothing blocks the caller. See [ADR 0004](../decisions/0004-bunqueue-as-spine.md) and [`concepts/queue-and-logging.md`](../architecture/queue-and-logging.md).
 3. **Portable state.** Single SQLite file under `$BUNNY_HOME`. No `$HOME/.config` fallback. A project directory is a complete, relocatable agent. See `concepts/projects-as-scope.md`.
 
 ## One turn, end-to-end
@@ -109,4 +109,4 @@ tests/                   # mirrors src/ layout
 
 - [`first-change.md`](./first-change.md) — concrete walkthrough.
 - [`conventions.md`](./conventions.md) — the rules before your first commit.
-- [`../concepts/agent-loop.md`](../concepts/agent-loop.md) — drill into the loop.
+- [`../architecture/agent-loop.md`](../architecture/agent-loop.md) — drill into the loop.

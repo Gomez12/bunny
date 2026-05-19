@@ -109,5 +109,5 @@ Coverage (if using `bun test --coverage`) writes to `./coverage/`.
 
 ## Related
 
-- [`../concepts/agent-loop.md`](../concepts/agent-loop.md) — the agent loop has dedicated tests under `tests/agent/`.
+- [`../architecture/agent-loop.md`](../architecture/agent-loop.md) — the agent loop has dedicated tests under `tests/agent/`.
 - `tests/` — there's usually a reference example next to your target module.

@@ -106,6 +106,6 @@ Tauri registration: `client/src-tauri/Cargo.toml` includes `tauri-plugin-notific
 
 ## Related
 
-- [ADR 0027 — User notifications](../../adr/0027-user-notifications.md)
+- [ADR 0027 — User notifications](../decisions/0027-user-notifications.md)
 - [`telegram-integration.md`](./telegram-integration.md) — outbound hook layered on top.
 - [`agent-loop.md`](./agent-loop.md) — `mentionsEnabled` gating.

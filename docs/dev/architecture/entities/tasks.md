@@ -9,7 +9,7 @@ Periodic work driven by cron expressions. Two kinds:
 
 Handlers are registered by domain modules via `HandlerRegistry.register`. The scheduler itself knows nothing about boards, translation, KB, or Web News.
 
-See [`../concepts/scheduler.md`](../concepts/scheduler.md) for the subsystem mechanics — this page covers the user-facing entity.
+See [`../scheduler.md`](../scheduler.md) for the subsystem mechanics — this page covers the user-facing entity.
 
 ## Data model
 
@@ -95,6 +95,6 @@ Each module calls `registerHandler(name, fn)` at import time, then `src/server/i
 
 ## Related
 
-- [ADR 0011 — Scheduled tasks](../../adr/0011-scheduled-tasks.md)
-- [`../concepts/scheduler.md`](../concepts/scheduler.md)
-- [`../how-to/add-a-scheduled-handler.md`](../how-to/add-a-scheduled-handler.md)
+- [ADR 0011 — Scheduled tasks](../../decisions/0011-scheduled-tasks.md)
+- [`../scheduler.md`](../scheduler.md)
+- [`../../agents/add-a-scheduled-handler.md`](../../agents/add-a-scheduled-handler.md)

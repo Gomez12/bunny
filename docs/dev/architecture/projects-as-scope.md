@@ -98,8 +98,8 @@ See each entity page for the exact shape.
 
 ## Related
 
-- [ADR 0008 — Projects](../../adr/0008-projects.md)
+- [ADR 0008 — Projects](../decisions/0008-projects.md)
 - [`agent-loop.md`](./agent-loop.md) — how the project flows through `runAgent`.
 - [`memory-and-recall.md`](./memory-and-recall.md) — project as a recall filter.
 - [`translation-pipeline.md`](./translation-pipeline.md) — per-project `languages` list.
-- [`../entities/chat.md`](../entities/chat.md) — sessions, the project-aware surface.
+- [`./entities/chat.md`](./entities/chat.md) — sessions, the project-aware surface.

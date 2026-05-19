@@ -8,7 +8,7 @@ and streams per-node SSE events through an umbrella session. The graphical
 editor uses `@xyflow/react` with `dagre` vertical auto-layout; run view adds
 status coloring per node and a per-node log drawer on click.
 
-See [ADR 0032](../../adr/0032-workflows-subsystem.md) for the decision log
+See [ADR 0032](../../decisions/0032-workflows-subsystem.md) for the decision log
 and rationale.
 
 ## Data model

@@ -41,7 +41,7 @@ A new OpenAI-compatible (or otherwise) LLM provider. All provider-specific quirk
 
 3. **Update the provider type union** in `src/config.ts` or wherever the provider name is enumerated so the config file validates.
 
-4. **Add a config example.** Document in `docs/dev/reference/env-and-config.md` or `docs/adr/0002-openai-compat-adapter.md`.
+4. **Add a config example.** Document in `docs/dev/reference/env-and-config.md` or `docs/dev/decisions/0002-openai-compat-adapter.md`.
 
 5. **Test.** Write a fixture test that feeds the profile a synthetic SSE stream and checks the delta extraction:
    ```ts
@@ -80,7 +80,7 @@ Watch for:
 
 ## Related
 
-- [ADR 0002 — OpenAI-compat adapter](../../adr/0002-openai-compat-adapter.md)
-- [ADR 0005 — Streaming and reasoning normalisation](../../adr/0005-streaming-reasoning.md)
-- [`../concepts/streaming-and-renderers.md`](../concepts/streaming-and-renderers.md)
+- [ADR 0002 — OpenAI-compat adapter](../decisions/0002-openai-compat-adapter.md)
+- [ADR 0005 — Streaming and reasoning normalisation](../decisions/0005-streaming-reasoning.md)
+- [`../architecture/streaming-and-renderers.md`](../architecture/streaming-and-renderers.md)
 - `src/llm/profiles.ts` — every existing profile is reference material.

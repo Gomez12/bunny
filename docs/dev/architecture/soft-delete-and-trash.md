@@ -91,6 +91,6 @@ The user-visible delete endpoints (`DELETE /api/whiteboards/:id`, etc.) continue
 
 ## Related
 
-- [ADR 0025 — Soft-delete and trash bin](../../adr/0025-soft-delete-and-trash.md)
+- [ADR 0025 — Soft-delete and trash bin](../decisions/0025-soft-delete-and-trash.md)
 - [`translation-pipeline.md`](./translation-pipeline.md) — sidecar lifecycle interaction.
-- [`../how-to/add-a-trashable-entity.md`](../how-to/add-a-trashable-entity.md).
+- [`../agents/add-a-trashable-entity.md`](../agents/add-a-trashable-entity.md).

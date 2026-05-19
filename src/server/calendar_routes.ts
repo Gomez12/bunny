@@ -11,7 +11,7 @@
  *   PATCH/DELETE /<scope>/<id>                   shared update/delete
  *   GET /api/calendar/working-days               resolver endpoint
  *
- * See docs/adr/0044-calendar-exceptions.md.
+ * See docs/dev/decisions/0044-calendar-exceptions.md.
  */
 
 import type { Database } from "bun:sqlite";

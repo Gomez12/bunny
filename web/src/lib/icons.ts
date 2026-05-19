@@ -1,7 +1,7 @@
 /**
  * Icon barrel. Import icons from here, never directly from `lucide-react`.
  *
- * Conventions (see docs/styleguide.md §5):
+ * Conventions (see docs/dev/styleguide/README.md §5):
  * - Source: lucide-react only.
  * - Size: 18 px default, 16 px inline in text, 20 px in the brand lockup.
  * - Stroke-width: 1.75.

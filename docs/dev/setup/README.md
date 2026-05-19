@@ -7,4 +7,4 @@ Four pages, read top-to-bottom on day one.
 3. [**first-change.md**](./first-change.md) — hands-on walkthrough. Add a queue log line, add a column to a table, add an HTTP route, add a test. End-to-end.
 4. [**conventions.md**](./conventions.md) — the non-negotiables. English-only, append-only schema, queue-log mandate on every mutation, pre-commit checklist. Read this last; internalise it.
 
-Budget: ~2 hours. After this you can safely touch any subsystem; start from the matching page in [`../concepts/`](../concepts/), [`../ui/`](../ui/), or [`../entities/`](../entities/).
+Budget: ~2 hours. After this you can safely touch any subsystem; start from the matching page in [`../architecture/`](../architecture/), [`../components/`](../components/), or [`../architecture/entities/`](../architecture/entities/).

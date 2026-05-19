@@ -76,7 +76,7 @@ Topics are short nouns. Kinds are verbs or dotted verbs. Both are lowercase snak
 | `telegram` | `config.update`, `webhook.register`, `message.inbound`, `message.outbound`, `link.create.pending`, `link.create.confirm`, `poll.tick`, `rate_limit`, `error` |
 | `notification` | `create`, `read`, `read.all`, `delete` |
 
-New topics don't require ceremony — pick a short domain noun and document it here + in `docs/http-api.md`.
+New topics don't require ceremony — pick a short domain noun and document it here + in `docs/dev/api/http-api.md`.
 
 ## Key invariants
 
@@ -94,6 +94,6 @@ New topics don't require ceremony — pick a short domain noun and document it h
 
 ## Related
 
-- [ADR 0004 — Bunqueue as spine](../../adr/0004-bunqueue-as-spine.md)
-- [`../entities/dashboard.md`](../entities/dashboard.md) — reads `events` via `src/memory/stats.ts`.
+- [ADR 0004 — Bunqueue as spine](../decisions/0004-bunqueue-as-spine.md)
+- [`./entities/dashboard.md`](./entities/dashboard.md) — reads `events` via `src/memory/stats.ts`.
 - Logs tab — admin-only surface for browsing events, in `web/src/tabs/LogsTab.tsx`.

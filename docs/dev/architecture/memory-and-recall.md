@@ -85,7 +85,7 @@ hybridRecall(prompt, { project, excludeIds, recallK })
 
 ## Related
 
-- [ADR 0003 — SQLite FTS5 + sqlite-vec hybrid memory](../../adr/0003-sqlite-fts5-vec-hybrid.md)
+- [ADR 0003 — SQLite FTS5 + sqlite-vec hybrid memory](../decisions/0003-sqlite-fts5-vec-hybrid.md)
 - [`agent-loop.md`](./agent-loop.md) — who calls recall.
-- [`../entities/chat.md`](../entities/chat.md) — the user-visible side of sessions + messages.
-- [`../reference/data-model.md`](../reference/data-model.md) — the `messages` table in context.
+- [`./entities/chat.md`](./entities/chat.md) — the user-visible side of sessions + messages.
+- [`./reference/data-model.md`](./reference/data-model.md) — the `messages` table in context.

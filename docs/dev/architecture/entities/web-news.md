@@ -151,7 +151,7 @@ The Telegram digest sends *only the inserted* items per run — a tick that only
 
 ## Related
 
-- [ADR 0024 — Web News](../../adr/0024-web-news.md)
+- [ADR 0024 — Web News](../../decisions/0024-web-news.md)
 - [`./boards.md`](./boards.md) — same `runCard`-shaped orchestration.
-- [`../concepts/scheduler.md`](../concepts/scheduler.md)
-- [`../concepts/telegram-integration.md`](../concepts/telegram-integration.md)
+- [`../scheduler.md`](../scheduler.md)
+- [`../telegram-integration.md`](../telegram-integration.md)

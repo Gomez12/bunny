@@ -1,6 +1,6 @@
 # Concepts
 
-Cross-cutting subsystems. One page per subsystem. Not user-facing entities (those live in [`../entities/`](../entities/)); not frontend surface (that's [`../ui/`](../ui/)).
+Cross-cutting subsystems. One page per subsystem. Not user-facing entities (those live in [`./entities/`](./entities/)); not frontend surface (that's [`../components/`](../components/)).
 
 Skim the list; jump into the matching page when you touch the subsystem.
 
@@ -20,4 +20,4 @@ Skim the list; jump into the matching page when you touch the subsystem.
 - [**memory-and-soul**](./memory-and-soul.md) — per-(user, project), per-(agent, project), and per-user soul; hourly refresh.
 - [**response-envelopes**](./response-envelopes.md) — response-shape policy, `requireProjectAccess` helper, deferred reuse opportunities.
 
-The shell that holds the frontend together (sidebar, tokens, icons, rabbit) is in [`../ui/shell-and-navigation.md`](../ui/shell-and-navigation.md) — it's a frontend concern, not a backend concept.
+The shell that holds the frontend together (sidebar, tokens, icons, rabbit) is in [`../components/shell-and-navigation.md`](../components/shell-and-navigation.md) — it's a frontend concern, not a backend concept.

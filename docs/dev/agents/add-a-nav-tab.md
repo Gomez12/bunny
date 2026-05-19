@@ -12,7 +12,7 @@ A new top-level tab in the sidebar — Dashboard, Files, News, etc. all followed
      return <div className="tab">My tab content</div>;
    }
    ```
-   If the tab needs a secondary column (list + detail), wire that inside the tab, not at the shell level. See `../ui/patterns.md` pattern 1.
+   If the tab needs a secondary column (list + detail), wire that inside the tab, not at the shell level. See `../components/patterns.md` pattern 1.
 
 2. **Add the icon to the barrel.** In `web/src/lib/icons.ts`, re-export the lucide icon in the right section (Navigation):
    ```ts
@@ -45,7 +45,7 @@ A new top-level tab in the sidebar — Dashboard, Files, News, etc. all followed
      },
    ];
    ```
-   Pick the group deliberately (Overview / Work / Content / Configure). Read [`../ui/shell-and-navigation.md`](../ui/shell-and-navigation.md) if unsure.
+   Pick the group deliberately (Overview / Work / Content / Configure). Read [`../components/shell-and-navigation.md`](../components/shell-and-navigation.md) if unsure.
 
 5. **Wire the router.** In `web/src/App.tsx`:
    ```tsx
@@ -65,7 +65,7 @@ A new top-level tab in the sidebar — Dashboard, Files, News, etc. all followed
 
 7. **Persist the tab.** `bunny.activeTab` in `localStorage` — the router does this for you. Ensure the tab id is a valid `NavTabId`.
 
-8. **Update docs.** Add an entity page under `docs/dev/entities/` (or a concept page under `docs/dev/concepts/` if it's a cross-cutting surface). Link from `docs/dev/README.md`.
+8. **Update docs.** Add an entity page under `docs/dev/architecture/entities/` (or an architecture page under `docs/dev/architecture/` if it's a cross-cutting surface). Link from `docs/dev/README.md`.
 
 ## Rules
 
@@ -83,7 +83,7 @@ A new top-level tab in the sidebar — Dashboard, Files, News, etc. all followed
 
 ## Related
 
-- [`../ui/shell-and-navigation.md`](../ui/shell-and-navigation.md)
-- [`../ui/icons-and-rabbit.md`](../ui/icons-and-rabbit.md)
-- [`../ui/patterns.md`](../ui/patterns.md)
-- [ADR 0020 — UI redesign & styleguide](../../adr/0020-ui-redesign-and-styleguide.md)
+- [`../components/shell-and-navigation.md`](../components/shell-and-navigation.md)
+- [`../components/icons-and-rabbit.md`](../components/icons-and-rabbit.md)
+- [`../components/patterns.md`](../components/patterns.md)
+- [ADR 0020 — UI redesign & styleguide](../decisions/0020-ui-redesign-and-styleguide.md)

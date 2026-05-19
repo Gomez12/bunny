@@ -155,7 +155,7 @@ Swimlanes and cards each carry an `auto_run` flag. Card flag defaults ON when an
 
 ## Related
 
-- [ADR 0010 — Project boards](../../adr/0010-project-boards.md)
-- [`../concepts/scheduler.md`](../concepts/scheduler.md) — `board.auto_run_scan` handler.
-- [`../concepts/translation-pipeline.md`](../concepts/translation-pipeline.md) — card translations.
-- [`../concepts/telegram-integration.md`](../concepts/telegram-integration.md) — outbound ping on run finished.
+- [ADR 0010 — Project boards](../../decisions/0010-project-boards.md)
+- [`../scheduler.md`](../scheduler.md) — `board.auto_run_scan` handler.
+- [`../translation-pipeline.md`](../translation-pipeline.md) — card translations.
+- [`../telegram-integration.md`](../telegram-integration.md) — outbound ping on run finished.

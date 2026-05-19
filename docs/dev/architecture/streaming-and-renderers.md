@@ -36,7 +36,7 @@ interface Renderer {
 }
 ```
 
-The three optional callbacks let renderers opt into surfaces that the agent loop only needs when the transport supports them — interactive questions for the chat UI, queue-state badges for any UI that wants to differentiate "waiting on the model" from "waiting in the upstream queue" (see [ADR 0035](../../adr/0035-llm-concurrency-gate.md)).
+The three optional callbacks let renderers opt into surfaces that the agent loop only needs when the transport supports them — interactive questions for the chat UI, queue-state badges for any UI that wants to differentiate "waiting on the model" from "waiting in the upstream queue" (see [ADR 0035](../decisions/0035-llm-concurrency-gate.md)).
 
 Four implementations ship in-tree:
 
@@ -71,18 +71,18 @@ Reasoning is stored on `messages.channel = 'reasoning'` and **not** sent back on
 
 Current types: `content`, `reasoning`, `tool_call`, `tool_result`, `usage`, `stats`, `error`, `turn_end`, `done`, `card_run_started`, `card_run_finished`, `kb_definition_generated`, `kb_definition_illustration_generated`, `translation_generated`, `web_news_run_finished`, `web_news_topic_status`, `ask_user_question`, `llm_queue_wait`, `llm_queue_release`, `notification_created`, `notification_read`, plus the workflow + code-graph quartets.
 
-See [`../reference/sse-events.md`](../reference/sse-events.md) for the full table (producer, consumer, replay behaviour).
+See [`./reference/sse-events.md`](./reference/sse-events.md) for the full table (producer, consumer, replay behaviour).
 
 ## Upstream concurrency gate
 
 `chat()` is wrapped by a process-wide semaphore (`src/llm/concurrency_gate.ts`) configured by `cfg.llm.maxConcurrentRequests` (TOML `[llm] max_concurrent_requests`, env `LLM_MAX_CONCURRENT_REQUESTS`, **default 1**). When all permits are taken, callers wait FIFO; the renderer's `onQueueWait?` fires *before* the await with the 1-based queue position, and `onQueueRelease?` fires after acquire just before `fetch()` runs. The pair is paired — calls that slip in below the cap don't surface either event, so the chat UI never shows a queue badge for unqueued turns.
 
-Front-end pause behaviour: the `useSSEChat` hook treats `queueState === "waiting"` exactly like an unanswered `ask_user_question` — the live elapsed-time counter freezes via the same `pausedAtMs` / `pausedTotalMs` bookkeeping. Result: queue time is excluded from the displayed wall-clock duration, so a 30-second wait followed by a 5-second generation reads as "5s" on the bubble. See [ADR 0035](../../adr/0035-llm-concurrency-gate.md).
+Front-end pause behaviour: the `useSSEChat` hook treats `queueState === "waiting"` exactly like an unanswered `ask_user_question` — the live elapsed-time counter freezes via the same `pausedAtMs` / `pausedTotalMs` bookkeeping. Result: queue time is excluded from the displayed wall-clock duration, so a 30-second wait followed by a 5-second generation reads as "5s" on the bubble. See [ADR 0035](../decisions/0035-llm-concurrency-gate.md).
 
 ## Key invariants
 
 - **All provider quirks in `profiles.ts`.** Every other module sees a uniform stream.
-- **SSE over `fetch` body-reader, not `EventSource`.** The frontend POSTs JSON, which `EventSource` cannot do. See `../ui/streaming-ui.md`.
+- **SSE over `fetch` body-reader, not `EventSource`.** The frontend POSTs JSON, which `EventSource` cannot do. See `../components/streaming-ui.md`.
 - **Bun.serve sets `idleTimeout: 0`.** Long-lived SSE streams survive past the default timeout.
 - **Reasoning is display-only** (except Anthropic-compat). Sending it back confuses other providers.
 - **Gate release happens in `fanOut`'s `finally`.** All success and error paths funnel through one `release()`. Callers that abandon `deltas` without iterating risk leaking the gate — by contract every caller drains.
@@ -96,9 +96,9 @@ Front-end pause behaviour: the `useSSEChat` hook treats `queueState === "waiting
 
 ## Related
 
-- [ADR 0002 — OpenAI-compat adapter](../../adr/0002-openai-compat-adapter.md)
-- [ADR 0005 — Streaming and reasoning normalisation](../../adr/0005-streaming-reasoning.md)
-- [ADR 0035 — LLM concurrency gate](../../adr/0035-llm-concurrency-gate.md)
+- [ADR 0002 — OpenAI-compat adapter](../decisions/0002-openai-compat-adapter.md)
+- [ADR 0005 — Streaming and reasoning normalisation](../decisions/0005-streaming-reasoning.md)
+- [ADR 0035 — LLM concurrency gate](../decisions/0035-llm-concurrency-gate.md)
 - [`agent-loop.md`](./agent-loop.md) — how the loop consumes the stream.
-- [`../ui/streaming-ui.md`](../ui/streaming-ui.md) — what the frontend does with SSE frames.
-- [`../how-to/add-a-provider.md`](../how-to/add-a-provider.md) — add a new provider profile.
+- [`../components/streaming-ui.md`](../components/streaming-ui.md) — what the frontend does with SSE frames.
+- [`../agents/add-a-provider.md`](../agents/add-a-provider.md) — add a new provider profile.

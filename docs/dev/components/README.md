@@ -1,8 +1,8 @@
 # UI
 
-The frontend (`web/**`) has its own `package.json`, build, and component tree, so it's a peer of [`../concepts/`](../concepts/) rather than a subfolder. A dev who is only doing UI today can stay inside this folder and still have the complete picture.
+The frontend (`web/**`) has its own `package.json`, build, and component tree, so it's a peer of [`../architecture/`](../architecture/) rather than a subfolder. A dev who is only doing UI today can stay inside this folder and still have the complete picture.
 
-The canonical visual spec is [**`docs/styleguide.md`**](../../styleguide.md) — tokens, spacing scale, icon sanctioning, rabbit mascot placements. This folder is the dev-oriented orientation layer on top.
+The canonical visual spec is [**`docs/dev/styleguide/README.md`**](../styleguide/README.md) — tokens, spacing scale, icon sanctioning, rabbit mascot placements. This folder is the dev-oriented orientation layer on top.
 
 ## Read order
 
@@ -17,5 +17,5 @@ The canonical visual spec is [**`docs/styleguide.md`**](../../styleguide.md) —
 
 ## What's not here
 
-- Per-tab walkthroughs live under [`../entities/`](../entities/) (one page per user-facing entity, with its UI sub-section).
-- Recipe-style "how do I add a new tab?" guides live under [`../how-to/`](../how-to/).
+- Per-tab walkthroughs live under [`../architecture/entities/`](../architecture/entities/) (one page per user-facing entity, with its UI sub-section).
+- Recipe-style "how do I add a new tab?" guides live under [`../agents/`](../agents/).

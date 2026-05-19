@@ -67,7 +67,7 @@ Plus `kb_definition_translations` sidecar — source fields: `term`, `manual_des
 
 ## Extension hooks
 
-- **Translation:** yes — four text source fields through one prompt (KB short/long are *translated*, not regenerated per language). See `../concepts/translation-pipeline.md`.
+- **Translation:** yes — four text source fields through one prompt (KB short/long are *translated*, not regenerated per language). See `../translation-pipeline.md`.
 - **Trash:** yes. Soft-delete renames `term` to `__trash:<id>:<term>` to avoid `UNIQUE(project, term)` collisions.
 - **Notifications:** no.
 - **Scheduler:** a future `kb.definition.auto_fill` handler can target rows where `llm_cleared = 0` AND `llm_short IS NULL` (distinguishes "never generated" from "explicitly cleared").
@@ -145,7 +145,7 @@ Distinguishes two states:
 
 ## Related
 
-- [ADR 0021 — Knowledge Base: definitions](../../adr/0021-knowledge-base-definitions.md)
-- [`../concepts/translation-pipeline.md`](../concepts/translation-pipeline.md)
-- [`../concepts/soft-delete-and-trash.md`](../concepts/soft-delete-and-trash.md)
+- [ADR 0021 — Knowledge Base: definitions](../../decisions/0021-knowledge-base-definitions.md)
+- [`../translation-pipeline.md`](../translation-pipeline.md)
+- [`../soft-delete-and-trash.md`](../soft-delete-and-trash.md)
 - [`../reference/sse-events.md`](../reference/sse-events.md)

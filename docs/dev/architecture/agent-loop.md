@@ -77,9 +77,9 @@ The loop has a hard cap of `MAX_TOOL_ITERATIONS = 20` inner iterations per turn;
 
 ## Related
 
-- [ADR 0001 — Bun runtime](../../adr/0001-bun-runtime.md)
+- [ADR 0001 — Bun runtime](../decisions/0001-bun-runtime.md)
 - [`streaming-and-renderers.md`](./streaming-and-renderers.md) — the adapter / renderer layer underneath.
 - [`memory-and-recall.md`](./memory-and-recall.md) — what goes into the system prompt.
 - [`queue-and-logging.md`](./queue-and-logging.md) — how the loop's work becomes the audit trail.
-- [`../entities/chat.md`](../entities/chat.md) — the primary user-facing entry point.
-- [`../how-to/add-a-tool.md`](../how-to/add-a-tool.md) — static vs dynamic/closure-bound tools.
+- [`./entities/chat.md`](./entities/chat.md) — the primary user-facing entry point.
+- [`../agents/add-a-tool.md`](../agents/add-a-tool.md) — static vs dynamic/closure-bound tools.

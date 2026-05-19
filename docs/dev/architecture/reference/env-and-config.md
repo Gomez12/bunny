@@ -115,9 +115,9 @@ Tool registry: global registry ← subset(agent whitelist) ← dynamic tools spl
 
 ## Related
 
-- [`../getting-started/setup.md`](../getting-started/setup.md) — minimum viable `.env`.
-- [`../concepts/projects-as-scope.md`](../concepts/projects-as-scope.md) — per-project prompts.
-- [`../concepts/agent-loop.md`](../concepts/agent-loop.md) — how options flow.
-- [ADR 0002 — OpenAI-compat adapter](../../adr/0002-openai-compat-adapter.md)
-- [ADR 0022 — Multi-language translation](../../adr/0022-multi-language-translation.md)
-- [ADR 0028 — Per-project Telegram integration](../../adr/0028-telegram-integration.md)
+- [`../../setup/setup.md`](../../setup/setup.md) — minimum viable `.env`.
+- [`../projects-as-scope.md`](../projects-as-scope.md) — per-project prompts.
+- [`../agent-loop.md`](../agent-loop.md) — how options flow.
+- [ADR 0002 — OpenAI-compat adapter](../../decisions/0002-openai-compat-adapter.md)
+- [ADR 0022 — Multi-language translation](../../decisions/0022-multi-language-translation.md)
+- [ADR 0028 — Per-project Telegram integration](../../decisions/0028-telegram-integration.md)

@@ -84,6 +84,6 @@ Return the resolved absolute path. Every read / write / list / delete goes throu
 
 ## Related
 
-- [ADR 0012 — Project workspaces](../../adr/0012-project-workspaces.md)
-- [`../concepts/projects-as-scope.md`](../concepts/projects-as-scope.md) — workspace is part of the project on disk.
+- [ADR 0012 — Project workspaces](../../decisions/0012-project-workspaces.md)
+- [`../projects-as-scope.md`](../projects-as-scope.md) — workspace is part of the project on disk.
 - [`./documents.md`](./documents.md) — images land inside the workspace.

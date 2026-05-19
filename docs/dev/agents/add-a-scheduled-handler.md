@@ -64,7 +64,7 @@ Then manually in the UI: **Tasks** tab → find the system task → **Run now**.
 
 ## Related
 
-- [`../concepts/scheduler.md`](../concepts/scheduler.md)
-- [`../entities/tasks.md`](../entities/tasks.md)
+- [`../architecture/scheduler.md`](../architecture/scheduler.md)
+- [`../architecture/entities/tasks.md`](../architecture/entities/tasks.md)
 - `src/board/auto_run_handler.ts` — reference example.
 - `src/web_news/auto_run_handler.ts` — handler with per-tick concurrency cap.

@@ -101,7 +101,7 @@ Debounced 2s — a `useRef` timer, not `setInterval`. Edit mode operations do no
 
 ## Related
 
-- [ADR 0015 — Whiteboards](../../adr/0015-whiteboards.md)
+- [ADR 0015 — Whiteboards](../../decisions/0015-whiteboards.md)
 - [`./documents.md`](./documents.md) — embeds whiteboards.
-- [`../ui/tiptap-extensions.md`](../ui/tiptap-extensions.md) — `WhiteboardEmbedNode`.
-- [`../concepts/soft-delete-and-trash.md`](../concepts/soft-delete-and-trash.md)
+- [`../../components/tiptap-extensions.md`](../../components/tiptap-extensions.md) — `WhiteboardEmbedNode`.
+- [`../soft-delete-and-trash.md`](../soft-delete-and-trash.md)

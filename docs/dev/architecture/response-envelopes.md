@@ -93,7 +93,7 @@ Recorded sizes (2026-04-30):
 
 ## Related
 
-- [`../how-to/add-an-http-route.md`](../how-to/add-an-http-route.md)
-- [`../concepts/queue-and-logging.md`](./queue-and-logging.md) — every mutation logs.
-- [`../concepts/auth.md`](./auth.md) — `authenticate` middleware + `canSeeProject` semantics.
-- [ADR 0006 — Web UI](../../adr/0006-web-ui.md) — why `Bun.serve` + plain `switch` over a framework.
+- [`../agents/add-an-http-route.md`](../agents/add-an-http-route.md)
+- [`./queue-and-logging.md`](./queue-and-logging.md) — every mutation logs.
+- [`./auth.md`](./auth.md) — `authenticate` middleware + `canSeeProject` semantics.
+- [ADR 0006 — Web UI](../decisions/0006-web-ui.md) — why `Bun.serve` + plain `switch` over a framework.

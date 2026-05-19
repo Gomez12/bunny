@@ -70,11 +70,11 @@ When in doubt, start local. Promote to `components/` later.
 
 ## Patterns to reuse
 
-Before writing a new component, check [`../ui/patterns.md`](../ui/patterns.md) — your UI probably maps to an existing pattern (sidebar-list-plus-detail, composer, card grid, etc.). The existing primitives in [`../ui/component-library.md`](../ui/component-library.md) compose cleanly.
+Before writing a new component, check [`../components/patterns.md`](../components/patterns.md) — your UI probably maps to an existing pattern (sidebar-list-plus-detail, composer, card grid, etc.). The existing primitives in [`../components/component-library.md`](../components/component-library.md) compose cleanly.
 
 ## Styleguide update
 
-If the new component introduces a new token, a new pattern, or a new icon usage, update `docs/styleguide.md` in the same PR and add a dated entry to its change log. PRs that expand the visual system without a styleguide update are rejected.
+If the new component introduces a new token, a new pattern, or a new icon usage, update `docs/dev/styleguide/README.md` in the same PR and add a dated entry to its change log. PRs that expand the visual system without a styleguide update are rejected.
 
 ## Validation
 
@@ -84,8 +84,8 @@ If the new component introduces a new token, a new pattern, or a new icon usage,
 
 ## Related
 
-- [`../ui/component-library.md`](../ui/component-library.md)
-- [`../ui/patterns.md`](../ui/patterns.md)
-- [`../ui/icons-and-rabbit.md`](../ui/icons-and-rabbit.md)
-- [`../ui/design-system.md`](../ui/design-system.md)
-- [`../../styleguide.md`](../../styleguide.md)
+- [`../components/component-library.md`](../components/component-library.md)
+- [`../components/patterns.md`](../components/patterns.md)
+- [`../components/icons-and-rabbit.md`](../components/icons-and-rabbit.md)
+- [`../components/design-system.md`](../components/design-system.md)
+- [`../styleguide/README.md`](../styleguide/README.md)

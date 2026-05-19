@@ -93,6 +93,6 @@ The fetcher writes the files to `$BUNNY_HOME/skills/<name>/`, creates the DB row
 
 ## Related
 
-- [ADR 0013 — Agent skills](../../adr/0013-agent-skills.md)
+- [ADR 0013 — Agent skills](../../decisions/0013-agent-skills.md)
 - [`./agents.md`](./agents.md) — same opt-in linking pattern via `project_agents` vs `project_skills`.
-- [`../how-to/add-a-tool.md`](../how-to/add-a-tool.md) — `activate_skill` is a closure-bound tool like `call_agent`.
+- [`../../agents/add-a-tool.md`](../../agents/add-a-tool.md) — `activate_skill` is a closure-bound tool like `call_agent`.

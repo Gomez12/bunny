@@ -158,7 +158,7 @@ before `handleScheduledTaskRoute`.
   navigates to the deep-link. A "Load more" footer paginates backwards via
   the `before=<id>` cursor.
 - `ToastStack` is a top-right fixed stack, auto-dismiss 5 s, hover-pause,
-  CSS tokens per `docs/styleguide.md`. New `notification_created` events
+  CSS tokens per `docs/dev/styleguide/README.md`. New `notification_created` events
   push a toast unless the panel is open.
 - `osToast.show({ title, body, onClick })` feature-detects `window.__TAURI__`
   and routes to `@tauri-apps/plugin-notification` on desktop or

@@ -111,7 +111,7 @@ Two modes:
 - **Live** — re-fetches latest thumbnail on render.
 - **Static** — snapshot data URL at insert time.
 
-Markdown representation uses a fenced block with JSON metadata so round-trip is idempotent. See `../ui/tiptap-extensions.md`.
+Markdown representation uses a fenced block with JSON metadata so round-trip is idempotent. See `../../components/tiptap-extensions.md`.
 
 ## Exports
 
@@ -135,8 +135,8 @@ Markdown representation uses a fenced block with JSON metadata so round-trip is 
 
 ## Related
 
-- [ADR 0016 — Documents](../../adr/0016-documents.md)
+- [ADR 0016 — Documents](../../decisions/0016-documents.md)
 - [`./whiteboards.md`](./whiteboards.md)
-- [`../ui/tiptap-extensions.md`](../ui/tiptap-extensions.md)
-- [`../concepts/translation-pipeline.md`](../concepts/translation-pipeline.md)
-- [`../concepts/soft-delete-and-trash.md`](../concepts/soft-delete-and-trash.md)
+- [`../../components/tiptap-extensions.md`](../../components/tiptap-extensions.md)
+- [`../translation-pipeline.md`](../translation-pipeline.md)
+- [`../soft-delete-and-trash.md`](../soft-delete-and-trash.md)

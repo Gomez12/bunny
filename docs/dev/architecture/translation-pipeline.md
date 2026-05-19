@@ -104,7 +104,7 @@ system_prompt = "You are a translator…"
 
 ## Related
 
-- [ADR 0022 — Multi-language translation](../../adr/0022-multi-language-translation.md)
+- [ADR 0022 — Multi-language translation](../decisions/0022-multi-language-translation.md)
 - [`scheduler.md`](./scheduler.md) — the two system handlers live here.
 - [`soft-delete-and-trash.md`](./soft-delete-and-trash.md) — trash drops sidecars; restore re-seeds them.
-- [`../how-to/add-a-translatable-entity.md`](../how-to/add-a-translatable-entity.md) — step-by-step.
+- [`../agents/add-a-translatable-entity.md`](../agents/add-a-translatable-entity.md) — step-by-step.

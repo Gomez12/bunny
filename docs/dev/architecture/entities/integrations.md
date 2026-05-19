@@ -11,7 +11,7 @@ The visible tabs are **Workspace → Integrations** (per-project admin) and **Se
 
 ## Telegram
 
-Full write-up lives in [`../concepts/telegram-integration.md`](../concepts/telegram-integration.md). This page is the entity-level summary.
+Full write-up lives in [`../telegram-integration.md`](../telegram-integration.md). This page is the entity-level summary.
 
 ### Tables
 
@@ -85,7 +85,7 @@ CREATE TABLE api_keys (
 
 - **Translation:** no.
 - **Trash:** no (keys are revoked, not deleted; Telegram configs are deleted outright).
-- **Notifications:** outbound Telegram hook points live in mention dispatch, `runCard`, `runTopic`. See `../concepts/notifications-and-fanout.md` + `../concepts/telegram-integration.md`.
+- **Notifications:** outbound Telegram hook points live in mention dispatch, `runCard`, `runTopic`. See `../notifications-and-fanout.md` + `../telegram-integration.md`.
 - **Scheduler:** `telegram.poll` is the system handler for poll-mode transports.
 - **Tools:** no agent tools for integrations.
 
@@ -105,8 +105,8 @@ CREATE TABLE api_keys (
 
 ## Related
 
-- [ADR 0007 — Authentication, users, roles, API keys](../../adr/0007-auth-and-users.md)
-- [ADR 0028 — Per-project Telegram integration](../../adr/0028-telegram-integration.md)
-- [`../concepts/auth.md`](../concepts/auth.md)
-- [`../concepts/telegram-integration.md`](../concepts/telegram-integration.md)
-- [`../concepts/notifications-and-fanout.md`](../concepts/notifications-and-fanout.md)
+- [ADR 0007 — Authentication, users, roles, API keys](../../decisions/0007-auth-and-users.md)
+- [ADR 0028 — Per-project Telegram integration](../../decisions/0028-telegram-integration.md)
+- [`../auth.md`](../auth.md)
+- [`../telegram-integration.md`](../telegram-integration.md)
+- [`../notifications-and-fanout.md`](../notifications-and-fanout.md)

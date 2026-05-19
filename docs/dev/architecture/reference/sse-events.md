@@ -53,10 +53,10 @@ Wire format: `data: {json}\n\n` per frame.
 3. Handle the type in the consumer (`web/src/hooks/useSSEChat.ts`, `useNotifications.ts`, a card run hook, etc.). Unknown types are ignored — but known types should have explicit handling.
 4. Document in this page + the entity page.
 
-See [`../how-to/add-an-http-route.md`](../how-to/add-an-http-route.md) for the switch wiring and [`../concepts/streaming-and-renderers.md`](../concepts/streaming-and-renderers.md) for the producer side.
+See [`../../agents/add-an-http-route.md`](../../agents/add-an-http-route.md) for the switch wiring and [`../streaming-and-renderers.md`](../streaming-and-renderers.md) for the producer side.
 
 ## Related
 
-- [`../concepts/streaming-and-renderers.md`](../concepts/streaming-and-renderers.md)
-- [`../ui/streaming-ui.md`](../ui/streaming-ui.md)
+- [`../streaming-and-renderers.md`](../streaming-and-renderers.md)
+- [`../../components/streaming-ui.md`](../../components/streaming-ui.md)
 - `src/agent/sse_events.ts` — canonical.

@@ -7,7 +7,7 @@ Per-project organisation entity. Sibling of [Contacts](./contacts.md), M:N linke
 1. **Manual** — UI button → `POST /api/projects/:p/businesses` → `source = 'manual'`.
 2. **Auto-built** — opt-in per project (`projects.auto_build_businesses = 1`). The `business.auto_build` handler walks alive contacts, derives `(name, domain)` candidates from `company` + email/website domains, and inserts new rows via `INSERT … ON CONFLICT DO NOTHING RETURNING id`. Newly created rows get `soul_next_refresh_at = now` so the soul handler picks them up on its next tick.
 
-See [ADR 0036](../../adr/0036-social-handles-and-businesses.md) for the rationale.
+See [ADR 0036](../../decisions/0036-social-handles-and-businesses.md) for the rationale.
 
 ## Data model
 
@@ -103,9 +103,9 @@ Plus `business_translations` sidecar — source fields `description`, `notes`, `
 
 ## Related
 
-- [ADR 0036 — Social handles, per-entity soul, Businesses](../../adr/0036-social-handles-and-businesses.md)
-- [ADR 0019 — Contacts](../../adr/0019-contacts.md) — sibling entity
-- [ADR 0034 — Per-user / per-agent memory](../../adr/0034-per-user-agent-memory.md) — soul state-machine prior art
+- [ADR 0036 — Social handles, per-entity soul, Businesses](../../decisions/0036-social-handles-and-businesses.md)
+- [ADR 0019 — Contacts](../../decisions/0019-contacts.md) — sibling entity
+- [ADR 0034 — Per-user / per-agent memory](../../decisions/0034-per-user-agent-memory.md) — soul state-machine prior art
 - [`./contacts.md`](./contacts.md) — M:N partner entity
-- [`../concepts/translation-pipeline.md`](../concepts/translation-pipeline.md)
-- [`../concepts/soft-delete-and-trash.md`](../concepts/soft-delete-and-trash.md)
+- [`../translation-pipeline.md`](../translation-pipeline.md)
+- [`../soft-delete-and-trash.md`](../soft-delete-and-trash.md)

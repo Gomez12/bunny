@@ -94,7 +94,7 @@ The Board's `CardRunLog` subscribes to `/api/cards/:id/runs/:runId/stream` — a
 - **Fork to Quick Chat** — copies non-trimmed history into a new session with `is_quick_chat = 1`.
 - **Regenerate-as-alt-version** — `POST /api/messages/:id/regenerate`. Chains via `regen_of_message_id`. Navigate alts with `< n/m >` on the bubble.
 
-See [`../entities/chat.md`](../entities/chat.md) for the full matrix.
+See [`../architecture/entities/chat.md`](../architecture/entities/chat.md) for the full matrix.
 
 ## Rules
 
@@ -114,7 +114,7 @@ See [`../entities/chat.md`](../entities/chat.md) for the full matrix.
 
 ## Related
 
-- [`../concepts/streaming-and-renderers.md`](../concepts/streaming-and-renderers.md) — the backend side.
-- [`../reference/sse-events.md`](../reference/sse-events.md) — every event, producer, consumer.
+- [`../architecture/streaming-and-renderers.md`](../architecture/streaming-and-renderers.md) — the backend side.
+- [`../architecture/reference/sse-events.md`](../architecture/reference/sse-events.md) — every event, producer, consumer.
 - [`./component-library.md`](./component-library.md) — `MessageBubble`, `ToolCallCard`, `ReasoningBlock`, `UserQuestionCard`.
-- [`../entities/chat.md`](../entities/chat.md).
+- [`../architecture/entities/chat.md`](../architecture/entities/chat.md).

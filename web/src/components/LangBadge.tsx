@@ -1,6 +1,6 @@
 /**
  * Compact 2-letter language pill. Renders next to entity titles in list rows
- * so users see the source language at a glance. See docs/styleguide.md.
+ * so users see the source language at a glance. See docs/dev/styleguide/README.md.
  */
 
 interface Props {

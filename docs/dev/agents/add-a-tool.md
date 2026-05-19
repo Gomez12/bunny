@@ -84,6 +84,6 @@ For dynamic tools, also verify via the UI that `/api/tools` lists it (so the age
 
 ## Related
 
-- [`../concepts/agent-loop.md`](../concepts/agent-loop.md)
-- [`../entities/agents.md`](../entities/agents.md) — tool whitelists.
+- [`../architecture/agent-loop.md`](../architecture/agent-loop.md)
+- [`../architecture/entities/agents.md`](../architecture/entities/agents.md) — tool whitelists.
 - `src/tools/board.ts` — reference example for a closure-bound tool group.

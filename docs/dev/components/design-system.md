@@ -2,12 +2,12 @@
 
 ## At a glance
 
-The **canonical** design system lives in [`docs/styleguide.md`](../../styleguide.md). This page is the dev-oriented orientation layer — what to look up where, and the rules you need to know before you open a PR.
+The **canonical** design system lives in [`docs/dev/styleguide/README.md`](../styleguide/README.md). This page is the dev-oriented orientation layer — what to look up where, and the rules you need to know before you open a PR.
 
 ## Where the tokens live
 
 - `web/src/styles.css` — CSS custom properties (`--color-*`, `--space-*`, `--radius-*`, `--shadow-*`, `--font-*`). All token definitions are top-of-file; consumers reference them by name.
-- `docs/styleguide.md` — the canonical values + their semantics + when to use which.
+- `docs/dev/styleguide/README.md` — the canonical values + their semantics + when to use which.
 
 Never hard-code colours or spacing in a component. If you need a value the tokens don't cover, add a token first and update the styleguide in the same PR.
 
@@ -63,13 +63,13 @@ Do not reach for a raw palette. The themes (light + dark) rebind the same semant
 When you ship a UI change that adds/removes tokens, components, or icon usage:
 
 1. Update `web/src/styles.css` / the component.
-2. Update `docs/styleguide.md` in the same PR.
+2. Update `docs/dev/styleguide/README.md` in the same PR.
 3. Add a dated entry to the styleguide's change log.
 
 A PR that adds a token without a styleguide entry is rejected.
 
 ## Related
 
-- [`../../styleguide.md`](../../styleguide.md) — canonical.
+- [`../styleguide/README.md`](../styleguide/README.md) — canonical.
 - [`./icons-and-rabbit.md`](./icons-and-rabbit.md) — icon rules on top of the token system.
 - [`./component-library.md`](./component-library.md) — shared primitives that bundle tokens into a re-usable shape.

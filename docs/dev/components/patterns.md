@@ -114,4 +114,4 @@ Whiteboards and Documents store a thumbnail data URL alongside the payload. Side
 
 - [`./component-library.md`](./component-library.md) — the primitives these patterns compose from.
 - [`./streaming-ui.md`](./streaming-ui.md) — pattern 6 in detail.
-- [`../entities/`](../entities/) — each entity page shows which patterns it uses.
+- [`../architecture/entities/`](../architecture/entities/) — each entity page shows which patterns it uses.

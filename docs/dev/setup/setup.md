@@ -64,7 +64,7 @@ bun run client:dev           # dev mode, opens a native window
 bun run client:build         # platform-specific installer
 ```
 
-The client does *not* embed the server — it wraps the web UI in a native window and connects to a running Bunny instance. On first launch it asks for the server URL. See [ADR 0017](../../adr/0017-tauri-client.md).
+The client does *not* embed the server — it wraps the web UI in a native window and connects to a running Bunny instance. On first launch it asks for the server URL. See [ADR 0017](../decisions/0017-tauri-client.md).
 
 ## Scripts cheat-sheet
 

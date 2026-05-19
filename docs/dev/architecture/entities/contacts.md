@@ -2,7 +2,7 @@
 
 ## What it is
 
-Per-project contact management with groups. Emails, phones, tags, and **social handles** are JSON arrays to avoid join tables for simple lists. Supports vCard import/export, Contact Picker API on Android, and the usual Edit/Ask LLM modes. Each contact carries a periodically refreshed **soul** body (LLM-curated summary of what the person is currently up to, scraped from their public socials + website) — see [ADR 0036](../../adr/0036-social-handles-and-businesses.md).
+Per-project contact management with groups. Emails, phones, tags, and **social handles** are JSON arrays to avoid join tables for simple lists. Supports vCard import/export, Contact Picker API on Android, and the usual Edit/Ask LLM modes. Each contact carries a periodically refreshed **soul** body (LLM-curated summary of what the person is currently up to, scraped from their public socials + website) — see [ADR 0036](../../decisions/0036-social-handles-and-businesses.md).
 
 ## Data model
 
@@ -137,6 +137,6 @@ Analyses contacts via a prompt. Same pattern as documents — hidden session, `s
 
 ## Related
 
-- [ADR 0019 — Contacts](../../adr/0019-contacts.md)
-- [`../concepts/translation-pipeline.md`](../concepts/translation-pipeline.md)
-- [`../concepts/soft-delete-and-trash.md`](../concepts/soft-delete-and-trash.md)
+- [ADR 0019 — Contacts](../../decisions/0019-contacts.md)
+- [`../translation-pipeline.md`](../translation-pipeline.md)
+- [`../soft-delete-and-trash.md`](../soft-delete-and-trash.md)

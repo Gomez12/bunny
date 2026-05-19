@@ -26,11 +26,11 @@ The web UI grew to 14 top-level tabs in a single horizontal pill bar in `web/src
 
 ### Styleguide
 
-- New canonical reference at **`docs/styleguide.md`** covering tokens, typography, layout primitives, components, icon system, mascot usage, SSE UI patterns, empty/loading/error states, accessibility, and a dated change log. Linked from `docs/README.md` and pointed to from `CLAUDE.md` under **Conventions** so it surfaces in every Claude Code session.
+- New canonical reference at **`docs/dev/styleguide/README.md`** covering tokens, typography, layout primitives, components, icon system, mascot usage, SSE UI patterns, empty/loading/error states, accessibility, and a dated change log. Linked from `docs/README.md` and pointed to from `CLAUDE.md` under **Conventions** so it surfaces in every Claude Code session.
 
 ## Consequences
 
 - Backend, schema and HTTP surface are unchanged.
 - `Tab` union in `App.tsx` narrows (`messages`, `logs`, `projects`, `agents`, `skills` drop out; `workspace` is added). `localStorage` values for the dropped tabs fall back to the default (`chat`) on load.
 - `lucide-react` added to `web/package.json`. Tree-shaking keeps the bundle impact in the single-digit KB range for the icons actually imported.
-- Future UI changes must keep `docs/styleguide.md` in sync — it's load-bearing, not decorative. The styleguide ends with a change-log section so drift is visible.
+- Future UI changes must keep `docs/dev/styleguide/README.md` in sync — it's load-bearing, not decorative. The styleguide ends with a change-log section so drift is visible.

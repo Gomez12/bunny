@@ -17,7 +17,7 @@ hourly by the `memory.refresh` scheduled handler:
 All three are spliced into every system prompt by `buildSystemMessage`'s new
 `## Persistent context` block.
 
-See [ADR 0034](../../adr/0034-per-user-agent-memory.md) for the rationale.
+See [ADR 0034](../decisions/0034-per-user-agent-memory.md) for the rationale.
 
 ## Where it lives
 

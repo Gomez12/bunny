@@ -73,6 +73,6 @@ Frontend dep: `recharts`.
 
 ## Related
 
-- [ADR 0014 — Dashboard](../../adr/0014-dashboard.md)
-- [`../concepts/queue-and-logging.md`](../concepts/queue-and-logging.md) — the upstream data source.
+- [ADR 0014 — Dashboard](../../decisions/0014-dashboard.md)
+- [`../queue-and-logging.md`](../queue-and-logging.md) — the upstream data source.
 - Logs tab (Settings → Logs) — admin-only drill-down into individual events.

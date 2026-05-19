@@ -71,6 +71,6 @@ The rabbit mascot is the brand motif. It appears in five contexts:
 
 ## Related
 
-- [`../../styleguide.md`](../../styleguide.md) §5 (icons) and §7 (rabbit) — canonical.
+- [`../styleguide/README.md`](../styleguide/README.md) §5 (icons) and §7 (rabbit) — canonical.
 - [`./shell-and-navigation.md`](./shell-and-navigation.md) — where the rabbit logo sits in the nav.
 - [`./component-library.md`](./component-library.md) — `EmptyState` API.

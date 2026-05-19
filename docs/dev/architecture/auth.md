@@ -103,10 +103,10 @@ Non-admins receive only their own sessions from `listSessions` and `/api/session
 
 - `must_change_pw = 1` blocks every `/api/*` route except `/api/auth/change-password`. The frontend reads the `mustChangePassword` flag from `/api/auth/me` and routes to the change-password page.
 - Webhook endpoints (Telegram) are mounted *before* `authenticate` — they use a constant-time compare against a per-project secret. Getting the order wrong either breaks the webhook or exposes it.
-- A user's `preferred_language` overrides the project default — relevant for the translation UI (see `../concepts/translation-pipeline.md`) but not for auth itself.
+- A user's `preferred_language` overrides the project default — relevant for the translation UI (see `./translation-pipeline.md`) but not for auth itself.
 
 ## Related
 
-- [ADR 0007 — Authentication, users, roles, API keys](../../adr/0007-auth-and-users.md)
-- [`../entities/integrations.md`](../entities/integrations.md) — API key management UI.
+- [ADR 0007 — Authentication, users, roles, API keys](../decisions/0007-auth-and-users.md)
+- [`./entities/integrations.md`](./entities/integrations.md) — API key management UI.
 - [`projects-as-scope.md`](./projects-as-scope.md) — what scope a given `userId` + `project` grants.

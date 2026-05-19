@@ -104,7 +104,7 @@ Enable `is_subagent = 1` on an agent. Add its name to another agent's `allowed_s
 
 ## Default agent
 
-A configurable default agent (`bunny`, override via `[agent] default_agent` or `BUNNY_DEFAULT_AGENT`) is seeded at boot by `src/memory/agents_seed.ts:ensureDefaultAgent` and **auto-linked to every project** (existing rows at boot, new rows via `POST /api/projects`). It guarantees `/api/chat` can always resolve a named agent when the caller omits `agent` and the prompt has no leading `@mention`. The seeded `config.toml` uses `append = true` + `prompt = "You are a helpful assistant"` so operator `systemprompt.toml` overrides still apply. See [ADR 0031](../../adr/0031-every-chat-is-agent-bound.md).
+A configurable default agent (`bunny`, override via `[agent] default_agent` or `BUNNY_DEFAULT_AGENT`) is seeded at boot by `src/memory/agents_seed.ts:ensureDefaultAgent` and **auto-linked to every project** (existing rows at boot, new rows via `POST /api/projects`). It guarantees `/api/chat` can always resolve a named agent when the caller omits `agent` and the prompt has no leading `@mention`. The seeded `config.toml` uses `append = true` + `prompt = "You are a helpful assistant"` so operator `systemprompt.toml` overrides still apply. See [ADR 0031](../../decisions/0031-every-chat-is-agent-bound.md).
 
 ## Composer agent picker
 
@@ -120,9 +120,9 @@ User bubbles show `displayName || username || "you"`; assistant bubbles show `@<
 
 ## Related
 
-- [ADR 0009 — Agents](../../adr/0009-agents.md)
-- [ADR 0031 — Every chat turn is bound to a named agent](../../adr/0031-every-chat-is-agent-bound.md)
-- [`../concepts/agent-loop.md`](../concepts/agent-loop.md)
-- [`../concepts/memory-and-recall.md`](../concepts/memory-and-recall.md) — `context_scope = "own"`.
+- [ADR 0009 — Agents](../../decisions/0009-agents.md)
+- [ADR 0031 — Every chat turn is bound to a named agent](../../decisions/0031-every-chat-is-agent-bound.md)
+- [`../agent-loop.md`](../agent-loop.md)
+- [`../memory-and-recall.md`](../memory-and-recall.md) — `context_scope = "own"`.
 - [`./skills.md`](./skills.md) — progressive disclosure of instructions.
-- [`../how-to/add-a-tool.md`](../how-to/add-a-tool.md).
+- [`../../agents/add-a-tool.md`](../../agents/add-a-tool.md).

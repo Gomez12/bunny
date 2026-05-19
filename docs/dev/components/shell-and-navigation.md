@@ -99,13 +99,13 @@ Every subsequent fetch uses `credentials: "include"` so the `bunny_session` cook
 - **Never hard-code a tab id outside `NavTabId`.** Add to the union first.
 - **Never remove a `LEGACY_TAB_ALIAS` entry.**
 - **The rail is absolutely-positioned on hover-expand.** Do not change it to push content; that regresses the VS Code feel.
-- **The bell lives in `.nav__user-row` (sibling to `.nav__user`).** Moving it breaks the collapsed-rail badge visibility — see [ADR 0027](../../adr/0027-user-notifications.md).
+- **The bell lives in `.nav__user-row` (sibling to `.nav__user`).** Moving it breaks the collapsed-rail badge visibility — see [ADR 0027](../decisions/0027-user-notifications.md).
 
 ## Related
 
-- [`../../styleguide.md`](../../styleguide.md) — canonical visual spec.
-- [ADR 0006 — Web UI](../../adr/0006-web-ui.md)
-- [ADR 0020 — UI redesign & styleguide](../../adr/0020-ui-redesign-and-styleguide.md)
+- [`../styleguide/README.md`](../styleguide/README.md) — canonical visual spec.
+- [ADR 0006 — Web UI](../decisions/0006-web-ui.md)
+- [ADR 0020 — UI redesign & styleguide](../decisions/0020-ui-redesign-and-styleguide.md)
 - [`./icons-and-rabbit.md`](./icons-and-rabbit.md)
 - [`./state-and-hooks.md`](./state-and-hooks.md)
-- [`../how-to/add-a-nav-tab.md`](../how-to/add-a-nav-tab.md) — step-by-step.
+- [`../agents/add-a-nav-tab.md`](../agents/add-a-nav-tab.md) — step-by-step.

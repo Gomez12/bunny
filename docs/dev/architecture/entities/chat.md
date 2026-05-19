@@ -68,7 +68,7 @@ Both views also implement a **sticky-bottom autoscroll guard**:
 
 When `cfg.llm.maxConcurrentRequests` (default 1) is below the number of in-flight chat-completion requests, a turn that has to wait surfaces an `llm_queue_wait { position }` SSE event. `useSSEChat` flips `Turn.queueState` to `"waiting"`, sets `queuePosition`, and the bubble shows **"⏸ In wachtrij (positie X)"** in place of the usual "waiting for model…" pending label. The 150 ms tick that drives the live elapsed timer treats `queueState === "waiting"` as a pause condition (same machinery as an unanswered `ask_user_question`), so the timer freezes while queued and resumes from where it stopped.
 
-When the gate releases the request, `llm_queue_release { waitedMs }` flips state back to `"active"` and accumulates `Turn.queueWaitTotalMs`. A turn can re-queue between LLM-call iterations (multi-step tool turns); each cycle adds to the total. See [ADR 0035](../../adr/0035-llm-concurrency-gate.md) for the design and [`../concepts/streaming-and-renderers.md`](../concepts/streaming-and-renderers.md) for the renderer hooks.
+When the gate releases the request, `llm_queue_release { waitedMs }` flips state back to `"active"` and accumulates `Turn.queueWaitTotalMs`. A turn can re-queue between LLM-call iterations (multi-step tool turns); each cycle adds to the total. See [ADR 0035](../../decisions/0035-llm-concurrency-gate.md) for the design and [`../streaming-and-renderers.md`](../streaming-and-renderers.md) for the renderer hooks.
 
 ## Extension hooks
 
@@ -110,8 +110,8 @@ POST /api/chat { prompt, sessionId, project, agent? }
 
 ## Related
 
-- [ADR 0023 — Chat refinements: Quick Chats, Fork, Edit, Regenerate](../../adr/0023-chat-quick-chats-fork-edit-regen.md)
-- [ADR 0026 — `ask_user` tool](../../adr/0026-ask-user-question-tool.md)
-- [`../concepts/agent-loop.md`](../concepts/agent-loop.md)
-- [`../concepts/memory-and-recall.md`](../concepts/memory-and-recall.md)
-- [`../ui/streaming-ui.md`](../ui/streaming-ui.md)
+- [ADR 0023 — Chat refinements: Quick Chats, Fork, Edit, Regenerate](../../decisions/0023-chat-quick-chats-fork-edit-regen.md)
+- [ADR 0026 — `ask_user` tool](../../decisions/0026-ask-user-question-tool.md)
+- [`../agent-loop.md`](../agent-loop.md)
+- [`../memory-and-recall.md`](../memory-and-recall.md)
+- [`../../components/streaming-ui.md`](../../components/streaming-ui.md)

@@ -391,5 +391,5 @@ Source: [`src/server/routes.ts`](../src/server/routes.ts).
 Every HTTP **mutation** (`POST` / `PATCH` / `DELETE`, plus SSE starts) logs a
 fire-and-forget event through the queue — `ctx.queue.log({ topic, kind,
 userId, data })` — so the Logs tab and the dashboard reflect reality. See
-[ADR 0004](./adr/0004-bunqueue-as-spine.md) for the topic naming convention
+[ADR 0004](../decisions/0004-bunqueue-as-spine.md) for the topic naming convention
 and [`CLAUDE.md`](../CLAUDE.md) for the enforcement rule.

@@ -50,7 +50,7 @@ Inserted via `WhiteboardPickerDialog.tsx` (picker + mode radio).
 
 ### Adding a new custom node
 
-See [`../how-to/add-a-tiptap-node.md`](../how-to/add-a-tiptap-node.md) for the step-by-step. Summary:
+See [`../agents/add-a-tiptap-node.md`](../agents/add-a-tiptap-node.md) for the step-by-step. Summary:
 
 1. Write a React component for the node view.
 2. Define a Tiptap `Node` extension with `parseHTML` + `renderHTML` (or a custom markdown serializer).
@@ -95,7 +95,7 @@ Document exports live on the server, invoked by ribbon buttons:
 
 ## Related
 
-- [`../entities/documents.md`](../entities/documents.md) — the tab.
-- [`../entities/whiteboards.md`](../entities/whiteboards.md) — the embed target.
-- [`../how-to/add-a-tiptap-node.md`](../how-to/add-a-tiptap-node.md) — recipe.
-- [ADR 0016 — Documents](../../adr/0016-documents.md)
+- [`../architecture/entities/documents.md`](../architecture/entities/documents.md) — the tab.
+- [`../architecture/entities/whiteboards.md`](../architecture/entities/whiteboards.md) — the embed target.
+- [`../agents/add-a-tiptap-node.md`](../agents/add-a-tiptap-node.md) — recipe.
+- [ADR 0016 — Documents](../decisions/0016-documents.md)

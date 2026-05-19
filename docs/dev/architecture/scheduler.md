@@ -112,7 +112,7 @@ ensureSystemTask(db, {
 
 ## Related
 
-- [ADR 0011 — Scheduled tasks](../../adr/0011-scheduled-tasks.md)
-- [`../entities/tasks.md`](../entities/tasks.md) — the Tasks UI.
+- [ADR 0011 — Scheduled tasks](../decisions/0011-scheduled-tasks.md)
+- [`./entities/tasks.md`](./entities/tasks.md) — the Tasks UI.
 - [`translation-pipeline.md`](./translation-pipeline.md) — two system handlers live here.
-- [`../how-to/add-a-scheduled-handler.md`](../how-to/add-a-scheduled-handler.md).
+- [`../agents/add-a-scheduled-handler.md`](../agents/add-a-scheduled-handler.md).

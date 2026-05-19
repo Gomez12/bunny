@@ -110,4 +110,4 @@ Other shared types (auth user, theme, DTOs) live in `web/src/api.ts` — keep th
 
 - [`./shell-and-navigation.md`](./shell-and-navigation.md) — where the boot gate lives.
 - [`./streaming-ui.md`](./streaming-ui.md) — the SSE subscription pattern.
-- [`../concepts/auth.md`](../concepts/auth.md) — the server side of the cookie.
+- [`../architecture/auth.md`](../architecture/auth.md) — the server side of the cookie.

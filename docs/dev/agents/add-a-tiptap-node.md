@@ -127,6 +127,6 @@ Existing custom node: `WhiteboardEmbedNode` (`web/src/components/tiptap/Whiteboa
 
 ## Related
 
-- [`../ui/tiptap-extensions.md`](../ui/tiptap-extensions.md)
-- [`../entities/documents.md`](../entities/documents.md)
+- [`../components/tiptap-extensions.md`](../components/tiptap-extensions.md)
+- [`../architecture/entities/documents.md`](../architecture/entities/documents.md)
 - `web/src/components/tiptap/WhiteboardEmbedNode.tsx` — reference example.

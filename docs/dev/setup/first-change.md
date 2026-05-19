@@ -31,7 +31,7 @@ Rules:
 
 Run `bun test tests/queue/` to confirm nothing broke.
 
-Deep dive → [`../concepts/queue-and-logging.md`](../concepts/queue-and-logging.md).
+Deep dive → [`../architecture/queue-and-logging.md`](../architecture/queue-and-logging.md).
 
 ## 2. Add a column to a table
 
@@ -47,7 +47,7 @@ The schema is **append-only**. Never drop or rename columns — migrations ship 
 
 Rule of thumb: if you find yourself wanting to *rename* or *drop* a column, stop — write an ADR explaining why the rename is worth breaking portable state, then reconsider.
 
-Deep dive → [`../reference/data-model.md`](../reference/data-model.md).
+Deep dive → [`../architecture/reference/data-model.md`](../architecture/reference/data-model.md).
 
 ## 3. Add an HTTP route
 
@@ -81,14 +81,14 @@ Routes live in per-domain modules under `src/server/` and are dispatched by a sw
      return handleSetPriority(ctx, name, await req.json());
    }
    ```
-4. Add to `docs/http-api.md` and the entity page under `docs/dev/entities/`.
+4. Add to `docs/dev/api/http-api.md` and the entity page under `docs/dev/entities/`.
 
 Gotchas:
 
 - **Auth is at the switch, not the handler.** `authenticate` runs before `handleApi`; if the route should be public (webhook endpoints) it must be mounted *before* the auth gate — see how `/api/telegram/webhook/:project` is wired in `routes.ts`.
 - **Always log mutations.** The single missing log line is the classic bug — events then drop silently from the admin audit tab.
 
-Deep dive → [`../how-to/add-an-http-route.md`](../how-to/add-an-http-route.md).
+Deep dive → [`../agents/add-an-http-route.md`](../agents/add-an-http-route.md).
 
 ## 4. Write a test
 
@@ -121,7 +121,7 @@ bun test tests/memory/projects.test.ts
 bun test -t "persists the new value"
 ```
 
-Deep dive → [`../how-to/write-a-test.md`](../how-to/write-a-test.md).
+Deep dive → [`../agents/write-a-test.md`](../agents/write-a-test.md).
 
 ## Pre-commit checklist
 
@@ -129,7 +129,7 @@ Before `git commit`:
 
 1. `bun run check` (typecheck + test) — green.
 2. Updated `README.md` if the user-facing workflow changed.
-3. Updated `docs/README.md` + an ADR in `docs/adr/` for non-trivial architectural changes.
+3. Updated `docs/README.md` + an ADR in `docs/dev/decisions/` for non-trivial architectural changes.
 4. Updated the matching page in `docs/dev/`.
 5. Updated `CLAUDE.md` if conventions, build steps, or the high-level architecture shifted.
 6. English everywhere (commit message, PR body, comments, identifiers, logs).

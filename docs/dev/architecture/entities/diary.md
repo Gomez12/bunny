@@ -117,4 +117,4 @@ Result: ~1 MB per minute of audio, compatible with whisper.cpp.
 
 ## See also
 
-[ADR 0041](../../adr/0041-diary-subsystem.md)
+[ADR 0041](../../decisions/0041-diary-subsystem.md)

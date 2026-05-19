@@ -57,7 +57,7 @@ A new endpoint — `GET /api/foo`, `POST /api/foo/:id/bar`, whatever. The projec
    Mount **more specific** routes before generic ones (board routes are mounted before project routes).
 
 4. **Document.** Add the new endpoint to:
-   - `docs/http-api.md` (canonical API reference).
+   - `docs/dev/api/http-api.md` (canonical API reference).
    - The entity page under `docs/dev/entities/` (orientation for devs).
 
 5. **Test.** `tests/server/my_routes.test.ts` — call the handler with a stubbed ctx.
@@ -65,8 +65,8 @@ A new endpoint — `GET /api/foo`, `POST /api/foo/:id/bar`, whatever. The projec
 ## Rules
 
 - **`void ctx.queue.log({ … })` on every mutation.** Read routes don't log.
-- **Permission check before mutation.** `canSee*` for reads; `canEdit*` for writes. For routes that take an **untrusted project name** from the URL or body, prefer `requireProjectAccess(ctx.db, user, rawProject, "view"|"edit")` from `src/server/route_helpers.ts` — it bundles `validateProjectName` (400) + `getProject` (404) + `canSee/canEditProject` (403) into one call. See [`../concepts/response-envelopes.md`](../concepts/response-envelopes.md).
-- **Response shapes:** errors as `{ error: "…" }`; successes as a named-payload object (`{ items: [...] }`, `{ <singular>: {...} }`, or `{ ok: true }` for confirmations). See [`../concepts/response-envelopes.md`](../concepts/response-envelopes.md) for the full policy.
+- **Permission check before mutation.** `canSee*` for reads; `canEdit*` for writes. For routes that take an **untrusted project name** from the URL or body, prefer `requireProjectAccess(ctx.db, user, rawProject, "view"|"edit")` from `src/server/route_helpers.ts` — it bundles `validateProjectName` (400) + `getProject` (404) + `canSee/canEditProject` (403) into one call. See [`../architecture/response-envelopes.md`](../architecture/response-envelopes.md).
+- **Response shapes:** errors as `{ error: "…" }`; successes as a named-payload object (`{ items: [...] }`, `{ <singular>: {...} }`, or `{ ok: true }` for confirmations). See [`../architecture/response-envelopes.md`](../architecture/response-envelopes.md) for the full policy.
 - **Auth is at the switch, not the handler.** `authenticate` runs before `handleApi`.
 - **Public endpoints mount *before* the auth gate.** See `src/server/routes.ts` for how the Telegram webhook is wired — constant-time secret compare, always returns 200, dispatch detached.
 
@@ -106,7 +106,7 @@ bun run src/index.ts --session <any> "list events for topic my_thing"
 
 ## Related
 
-- [`../concepts/queue-and-logging.md`](../concepts/queue-and-logging.md)
-- [`../concepts/auth.md`](../concepts/auth.md)
-- [`../concepts/response-envelopes.md`](../concepts/response-envelopes.md) — response-shape policy + access-check helper.
-- `docs/http-api.md` — the canonical endpoint reference.
+- [`../architecture/queue-and-logging.md`](../architecture/queue-and-logging.md)
+- [`../architecture/auth.md`](../architecture/auth.md)
+- [`../architecture/response-envelopes.md`](../architecture/response-envelopes.md) — response-shape policy + access-check helper.
+- `docs/dev/api/http-api.md` — the canonical endpoint reference.

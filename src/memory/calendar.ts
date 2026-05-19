@@ -9,7 +9,7 @@
  * day that a higher-scope exception marked non-working (e.g. an emergency
  * Saturday shift overriding a global weekend rule).
  *
- * See docs/adr/0044-calendar-exceptions.md.
+ * See docs/dev/decisions/0044-calendar-exceptions.md.
  */
 
 import type { Database } from "bun:sqlite";

@@ -61,4 +61,4 @@ Anything that lives exclusively under one tab belongs either in `components/<tab
 - [`./patterns.md`](./patterns.md) — recurring layouts built on these primitives.
 - [`./icons-and-rabbit.md`](./icons-and-rabbit.md) — how `Rabbit` and icons fit in.
 - [`./streaming-ui.md`](./streaming-ui.md) — how `MessageBubble`, `ToolCallCard`, `ReasoningBlock`, `UserQuestionCard` compose inside a live turn.
-- [`../how-to/add-a-ui-component.md`](../how-to/add-a-ui-component.md) — when to put a component under `components/` vs tab-local.
+- [`../agents/add-a-ui-component.md`](../agents/add-a-ui-component.md) — when to put a component under `components/` vs tab-local.

@@ -80,4 +80,4 @@ On-open check: `GET /api/scripts/:id` always checks disk; returns `diskDiffers: 
 - `web/src/components/ScriptsRail.tsx` — secondary rail
 - `web/src/components/ScriptDialog.tsx` — create/edit dialog
 
-See [ADR 0037](../../adr/0037-scripts-subsystem.md).
+See [ADR 0037](../../decisions/0037-scripts-subsystem.md).

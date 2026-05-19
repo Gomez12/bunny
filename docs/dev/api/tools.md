@@ -229,7 +229,7 @@ answer surfaces as the tool result. Depth is capped at
 - The agent-editor picker calls `GET /api/tools` to populate the
   whitelist — it mirrors the names above.
 - Every tool invocation is logged through the queue (`topic: "tool"`); see
-  [ADR 0004](./adr/0004-bunqueue-as-spine.md).
-- Additions of new tool families should come with an ADR under `docs/adr/`
+  [ADR 0004](../decisions/0004-bunqueue-as-spine.md).
+- Additions of new tool families should come with an ADR under `docs/dev/decisions/`
   and an entry in `DYNAMIC_TOOL_NAMES` (if dynamic) or `src/tools/index.ts`
   (if static).

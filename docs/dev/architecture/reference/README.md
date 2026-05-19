@@ -6,4 +6,4 @@ Flat look-ups. Tables, lists, no narrative.
 - [**sse-events**](./sse-events.md) — every SSE event type, producer, consumer, replay behaviour.
 - [**env-and-config**](./env-and-config.md) — `bunny.config.toml` sections and `BUNNY_*` / `LLM_*` / `SERP_*` / `EMBED_*` env overrides.
 
-For the full HTTP API, see [`docs/http-api.md`](../../http-api.md). For every agent tool, see [`docs/tools.md`](../../tools.md).
+For the full HTTP API, see [`docs/dev/api/http-api.md`](../../api/http-api.md). For every agent tool, see [`docs/dev/api/tools.md`](../../api/tools.md).
