@@ -21,6 +21,8 @@ import {
   registerKind,
   type TranslatableKind,
 } from "./translatable.ts";
+import { registerVersionable } from "./versioning.ts";
+import { projectScopedAccess } from "./versioning_access.ts";
 
 export const BOARD_CARD_KIND: TranslatableKind = {
   name: "board_card",
@@ -32,6 +34,55 @@ export const BOARD_CARD_KIND: TranslatableKind = {
   aliveFilter: "archived_at IS NULL",
 };
 registerKind(BOARD_CARD_KIND);
+
+// Board cards use `archived_at` instead of trash's `deleted_at`, so they get
+// no `pre_delete` hook for free — the archive flow records `manual` markers
+// in the route layer instead. Snapshot omits `position` (drag-reordering
+// would otherwise dominate the version chain) and the worker bookkeeping
+// flags (`auto_run`, `archived_at`); those belong to the live row, not its
+// history.
+registerVersionable({
+  kind: "board_card",
+  table: "board_cards",
+  primaryKey: "id",
+  sidecars: ["board_card_translations (re-seeded on restore, not snapshotted)"],
+  snapshot(db, id) {
+    const row = db
+      .prepare(
+        `SELECT id, project, swimlane_id, title, description,
+                assignee_user_id, assignee_agent, estimate_hours, percent_done,
+                original_lang, created_by, created_at, updated_at
+           FROM board_cards WHERE id = ?`,
+      )
+      .get(Number(id)) as Record<string, unknown> | undefined;
+    return row ? { ...row } : null;
+  },
+  restore(db, id, snapshot) {
+    const cid = Number(id);
+    db.prepare(
+      `UPDATE board_cards
+          SET swimlane_id = ?, title = ?, description = ?,
+              assignee_user_id = ?, assignee_agent = ?, estimate_hours = ?,
+              percent_done = ?, updated_at = ?
+        WHERE id = ?`,
+    ).run(
+      Number(snapshot["swimlane_id"] ?? 0),
+      String(snapshot["title"] ?? ""),
+      String(snapshot["description"] ?? ""),
+      (snapshot["assignee_user_id"] as string | null) ?? null,
+      (snapshot["assignee_agent"] as string | null) ?? null,
+      (snapshot["estimate_hours"] as number | null) ?? null,
+      (snapshot["percent_done"] as number | null) ?? null,
+      Date.now(),
+      cid,
+    );
+    markTranslationsStale(db, BOARD_CARD_KIND, cid);
+  },
+  canSee: (db, userId, id) =>
+    projectScopedAccess(db, userId, "board_cards", "id", id, "see"),
+  canEdit: (db, userId, id) =>
+    projectScopedAccess(db, userId, "board_cards", "id", id, "edit"),
+});
 
 function resolveOriginalLangForCard(
   db: Database,

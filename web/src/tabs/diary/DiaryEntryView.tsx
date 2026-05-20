@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ArrowLeft, Loader2, RefreshCw, AudioLines } from "../../lib/icons";
+import HistoryButton from "../../components/HistoryButton";
 import AudioRecorder from "./AudioRecorder";
 
 interface DiaryEntry {
@@ -219,6 +220,11 @@ export default function DiaryEntryView({ entry, onBack, onUpdate }: Props) {
               </option>
             ))}
           </select>
+          <HistoryButton
+            kind="diary_entry"
+            entityId={entry.id}
+            entityName={entry.title || createdDate}
+          />
         </div>
       </div>
 

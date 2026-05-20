@@ -22,6 +22,7 @@ import { json, readJson } from "./http.ts";
 import { canEditProject, canSeeProject } from "./route_helpers.ts";
 import { getProject, validateProjectName } from "../memory/projects.ts";
 import { listUsers } from "../auth/users.ts";
+import { recordVersion } from "../memory/versioning.ts";
 
 import {
   canEditPlanningProject,
@@ -331,6 +332,7 @@ async function createProject(
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
   }
+  recordVersion(ctx.db, "planning_project", created.id, "save", user.id);
   void ctx.queue.log({
     topic: "planning",
     kind: "project.create",
@@ -378,6 +380,7 @@ async function patchProject(
           ? undefined
           : body.sprintDurationDays,
     });
+    recordVersion(ctx.db, "planning_project", id, "save", user.id);
     void ctx.queue.log({
       topic: "planning",
       kind: "project.update",
@@ -457,6 +460,7 @@ async function createDeadlineRoute(
       color: body.color ?? null,
       createdBy: user.id,
     });
+    recordVersion(ctx.db, "planning_deadline", dl.id, "save", user.id);
     void ctx.queue.log({
       topic: "planning",
       kind: "deadline.create",
@@ -493,6 +497,7 @@ async function patchDeadline(
       dueDate: body.dueDate,
       color: body.color === undefined ? undefined : body.color,
     });
+    recordVersion(ctx.db, "planning_deadline", id, "save", user.id);
     void ctx.queue.log({
       topic: "planning",
       kind: "deadline.update",
@@ -554,6 +559,7 @@ async function createTeamRoute(
       members: body.members,
       createdBy: user.id,
     });
+    recordVersion(ctx.db, "planning_team", team.id, "save", user.id);
     void ctx.queue.log({
       topic: "planning",
       kind: "team.create",
@@ -590,6 +596,7 @@ async function patchTeam(
       color: body.color === undefined ? undefined : body.color,
       maxParallel: body.maxParallel,
     });
+    recordVersion(ctx.db, "planning_team", id, "save", user.id);
     void ctx.queue.log({
       topic: "planning",
       kind: "team.update",
@@ -690,6 +697,7 @@ async function createTagRoute(
       color: body.color ?? null,
       createdBy: user.id,
     });
+    recordVersion(ctx.db, "planning_tag", tag.id, "save", user.id);
     void ctx.queue.log({
       topic: "planning",
       kind: "tag.create",
@@ -724,6 +732,7 @@ async function patchTag(
       description: body.description?.trim(),
       color: body.color === undefined ? undefined : body.color,
     });
+    recordVersion(ctx.db, "planning_tag", id, "save", user.id);
     void ctx.queue.log({
       topic: "planning",
       kind: "tag.update",
@@ -799,6 +808,7 @@ async function createWishRoute(
       jiraKey: body.jiraKey ?? null,
       createdBy: user.id,
     });
+    recordVersion(ctx.db, "planning_wish", wish.id, "save", user.id);
     void ctx.queue.log({
       topic: "planning",
       kind: "wish.create",
@@ -872,6 +882,7 @@ async function patchWish(
       tagIds: body.tagIds,
       jiraKey: body.jiraKey === undefined ? undefined : body.jiraKey,
     });
+    recordVersion(ctx.db, "planning_wish", id, "save", user.id);
     void ctx.queue.log({
       topic: "planning",
       kind: "wish.update",
@@ -943,13 +954,17 @@ function generateSuggestionRoute(
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
   }
+  const pending = getPendingSuggestion(ctx.db, ppId);
+  if (pending) {
+    recordVersion(ctx.db, "planning_suggestion", pending.id, "save", user.id);
+  }
   void ctx.queue.log({
     topic: "planning",
     kind: "suggestion.generate",
     userId: user.id,
     data: { planningProjectId: ppId },
   });
-  return json({ suggestion: getPendingSuggestion(ctx.db, ppId) });
+  return json({ suggestion: pending });
 }
 
 function getPendingSuggestionRoute(
@@ -1094,6 +1109,7 @@ async function applySuggestionRoute(
   applyPlacements(ctx.db, pending.payload.placements);
   // 3. Mark suggestion accepted.
   acceptPending(ctx.db, ppId, user.id, body?.comment ?? "");
+  recordVersion(ctx.db, "planning_suggestion", pending.id, "save", user.id);
   void ctx.queue.log({
     topic: "planning",
     kind: "suggestion.apply",
@@ -1125,6 +1141,7 @@ async function rejectSuggestionRoute(
   const body = await readJson<{ comment?: string }>(req);
   const result = rejectPending(ctx.db, ppId, user.id, body?.comment ?? "");
   if (!result) return json({ error: "no pending suggestion" }, 404);
+  recordVersion(ctx.db, "planning_suggestion", result.id, "save", user.id);
   void ctx.queue.log({
     topic: "planning",
     kind: "suggestion.reject",

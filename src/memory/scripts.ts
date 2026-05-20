@@ -13,6 +13,8 @@ import { join } from "node:path";
 import type { User } from "../auth/users.ts";
 import { validateSlugName } from "./slug.ts";
 import { registerTrashable, softDelete } from "./trash.ts";
+import { registerVersionable } from "./versioning.ts";
+import { projectScopedAccess } from "./versioning_access.ts";
 import type { Project } from "./projects.ts";
 
 export const SCRIPT_NAME_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
@@ -114,6 +116,52 @@ registerTrashable({
   scopeColumn: "code_project_id",
   translationSidecarTable: null,
   translationSidecarFk: null,
+});
+
+// Scripts pre-date the universal versioning system: `script_versions` is its
+// own append-only table written by the legacy `appendScriptVersion` path used
+// by `ScriptVersionsView`. We register `script` here so the trash hook + new
+// generic UI work for free; a one-time backfill into `entity_versions` (plan
+// §7) is tracked separately and not run from this registration.
+// `file_hash` is omitted from the snapshot because it's a side-effect of
+// `content` and resyncs on the next disk write.
+registerVersionable({
+  kind: "script",
+  table: "scripts",
+  primaryKey: "id",
+  sidecars: [
+    "script_versions (legacy chain — backfill into entity_versions tracked separately)",
+  ],
+  snapshot(db, id) {
+    const row = db
+      .prepare(
+        `SELECT id, code_project_id, project, name, description, content,
+                language, is_temp, created_by, created_at, updated_at
+           FROM scripts WHERE id = ?`,
+      )
+      .get(Number(id)) as Record<string, unknown> | undefined;
+    return row ? { ...row } : null;
+  },
+  restore(db, id, snapshot) {
+    db.prepare(
+      `UPDATE scripts
+          SET name = ?, description = ?, content = ?, language = ?,
+              is_temp = ?, updated_at = ?
+        WHERE id = ?`,
+    ).run(
+      String(snapshot["name"] ?? ""),
+      String(snapshot["description"] ?? ""),
+      String(snapshot["content"] ?? ""),
+      String(snapshot["language"] ?? "javascript"),
+      Number(snapshot["is_temp"] ?? 0),
+      Date.now(),
+      Number(id),
+    );
+  },
+  canSee: (db, userId, id) =>
+    projectScopedAccess(db, userId, "scripts", "id", id, "see"),
+  canEdit: (db, userId, id) =>
+    projectScopedAccess(db, userId, "scripts", "id", id, "edit"),
 });
 
 function rowToScript(r: ScriptRow): Script {

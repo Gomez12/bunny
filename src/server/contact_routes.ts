@@ -7,6 +7,7 @@ import { json, readJson } from "./http.ts";
 import { canSeeProject, canEditProject } from "./routes.ts";
 import { getProject, validateProjectName } from "../memory/projects.ts";
 import type { Project } from "../memory/projects.ts";
+import { recordVersion } from "../memory/versioning.ts";
 import {
   setSessionHiddenFromChat,
   setSessionQuickChat,
@@ -258,6 +259,7 @@ async function handleCreate(
       name: body.name,
       createdBy: user.id,
     });
+    recordVersion(ctx.db, "contact", contact.id, "save", user.id);
     void ctx.queue.log({
       topic: "contact",
       kind: "create",
@@ -306,6 +308,7 @@ async function handlePatch(
 
   try {
     const updated = updateContact(ctx.db, id, body);
+    recordVersion(ctx.db, "contact", id, "save", user.id);
     void ctx.queue.log({
       topic: "contact",
       kind: "update",
@@ -456,6 +459,7 @@ async function handleCreateGroup(
       color: body.color,
       createdBy: user.id,
     });
+    recordVersion(ctx.db, "contact_group", group.id, "save", user.id);
     void ctx.queue.log({
       topic: "contact",
       kind: "group.create",
@@ -487,6 +491,7 @@ async function handlePatchGroup(
 
   try {
     const updated = updateGroup(ctx.db, id, body);
+    recordVersion(ctx.db, "contact_group", id, "save", user.id);
     void ctx.queue.log({
       topic: "contact",
       kind: "group.update",
@@ -627,6 +632,7 @@ async function handleSoulPut(
     setContactSoulManual(ctx.db, id, body.soul, {
       markStale: ctx.cfg.contacts.translateSoul,
     });
+    recordVersion(ctx.db, "contact", id, "save", user.id);
     void ctx.queue.log({
       topic: "contact",
       kind: "soul.update",

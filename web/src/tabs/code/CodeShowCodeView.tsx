@@ -19,6 +19,7 @@ import {
   Trash2,
 } from "../../lib/icons";
 import { formatSize } from "../../lib/format";
+import HistoryButton from "../../components/HistoryButton";
 
 const POLL_MS = 2000;
 // Keeps the edit-mode live log bounded for long runs — DOM + memory pressure.
@@ -169,6 +170,11 @@ export default function CodeShowCodeView({
               {codeProject.gitStatus === "cloning" ? "Cloning…" : "Re-clone"}
             </button>
           )}
+          <HistoryButton
+            kind="code_project"
+            entityId={codeProject.id}
+            entityName={codeProject.name}
+          />
           <button
             type="button"
             className="btn btn--ghost"

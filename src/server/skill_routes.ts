@@ -34,6 +34,7 @@ import {
   installSkillFromSkillsSh,
 } from "../memory/skill_install.ts";
 import { getProject, validateProjectName } from "../memory/projects.ts";
+import { recordVersion } from "../memory/versioning.ts";
 
 export interface SkillRouteCtx {
   db: Database;
@@ -186,6 +187,7 @@ async function handleCreateSkill(
       visibility: body.visibility === "public" ? "public" : "private",
       createdBy: user.id,
     });
+    recordVersion(ctx.db, "skill", name, "save", user.id);
     if (getProject(ctx.db, ctx.defaultProject)) {
       linkSkillToProject(ctx.db, ctx.defaultProject, name);
     }
@@ -255,6 +257,7 @@ async function handleInstallSkill(
         createdBy: user.id,
       });
     }
+    recordVersion(ctx.db, "skill", result.name, "save", user.id);
     if (getProject(ctx.db, ctx.defaultProject)) {
       linkSkillToProject(ctx.db, ctx.defaultProject, result.name);
     }
@@ -305,6 +308,7 @@ async function handlePatchSkill(
       description: body.description ?? undefined,
       visibility: body.visibility,
     });
+    recordVersion(ctx.db, "skill", name, "save", user.id);
     if (body.skillMd !== undefined) {
       writeSkillMd(name, body.skillMd);
     }

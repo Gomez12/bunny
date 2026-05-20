@@ -14,6 +14,7 @@ import {
 import { Pencil, Plus, Trash2, Users, X } from "../../lib/icons";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import EmptyState from "../../components/EmptyState";
+import HistoryButton from "../../components/HistoryButton";
 import Modal from "../../components/Modal";
 
 interface Props {
@@ -107,6 +108,11 @@ export default function PlanningTeamsView({ planningProject }: Props) {
                   >
                     <Pencil size={14} />
                   </button>
+                  <HistoryButton
+                    kind="planning_team"
+                    entityId={team.id}
+                    entityName={team.name}
+                  />
                   <button
                     type="button"
                     className="planning-card__action-btn"

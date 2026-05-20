@@ -1350,6 +1350,32 @@ CREATE INDEX IF NOT EXISTS idx_calex_planning_date ON calendar_exceptions(planni
 CREATE INDEX IF NOT EXISTS idx_calex_team_date     ON calendar_exceptions(planning_team_id, date) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_calex_user_date     ON calendar_exceptions(user_id, date) WHERE deleted_at IS NULL;
 
+-- ── Entity versions ──────────────────────────────────────────────────────────
+-- Universal versioning for every entity in the database (ADR 0046). Append-only
+-- snapshots keyed by (kind, entity_id, version). One row per "save event" after
+-- dedup/debounce. Each *_routes.ts mutation endpoint calls recordVersion after a
+-- successful write; trash.ts adds 'pre_delete' / 'pre_restore' snapshots around
+-- soft-delete. Snapshots are JSON because the column set differs per kind and
+-- snapshot semantics (which sidecars to include) live in the per-kind registry.
+CREATE TABLE IF NOT EXISTS entity_versions (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  kind          TEXT    NOT NULL,          -- registered VersionableKind
+  entity_id     TEXT    NOT NULL,          -- TEXT so integer-id and string-id entities share one column
+  version       INTEGER NOT NULL,          -- 1-based, unique per (kind, entity_id)
+  snapshot_json TEXT    NOT NULL,          -- canonical JSON; '{}' when flags contains 'oversized'
+  content_hash  TEXT    NOT NULL,          -- sha256(snapshot_json); skips no-op versions
+  size_bytes    INTEGER NOT NULL,          -- byte length of snapshot_json before truncation
+  source        TEXT    NOT NULL,          -- save | pre_delete | pre_restore | restore | manual | backfill
+  flags         TEXT    NOT NULL DEFAULT '', -- csv: oversized | redacted | partial
+  created_at    INTEGER NOT NULL,          -- Unix ms
+  created_by    TEXT,                      -- user id (null for backfill or system events)
+  UNIQUE(kind, entity_id, version)
+);
+CREATE INDEX IF NOT EXISTS idx_entity_versions_lookup
+  ON entity_versions(kind, entity_id, version DESC);
+CREATE INDEX IF NOT EXISTS idx_entity_versions_recent
+  ON entity_versions(kind, created_at DESC);
+
 -- ── Embeddings ───────────────────────────────────────────────────────────────
 -- Created dynamically by db.ts using the configured dimension (default 1536)
 -- because the dimension must be baked into the vec0 CREATE statement.

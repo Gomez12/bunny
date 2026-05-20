@@ -22,6 +22,7 @@ import { canEditProject, canSeeProject } from "./routes.ts";
 import { requireProjectAccess } from "./route_helpers.ts";
 import { runCard, subscribeToRun, getRunFanout } from "../board/run_card.ts";
 import { getRun } from "../memory/board_runs.ts";
+import { recordVersion } from "../memory/versioning.ts";
 import { registry as toolsRegistry } from "../tools/index.ts";
 import { controllerSink, finishSse } from "../agent/render_sse.ts";
 import { getProject, validateProjectName } from "../memory/projects.ts";
@@ -315,6 +316,7 @@ async function handleCreateSwimlane(
       color: body.color ?? null,
       group: body.group ?? null,
     });
+    recordVersion(ctx.db, "board_swimlane", lane.id, "save", user.id);
     void ctx.queue.log({
       topic: "board",
       kind: "swimlane.create",
@@ -392,6 +394,7 @@ async function handlePatchSwimlane(
       color: body.color,
       group: body.group,
     });
+    recordVersion(ctx.db, "board_swimlane", id, "save", user.id);
     const changed = Object.keys(body).filter(
       (k) => (body as Record<string, unknown>)[k] !== undefined,
     );
@@ -497,6 +500,7 @@ async function handleCreateCard(
       createdBy: user.id,
       position: body.position,
     });
+    recordVersion(ctx.db, "board_card", card.id, "save", user.id);
     void ctx.queue.log({
       topic: "board",
       kind: "card.create",
@@ -559,6 +563,7 @@ async function handlePatchCard(
       swimlaneId: body.swimlaneId,
       position: body.position,
     });
+    recordVersion(ctx.db, "board_card", id, "save", user.id);
     const changed = Object.keys(body).filter(
       (k) => (body as Record<string, unknown>)[k] !== undefined,
     );

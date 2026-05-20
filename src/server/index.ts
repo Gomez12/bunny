@@ -32,6 +32,10 @@ import { startScheduler } from "../scheduler/ticker.ts";
 import { computeNextRun } from "../scheduler/cron.ts";
 import { ensureSystemTask } from "../memory/scheduled_tasks.ts";
 import {
+  VERSIONING_PRUNE_HANDLER,
+  registerVersioningPrune,
+} from "../memory/versioning_prune_handler.ts";
+import {
   BOARD_AUTO_RUN_HANDLER,
   registerBoardAutoRun,
 } from "../board/auto_run_handler.ts";
@@ -213,6 +217,7 @@ export async function startServer(
   registerScriptsSyncHandler(defaultHandlerRegistry);
   registerPlanningSuggestionRefresh(defaultHandlerRegistry);
   registerPlanningReportSnapshot(defaultHandlerRegistry);
+  registerVersioningPrune(defaultHandlerRegistry);
   const bootNow = Date.now();
   const boardAutoRunCron = "*/5 * * * *";
   try {
@@ -256,6 +261,21 @@ export async function startServer(
   } catch (e) {
     console.warn(
       "[bunny] failed to seed translation.sweep_stuck:",
+      errorMessage(e),
+    );
+  }
+  const versioningPruneCron = "0 4 * * *";
+  try {
+    ensureSystemTask(db, VERSIONING_PRUNE_HANDLER, {
+      name: "Entity-version prune",
+      description:
+        "Trim entity_versions to the configured cap per (kind, entity_id). Lifecycle markers (pre_delete / pre_restore / restore / manual / backfill) and version=1 are always kept. Daily at 04:00.",
+      cronExpr: versioningPruneCron,
+      nextRunAt: computeNextRun(versioningPruneCron, bootNow),
+    });
+  } catch (e) {
+    console.warn(
+      "[bunny] failed to seed versioning.prune:",
       errorMessage(e),
     );
   }

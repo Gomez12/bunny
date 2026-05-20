@@ -9,6 +9,54 @@
 
 import type { Database } from "bun:sqlite";
 import { prep } from "./prepared.ts";
+import { registerVersionable } from "./versioning.ts";
+import { projectScopedAccess } from "./versioning_access.ts";
+
+// Swimlanes hard-delete (cascade leaves cards behind via FK; see deleteSwimlane).
+// `position` is drag-state and changes on every reorder — leaving it out of the
+// snapshot keeps the version chain readable. Name and the routing config
+// (wip_limit, auto_run, default assignee, next_swimlane_id, color, group) are
+// the user-editable surface.
+registerVersionable({
+  kind: "board_swimlane",
+  table: "board_swimlanes",
+  primaryKey: "id",
+  snapshot(db, id) {
+    const row = db
+      .prepare(
+        `SELECT id, project, name, wip_limit, auto_run, default_assignee_user_id,
+                default_assignee_agent, next_swimlane_id, color, lane_group,
+                created_at, updated_at
+           FROM board_swimlanes WHERE id = ?`,
+      )
+      .get(Number(id)) as Record<string, unknown> | undefined;
+    return row ? { ...row } : null;
+  },
+  restore(db, id, snapshot) {
+    db.prepare(
+      `UPDATE board_swimlanes
+          SET name = ?, wip_limit = ?, auto_run = ?,
+              default_assignee_user_id = ?, default_assignee_agent = ?,
+              next_swimlane_id = ?, color = ?, lane_group = ?, updated_at = ?
+        WHERE id = ?`,
+    ).run(
+      String(snapshot["name"] ?? ""),
+      (snapshot["wip_limit"] as number | null) ?? null,
+      Number(snapshot["auto_run"] ?? 0),
+      (snapshot["default_assignee_user_id"] as string | null) ?? null,
+      (snapshot["default_assignee_agent"] as string | null) ?? null,
+      (snapshot["next_swimlane_id"] as number | null) ?? null,
+      (snapshot["color"] as string | null) ?? null,
+      (snapshot["lane_group"] as string | null) ?? null,
+      Date.now(),
+      Number(id),
+    );
+  },
+  canSee: (db, userId, id) =>
+    projectScopedAccess(db, userId, "board_swimlanes", "id", id, "see"),
+  canEdit: (db, userId, id) =>
+    projectScopedAccess(db, userId, "board_swimlanes", "id", id, "edit"),
+});
 
 export const POSITION_STEP = 100;
 export const DEFAULT_SWIMLANES = ["Todo", "Doing", "Done"] as const;

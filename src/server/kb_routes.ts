@@ -17,6 +17,7 @@ import { canSeeProject } from "./routes.ts";
 import { getProject, validateProjectName } from "../memory/projects.ts";
 import type { Project } from "../memory/projects.ts";
 import { setSessionHiddenFromChat } from "../memory/session_visibility.ts";
+import { recordVersion } from "../memory/versioning.ts";
 import { runAgent } from "../agent/loop.ts";
 import {
   createSseRenderer,
@@ -224,6 +225,7 @@ async function handleCreate(
       activeDescription: body.activeDescription,
       createdBy: user.id,
     });
+    recordVersion(ctx.db, "kb_definition", def.id, "save", user.id);
     void ctx.queue.log({
       topic: "kb",
       kind: "definition.create",
@@ -267,6 +269,7 @@ async function handlePatch(
 
   try {
     const updated = updateDefinition(ctx.db, id, body);
+    recordVersion(ctx.db, "kb_definition", id, "save", user.id);
     void ctx.queue.log({
       topic: "kb",
       kind: "definition.update",
@@ -315,6 +318,7 @@ async function handleSetActive(
 
   try {
     const updated = setActiveDescription(ctx.db, id, body.active);
+    recordVersion(ctx.db, "kb_definition", id, "save", user.id);
     void ctx.queue.log({
       topic: "kb",
       kind: "definition.active.set",
@@ -339,6 +343,7 @@ function handleClearLlm(
   if (!r.ok) return r.error;
 
   const updated = clearLlmFields(ctx.db, id);
+  recordVersion(ctx.db, "kb_definition", id, "save", user.id);
   void ctx.queue.log({
     topic: "kb",
     kind: "definition.clear",
@@ -719,6 +724,7 @@ function handleClearIllustration(
   if (!r.ok) return r.error;
 
   const updated = clearSvgFields(ctx.db, id);
+  recordVersion(ctx.db, "kb_definition", id, "save", user.id);
   void ctx.queue.log({
     topic: "kb",
     kind: "definition.illustration.clear",

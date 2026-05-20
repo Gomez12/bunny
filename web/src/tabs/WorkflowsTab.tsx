@@ -10,6 +10,7 @@ import {
 import EmptyState from "../components/EmptyState";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { ICON_DEFAULTS, Plus, Trash2, Workflow } from "../lib/icons";
+import HistoryButton from "../components/HistoryButton";
 import WorkflowEditor from "./workflows/WorkflowEditor";
 
 interface Props {
@@ -170,6 +171,11 @@ export default function WorkflowsTab({ project, currentUser }: Props) {
                   <Workflow {...ICON_DEFAULTS} />
                   <span className="workflows-tab__item-name">{w.name}</span>
                 </button>
+                <HistoryButton
+                  kind="workflow"
+                  entityId={w.id}
+                  entityName={w.name}
+                />
                 <button
                   type="button"
                   className="icon-btn"

@@ -1,5 +1,7 @@
 import type { Database } from "bun:sqlite";
 import { registerTrashable, softDelete } from "./trash.ts";
+import { registerVersionable } from "./versioning.ts";
+import { projectScopedAccess } from "./versioning_access.ts";
 
 registerTrashable({
   kind: "diary_entry",
@@ -8,6 +10,59 @@ registerTrashable({
   hasUniqueName: false,
   translationSidecarTable: null,
   translationSidecarFk: null,
+});
+
+// Diary entries pair user-edited text (title, transcription, raw_transcription)
+// with transient worker state (transcription_status, correction_status). Only
+// the editable fields belong in the version chain — restoring a stale "done"
+// status while the audio is re-transcribing would confuse the worker. Audio
+// path is preserved because the binary file on disk is the authoritative copy.
+registerVersionable({
+  kind: "diary_entry",
+  table: "diary_entries",
+  primaryKey: "id",
+  snapshot(db, id) {
+    const row = db
+      .prepare(
+        `SELECT id, project, user_id, title, audio_path, language,
+                transcription, raw_transcription, created_at, updated_at
+           FROM diary_entries WHERE id = ?`,
+      )
+      .get(Number(id)) as
+      | {
+          id: number;
+          project: string;
+          user_id: string;
+          title: string;
+          audio_path: string | null;
+          language: string;
+          transcription: string | null;
+          raw_transcription: string | null;
+          created_at: number;
+          updated_at: number;
+        }
+      | undefined;
+    return row ? { ...row } : null;
+  },
+  restore(db, id, snapshot) {
+    db.prepare(
+      `UPDATE diary_entries
+          SET title = ?, transcription = ?, raw_transcription = ?,
+              language = ?, updated_at = ?
+        WHERE id = ?`,
+    ).run(
+      String(snapshot["title"] ?? ""),
+      (snapshot["transcription"] as string | null) ?? null,
+      (snapshot["raw_transcription"] as string | null) ?? null,
+      String(snapshot["language"] ?? ""),
+      Date.now(),
+      Number(id),
+    );
+  },
+  canSee: (db, userId, id) =>
+    projectScopedAccess(db, userId, "diary_entries", "id", id, "see"),
+  canEdit: (db, userId, id) =>
+    projectScopedAccess(db, userId, "diary_entries", "id", id, "edit"),
 });
 
 export type TranscriptionStatus = "idle" | "transcribing" | "done" | "error";

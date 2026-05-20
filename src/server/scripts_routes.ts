@@ -57,6 +57,7 @@ import {
   type ScriptLanguage,
 } from "../memory/scripts.ts";
 import { restore } from "../memory/trash.ts";
+import { recordVersion } from "../memory/versioning.ts";
 import { runAgent } from "../agent/loop.ts";
 import {
   createSseRenderer,
@@ -288,6 +289,7 @@ async function handleCreate(
       isTemp,
       createdBy: user.id,
     });
+    recordVersion(ctx.db, "script", script.id, "save", user.id);
 
     // Write to disk
     writeDisk(cp.project, cp.name, script.name, script.language, script.isTemp, script.content, ctx.db, script.id);
@@ -379,6 +381,7 @@ async function handlePatch(
       createVersion: createVersion ?? false,
     });
     if (!updated) return json({ error: "not found" }, 404);
+    recordVersion(ctx.db, "script", id, "save", user.id);
 
     // Prune versions if a new one was created
     if (createVersion && patch.content !== undefined) {
@@ -600,6 +603,7 @@ async function handleRestoreVersion(
     { createdBy: user.id, createVersion: true },
   );
   if (!updated) return json({ error: "not found" }, 404);
+  recordVersion(ctx.db, "script", scriptId, "save", user.id);
 
   pruneScriptVersions(ctx.db, scriptId, ctx.cfg.scripts.maxVersionsPerScript);
 

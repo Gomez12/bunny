@@ -19,6 +19,7 @@ import {
 } from "../api";
 import EmptyState from "../components/EmptyState";
 import ConfirmDialog from "../components/ConfirmDialog";
+import HistoryButton from "../components/HistoryButton";
 import TopicDialog, {
   type TopicDialogValue,
 } from "../components/TopicDialog";
@@ -429,6 +430,11 @@ export default function WebNewsTab({ project, currentUser }: Props) {
                       >
                         <Pencil size={14} />
                       </button>
+                      <HistoryButton
+                        kind="web_news_topic"
+                        entityId={topic.id}
+                        entityName={topic.name}
+                      />
                       <button
                         type="button"
                         className="btn btn--ghost btn--xs"

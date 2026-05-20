@@ -33,6 +33,7 @@ import {
 } from "../memory/agent_assets.ts";
 import { parseMemoryOverride } from "../memory/project_assets.ts";
 import { getProject, validateProjectName } from "../memory/projects.ts";
+import { recordVersion } from "../memory/versioning.ts";
 import { registry } from "../tools/index.ts";
 import { CALL_AGENT_TOOL_NAME } from "../tools/call_agent.ts";
 import { BOARD_TOOL_NAMES } from "../tools/board.ts";
@@ -229,6 +230,7 @@ async function handleCreateAgent(
       contextScope: body.contextScope === "own" ? "own" : "full",
       createdBy: user.id,
     });
+    recordVersion(ctx.db, "agent", name, "save", user.id);
     ensureAgentDir(name);
     writeAgentAssets(name, {
       systemPrompt: {
@@ -302,6 +304,7 @@ async function handlePatchAgent(
       knowsOtherAgents: body.knowsOtherAgents,
       contextScope: body.contextScope,
     });
+    recordVersion(ctx.db, "agent", name, "save", user.id);
     const touchesPrompt =
       body.systemPrompt !== undefined || body.appendMode !== undefined;
     const touchesMemory =

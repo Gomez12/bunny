@@ -14,6 +14,7 @@ import {
 } from "../api";
 import AgentDialog, { type AgentDialogValue } from "../components/AgentDialog";
 import ConfirmDialog from "../components/ConfirmDialog";
+import HistoryButton from "../components/HistoryButton";
 import PageHeader from "../components/PageHeader";
 
 interface Props {
@@ -173,6 +174,7 @@ export default function AgentsTab({ currentUser, activeProject }: Props) {
             </div>
             {canEdit(a) && (
               <div className="project-card__actions">
+                <HistoryButton kind="agent" entityId={a.name} entityName={a.name} />
                 <button
                   className="project-card__edit"
                   onClick={() => setDialog({ kind: "edit", agent: a })}

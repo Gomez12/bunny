@@ -8,6 +8,42 @@
 
 import type { Database } from "bun:sqlite";
 import type { PlacementReason } from "../planning/scheduler.ts";
+import { registerVersionable } from "./versioning.ts";
+
+// Suggestions are immutable scheduler output plus a mutable `decision_comment`.
+// We register them so the per-item history modal can show the comment trail.
+// `status` is intentionally excluded from restore: it powers the
+// UNIQUE(planning_project_id) WHERE status='pending' partial index and
+// reanimating a pending status from an old version would collide with the
+// current pending row.
+registerVersionable({
+  kind: "planning_suggestion",
+  table: "planning_suggestions",
+  primaryKey: "id",
+  snapshot(db, id) {
+    const row = db
+      .prepare(
+        `SELECT id, planning_project_id, generated_at, status, payload_json,
+                generated_by_user_id, decided_by_user_id, decided_at,
+                decision_comment
+           FROM planning_suggestions WHERE id = ?`,
+      )
+      .get(Number(id)) as Record<string, unknown> | undefined;
+    return row ? { ...row } : null;
+  },
+  restore(db, id, snapshot) {
+    // Only the user-edited field is mutable — payload_json is scheduler
+    // output frozen at generation time, and status is lifecycle (see above).
+    db.prepare(
+      `UPDATE planning_suggestions
+          SET decision_comment = ?
+        WHERE id = ?`,
+    ).run(
+      String(snapshot["decision_comment"] ?? ""),
+      Number(id),
+    );
+  },
+});
 
 export type SuggestionStatus = "pending" | "accepted" | "rejected";
 

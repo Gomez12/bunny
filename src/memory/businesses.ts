@@ -42,6 +42,8 @@ import {
   type SoulStatus,
 } from "./contacts.ts";
 import { registerTrashable, softDelete } from "./trash.ts";
+import { registerVersionable } from "./versioning.ts";
+import { projectScopedAccess } from "./versioning_access.ts";
 
 export const BUSINESS_KIND: TranslatableKind = {
   name: "business",
@@ -61,6 +63,60 @@ registerTrashable({
   hasUniqueName: false,
   translationSidecarTable: "business_translations",
   translationSidecarFk: "business_id",
+});
+
+// Businesses mirror contacts: editable surface + soul refresh state. Worker
+// status (soul_status, soul_*_at, address_fetched_at) is left out of the
+// snapshot so restore doesn't reanimate stale schedules.
+registerVersionable({
+  kind: "business",
+  table: "businesses",
+  primaryKey: "id",
+  sidecars: ["business_translations (re-seeded on restore, not snapshotted)"],
+  snapshot(db, id) {
+    const row = db
+      .prepare(
+        `SELECT id, project, name, domain, description, notes, website,
+                emails, phones, socials, address, logo, tags, soul,
+                soul_sources, source, original_lang, created_by, created_at,
+                updated_at
+           FROM businesses WHERE id = ?`,
+      )
+      .get(Number(id)) as Record<string, unknown> | undefined;
+    return row ? { ...row } : null;
+  },
+  restore(db, id, snapshot) {
+    const bid = Number(id);
+    db.prepare(
+      `UPDATE businesses
+          SET name = ?, domain = ?, description = ?, notes = ?, website = ?,
+              emails = ?, phones = ?, socials = ?, address = ?, logo = ?,
+              tags = ?, soul = ?, soul_sources = ?, source = ?, updated_at = ?
+        WHERE id = ?`,
+    ).run(
+      String(snapshot["name"] ?? ""),
+      (snapshot["domain"] as string | null) ?? null,
+      String(snapshot["description"] ?? ""),
+      String(snapshot["notes"] ?? ""),
+      (snapshot["website"] as string | null) ?? null,
+      String(snapshot["emails"] ?? "[]"),
+      String(snapshot["phones"] ?? "[]"),
+      String(snapshot["socials"] ?? "[]"),
+      (snapshot["address"] as string | null) ?? null,
+      (snapshot["logo"] as string | null) ?? null,
+      String(snapshot["tags"] ?? "[]"),
+      String(snapshot["soul"] ?? ""),
+      (snapshot["soul_sources"] as string | null) ?? null,
+      String(snapshot["source"] ?? "manual"),
+      Date.now(),
+      bid,
+    );
+    markTranslationsStale(db, BUSINESS_KIND, bid);
+  },
+  canSee: (db, userId, id) =>
+    projectScopedAccess(db, userId, "businesses", "id", id, "see"),
+  canEdit: (db, userId, id) =>
+    projectScopedAccess(db, userId, "businesses", "id", id, "edit"),
 });
 
 export type BusinessSource = "manual" | "auto_from_contacts";

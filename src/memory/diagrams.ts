@@ -2,6 +2,8 @@ import type { Database } from "bun:sqlite";
 import type { Project } from "./projects.ts";
 import type { User } from "../auth/users.ts";
 import { registerTrashable, softDelete } from "./trash.ts";
+import { registerVersionable } from "./versioning.ts";
+import { projectScopedAccess } from "./versioning_access.ts";
 
 registerTrashable({
   kind: "diagram",
@@ -10,6 +12,45 @@ registerTrashable({
   hasUniqueName: true,
   translationSidecarTable: null,
   translationSidecarFk: null,
+});
+
+// Pure DB row — no on-disk sidecar. `diagram_type` is part of the snapshot
+// because diagrams can be retyped (architecture → flowchart etc.) and the
+// node-library compatibility depends on it.
+registerVersionable({
+  kind: "diagram",
+  table: "diagrams",
+  primaryKey: "id",
+  snapshot(db, id) {
+    const row = db
+      .prepare(
+        `SELECT id, project, name, diagram_type, description, content_json,
+                thumbnail, created_by, created_at, updated_at
+           FROM diagrams WHERE id = ?`,
+      )
+      .get(Number(id)) as Record<string, unknown> | undefined;
+    return row ? { ...row } : null;
+  },
+  restore(db, id, snapshot) {
+    db.prepare(
+      `UPDATE diagrams
+          SET name = ?, diagram_type = ?, description = ?, content_json = ?,
+              thumbnail = ?, updated_at = ?
+        WHERE id = ?`,
+    ).run(
+      String(snapshot["name"] ?? ""),
+      String(snapshot["diagram_type"] ?? "custom"),
+      String(snapshot["description"] ?? ""),
+      String(snapshot["content_json"] ?? '{"nodes":[],"edges":[]}'),
+      (snapshot["thumbnail"] as string | null) ?? null,
+      Date.now(),
+      Number(id),
+    );
+  },
+  canSee: (db, userId, id) =>
+    projectScopedAccess(db, userId, "diagrams", "id", id, "see"),
+  canEdit: (db, userId, id) =>
+    projectScopedAccess(db, userId, "diagrams", "id", id, "edit"),
 });
 
 export interface Diagram {

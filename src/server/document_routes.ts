@@ -21,6 +21,7 @@ import {
   setSessionHiddenFromChat,
   setSessionQuickChat,
 } from "../memory/session_visibility.ts";
+import { recordVersion } from "../memory/versioning.ts";
 import { runAgent } from "../agent/loop.ts";
 import {
   createSseRenderer,
@@ -134,6 +135,7 @@ async function handleCreate(
 
   try {
     const doc = createDocument(ctx.db, { project, name, createdBy: user.id });
+    recordVersion(ctx.db, "document", doc.id, "save", user.id);
     void ctx.queue.log({
       topic: "document",
       kind: "create",
@@ -179,6 +181,7 @@ async function handlePatch(
       contentMd: body.contentMd,
       thumbnail: body.thumbnail,
     });
+    recordVersion(ctx.db, "document", id, "save", user.id);
     void ctx.queue.log({
       topic: "document",
       kind: "update",
@@ -223,6 +226,7 @@ function handleSaveAsTemplate(
 
   try {
     const template = saveAsTemplate(ctx.db, id, user.id);
+    recordVersion(ctx.db, "document", template.id, "save", user.id);
     void ctx.queue.log({
       topic: "document",
       kind: "save-as-template",

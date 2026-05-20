@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { Agent, AuthUser, BoardCard, Swimlane } from "../api";
 import { listUsers, runCard } from "../api";
 import CardRunLog from "./CardRunLog";
+import HistoryButton from "./HistoryButton";
 import Modal from "./Modal";
 import TranslationsPanel from "./TranslationsPanel";
 
@@ -132,7 +133,20 @@ export default function CardDialog({
           void submit();
         }}
       >
-        <Modal.Header title={mode === "create" ? "New card" : `Edit card`} />
+        <Modal.Header
+          title={
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              {mode === "create" ? "New card" : "Edit card"}
+              {mode === "edit" && initial && (
+                <HistoryButton
+                  kind="board_card"
+                  entityId={initial.id}
+                  entityName={initial.title}
+                />
+              )}
+            </span>
+          }
+        />
 
         <label className="project-form__field">
           <span>Title</span>

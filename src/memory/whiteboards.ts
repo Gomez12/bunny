@@ -2,6 +2,8 @@ import type { Database } from "bun:sqlite";
 import type { Project } from "./projects.ts";
 import type { User } from "../auth/users.ts";
 import { registerTrashable, softDelete } from "./trash.ts";
+import { registerVersionable } from "./versioning.ts";
+import { projectScopedAccess } from "./versioning_access.ts";
 
 registerTrashable({
   kind: "whiteboard",
@@ -10,6 +12,46 @@ registerTrashable({
   hasUniqueName: true,
   translationSidecarTable: null,
   translationSidecarFk: null,
+});
+
+// Whiteboards are pure DB rows — no translations or external sidecars. The
+// elements_json blob can be large (Excalidraw scenes) so the global
+// `max_snapshot_bytes` cap may trip and store `flags='oversized'` with an
+// empty payload; that behaviour is correct, the LLM thumbnail is the cheap
+// reference for browsing the version chain in that case.
+registerVersionable({
+  kind: "whiteboard",
+  table: "whiteboards",
+  primaryKey: "id",
+  snapshot(db, id) {
+    const row = db
+      .prepare(
+        `SELECT id, project, name, elements_json, app_state_json, thumbnail,
+                created_by, created_at, updated_at
+           FROM whiteboards WHERE id = ?`,
+      )
+      .get(Number(id)) as WhiteboardRow | undefined;
+    return row ? { ...row } : null;
+  },
+  restore(db, id, snapshot) {
+    db.prepare(
+      `UPDATE whiteboards
+          SET name = ?, elements_json = ?, app_state_json = ?, thumbnail = ?,
+              updated_at = ?
+        WHERE id = ?`,
+    ).run(
+      String(snapshot["name"] ?? ""),
+      String(snapshot["elements_json"] ?? "{}"),
+      (snapshot["app_state_json"] as string | null) ?? null,
+      (snapshot["thumbnail"] as string | null) ?? null,
+      Date.now(),
+      Number(id),
+    );
+  },
+  canSee: (db, userId, id) =>
+    projectScopedAccess(db, userId, "whiteboards", "id", id, "see"),
+  canEdit: (db, userId, id) =>
+    projectScopedAccess(db, userId, "whiteboards", "id", id, "edit"),
 });
 
 export interface Whiteboard {

@@ -29,6 +29,7 @@ import {
   type Project,
 } from "../memory/projects.ts";
 import { getAgent, isAgentLinkedToProject } from "../memory/agents.ts";
+import { recordVersion } from "../memory/versioning.ts";
 import {
   canEditTopic,
   createTopic,
@@ -306,6 +307,7 @@ async function handleCreate(
       feedUrl: body.feedUrl,
       siteUrl: body.siteUrl,
     });
+    recordVersion(ctx.db, "web_news_topic", topic.id, "save", user.id);
 
     void ctx.queue.log({
       topic: "web_news",
@@ -378,6 +380,7 @@ async function handlePatch(
     if (body.siteUrl !== undefined) patch.siteUrl = body.siteUrl;
 
     const updated = updateTopic(ctx.db, id, patch);
+    recordVersion(ctx.db, "web_news_topic", id, "save", user.id);
     void ctx.queue.log({
       topic: "web_news",
       kind: "topic.update",

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import EmptyState from "../components/EmptyState";
 import ConfirmDialog from "../components/ConfirmDialog";
+import HistoryButton from "../components/HistoryButton";
 import BusinessDialog, {
   type BusinessDialogValue,
 } from "../components/BusinessDialog";
@@ -246,7 +247,15 @@ export default function BusinessesTab({ project, currentUser }: Props) {
                   </div>
                 )}
                 {canEdit(b) && (
-                  <div className="contact-card__actions">
+                  <div
+                    className="contact-card__actions"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <HistoryButton
+                      kind="business"
+                      entityId={b.id}
+                      entityName={b.name}
+                    />
                     <button
                       className="contact-card__action-btn"
                       onClick={(e) => {

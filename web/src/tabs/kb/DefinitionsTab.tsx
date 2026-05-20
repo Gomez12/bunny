@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import EmptyState from "../../components/EmptyState";
 import DefinitionDialog from "../../components/DefinitionDialog";
+import HistoryButton from "../../components/HistoryButton";
 import LangBadge from "../../components/LangBadge";
 import {
   fetchDefinitions,
@@ -194,6 +195,11 @@ export default function DefinitionsTab({ project, currentUser }: Props) {
               </p>
               {canEdit(d) && (
                 <div className="kb-card__actions" onClick={(e) => e.stopPropagation()}>
+                  <HistoryButton
+                    kind="kb_definition"
+                    entityId={d.id}
+                    entityName={d.term}
+                  />
                   <button
                     className="kb-card__action-btn"
                     onClick={() => void handleDelete(d)}

@@ -397,6 +397,83 @@ function migrateColumns(db: Database): void {
      VALUES ('general', 'Default project', 'public', NULL, ?, ?)`,
     [now, now],
   );
+
+  backfillScriptVersionsIntoEntityVersions(db);
+}
+
+/**
+ * One-time migration: copy the legacy `script_versions` rows into the
+ * universal `entity_versions` table so the new History UI can browse them
+ * alongside future saves. Idempotent — the UNIQUE(kind, entity_id, version)
+ * constraint on `entity_versions` makes a repeat run a no-op (rows are
+ * INSERT OR IGNORE'd).
+ *
+ * The legacy table stays in place for backwards compatibility with the
+ * existing `ScriptVersionsView`. See ADR 0046.
+ */
+function backfillScriptVersionsIntoEntityVersions(db: Database): void {
+  // Skip cleanly when either table is missing (early-boot tests, alternate
+  // schemas) — `migrateColumns` runs before `applySchema` on legacy
+  // installs in some test harnesses.
+  const tables = db
+    .prepare(
+      `SELECT name FROM sqlite_master
+        WHERE type = 'table' AND name IN ('script_versions', 'entity_versions')`,
+    )
+    .all() as { name: string }[];
+  if (tables.length < 2) return;
+
+  // For each script, assign a 1-based version number to its script_versions
+  // rows ordered by created_at (oldest first), then insert into
+  // entity_versions with source='backfill'. snapshot_json carries `content`
+  // plus the legacy script_versions id so future migrations can correlate.
+  // The hash is computed in JS — SQLite has no sha256 builtin and pulling in
+  // a UDF would complicate boot. We use a deterministic placeholder hash
+  // ('backfill:<legacy_id>') for the (content_hash, version) UNIQUE; the
+  // content lives in snapshot_json verbatim.
+  const rows = db
+    .prepare(
+      `SELECT id, script_id, content, created_by, created_at
+         FROM script_versions
+        ORDER BY script_id ASC, created_at ASC, id ASC`,
+    )
+    .all() as {
+    id: number;
+    script_id: number;
+    content: string;
+    created_by: string | null;
+    created_at: number;
+  }[];
+  if (rows.length === 0) return;
+
+  // Per-script counter so versions are 1..N within each entity.
+  const versionByScript = new Map<number, number>();
+  const insert = db.prepare(
+    `INSERT OR IGNORE INTO entity_versions
+       (kind, entity_id, version, snapshot_json, content_hash,
+        size_bytes, source, flags, created_at, created_by)
+     VALUES ('script', ?, ?, ?, ?, ?, 'backfill', '', ?, ?)`,
+  );
+  const tx = db.transaction(() => {
+    for (const r of rows) {
+      const nextVersion = (versionByScript.get(r.script_id) ?? 0) + 1;
+      versionByScript.set(r.script_id, nextVersion);
+      const snapshotJson = JSON.stringify({
+        content: r.content,
+        legacy_script_version_id: r.id,
+      });
+      insert.run(
+        String(r.script_id),
+        nextVersion,
+        snapshotJson,
+        `backfill:${r.id}`,
+        Buffer.byteLength(snapshotJson, "utf8"),
+        r.created_at,
+        r.created_by,
+      );
+    }
+  });
+  tx.immediate();
 }
 
 function applySchema(db: Database, embedDim: number): void {

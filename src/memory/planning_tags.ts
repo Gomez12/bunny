@@ -7,6 +7,8 @@
 
 import type { Database } from "bun:sqlite";
 import { registerTrashable, softDelete } from "./trash.ts";
+import { registerVersionable } from "./versioning.ts";
+import { projectScopedAccess } from "./versioning_access.ts";
 
 registerTrashable({
   kind: "planning_tag",
@@ -16,6 +18,39 @@ registerTrashable({
   scopeColumn: "planning_project_id",
   translationSidecarTable: null,
   translationSidecarFk: null,
+});
+
+registerVersionable({
+  kind: "planning_tag",
+  table: "planning_tags",
+  primaryKey: "id",
+  snapshot(db, id) {
+    const row = db
+      .prepare(
+        `SELECT id, planning_project_id, project, name, description, color,
+                created_by, created_at, updated_at
+           FROM planning_tags WHERE id = ?`,
+      )
+      .get(Number(id)) as Record<string, unknown> | undefined;
+    return row ? { ...row } : null;
+  },
+  restore(db, id, snapshot) {
+    db.prepare(
+      `UPDATE planning_tags
+          SET name = ?, description = ?, color = ?, updated_at = ?
+        WHERE id = ?`,
+    ).run(
+      String(snapshot["name"] ?? ""),
+      String(snapshot["description"] ?? ""),
+      (snapshot["color"] as string | null) ?? null,
+      Date.now(),
+      Number(id),
+    );
+  },
+  canSee: (db, userId, id) =>
+    projectScopedAccess(db, userId, "planning_tags", "id", id, "see"),
+  canEdit: (db, userId, id) =>
+    projectScopedAccess(db, userId, "planning_tags", "id", id, "edit"),
 });
 
 export interface PlanningTag {

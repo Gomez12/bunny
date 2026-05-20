@@ -10,6 +10,61 @@
 import type { Database } from "bun:sqlite";
 import { AGENT_NAME_RE } from "./agent_name.ts";
 import { validateSlugName } from "./slug.ts";
+import { registerVersionable } from "./versioning.ts";
+
+// Agents have no soft-delete (hard delete) and the on-disk TOML lives in
+// agent_assets.ts; the version chain captures the DB-row metadata only.
+// `name` is the primary key — restore is a metadata-only UPDATE (the name
+// itself is immutable post-create, just like script slugs).
+registerVersionable({
+  kind: "agent",
+  table: "agents",
+  primaryKey: "name",
+  sidecars: ["agent TOML on disk (out of scope — see agent_assets.ts)"],
+  snapshot(db, id) {
+    const row = db
+      .prepare(
+        `SELECT name, description, visibility, is_subagent, knows_other_agents,
+                context_scope, created_by, created_at, updated_at
+           FROM agents WHERE name = ?`,
+      )
+      .get(String(id)) as Record<string, unknown> | undefined;
+    return row ? { ...row } : null;
+  },
+  restore(db, id, snapshot) {
+    db.prepare(
+      `UPDATE agents
+          SET description = ?, visibility = ?, is_subagent = ?,
+              knows_other_agents = ?, context_scope = ?, updated_at = ?
+        WHERE name = ?`,
+    ).run(
+      String(snapshot["description"] ?? ""),
+      String(snapshot["visibility"] ?? "private"),
+      Number(snapshot["is_subagent"] ?? 0),
+      Number(snapshot["knows_other_agents"] ?? 0),
+      String(snapshot["context_scope"] ?? "full"),
+      Date.now(),
+      String(id),
+    );
+  },
+  // Agents follow their own visibility flag: public agents are readable by
+  // every authenticated user; private ones only by their creator. Restore is
+  // creator-only because it overwrites the prompt/visibility config.
+  canSee: (db, userId, name) => {
+    const row = db
+      .prepare(`SELECT visibility, created_by FROM agents WHERE name = ?`)
+      .get(name) as { visibility: string; created_by: string | null } | undefined;
+    if (!row) return false;
+    if (row.visibility === "public") return true;
+    return row.created_by === userId;
+  },
+  canEdit: (db, userId, name) => {
+    const row = db
+      .prepare(`SELECT created_by FROM agents WHERE name = ?`)
+      .get(name) as { created_by: string | null } | undefined;
+    return row?.created_by === userId;
+  },
+});
 
 export type AgentVisibility = "public" | "private";
 export type AgentContextScope = "full" | "own";

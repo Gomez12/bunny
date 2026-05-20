@@ -37,6 +37,7 @@ import {
 import PlanningSuggestionPanel from "./PlanningSuggestionPanel";
 import PlanningWishForm from "./PlanningWishForm";
 import ConfirmDialog from "../../components/ConfirmDialog";
+import HistoryButton from "../../components/HistoryButton";
 import Modal from "../../components/Modal";
 
 interface Props {
@@ -770,6 +771,11 @@ export default function PlanningRoadmapView({
           >
             <Pencil size={14} /> Edit
           </button>
+          <HistoryButton
+            kind="planning_project"
+            entityId={planningProject.id}
+            entityName={planningProject.name}
+          />
           <button
             type="button"
             className="btn btn--ghost"

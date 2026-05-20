@@ -13,6 +13,8 @@ import {
   type TranslatableKind,
 } from "./translatable.ts";
 import { registerTrashable, softDelete } from "./trash.ts";
+import { registerVersionable } from "./versioning.ts";
+import { projectScopedAccess } from "./versioning_access.ts";
 
 export const CONTACT_KIND: TranslatableKind = {
   name: "contact",
@@ -34,6 +36,94 @@ registerTrashable({
   hasUniqueName: false,
   translationSidecarTable: "contact_translations",
   translationSidecarFk: "contact_id",
+});
+
+// Contact groups are simple project-scoped buckets — name + color + their
+// member list. The M:N junction (`contact_group_members`) churns
+// independently and stays out of the snapshot; restoring a stale membership
+// would overwrite legitimate later additions.
+registerVersionable({
+  kind: "contact_group",
+  table: "contact_groups",
+  primaryKey: "id",
+  sidecars: ["contact_group_members (M:N, not snapshotted)"],
+  snapshot(db, id) {
+    const row = db
+      .prepare(
+        `SELECT id, project, name, color, created_by, created_at, updated_at
+           FROM contact_groups WHERE id = ?`,
+      )
+      .get(Number(id)) as Record<string, unknown> | undefined;
+    return row ? { ...row } : null;
+  },
+  restore(db, id, snapshot) {
+    db.prepare(
+      `UPDATE contact_groups
+          SET name = ?, color = ?, updated_at = ?
+        WHERE id = ?`,
+    ).run(
+      String(snapshot["name"] ?? ""),
+      (snapshot["color"] as string | null) ?? null,
+      Date.now(),
+      Number(id),
+    );
+  },
+  canSee: (db, userId, id) =>
+    projectScopedAccess(db, userId, "contact_groups", "id", id, "see"),
+  canEdit: (db, userId, id) =>
+    projectScopedAccess(db, userId, "contact_groups", "id", id, "edit"),
+});
+
+// Contacts pair user-editable fields with soul refresh state. The version
+// chain captures the editable surface only — soul status/cadence timestamps
+// are worker bookkeeping, restoring them would resurrect stale schedules. The
+// `soul` text itself IS versioned because it's content the user reads and may
+// have manually edited via the soul-manual-edit path.
+registerVersionable({
+  kind: "contact",
+  table: "contacts",
+  primaryKey: "id",
+  sidecars: ["contact_translations (re-seeded on restore, not snapshotted)"],
+  snapshot(db, id) {
+    const row = db
+      .prepare(
+        `SELECT id, project, name, emails, phones, company, title, notes,
+                avatar, tags, socials, soul, soul_sources, original_lang,
+                created_by, created_at, updated_at
+           FROM contacts WHERE id = ?`,
+      )
+      .get(Number(id)) as Record<string, unknown> | undefined;
+    return row ? { ...row } : null;
+  },
+  restore(db, id, snapshot) {
+    const cid = Number(id);
+    db.prepare(
+      `UPDATE contacts
+          SET name = ?, emails = ?, phones = ?, company = ?, title = ?,
+              notes = ?, avatar = ?, tags = ?, socials = ?, soul = ?,
+              soul_sources = ?, updated_at = ?
+        WHERE id = ?`,
+    ).run(
+      String(snapshot["name"] ?? ""),
+      String(snapshot["emails"] ?? "[]"),
+      String(snapshot["phones"] ?? "[]"),
+      String(snapshot["company"] ?? ""),
+      String(snapshot["title"] ?? ""),
+      String(snapshot["notes"] ?? ""),
+      (snapshot["avatar"] as string | null) ?? null,
+      String(snapshot["tags"] ?? "[]"),
+      String(snapshot["socials"] ?? "[]"),
+      String(snapshot["soul"] ?? ""),
+      (snapshot["soul_sources"] as string | null) ?? null,
+      Date.now(),
+      cid,
+    );
+    markTranslationsStale(db, CONTACT_KIND, cid);
+  },
+  canSee: (db, userId, id) =>
+    projectScopedAccess(db, userId, "contacts", "id", id, "see"),
+  canEdit: (db, userId, id) =>
+    projectScopedAccess(db, userId, "contacts", "id", id, "edit"),
 });
 
 function resolveOriginalLangForContact(

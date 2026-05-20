@@ -8,6 +8,8 @@ import {
   type TranslatableKind,
 } from "./translatable.ts";
 import { registerTrashable, softDelete } from "./trash.ts";
+import { registerVersionable } from "./versioning.ts";
+import { projectScopedAccess } from "./versioning_access.ts";
 
 export const DOCUMENT_KIND: TranslatableKind = {
   name: "document",
@@ -27,6 +29,48 @@ registerTrashable({
   hasUniqueName: true,
   translationSidecarTable: "document_translations",
   translationSidecarFk: "document_id",
+});
+
+// Translations are derivative — they regenerate from `name` / `content_md`
+// via `markTranslationsStale` + the translator worker. Storing them in every
+// snapshot would bloat the version chain with potentially-stale text and risk
+// resurrecting outdated translations on restore. Source-of-truth columns only.
+registerVersionable({
+  kind: "document",
+  table: "documents",
+  primaryKey: "id",
+  sidecars: ["document_translations (re-seeded on restore, not snapshotted)"],
+  snapshot(db, id) {
+    const row = db
+      .prepare(
+        `SELECT id, project, name, content_md, thumbnail, is_template,
+                original_lang, created_by, created_at, updated_at
+           FROM documents WHERE id = ?`,
+      )
+      .get(Number(id)) as DocumentRow | undefined;
+    return row ? { ...row } : null;
+  },
+  restore(db, id, snapshot) {
+    const docId = Number(id);
+    db.prepare(
+      `UPDATE documents
+          SET name = ?, content_md = ?, thumbnail = ?, is_template = ?,
+              updated_at = ?
+        WHERE id = ?`,
+    ).run(
+      String(snapshot["name"] ?? ""),
+      String(snapshot["content_md"] ?? ""),
+      (snapshot["thumbnail"] as string | null) ?? null,
+      Number(snapshot["is_template"] ?? 0),
+      Date.now(),
+      docId,
+    );
+    markTranslationsStale(db, DOCUMENT_KIND, docId);
+  },
+  canSee: (db, userId, id) =>
+    projectScopedAccess(db, userId, "documents", "id", id, "see"),
+  canEdit: (db, userId, id) =>
+    projectScopedAccess(db, userId, "documents", "id", id, "edit"),
 });
 
 function resolveOriginalLang(

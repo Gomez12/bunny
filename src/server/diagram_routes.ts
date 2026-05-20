@@ -7,6 +7,7 @@ import { json, readJson } from "./http.ts";
 import { canSeeProject, canEditProject } from "./routes.ts";
 import { requireProjectAccess } from "./route_helpers.ts";
 import { getProject } from "../memory/projects.ts";
+import { recordVersion } from "../memory/versioning.ts";
 import {
   canEditDiagram,
   createDiagram,
@@ -148,6 +149,7 @@ async function handleCreate(
       description: body?.description,
       createdBy: user.id,
     });
+    recordVersion(ctx.db, "diagram", diagram.id, "save", user.id);
     void ctx.queue.log({
       topic: "diagram",
       kind: "create",
@@ -195,6 +197,7 @@ async function handlePatch(
       contentJson: body.contentJson,
       thumbnail: body.thumbnail,
     });
+    recordVersion(ctx.db, "diagram", id, "save", user.id);
     void ctx.queue.log({
       topic: "diagram",
       kind: "update",
@@ -498,6 +501,7 @@ async function handleAsk(
       contentJson: body.contentJson,
       thumbnail: body.thumbnail,
     });
+    recordVersion(ctx.db, "diagram", id, "save", user.id);
   }
 
   const sessionId = crypto.randomUUID();

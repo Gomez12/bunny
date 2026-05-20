@@ -7,6 +7,8 @@
 import type { Database } from "bun:sqlite";
 import { validateSlugName } from "./slug.ts";
 import { registerTrashable } from "./trash.ts";
+import { registerVersionable } from "./versioning.ts";
+import { projectScopedAccess } from "./versioning_access.ts";
 
 /** Slug rule — doubles as the TOML filename stem. */
 export const WORKFLOW_SLUG_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
@@ -22,6 +24,48 @@ registerTrashable({
   hasUniqueName: true,
   translationSidecarTable: null,
   translationSidecarFk: null,
+});
+
+// The TOML body is the authoritative content but lives on disk (managed by
+// workflow_assets). The version chain captures the index-row state plus
+// `toml_sha256` so a future Phase 3+ UI can show which on-disk revision the
+// row was last synced with. `slug` is immutable post-create — including it
+// in the snapshot keeps restore self-consistent even if a future migration
+// drops the column rename ban.
+registerVersionable({
+  kind: "workflow",
+  table: "workflows",
+  primaryKey: "id",
+  sidecars: ["workflow TOML on disk (out of scope — see workflow_assets.ts)"],
+  snapshot(db, id) {
+    const row = db
+      .prepare(
+        `SELECT id, project, slug, name, description, toml_sha256, layout_json,
+                bash_approvals, created_by, created_at, updated_at
+           FROM workflows WHERE id = ?`,
+      )
+      .get(Number(id)) as Record<string, unknown> | undefined;
+    return row ? { ...row } : null;
+  },
+  restore(db, id, snapshot) {
+    db.prepare(
+      `UPDATE workflows
+          SET name = ?, description = ?, layout_json = ?, bash_approvals = ?,
+              updated_at = ?
+        WHERE id = ?`,
+    ).run(
+      String(snapshot["name"] ?? ""),
+      (snapshot["description"] as string | null) ?? null,
+      (snapshot["layout_json"] as string | null) ?? null,
+      (snapshot["bash_approvals"] as string | null) ?? null,
+      Date.now(),
+      Number(id),
+    );
+  },
+  canSee: (db, userId, id) =>
+    projectScopedAccess(db, userId, "workflows", "id", id, "see"),
+  canEdit: (db, userId, id) =>
+    projectScopedAccess(db, userId, "workflows", "id", id, "edit"),
 });
 
 export interface Workflow {

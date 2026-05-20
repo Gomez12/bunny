@@ -72,6 +72,7 @@ import { handleTranslationRoute } from "./translation_routes.ts";
 import { handleChatRoute } from "./chat_routes.ts";
 import { handleNotificationRoute } from "./notification_routes.ts";
 import { handleTrashRoute } from "./trash_routes.ts";
+import { handleVersionsRoute } from "./versions_routes.ts";
 import { handlePromptRoute } from "./prompt_routes.ts";
 import { handleMemoryRoute } from "./memory_routes.ts";
 import { handleUiPrefsRoute } from "./ui_prefs_routes.ts";
@@ -352,6 +353,15 @@ export async function handleApi(
     user,
   );
   if (trashResponse) return trashResponse;
+
+  // ── Entity versions (admin-only, generic per-kind history) ────────────────
+  const versionsResponse = await handleVersionsRoute(
+    req,
+    url,
+    { db: ctx.db, queue: ctx.queue },
+    user,
+  );
+  if (versionsResponse) return versionsResponse;
 
   // ── Prompt registry (admin globals + per-project overrides) ──────────────
   const promptResponse = await handlePromptRoute(

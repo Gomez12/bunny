@@ -9,6 +9,8 @@ import type { Project } from "./projects.ts";
 import type { User } from "../auth/users.ts";
 import { validateSlugName } from "./slug.ts";
 import { registerTrashable, softDelete } from "./trash.ts";
+import { registerVersionable } from "./versioning.ts";
+import { projectScopedAccess } from "./versioning_access.ts";
 
 /** Slug rule for code-project names. Doubles as a filesystem directory name. */
 export const CODE_PROJECT_NAME_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
@@ -24,6 +26,45 @@ registerTrashable({
   hasUniqueName: true,
   translationSidecarTable: null,
   translationSidecarFk: null,
+});
+
+// Only user-edited metadata participates in the version chain. The clone +
+// graph subsystems write `git_status` / `graph_status` (and their counters)
+// asynchronously; restoring a stale "ready" status while a re-clone is in
+// flight would lie to the UI. Repo URL + ref are user-edited so we keep them.
+registerVersionable({
+  kind: "code_project",
+  table: "code_projects",
+  primaryKey: "id",
+  snapshot(db, id) {
+    const row = db
+      .prepare(
+        `SELECT id, project, name, description, git_url, git_ref,
+                created_by, created_at, updated_at
+           FROM code_projects WHERE id = ?`,
+      )
+      .get(Number(id)) as Record<string, unknown> | undefined;
+    return row ? { ...row } : null;
+  },
+  restore(db, id, snapshot) {
+    db.prepare(
+      `UPDATE code_projects
+          SET name = ?, description = ?, git_url = ?, git_ref = ?,
+              updated_at = ?
+        WHERE id = ?`,
+    ).run(
+      String(snapshot["name"] ?? ""),
+      String(snapshot["description"] ?? ""),
+      (snapshot["git_url"] as string | null) ?? null,
+      (snapshot["git_ref"] as string | null) ?? null,
+      Date.now(),
+      Number(id),
+    );
+  },
+  canSee: (db, userId, id) =>
+    projectScopedAccess(db, userId, "code_projects", "id", id, "see"),
+  canEdit: (db, userId, id) =>
+    projectScopedAccess(db, userId, "code_projects", "id", id, "edit"),
 });
 
 export type GitStatus = "idle" | "cloning" | "ready" | "error";

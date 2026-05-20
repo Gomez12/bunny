@@ -12,6 +12,8 @@
  */
 
 import type { Database } from "bun:sqlite";
+import { registerVersionable } from "./versioning.ts";
+import { ownerScopedAccess } from "./versioning_access.ts";
 
 export type TaskKind = "system" | "user";
 export type TaskStatus = "ok" | "error";
@@ -55,6 +57,49 @@ interface TaskRow {
 const SELECT_COLS = `id, kind, handler, name, description, cron_expr, payload,
                      enabled, owner_user_id, last_run_at, last_status, last_error,
                      next_run_at, created_at, updated_at`;
+
+// Worker bookkeeping (`last_run_at`, `last_status`, `last_error`, `next_run_at`)
+// is owned by the ticker — leaving it out of the snapshot keeps restore from
+// reanimating stale schedules. `claimDueTasks` and `setTaskResult` rebuild
+// `next_run_at` from `cron_expr` on the next tick.
+registerVersionable({
+  kind: "scheduled_task",
+  table: "scheduled_tasks",
+  primaryKey: "id",
+  snapshot(db, id) {
+    const row = db
+      .prepare(
+        `SELECT id, kind, handler, name, description, cron_expr, payload,
+                enabled, owner_user_id, created_at, updated_at
+           FROM scheduled_tasks WHERE id = ?`,
+      )
+      .get(String(id)) as Record<string, unknown> | undefined;
+    return row ? { ...row } : null;
+  },
+  restore(db, id, snapshot) {
+    db.prepare(
+      `UPDATE scheduled_tasks
+          SET handler = ?, name = ?, description = ?, cron_expr = ?,
+              payload = ?, enabled = ?, updated_at = ?
+        WHERE id = ?`,
+    ).run(
+      String(snapshot["handler"] ?? ""),
+      String(snapshot["name"] ?? ""),
+      (snapshot["description"] as string | null) ?? null,
+      String(snapshot["cron_expr"] ?? ""),
+      (snapshot["payload"] as string | null) ?? null,
+      Number(snapshot["enabled"] ?? 1),
+      Date.now(),
+      String(id),
+    );
+  },
+  // Tasks are user-private: a non-admin user sees + restores only their own
+  // rows. System tasks (kind='system', owner_user_id NULL) are admin-only.
+  canSee: (db, userId, id) =>
+    ownerScopedAccess(db, userId, "scheduled_tasks", "id", "owner_user_id", id),
+  canEdit: (db, userId, id) =>
+    ownerScopedAccess(db, userId, "scheduled_tasks", "id", "owner_user_id", id),
+});
 
 function rowToTask(r: TaskRow): ScheduledTask {
   let payload: unknown = null;

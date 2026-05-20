@@ -11,6 +11,7 @@ import {
   type TaskKind,
 } from "../api";
 import ConfirmDialog from "../components/ConfirmDialog";
+import HistoryButton from "../components/HistoryButton";
 import PageHeader from "../components/PageHeader";
 
 interface Props {
@@ -157,6 +158,11 @@ export default function TasksTab({ currentUser, initialErrorsOnly = false }: Pro
               {t.lastStatus === "error" ? "Retry" : "Run now"}
             </button>
             <button onClick={() => setDialog({ kind: "edit", task: t })}>Edit</button>
+            <HistoryButton
+              kind="scheduled_task"
+              entityId={t.id}
+              entityName={t.name}
+            />
             <button onClick={() => void handleDelete(t)} className="task-row__danger">
               Delete
             </button>

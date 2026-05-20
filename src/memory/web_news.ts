@@ -14,6 +14,61 @@
 import type { Database } from "bun:sqlite";
 import type { User } from "../auth/users.ts";
 import type { Project } from "./projects.ts";
+import { registerVersionable } from "./versioning.ts";
+import { projectScopedAccess } from "./versioning_access.ts";
+
+// Topic config = user-editable; run bookkeeping (`run_status`, `next_*_at`,
+// `last_run_*`, `last_session_id`) is owned by the worker. Snapshot only the
+// config so a restore doesn't lie about the run-status ticker. `web_news_items`
+// is append-only worker output and stays out of scope.
+registerVersionable({
+  kind: "web_news_topic",
+  table: "web_news_topics",
+  primaryKey: "id",
+  sidecars: ["web_news_items (worker-generated content, not snapshotted)"],
+  snapshot(db, id) {
+    const row = db
+      .prepare(
+        `SELECT id, project, name, description, agent, terms, update_cron,
+                renew_terms_cron, always_regenerate_terms, max_items_per_run,
+                enabled, topic_type, feed_url, site_url,
+                created_by, created_at, updated_at
+           FROM web_news_topics WHERE id = ?`,
+      )
+      .get(Number(id)) as Record<string, unknown> | undefined;
+    return row ? { ...row } : null;
+  },
+  restore(db, id, snapshot) {
+    db.prepare(
+      `UPDATE web_news_topics
+          SET name = ?, description = ?, agent = ?, terms = ?,
+              update_cron = ?, renew_terms_cron = ?,
+              always_regenerate_terms = ?, max_items_per_run = ?,
+              enabled = ?, topic_type = ?, feed_url = ?, site_url = ?,
+              updated_at = ?
+        WHERE id = ?`,
+    ).run(
+      String(snapshot["name"] ?? ""),
+      String(snapshot["description"] ?? ""),
+      String(snapshot["agent"] ?? ""),
+      String(snapshot["terms"] ?? "[]"),
+      String(snapshot["update_cron"] ?? ""),
+      (snapshot["renew_terms_cron"] as string | null) ?? null,
+      Number(snapshot["always_regenerate_terms"] ?? 0),
+      Number(snapshot["max_items_per_run"] ?? 10),
+      Number(snapshot["enabled"] ?? 1),
+      String(snapshot["topic_type"] ?? "keyword_search"),
+      (snapshot["feed_url"] as string | null) ?? null,
+      (snapshot["site_url"] as string | null) ?? null,
+      Date.now(),
+      Number(id),
+    );
+  },
+  canSee: (db, userId, id) =>
+    projectScopedAccess(db, userId, "web_news_topics", "id", id, "see"),
+  canEdit: (db, userId, id) =>
+    projectScopedAccess(db, userId, "web_news_topics", "id", id, "edit"),
+});
 
 export type RunStatus = "idle" | "running";
 export type LastRunStatus = "ok" | "error";

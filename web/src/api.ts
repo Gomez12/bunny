@@ -4598,3 +4598,80 @@ export function streamFetchHolidays(
     onEvent as (ev: ServerEvent) => void,
   );
 }
+
+// ── Universal entity versions ──────────────────────────────────────────────
+//
+// Generic API surface backing `<HistoryButton>` / `<EntityHistoryModal>`. One
+// endpoint set per kind under `/api/versions/:kind/:entityId/...`. `entityId`
+// is sent as a path segment — agents/skills use slug ids, everything else uses
+// integer ids; we cast to string here so callers don't have to think about it.
+
+export type EntityVersionSource =
+  | "save"
+  | "pre_delete"
+  | "pre_restore"
+  | "restore"
+  | "manual"
+  | "backfill";
+
+export type EntityVersionFlag = "oversized" | "redacted" | "partial";
+
+export interface EntityVersionMeta {
+  id: number;
+  kind: string;
+  entityId: string;
+  version: number;
+  contentHash: string;
+  sizeBytes: number;
+  source: EntityVersionSource;
+  flags: EntityVersionFlag[];
+  createdAt: number;
+  createdBy: string | null;
+}
+
+export interface EntityVersionDetail extends EntityVersionMeta {
+  snapshot: Record<string, unknown> | null;
+}
+
+export async function listEntityVersions(
+  kind: string,
+  entityId: string | number,
+): Promise<{ versions: EntityVersionMeta[] }> {
+  return jsonFetch(
+    `/api/versions/${encodeURIComponent(kind)}/${encodeURIComponent(String(entityId))}`,
+  );
+}
+
+export async function countEntityVersions(
+  kind: string,
+  entityId: string | number,
+): Promise<{ count: number }> {
+  return jsonFetch(
+    `/api/versions/${encodeURIComponent(kind)}/${encodeURIComponent(String(entityId))}/count`,
+  );
+}
+
+export async function getEntityVersion(
+  kind: string,
+  entityId: string | number,
+  version: number,
+): Promise<{ version: EntityVersionDetail }> {
+  return jsonFetch(
+    `/api/versions/${encodeURIComponent(kind)}/${encodeURIComponent(String(entityId))}/${version}`,
+  );
+}
+
+export async function restoreEntityVersion(
+  kind: string,
+  entityId: string | number,
+  version: number,
+): Promise<{ ok: true }> {
+  return jsonFetch(
+    `/api/versions/${encodeURIComponent(kind)}/${encodeURIComponent(String(entityId))}/restore`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ version }),
+    },
+  );
+}

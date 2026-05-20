@@ -10,6 +10,8 @@
 
 import type { Database } from "bun:sqlite";
 import { registerTrashable, softDelete } from "./trash.ts";
+import { registerVersionable } from "./versioning.ts";
+import { projectScopedAccess } from "./versioning_access.ts";
 
 registerTrashable({
   kind: "planning_wish",
@@ -19,6 +21,79 @@ registerTrashable({
   scopeColumn: "planning_project_id",
   translationSidecarTable: null,
   translationSidecarFk: null,
+});
+
+// Wishes own their tag membership via the `planning_wish_tags` M:N junction —
+// the tag set is part of the user-edited shape of a wish so we bake it into
+// the snapshot and rebuild it on restore. `advice_hide_*` is dismissal state
+// tied to a *proposed* schedule change; restoring it would resurrect a
+// tooltip-suppression the user no longer wants, so we leave it on the live
+// row and omit it from snapshots.
+registerVersionable({
+  kind: "planning_wish",
+  table: "planning_wishes",
+  primaryKey: "id",
+  sidecars: ["planning_wish_tags (snapshotted as tag_ids array)"],
+  snapshot(db, id) {
+    const wishId = Number(id);
+    const row = db
+      .prepare(
+        `SELECT id, planning_project_id, project, title, description,
+                duration_days, team_id, deadline_id, planned_start_date,
+                planned_end_date, status, depends_on_wishes, depends_on_tags,
+                jira_key, created_by, created_at, updated_at
+           FROM planning_wishes WHERE id = ?`,
+      )
+      .get(wishId) as Record<string, unknown> | undefined;
+    if (!row) return null;
+    const tagIds = (
+      db
+        .prepare(
+          `SELECT tag_id FROM planning_wish_tags WHERE wish_id = ? ORDER BY tag_id ASC`,
+        )
+        .all(wishId) as { tag_id: number }[]
+    ).map((r) => r.tag_id);
+    return { ...row, tag_ids: tagIds };
+  },
+  restore(db, id, snapshot) {
+    const wishId = Number(id);
+    db.prepare(
+      `UPDATE planning_wishes
+          SET title = ?, description = ?, duration_days = ?, team_id = ?,
+              deadline_id = ?, planned_start_date = ?, planned_end_date = ?,
+              status = ?, depends_on_wishes = ?, depends_on_tags = ?,
+              jira_key = ?, updated_at = ?
+        WHERE id = ?`,
+    ).run(
+      String(snapshot["title"] ?? ""),
+      String(snapshot["description"] ?? ""),
+      Number(snapshot["duration_days"] ?? 1),
+      (snapshot["team_id"] as number | null) ?? null,
+      (snapshot["deadline_id"] as number | null) ?? null,
+      (snapshot["planned_start_date"] as string | null) ?? null,
+      (snapshot["planned_end_date"] as string | null) ?? null,
+      String(snapshot["status"] ?? "planned"),
+      String(snapshot["depends_on_wishes"] ?? "[]"),
+      String(snapshot["depends_on_tags"] ?? "[]"),
+      (snapshot["jira_key"] as string | null) ?? null,
+      Date.now(),
+      wishId,
+    );
+    db.prepare(`DELETE FROM planning_wish_tags WHERE wish_id = ?`).run(wishId);
+    const tagIds = Array.isArray(snapshot["tag_ids"])
+      ? (snapshot["tag_ids"] as unknown[]).filter(
+          (v): v is number => typeof v === "number",
+        )
+      : [];
+    const insertTag = db.prepare(
+      `INSERT INTO planning_wish_tags(wish_id, tag_id) VALUES (?, ?)`,
+    );
+    for (const tagId of tagIds) insertTag.run(wishId, tagId);
+  },
+  canSee: (db, userId, id) =>
+    projectScopedAccess(db, userId, "planning_wishes", "id", id, "see"),
+  canEdit: (db, userId, id) =>
+    projectScopedAccess(db, userId, "planning_wishes", "id", id, "edit"),
 });
 
 export type WishStatus = "planned" | "in_progress" | "done";

@@ -23,6 +23,11 @@
 
 import type { Database } from "bun:sqlite";
 import { createTranslationSlots, getKind } from "./translatable.ts";
+import {
+  getVersionableDef,
+  recordVersionInTx,
+  type VersionableKind,
+} from "./versioning.ts";
 
 export type TrashKind =
   | "document"
@@ -138,6 +143,13 @@ export function softDelete(
     if (!row) return false;
     if (row.deleted_at !== null) return false;
 
+    // Capture the live, un-mangled state BEFORE rename + sidecar drop so the
+    // pre_delete snapshot is restorable. No-op when the kind hasn't been
+    // registered as versionable yet — keeps Phase 2 deployable in clusters.
+    if (getVersionableDef(kind)) {
+      recordVersionInTx(db, kind as VersionableKind, id, "pre_delete", userId);
+    }
+
     const now = Date.now();
     if (def.hasUniqueName) {
       const mangled = mangleName(id, row.name_col);
@@ -211,7 +223,18 @@ export function restore(
         )
         .get(row.scope_val, original, id) as { id: number } | undefined;
       if (conflict) return "name_conflict";
+    }
 
+    // Marker for the lifecycle moment, only once the restore is known to go
+    // ahead (existence + name-conflict checks passed). Mirrors `restoreVersion`
+    // in versioning.ts: pre_restore captures the state-being-replaced — here,
+    // the trashed/mangled row — right before the un-mangle. Guarded so
+    // unregistered kinds stay a no-op.
+    if (getVersionableDef(kind)) {
+      recordVersionInTx(db, kind as VersionableKind, id, "pre_restore", null);
+    }
+
+    if (def.hasUniqueName) {
       db.prepare(
         `UPDATE ${def.table}
             SET ${def.nameColumn} = ?,

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import type { DocumentSummary } from "../api";
 import { Trash2 } from "../lib/icons";
 import ConfirmDialog from "./ConfirmDialog";
+import HistoryButton from "./HistoryButton";
 
 interface Props {
   documents: DocumentSummary[];
@@ -133,6 +134,13 @@ export default function DocumentSidebar({
       >
         &#9998;
       </button>
+      {!isTemplate && (
+        <HistoryButton
+          kind="document"
+          entityId={item.id}
+          entityName={item.name}
+        />
+      )}
       <button
         className="sidebar__hide-btn"
         title="Move to trash"

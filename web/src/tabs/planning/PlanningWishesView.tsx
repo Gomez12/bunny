@@ -16,6 +16,7 @@ import {
 import { Pencil, Plus, Trash2 } from "../../lib/icons";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import EmptyState from "../../components/EmptyState";
+import HistoryButton from "../../components/HistoryButton";
 import Modal from "../../components/Modal";
 import PlanningWishForm from "./PlanningWishForm";
 
@@ -179,6 +180,11 @@ export default function PlanningWishesView({ planningProject }: Props) {
                     >
                       <Pencil size={14} />
                     </button>
+                    <HistoryButton
+                      kind="planning_wish"
+                      entityId={w.id}
+                      entityName={w.title}
+                    />
                     <button
                       type="button"
                       className="planning-card__action-btn"

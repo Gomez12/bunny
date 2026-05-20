@@ -7,6 +7,8 @@
 
 import type { Database } from "bun:sqlite";
 import { registerTrashable, softDelete } from "./trash.ts";
+import { registerVersionable } from "./versioning.ts";
+import { projectScopedAccess } from "./versioning_access.ts";
 
 registerTrashable({
   kind: "planning_team",
@@ -16,6 +18,44 @@ registerTrashable({
   scopeColumn: "planning_project_id",
   translationSidecarTable: null,
   translationSidecarFk: null,
+});
+
+// planning_team_members is a separate join table — membership churns
+// independently of team metadata, so we keep it out of the snapshot.
+registerVersionable({
+  kind: "planning_team",
+  table: "planning_teams",
+  primaryKey: "id",
+  sidecars: ["planning_team_members (not snapshotted — managed independently)"],
+  snapshot(db, id) {
+    const row = db
+      .prepare(
+        `SELECT id, planning_project_id, project, name, description, color,
+                max_parallel, created_by, created_at, updated_at
+           FROM planning_teams WHERE id = ?`,
+      )
+      .get(Number(id)) as Record<string, unknown> | undefined;
+    return row ? { ...row } : null;
+  },
+  restore(db, id, snapshot) {
+    db.prepare(
+      `UPDATE planning_teams
+          SET name = ?, description = ?, color = ?, max_parallel = ?,
+              updated_at = ?
+        WHERE id = ?`,
+    ).run(
+      String(snapshot["name"] ?? ""),
+      String(snapshot["description"] ?? ""),
+      (snapshot["color"] as string | null) ?? null,
+      Number(snapshot["max_parallel"] ?? 1),
+      Date.now(),
+      Number(id),
+    );
+  },
+  canSee: (db, userId, id) =>
+    projectScopedAccess(db, userId, "planning_teams", "id", id, "see"),
+  canEdit: (db, userId, id) =>
+    projectScopedAccess(db, userId, "planning_teams", "id", id, "edit"),
 });
 
 export interface PlanningTeam {

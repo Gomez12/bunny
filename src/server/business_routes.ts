@@ -31,6 +31,7 @@ import {
   updateBusiness,
 } from "../memory/businesses.ts";
 import { listBusinessContactLinks } from "../memory/contacts.ts";
+import { recordVersion } from "../memory/versioning.ts";
 import { ENTITY_SOUL_CHAR_LIMIT } from "../memory/entity_soul_constants.ts";
 import { refreshOneBusinessSoul } from "../businesses/soul_refresh_handler.ts";
 import { runBusinessAutoBuild } from "../businesses/auto_build_handler.ts";
@@ -213,6 +214,7 @@ async function handleCreate(
       source: "manual",
       createdBy: user.id,
     });
+    recordVersion(ctx.db, "business", business.id, "save", user.id);
     void ctx.queue.log({
       topic: "business",
       kind: "create",
@@ -257,6 +259,7 @@ async function handlePatch(
   if (!body) return json({ error: "invalid json" }, 400);
   try {
     const updated = updateBusiness(ctx.db, id, body);
+    recordVersion(ctx.db, "business", id, "save", user.id);
     void ctx.queue.log({
       topic: "business",
       kind: "update",
@@ -318,6 +321,7 @@ async function handleSoulPut(
     setBusinessSoulManual(ctx.db, id, body.soul, {
       markStale: ctx.cfg.businesses.translateSoul,
     });
+    recordVersion(ctx.db, "business", id, "save", user.id);
     void ctx.queue.log({
       topic: "business",
       kind: "soul.update",

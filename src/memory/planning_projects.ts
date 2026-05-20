@@ -10,6 +10,8 @@ import type { Project } from "./projects.ts";
 import type { User } from "../auth/users.ts";
 import { validateSlugName } from "./slug.ts";
 import { registerTrashable, softDelete } from "./trash.ts";
+import { registerVersionable } from "./versioning.ts";
+import { projectScopedAccess } from "./versioning_access.ts";
 
 export const PLANNING_PROJECT_NAME_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 
@@ -24,6 +26,41 @@ registerTrashable({
   hasUniqueName: true,
   translationSidecarTable: null,
   translationSidecarFk: null,
+});
+
+registerVersionable({
+  kind: "planning_project",
+  table: "planning_projects",
+  primaryKey: "id",
+  snapshot(db, id) {
+    const row = db
+      .prepare(
+        `SELECT id, project, name, description, start_date,
+                sprint_duration_days, created_by, created_at, updated_at
+           FROM planning_projects WHERE id = ?`,
+      )
+      .get(Number(id)) as Record<string, unknown> | undefined;
+    return row ? { ...row } : null;
+  },
+  restore(db, id, snapshot) {
+    db.prepare(
+      `UPDATE planning_projects
+          SET name = ?, description = ?, start_date = ?,
+              sprint_duration_days = ?, updated_at = ?
+        WHERE id = ?`,
+    ).run(
+      String(snapshot["name"] ?? ""),
+      String(snapshot["description"] ?? ""),
+      (snapshot["start_date"] as string | null) ?? null,
+      (snapshot["sprint_duration_days"] as number | null) ?? null,
+      Date.now(),
+      Number(id),
+    );
+  },
+  canSee: (db, userId, id) =>
+    projectScopedAccess(db, userId, "planning_projects", "id", id, "see"),
+  canEdit: (db, userId, id) =>
+    projectScopedAccess(db, userId, "planning_projects", "id", id, "edit"),
 });
 
 export interface PlanningProject {

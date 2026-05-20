@@ -10,6 +10,56 @@
 import type { Database } from "bun:sqlite";
 import { SKILL_NAME_RE } from "./skill_name.ts";
 import { validateSlugName } from "./slug.ts";
+import { registerVersionable } from "./versioning.ts";
+
+// Same shape as agents — DB row holds metadata, the SKILL.md content lives
+// on disk (skill_assets.ts). Name is the immutable primary key.
+registerVersionable({
+  kind: "skill",
+  table: "skills",
+  primaryKey: "name",
+  sidecars: ["SKILL.md on disk (out of scope — see skill_assets.ts)"],
+  snapshot(db, id) {
+    const row = db
+      .prepare(
+        `SELECT name, description, visibility, source_url, source_ref,
+                created_by, created_at, updated_at
+           FROM skills WHERE name = ?`,
+      )
+      .get(String(id)) as Record<string, unknown> | undefined;
+    return row ? { ...row } : null;
+  },
+  restore(db, id, snapshot) {
+    db.prepare(
+      `UPDATE skills
+          SET description = ?, visibility = ?, source_url = ?, source_ref = ?,
+              updated_at = ?
+        WHERE name = ?`,
+    ).run(
+      String(snapshot["description"] ?? ""),
+      String(snapshot["visibility"] ?? "private"),
+      (snapshot["source_url"] as string | null) ?? null,
+      (snapshot["source_ref"] as string | null) ?? null,
+      Date.now(),
+      String(id),
+    );
+  },
+  // Same visibility model as agents.
+  canSee: (db, userId, name) => {
+    const row = db
+      .prepare(`SELECT visibility, created_by FROM skills WHERE name = ?`)
+      .get(name) as { visibility: string; created_by: string | null } | undefined;
+    if (!row) return false;
+    if (row.visibility === "public") return true;
+    return row.created_by === userId;
+  },
+  canEdit: (db, userId, name) => {
+    const row = db
+      .prepare(`SELECT created_by FROM skills WHERE name = ?`)
+      .get(name) as { created_by: string | null } | undefined;
+    return row?.created_by === userId;
+  },
+});
 
 export type SkillVisibility = "public" | "private";
 

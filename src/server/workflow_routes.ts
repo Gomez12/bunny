@@ -26,6 +26,7 @@ import { getProject, validateProjectName } from "../memory/projects.ts";
 import { registry as toolsRegistry } from "../tools/index.ts";
 import { controllerSink, finishSse } from "../agent/render_sse.ts";
 import { softDelete } from "../memory/trash.ts";
+import { recordVersion } from "../memory/versioning.ts";
 import {
   createWorkflow,
   getWorkflow,
@@ -280,6 +281,7 @@ async function handleCreate(
     layoutJson,
     createdBy: user.id,
   });
+  recordVersion(ctx.db, "workflow", wf.id, "save", user.id);
 
   void ctx.queue.log({
     topic: "workflows",
@@ -342,6 +344,7 @@ async function handleUpdate(
   }
 
   const next = updateWorkflow(ctx.db, id, patch);
+  recordVersion(ctx.db, "workflow", id, "save", user.id);
   void ctx.queue.log({
     topic: "workflows",
     kind: "update",

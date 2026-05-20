@@ -30,6 +30,7 @@ import {
   type ScheduledTask,
   type TaskKind,
 } from "../memory/scheduled_tasks.ts";
+import { recordVersion } from "../memory/versioning.ts";
 import { computeNextRun, parseCron } from "../scheduler/cron.ts";
 
 export interface ScheduledTaskRouteCtx {
@@ -164,6 +165,7 @@ async function handleCreate(
       ownerUserId,
       nextRunAt: computeNextRun(cronExpr, now),
     });
+    recordVersion(ctx.db, "scheduled_task", task.id, "save", user.id);
     void ctx.queue.log({
       topic: "task",
       kind: "create",
@@ -222,6 +224,7 @@ async function handlePatch(
       enabled: body.enabled,
       nextRunAt,
     });
+    recordVersion(ctx.db, "scheduled_task", id, "save", user.id);
     const changed = Object.keys(body).filter(
       (k) => (body as Record<string, unknown>)[k] !== undefined,
     );

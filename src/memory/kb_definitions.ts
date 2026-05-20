@@ -17,6 +17,8 @@ import {
   type TranslatableKind,
 } from "./translatable.ts";
 import { registerTrashable, softDelete } from "./trash.ts";
+import { registerVersionable } from "./versioning.ts";
+import { projectScopedAccess } from "./versioning_access.ts";
 
 export const KB_DEFINITION_KIND: TranslatableKind = {
   name: "kb_definition",
@@ -36,6 +38,72 @@ registerTrashable({
   hasUniqueName: true,
   translationSidecarTable: "kb_definition_translations",
   translationSidecarFk: "definition_id",
+});
+
+// kb_definitions mix user-edited fields (term, manual_description,
+// active_description, is_project_dependent) with LLM-generated fields
+// (llm_short, llm_long, llm_sources, svg_content) and worker status columns.
+// Snapshot only the editable + generated content; restore re-applies them and
+// stales the translation sidecar so the translator worker re-fetches.
+registerVersionable({
+  kind: "kb_definition",
+  table: "kb_definitions",
+  primaryKey: "id",
+  sidecars: ["kb_definition_translations (re-seeded on restore, not snapshotted)"],
+  snapshot(db, id) {
+    const row = db
+      .prepare(
+        `SELECT id, project, term, manual_description, llm_short, llm_long,
+                llm_sources, is_project_dependent, active_description,
+                original_lang, svg_content, created_by, created_at, updated_at
+           FROM kb_definitions WHERE id = ?`,
+      )
+      .get(Number(id)) as
+      | {
+          id: number;
+          project: string;
+          term: string;
+          manual_description: string;
+          llm_short: string | null;
+          llm_long: string | null;
+          llm_sources: string | null;
+          is_project_dependent: number;
+          active_description: string;
+          original_lang: string | null;
+          svg_content: string | null;
+          created_by: string | null;
+          created_at: number;
+          updated_at: number;
+        }
+      | undefined;
+    return row ? { ...row } : null;
+  },
+  restore(db, id, snapshot) {
+    const defId = Number(id);
+    db.prepare(
+      `UPDATE kb_definitions
+          SET term = ?, manual_description = ?, llm_short = ?, llm_long = ?,
+              llm_sources = ?, is_project_dependent = ?,
+              active_description = ?, svg_content = ?, updated_at = ?
+        WHERE id = ?`,
+    ).run(
+      String(snapshot["term"] ?? ""),
+      String(snapshot["manual_description"] ?? ""),
+      (snapshot["llm_short"] as string | null) ?? null,
+      (snapshot["llm_long"] as string | null) ?? null,
+      (snapshot["llm_sources"] as string | null) ?? null,
+      Number(snapshot["is_project_dependent"] ?? 0),
+      String(snapshot["active_description"] ?? "manual"),
+      (snapshot["svg_content"] as string | null) ?? null,
+      Date.now(),
+      defId,
+    );
+    markTranslationsStale(db, KB_DEFINITION_KIND, defId);
+  },
+  canSee: (db, userId, id) =>
+    projectScopedAccess(db, userId, "kb_definitions", "id", id, "see"),
+  canEdit: (db, userId, id) =>
+    projectScopedAccess(db, userId, "kb_definitions", "id", id, "edit"),
 });
 
 export type ActiveDescription = "manual" | "short" | "long";

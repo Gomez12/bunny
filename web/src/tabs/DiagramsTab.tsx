@@ -25,6 +25,7 @@ import {
   type ServerEvent,
 } from "../api";
 import { Plus, Pencil, Trash2, ChevronLeft, Loader2, Shapes } from "../lib/icons";
+import HistoryButton from "../components/HistoryButton";
 import { DIAGRAM_TYPE_LABELS } from "./diagrams/constants";
 
 const AUTOSAVE_MS = 5_000;
@@ -345,15 +346,25 @@ export default function DiagramsTab({ project, currentUser, onOpenInChat }: Prop
                     {DIAGRAM_TYPE_LABELS[d.diagramType] ?? d.diagramType}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  className="diagram-card__del"
-                  onClick={(e) => { e.stopPropagation(); void handleDelete(d.id); }}
-                  title="Delete"
-                  aria-label={`Delete ${d.name}`}
+                <span
+                  className="diagram-card__actions"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <Trash2 size={13} />
-                </button>
+                  <HistoryButton
+                    kind="diagram"
+                    entityId={d.id}
+                    entityName={d.name}
+                  />
+                  <button
+                    type="button"
+                    className="diagram-card__del"
+                    onClick={(e) => { e.stopPropagation(); void handleDelete(d.id); }}
+                    title="Delete"
+                    aria-label={`Delete ${d.name}`}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </span>
               </button>
             ))}
           </div>

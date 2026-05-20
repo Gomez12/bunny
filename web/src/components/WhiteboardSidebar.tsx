@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { WhiteboardSummary } from "../api";
 import { Trash2 } from "../lib/icons";
+import HistoryButton from "./HistoryButton";
 import ConfirmDialog from "./ConfirmDialog";
 
 interface Props {
@@ -136,6 +137,11 @@ export default function WhiteboardSidebar({
             >
               &#9998;
             </button>
+            <HistoryButton
+              kind="whiteboard"
+              entityId={wb.id}
+              entityName={wb.name}
+            />
             <button
               className="sidebar__hide-btn"
               title="Move to trash"

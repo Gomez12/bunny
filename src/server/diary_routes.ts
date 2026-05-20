@@ -44,6 +44,7 @@ import {
   finishSse,
   type SseSink,
 } from "../agent/render_sse.ts";
+import { recordVersion } from "../memory/versioning.ts";
 import { chatSync } from "../llm/adapter.ts";
 import { resolvePrompt, interpolate } from "../prompts/resolve.ts";
 
@@ -121,6 +122,7 @@ export async function handleDiaryRoute(
         title: body.title?.trim() ?? "",
         language: body.language?.trim() || ctx.cfg.diary.whisperLanguage,
       });
+      recordVersion(ctx.db, "diary_entry", entry.id, "save", user.id);
       void ctx.queue.log({
         topic: "diary",
         kind: "create",
@@ -170,6 +172,7 @@ export async function handleDiaryRoute(
       title: body.title,
       language: body.language,
     });
+    recordVersion(ctx.db, "diary_entry", id, "save", user.id);
     void ctx.queue.log({
       topic: "diary",
       kind: "update",

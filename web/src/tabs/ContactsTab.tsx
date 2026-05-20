@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import EntityComposer from "../components/EntityComposer";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { Trash2 } from "../lib/icons";
+import HistoryButton from "../components/HistoryButton";
 import ContactDialog, { type ContactDialogValue } from "../components/ContactDialog";
 import ContactImportDialog from "../components/ContactImportDialog";
 import EmptyState from "../components/EmptyState";
@@ -448,7 +449,15 @@ export default function ContactsTab({ project, currentUser, onOpenInChat }: Prop
                   </div>
                 )}
                 {canEdit(c) && (
-                  <div className="contact-card__actions">
+                  <div
+                    className="contact-card__actions"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <HistoryButton
+                      kind="contact"
+                      entityId={c.id}
+                      entityName={c.name}
+                    />
                     <button
                       className="contact-card__action-btn"
                       onClick={(e) => {

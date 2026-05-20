@@ -10,6 +10,7 @@ import {
 import { Pencil, Plus, Trash2 } from "../../lib/icons";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import EmptyState from "../../components/EmptyState";
+import HistoryButton from "../../components/HistoryButton";
 import Modal from "../../components/Modal";
 
 interface Props {
@@ -88,6 +89,11 @@ export default function PlanningTagsView({ planningProject }: Props) {
                   >
                     <Pencil size={14} />
                   </button>
+                  <HistoryButton
+                    kind="planning_tag"
+                    entityId={tag.id}
+                    entityName={tag.name}
+                  />
                   <button
                     type="button"
                     className="planning-card__action-btn"

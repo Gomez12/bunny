@@ -24,6 +24,7 @@ import { errorMessage } from "../util/error.ts";
 import { json, readJson } from "./http.ts";
 import { canEditProject, canSeeProject } from "./routes.ts";
 import { getProject, validateProjectName } from "../memory/projects.ts";
+import { recordVersion } from "../memory/versioning.ts";
 import {
   canEditCodeProject,
   createCodeProject,
@@ -227,6 +228,7 @@ async function handleCreate(
   } catch (e) {
     return json({ error: errorMessage(e) }, 400);
   }
+  recordVersion(ctx.db, "code_project", created.id, "save", user.id);
 
   void ctx.queue.log({
     topic: "code",
@@ -290,6 +292,7 @@ async function handlePatch(
             ? null
             : body.gitRef.trim(),
     });
+    recordVersion(ctx.db, "code_project", id, "save", user.id);
     void ctx.queue.log({
       topic: "code",
       kind: "update",

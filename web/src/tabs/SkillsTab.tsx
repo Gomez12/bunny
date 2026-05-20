@@ -14,6 +14,7 @@ import {
 } from "../api";
 import SkillDialog, { type SkillDialogValue } from "../components/SkillDialog";
 import ConfirmDialog from "../components/ConfirmDialog";
+import HistoryButton from "../components/HistoryButton";
 import PageHeader from "../components/PageHeader";
 
 interface Props {
@@ -199,6 +200,7 @@ export default function SkillsTab({ currentUser, activeProject }: Props) {
             </div>
             {canEdit(s) && (
               <div className="project-card__actions">
+                <HistoryButton kind="skill" entityId={s.name} entityName={s.name} />
                 <button
                   className="project-card__edit"
                   onClick={() => setDialog({ kind: "edit", skill: s })}
