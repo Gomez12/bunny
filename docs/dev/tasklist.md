@@ -25,3 +25,5 @@ Archive lives in [`tasklistarchive.md`](./tasklistarchive.md). Keep at most 50 `
 | open | docs/dev/follow-ups/i18n-check-script.md | 2h | Implement `bun run i18n:check` for missing translation keys |
 | open | docs/dev/architecture/job-inventory.md | 1h | Populate `job-inventory.md` from `registerAllAgents` / `registerTaxonomyPurgeHandlers` |
 | open | docs/dev/follow-ups/job-inventory-test.md | 1h | Add `tests/docs/job-inventory.test.ts` to enforce job-inventory completeness |
+| needs-testing | docs/dev/follow-ups/code-scanning-alerts.md | 2h | Resolve open GitHub code scanning alerts (sanitization, xss-through-dom, stack-trace-exposure) — local checks green, waiting on CodeQL re-scan |
+| open | docs/dev/follow-ups/safe-error-class.md | 4h | Introduce `SafeError` class so `errorMessage()` can refuse to expose `Error.message` for unintended exceptions (closes `js/stack-trace-exposure`) |

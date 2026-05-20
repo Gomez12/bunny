@@ -14,7 +14,10 @@ export type PromptOverrides = Record<string, string>;
 
 /** Dotted TOML keys like `kb.definition` must be bare-quoted. */
 export function quoteKey(k: string): string {
-  return /[.\s"]/.test(k) ? `"${k.replace(/"/g, '\\"')}"` : k;
+  if (!/[.\s"\\]/.test(k)) return k;
+  // Escape backslashes before quotes so an input like `\"` round-trips correctly.
+  const escaped = k.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return `"${escaped}"`;
 }
 
 /**

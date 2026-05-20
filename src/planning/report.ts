@@ -706,7 +706,12 @@ function severityLabel(s: ReportRiskSeverity): string {
 }
 
 function escMd(s: string): string {
-  return s.replace(/\|/g, "\\|").replace(/\n/g, " ");
+  // Escape backslash first so a literal `\|` in the input does not become
+  // an escape sequence after the pipe replacement.
+  return s
+    .replace(/\\/g, "\\\\")
+    .replace(/\|/g, "\\|")
+    .replace(/\n/g, " ");
 }
 
 export interface RenderMarkdownOpts {

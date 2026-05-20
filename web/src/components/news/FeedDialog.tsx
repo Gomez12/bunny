@@ -60,6 +60,21 @@ export default function FeedDialog({ project, initial, onCancel, onDone }: Props
     [patterns],
   );
 
+  // Render an `<a href>` only when the URL is a well-formed http(s) URL.
+  // Prevents `javascript:` / `data:` URLs typed into the input from becoming
+  // an XSS vector when the user clicks the "open feed" button.
+  const safeFeedHref = useMemo(() => {
+    const trimmed = feedUrl.trim();
+    if (!trimmed) return null;
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+      return parsed.href;
+    } catch {
+      return null;
+    }
+  }, [feedUrl]);
+
   const patternsForSite = useMemo(
     () => patterns.filter((p) => p.site === selectedSite),
     [patterns, selectedSite],
@@ -262,8 +277,8 @@ export default function FeedDialog({ project, initial, onCancel, onDone }: Props
                 required
                 style={{ flex: 1 }}
               />
-              {feedUrl && (
-                <a href={feedUrl} target="_blank" rel="noopener noreferrer" className="btn btn--ghost btn--xs" title="Open feed">
+              {safeFeedHref && (
+                <a href={safeFeedHref} target="_blank" rel="noopener noreferrer" className="btn btn--ghost btn--xs" title="Open feed">
                   <ExternalLink size={12} />
                 </a>
               )}

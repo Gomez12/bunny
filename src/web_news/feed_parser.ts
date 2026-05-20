@@ -6,6 +6,8 @@
  * formats that is reliably present across major feed producers.
  */
 
+import { stripHtmlTags } from "../util/html.ts";
+
 export type FeedFormat = "rss" | "atom" | "unknown";
 
 export interface ParsedFeedItem {
@@ -72,7 +74,7 @@ function stripCdata(s: string): string {
 }
 
 function cleanText(raw: string): string {
-  return decodeEntities(stripCdata(raw)).replace(/<[^>]+>/g, "").trim();
+  return stripHtmlTags(decodeEntities(stripCdata(raw))).trim();
 }
 
 function parseDate(raw: string | null): number | null {

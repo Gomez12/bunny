@@ -16,13 +16,23 @@ function showView(name) {
   }
 }
 
-async function probe(url) {
-  let target;
+function safeHttpUrl(raw) {
+  // Only allow http(s) URLs. Blocks `javascript:` / `data:` and other
+  // protocols that would turn `window.location.href = url` into an XSS sink.
+  let parsed;
   try {
-    target = new URL("/api/auth/me", url).href;
+    parsed = new URL(raw);
   } catch (_) {
-    throw new Error("Saved address is not a valid URL");
+    return null;
   }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+  return parsed.href;
+}
+
+async function probe(url) {
+  const base = safeHttpUrl(url);
+  if (!base) throw new Error("Saved address is not a valid http(s) URL");
+  const target = new URL("/api/auth/me", base).href;
 
   let resp;
   try {
@@ -60,7 +70,9 @@ async function attemptNavigate(url) {
   showView("loading");
   try {
     await probe(url);
-    window.location.href = url;
+    const safe = safeHttpUrl(url);
+    if (!safe) throw new Error("Saved address is not a valid http(s) URL");
+    window.location.href = safe;
   } catch (err) {
     probeInFlight = false;
     if (retryBtn) retryBtn.disabled = false;
@@ -117,11 +129,18 @@ document.getElementById("setup").addEventListener("submit", async (e) => {
     return;
   }
 
+  const safe = safeHttpUrl(url);
+  if (!safe) {
+    errorText.textContent = "Address must start with http:// or https://";
+    errorEl.style.display = "block";
+    return;
+  }
+
   const store = await loadStore();
-  await store.set(STORE_KEY, url);
+  await store.set(STORE_KEY, safe);
   await store.save();
 
-  window.location.href = url;
+  window.location.href = safe;
 });
 
 document.getElementById("error-retry").addEventListener("click", () => {

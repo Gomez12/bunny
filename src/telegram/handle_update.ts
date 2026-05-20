@@ -29,6 +29,7 @@ import type { BunnyQueue } from "../queue/bunqueue.ts";
 import type { ToolRegistry } from "../tools/registry.ts";
 import { runAgent } from "../agent/loop.ts";
 import { errorMessage } from "../util/error.ts";
+import { stripHtmlTags } from "../util/html.ts";
 import {
   advanceLastUpdateId,
   getTelegramConfig,
@@ -496,8 +497,7 @@ async function sendFinalAnswer(
 }
 
 function stripHtml(s: string): string {
-  return s
-    .replace(/<[^>]+>/g, "")
+  return stripHtmlTags(s)
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&");

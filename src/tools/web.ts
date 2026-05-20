@@ -2,6 +2,7 @@ import type { WebConfig } from "../config.ts";
 import type { ToolDescriptor } from "./registry.ts";
 import { toolOk, toolErr, getString } from "./registry.ts";
 import { errorMessage } from "../util/error.ts";
+import { stripHtmlTags } from "../util/html.ts";
 import { writeWorkspaceFile } from "../memory/workspace_fs.ts";
 import { NodeHtmlMarkdown } from "node-html-markdown";
 
@@ -202,13 +203,11 @@ export function parseDuckDuckGoResults(html: string): SearchResult[] {
     let href = linkMatch[1]!;
     const uddgMatch = href.match(/[?&]uddg=([^&]+)/);
     if (uddgMatch) href = decodeURIComponent(uddgMatch[1]!);
-    const title = linkMatch[2]!.replace(/<[^>]+>/g, "").trim();
+    const title = stripHtmlTags(linkMatch[2]!).trim();
     const snippetMatch = chunk.match(
       /<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/i,
     );
-    const snippet = snippetMatch
-      ? snippetMatch[1]!.replace(/<[^>]+>/g, "").trim()
-      : "";
+    const snippet = snippetMatch ? stripHtmlTags(snippetMatch[1]!).trim() : "";
     results.push({ title, url: href, snippet });
   }
   return results;
@@ -267,14 +266,13 @@ export function parseBingResults(html: string): SearchResult[] {
     const block = blocks[i]!;
     const titleMatch = block.match(/<h2[^>]*>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i);
     if (!titleMatch) continue;
-    const title = titleMatch[1]!.replace(/<[^>]+>/g, "").trim();
+    const title = stripHtmlTags(titleMatch[1]!).trim();
     const citeMatch = block.match(/<cite[^>]*>([\s\S]*?)<\/cite>/i);
-    const url = citeMatch ? citeMatch[1]!.replace(/<[^>]+>/g, "").trim() : "";
+    const url = citeMatch ? stripHtmlTags(citeMatch[1]!).trim() : "";
     if (!url.startsWith("http")) continue;
     const snippetMatch = block.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
     const snippet = snippetMatch
-      ? snippetMatch[1]!
-          .replace(/<[^>]+>/g, "")
+      ? stripHtmlTags(snippetMatch[1]!)
           .replace(/&nbsp;/g, " ")
           .replace(/&#\d+;/g, "")
           .trim()
