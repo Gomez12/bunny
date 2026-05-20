@@ -1,0 +1,113 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Grijs konijnenkopje</title>
+  <desc id="desc">Een vriendelijk grijs konijnenkopje in eenvoudige vectorstijl, geschikt als applicatie-background.</desc>
+
+  <defs>
+    <radialGradient id="bgGlow" cx="50%" cy="45%" r="55%">
+      <stop offset="0%" stop-color="#F9F7F3"/>
+      <stop offset="100%" stop-color="#F0ECE7" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="fur" x1="330" y1="260" x2="700" y2="875" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#D4D1CC"/>
+      <stop offset="0.5" stop-color="#BDB9B3"/>
+      <stop offset="1" stop-color="#AFAAA4"/>
+    </linearGradient>
+
+    <linearGradient id="furDark" x1="260" y1="120" x2="440" y2="570" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#C5C1BB"/>
+      <stop offset="1" stop-color="#918D87"/>
+    </linearGradient>
+
+    <linearGradient id="earPink" x1="270" y1="130" x2="385" y2="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E99B95"/>
+      <stop offset="1" stop-color="#D9827C"/>
+    </linearGradient>
+
+    <radialGradient id="muzzle" cx="50%" cy="42%" r="70%">
+      <stop offset="0" stop-color="#F2EEE8"/>
+      <stop offset="100%" stop-color="#DCD7D1"/>
+    </radialGradient>
+
+    <radialGradient id="eye" cx="38%" cy="34%" r="62%">
+      <stop offset="0" stop-color="#4A4A47"/>
+      <stop offset="100%" stop-color="#242422"/>
+    </radialGradient>
+
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#766F67" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- Optional soft background glow. Remove this rect/circle if full transparency is preferred. -->
+  <rect width="1024" height="1024" fill="transparent"/>
+  <circle cx="512" cy="530" r="430" fill="url(#bgGlow)"/>
+
+  <g filter="url(#softShadow)">
+    <!-- Ears -->
+    <path d="M332 546C278 447 226 303 223 175C221 112 261 74 314 95C396 128 438 254 446 455C449 518 396 587 332 546Z" fill="url(#furDark)"/>
+    <path d="M692 546C746 447 798 303 801 175C803 112 763 74 710 95C628 128 586 254 578 455C575 518 628 587 692 546Z" fill="url(#furDark)"/>
+
+    <path d="M334 493C295 408 258 280 257 160C257 132 274 114 299 126C364 157 405 278 413 457C415 492 361 545 334 493Z" fill="url(#earPink)" opacity="0.95"/>
+    <path d="M690 493C729 408 766 280 767 160C767 132 750 114 725 126C660 157 619 278 611 457C609 492 663 545 690 493Z" fill="url(#earPink)" opacity="0.95"/>
+
+    <!-- Back cheek silhouette / side tufts -->
+    <path d="M245 700C229 651 238 591 273 557C298 532 332 537 352 568C329 602 320 653 333 704C304 707 274 706 245 700Z" fill="#AAA59F"/>
+    <path d="M779 700C795 651 786 591 751 557C726 532 692 537 672 568C695 602 704 653 691 704C720 707 750 706 779 700Z" fill="#AAA59F"/>
+
+    <!-- Head -->
+    <path d="M245 642C245 477 365 356 512 356C659 356 779 477 779 642C779 797 663 895 512 895C361 895 245 797 245 642Z" fill="url(#fur)"/>
+
+    <!-- Top fur tuft -->
+    <path d="M466 369C476 332 496 302 512 321C525 337 510 365 500 385C529 348 565 321 560 354C556 379 529 393 511 405C534 394 562 393 586 411C551 420 526 429 512 451C496 426 472 413 438 407C454 393 472 385 491 382C479 378 470 374 466 369Z" fill="#BDB9B3"/>
+
+    <!-- Soft face side shadows -->
+    <path d="M287 674C280 561 335 464 432 411C363 467 332 565 352 694C329 686 307 679 287 674Z" fill="#9D9892" opacity="0.18"/>
+    <path d="M737 674C744 561 689 464 592 411C661 467 692 565 672 694C695 686 717 679 737 674Z" fill="#9D9892" opacity="0.16"/>
+
+    <!-- Cheeks / muzzle base -->
+    <ellipse cx="407" cy="708" rx="128" ry="86" fill="#D9D4CE" opacity="0.76"/>
+    <ellipse cx="617" cy="708" rx="128" ry="86" fill="#D9D4CE" opacity="0.76"/>
+    <path d="M390 724C390 659 443 620 512 620C581 620 634 659 634 724C634 795 585 845 512 845C439 845 390 795 390 724Z" fill="url(#muzzle)"/>
+
+    <!-- Eyes and brows -->
+    <path d="M350 578C363 546 389 528 421 531C446 534 462 551 467 575C438 558 388 556 350 578Z" fill="#514F4C"/>
+    <path d="M674 578C661 546 635 528 603 531C578 534 562 551 557 575C586 558 636 556 674 578Z" fill="#514F4C"/>
+
+    <path d="M348 665C348 605 386 566 429 578C462 587 478 630 464 686C451 738 410 762 377 737C359 723 348 695 348 665Z" fill="#F6F3EE"/>
+    <path d="M676 665C676 605 638 566 595 578C562 587 546 630 560 686C573 738 614 762 647 737C665 723 676 695 676 665Z" fill="#F6F3EE"/>
+
+    <ellipse cx="417" cy="663" rx="35" ry="56" fill="url(#eye)"/>
+    <ellipse cx="607" cy="663" rx="35" ry="56" fill="url(#eye)"/>
+    <circle cx="405" cy="632" r="12" fill="#FFFFFF" opacity="0.92"/>
+    <circle cx="595" cy="632" r="12" fill="#FFFFFF" opacity="0.92"/>
+    <path d="M363 589C391 565 436 566 464 596" stroke="#383735" stroke-width="10" stroke-linecap="round" opacity="0.45"/>
+    <path d="M661 589C633 565 588 566 560 596" stroke="#383735" stroke-width="10" stroke-linecap="round" opacity="0.45"/>
+
+    <!-- Nose -->
+    <path d="M466 676C489 657 535 657 558 676C566 683 564 694 554 702L514 734C510 737 505 737 501 734L461 702C452 694 458 683 466 676Z" fill="#D98B87"/>
+    <path d="M481 679C500 671 525 671 543 680" stroke="#EDB1AC" stroke-width="7" stroke-linecap="round" opacity="0.7"/>
+
+    <!-- Mouth -->
+    <path d="M512 728V771" stroke="#6E6A65" stroke-width="7" stroke-linecap="round"/>
+    <path d="M512 770C494 805 456 808 434 779" stroke="#6E6A65" stroke-width="7" stroke-linecap="round"/>
+    <path d="M512 770C530 805 568 808 590 779" stroke="#6E6A65" stroke-width="7" stroke-linecap="round"/>
+
+    <!-- Tooth -->
+    <path d="M477 810C487 833 535 837 548 811C536 821 488 821 477 810Z" fill="#F8F5EF" opacity="0.9"/>
+    <path d="M512 817V842" stroke="#DCD8D1" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+
+    <!-- Whiskers -->
+    <path d="M418 708C338 694 262 696 196 709" stroke="#918C86" stroke-width="4" stroke-linecap="round" opacity="0.72"/>
+    <path d="M421 732C337 732 257 750 203 782" stroke="#918C86" stroke-width="4" stroke-linecap="round" opacity="0.72"/>
+    <path d="M423 753C344 768 286 799 249 839" stroke="#918C86" stroke-width="4" stroke-linecap="round" opacity="0.72"/>
+
+    <path d="M606 708C686 694 762 696 828 709" stroke="#918C86" stroke-width="4" stroke-linecap="round" opacity="0.72"/>
+    <path d="M603 732C687 732 767 750 821 782" stroke="#918C86" stroke-width="4" stroke-linecap="round" opacity="0.72"/>
+    <path d="M601 753C680 768 738 799 775 839" stroke="#918C86" stroke-width="4" stroke-linecap="round" opacity="0.72"/>
+
+    <!-- Small side fur tips -->
+    <path d="M259 641C234 658 221 682 213 708C245 698 273 686 294 663Z" fill="#AAA59F"/>
+    <path d="M765 641C790 658 803 682 811 708C779 698 751 686 730 663Z" fill="#AAA59F"/>
+  </g>
+</svg>

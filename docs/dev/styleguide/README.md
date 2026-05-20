@@ -10,44 +10,45 @@ Dual theme (light + dark). The default palette under `:root` is dark; `[data-the
 
 ### Colors
 
-| Token | Dark | Light | Use |
-| --- | --- | --- | --- |
-| `--bg` | `#0f1115` | `#ffffff` | Page root / main content area |
-| `--bg-elevated` | `#171a21` | `#f7f8fa` | Cards, dialogs, assistant message bubbles |
-| `--bg-sidebar` | `#0b0d12` | `#eef0f4` | Navigation chrome, composer rails |
-| `--border` | `#23272f` | `#dde1e8` | 1 px borders, separators |
-| `--text` | `#e6e8ee` | `#1a1d22` | Primary body text |
-| `--text-dim` | `#9aa0aa` | `#5b6270` | Secondary / meta text, placeholders |
-| `--text-faint` | `#6b7280` | `#8b919c` | Tertiary captions, disabled labels |
-| `--accent` | `#7c5cff` | `#6849f4` | Primary action, active state, brand dot |
-| `--accent-soft` | `#5b47bf` | `#a394ff` | Accent outline on active pills |
-| `--user-bg` | `#2a2f3a` | `#eef0f4` | User message bubble background |
-| `--assistant-bg` | `#171a21` | `#f7f8fa` | Assistant message bubble (same as elevated) |
-| `--tool-bg` | `#141823` | `#f2f4f8` | Tool-call / tool-result blocks |
-| `--ok` | `#22c55e` | `#16a34a` | Success / healthy status |
-| `--err` | `#ef4444` | `#dc2626` | Error / destructive |
-| `--warn` | `#ea580c` | `#c2410c` | Warning / caution (parallel to `--ok` and `--err`) |
-| `--status-busy` | `#a78bfa` | `#7c3aed` | Running / busy pills (agents, runs, generations) |
-| `--news-rss-fg` | `#d96d27` | `#b65a1f` | RSS source badge tint in Web News |
-| `--news-site-fg` | `#2878d9` | `#1d63b8` | Site source badge tint in Web News |
-| `--diagram-ok` | `#16a34a` | `#15803d` | Healthy diagram node accent |
-| `--diagram-warn` | `#92400e` | `#78350f` | Warning diagram node accent |
-| `--diagram-err` | `#ef4444` | `#dc2626` | Failed diagram node accent |
-| `--code-bg` | `#1e1e2e` | `#1e1e2e` | Preformatted / syntax-highlighted blocks (stays dark in both themes so `github-dark.css` keeps working) |
-| `--code-fg` | `#cdd6f4` | `#cdd6f4` | Code text inside `--code-bg` |
-| `--inline-code-bg` | `rgba(255,255,255,.08)` | `rgba(0,0,0,.06)` | Inline `<code>` tint |
-| `--shadow-soft` | `rgba(0,0,0,.35)` | `rgba(15,17,22,.08)` | Default card shadow |
-| `--hover-bg` | `rgba(255,255,255,.03)` | `rgba(15,17,22,.04)` | Row hover tint (tables, feeds, logs) |
-| `--hairline` | `rgba(255,255,255,.05)` | `rgba(15,17,22,.06)` | Ultra-subtle separator |
+| Token              | Dark                    | Light                | Use                                                                                                     |
+| ------------------ | ----------------------- | -------------------- | ------------------------------------------------------------------------------------------------------- |
+| `--bg`             | `#0f1115`               | `#ffffff`            | Page root / main content area                                                                           |
+| `--bg-elevated`    | `#171a21`               | `#f7f8fa`            | Cards, dialogs, assistant message bubbles                                                               |
+| `--bg-sidebar`     | `#0b0d12`               | `#eef0f4`            | Navigation chrome, composer rails                                                                       |
+| `--border`         | `#23272f`               | `#dde1e8`            | 1 px borders, separators                                                                                |
+| `--text`           | `#e6e8ee`               | `#1a1d22`            | Primary body text                                                                                       |
+| `--text-dim`       | `#9aa0aa`               | `#5b6270`            | Secondary / meta text, placeholders                                                                     |
+| `--text-faint`     | `#6b7280`               | `#8b919c`            | Tertiary captions, disabled labels                                                                      |
+| `--accent`         | `#7c5cff`               | `#6849f4`            | Primary action, active state, brand dot                                                                 |
+| `--accent-soft`    | `#5b47bf`               | `#a394ff`            | Accent outline on active pills                                                                          |
+| `--user-bg`        | `#2a2f3a`               | `#eef0f4`            | User message bubble background                                                                          |
+| `--assistant-bg`   | `#171a21`               | `#f7f8fa`            | Assistant message bubble (same as elevated)                                                             |
+| `--tool-bg`        | `#141823`               | `#f2f4f8`            | Tool-call / tool-result blocks                                                                          |
+| `--ok`             | `#22c55e`               | `#16a34a`            | Success / healthy status                                                                                |
+| `--err`            | `#ef4444`               | `#dc2626`            | Error / destructive                                                                                     |
+| `--warn`           | `#ea580c`               | `#c2410c`            | Warning / caution (parallel to `--ok` and `--err`)                                                      |
+| `--status-busy`    | `#a78bfa`               | `#7c3aed`            | Running / busy pills (agents, runs, generations)                                                        |
+| `--news-rss-fg`    | `#d96d27`               | `#b65a1f`            | RSS source badge tint in Web News                                                                       |
+| `--news-site-fg`   | `#2878d9`               | `#1d63b8`            | Site source badge tint in Web News                                                                      |
+| `--diagram-ok`     | `#16a34a`               | `#15803d`            | Healthy diagram node accent                                                                             |
+| `--diagram-warn`   | `#92400e`               | `#78350f`            | Warning diagram node accent                                                                             |
+| `--diagram-err`    | `#ef4444`               | `#dc2626`            | Failed diagram node accent                                                                              |
+| `--code-bg`        | `#1e1e2e`               | `#1e1e2e`            | Preformatted / syntax-highlighted blocks (stays dark in both themes so `github-dark.css` keeps working) |
+| `--code-fg`        | `#cdd6f4`               | `#cdd6f4`            | Code text inside `--code-bg`                                                                            |
+| `--inline-code-bg` | `rgba(255,255,255,.08)` | `rgba(0,0,0,.06)`    | Inline `<code>` tint                                                                                    |
+| `--shadow-soft`    | `rgba(0,0,0,.35)`       | `rgba(15,17,22,.08)` | Default card shadow                                                                                     |
+| `--hover-bg`       | `rgba(255,255,255,.03)` | `rgba(15,17,22,.04)` | Row hover tint (tables, feeds, logs)                                                                    |
+| `--hairline`       | `rgba(255,255,255,.05)` | `rgba(15,17,22,.06)` | Ultra-subtle separator                                                                                  |
 
 Modal sizing variables (used by `<Modal size>`):
 
-| Token | Value | Use |
-| --- | --- | --- |
+| Token             | Value   | Use                                      |
+| ----------------- | ------- | ---------------------------------------- |
 | `--modal-size-sm` | `420px` | Default. Confirmations + simple pickers. |
-| `--modal-size-md` | `600px` | Entity create/edit forms. |
+| `--modal-size-md` | `600px` | Entity create/edit forms.                |
 
 **Rules:**
+
 - No new hex literals in component CSS — add a token or reuse one. If you need a one-off semantic (e.g. a warning amber), add it to the token table and document it here.
 - When you add a rule that depends on "this surface is dark", add a matching `[data-theme="light"]` override — or reach for a token that already flips. Hardcoded `rgba(255,255,255,…)` for hover tints / hairlines is a smell: use `--hover-bg` / `--hairline`.
 - `color-scheme: dark` / `color-scheme: light` is set on `:root` / `[data-theme="light"]` — this flips native scrollbars and form controls automatically.
@@ -58,12 +59,12 @@ Use powers of 4 — `4 / 8 / 12 / 16 / 20 / 24 / 32`. Most gaps across the codeb
 
 ### Radius
 
-| Context | Value |
-| --- | --- |
-| Cards, bubbles, dialogs | `var(--radius)` = `12 px` |
-| Buttons, inputs | `8 px` |
-| Pills, chips, circular nav items | `999 px` |
-| Avatar gradients | `50%` |
+| Context                          | Value                     |
+| -------------------------------- | ------------------------- |
+| Cards, bubbles, dialogs          | `var(--radius)` = `12 px` |
+| Buttons, inputs                  | `8 px`                    |
+| Pills, chips, circular nav items | `999 px`                  |
+| Avatar gradients                 | `50%`                     |
 
 ### Shadows
 
@@ -91,6 +92,7 @@ Two-column grid: **56 px icon rail** + `1fr` main. Defined as `.app-shell` in `s
 Tabs that need a context column (Chat, Documents, Whiteboard, Contacts) keep their own internal two-column grid (`260 px context sidebar + 1fr`) inside the main area. Tabs without a context column (Board, Tasks, Files, Workspace, Dashboard, Settings) fill the full main area. This keeps the navigation minimal by default and surfaces tab-specific sub-navigation only when it's meaningful.
 
 Breakpoints:
+
 - `max-width: 640 px` — rail becomes a hamburger drawer (hidden until the menu button is tapped). Backdrop overlay closes it on click.
 
 ### Page header
@@ -113,12 +115,12 @@ Tabs that own a context sidebar (Chat, Documents, Whiteboard, Contacts, Workflow
 
 Two sanctioned card sizes; gap is always `16 px`; border `1 px solid var(--border)`; radius `var(--radius)` (12 px).
 
-| Class family | Grid | Card padding | Use |
-| --- | --- | --- | --- |
-| `.projects-grid` + `.project-card` (alias: `.agent-card`, `.skill-card`) | `minmax(220px, 1fr)` | 16 px on `.project-card__body` | Compact cards with mostly title + short description + small meta row. Workspace → Projects / Agents / Skills. |
-| `.contacts-grid` + `.contact-card` | `minmax(280px, 1fr)` | 24 px / 20 px / 20 px (asymmetric — extra top padding gives breathing room for the centered avatar) | Rich cards with avatar, name, multi-line meta. Contacts and Businesses. |
-| `.kb-grid` + `.kb-card` | `minmax(280px, 1fr)` | 20 px symmetric | Knowledge Base definitions. |
-| `.dash-kpi-row` + `.dash-kpi` | `repeat(4, 1fr)` collapsing to 2 then 1 at narrow widths | 18 px / 20 px asymmetric (KPIs stack a number + label, slightly less top padding by design) | Dashboard KPIs. |
+| Class family                                                             | Grid                                                     | Card padding                                                                                        | Use                                                                                                           |
+| ------------------------------------------------------------------------ | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `.projects-grid` + `.project-card` (alias: `.agent-card`, `.skill-card`) | `minmax(220px, 1fr)`                                     | 16 px on `.project-card__body`                                                                      | Compact cards with mostly title + short description + small meta row. Workspace → Projects / Agents / Skills. |
+| `.contacts-grid` + `.contact-card`                                       | `minmax(280px, 1fr)`                                     | 24 px / 20 px / 20 px (asymmetric — extra top padding gives breathing room for the centered avatar) | Rich cards with avatar, name, multi-line meta. Contacts and Businesses.                                       |
+| `.kb-grid` + `.kb-card`                                                  | `minmax(280px, 1fr)`                                     | 20 px symmetric                                                                                     | Knowledge Base definitions.                                                                                   |
+| `.dash-kpi-row` + `.dash-kpi`                                            | `repeat(4, 1fr)` collapsing to 2 then 1 at narrow widths | 18 px / 20 px asymmetric (KPIs stack a number + label, slightly less top padding by design)         | Dashboard KPIs.                                                                                               |
 
 `.agent-card` and `.skill-card` are CSS aliases of `.project-card` — the same shape, different content. Don't duplicate the rules; prefer one of the four families above before introducing a fifth. If you need a card that doesn't fit, add it to this table.
 
@@ -139,7 +141,7 @@ When a tab's body splits into multiple sub-sections that swap inline content (Wo
 />
 ```
 
-**This is for tab switching, not filtering.** When the same list view is being *narrowed* (Notifications → All / Unread, where the panel is otherwise the same), keep the pill-filter pattern (`flex: 1` equal-width buttons inside `.notif-tab__filter`) — that's a legitimately different intent and SubTabs would visually shrink the active button. Likewise the Web News template picker (`.news-tab__template-picker`) is a "view-mode" picker, not a tab — it stays as `.btn--ghost` / `.btn--active` pills inside the page header. If you add a new sub-section that swaps content panels, reach for `<SubTabs>`; if you add a filter or view-mode picker, match the existing surface for its category.
+**This is for tab switching, not filtering.** When the same list view is being _narrowed_ (Notifications → All / Unread, where the panel is otherwise the same), keep the pill-filter pattern (`flex: 1` equal-width buttons inside `.notif-tab__filter`) — that's a legitimately different intent and SubTabs would visually shrink the active button. Likewise the Web News template picker (`.news-tab__template-picker`) is a "view-mode" picker, not a tab — it stays as `.btn--ghost` / `.btn--active` pills inside the page header. If you add a new sub-section that swaps content panels, reach for `<SubTabs>`; if you add a filter or view-mode picker, match the existing surface for its category.
 
 ---
 
@@ -147,21 +149,21 @@ When a tab's body splits into multiple sub-sections that swap inline content (Wo
 
 ### Buttons
 
-| Class | Purpose |
-| --- | --- |
-| `.btn` | Default — neutral bg, 1 px border, 8 px radius |
-| `.btn--send` | Primary action — accent fill, white text. **Canonical name for the primary CTA.** |
-| `.btn--primary` | Alias-style variant for primary actions in admin / settings surfaces. Treat as a synonym of `.btn--send`; pick one per surface and stay consistent. |
-| `.btn--accent` | Accent-outlined neutral button (border-only emphasis). Used where `.btn--send` would be too strong. |
-| `.btn--secondary` | Hover-elevates to accent — used as the partner button next to `.btn--primary` in forms. |
-| `.btn--stop` | Destructive / cancel — `--err` fill, white text. **Canonical name for destructive in the composer.** |
-| `.btn--danger` | Destructive variant used inside `<ConfirmDialog>` and admin destructive rows (e.g. delete user). Same visual as `.btn--stop`; pick one per surface. |
-| `.btn--ghost` | Transparent, no border — use in toolbars and sub-tabs |
-| `.btn--active` | Modifier added on top of `.btn--ghost` to mark the active item in a segmented control. Paired with `aria-current="page"` or `aria-pressed`. |
-| `.btn--attach` | Chat composer attach button — circular |
-| `.btn--icon` | Icon-only button (24-28 px square). Always carries an `aria-label`. |
-| `.btn--sm` | Modifier — slightly smaller padding + font (used in inline toolbars). |
-| `.btn--xs` | Modifier — table-row scale. Use sparingly. |
+| Class             | Purpose                                                                                                                                             |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.btn`            | Default — neutral bg, 1 px border, 8 px radius                                                                                                      |
+| `.btn--send`      | Primary action — accent fill, white text. **Canonical name for the primary CTA.**                                                                   |
+| `.btn--primary`   | Alias-style variant for primary actions in admin / settings surfaces. Treat as a synonym of `.btn--send`; pick one per surface and stay consistent. |
+| `.btn--accent`    | Accent-outlined neutral button (border-only emphasis). Used where `.btn--send` would be too strong.                                                 |
+| `.btn--secondary` | Hover-elevates to accent — used as the partner button next to `.btn--primary` in forms.                                                             |
+| `.btn--stop`      | Destructive / cancel — `--err` fill, white text. **Canonical name for destructive in the composer.**                                                |
+| `.btn--danger`    | Destructive variant used inside `<ConfirmDialog>` and admin destructive rows (e.g. delete user). Same visual as `.btn--stop`; pick one per surface. |
+| `.btn--ghost`     | Transparent, no border — use in toolbars and sub-tabs                                                                                               |
+| `.btn--active`    | Modifier added on top of `.btn--ghost` to mark the active item in a segmented control. Paired with `aria-current="page"` or `aria-pressed`.         |
+| `.btn--attach`    | Chat composer attach button — circular                                                                                                              |
+| `.btn--icon`      | Icon-only button (24-28 px square). Always carries an `aria-label`.                                                                                 |
+| `.btn--sm`        | Modifier — slightly smaller padding + font (used in inline toolbars).                                                                               |
+| `.btn--xs`        | Modifier — table-row scale. Use sparingly.                                                                                                          |
 
 Height settles around 28-32 px (`--sm` ≈ 26 px, `--xs` ≈ 22 px). Don't introduce a new `.btn--foo` variant without adding it to this table. When in doubt, reuse — there are already two near-duplicate pairs (`--send`/`--primary`, `--stop`/`--danger`); the open follow-up is to mark one canonical per surface, not to add a third.
 
@@ -188,8 +190,12 @@ Skeleton:
     <Modal.Header title="Edit Contact" />
     {/* form fields */}
     <Modal.Footer>
-      <button type="button" className="btn" onClick={onClose}>Cancel</button>
-      <button type="submit" className="btn btn--send">Save</button>
+      <button type="button" className="btn" onClick={onClose}>
+        Cancel
+      </button>
+      <button type="submit" className="btn btn--send">
+        Save
+      </button>
     </Modal.Footer>
   </form>
 </Modal>
@@ -213,7 +219,11 @@ The chat/document/whiteboard/contacts composers all share the same footprint: te
 Every tab with a list that may be empty uses `<EmptyState>`:
 
 ```tsx
-<EmptyState title="No contacts yet" description="Add one or import a vCard." action={<button className="btn btn--send">New contact</button>} />
+<EmptyState
+  title="No contacts yet"
+  description="Add one or import a vCard."
+  action={<button className="btn btn--send">New contact</button>}
+/>
 ```
 
 Always includes the rabbit mascot at 120 px, centered, above the title.
@@ -230,65 +240,65 @@ Always includes the rabbit mascot at 120 px, centered, above the title.
 
 Sanctioned icon usage at the time of writing (see `web/src/lib/icons.ts` for the up-to-date list):
 
-| Context | Icon |
-| --- | --- |
-| Chat | `MessageCircle` |
-| Board | `Kanban` |
-| Tasks | `Clock` |
-| Documents | `FileText` |
-| Whiteboard | `Palette` |
-| Files | `Folder` |
-| Contacts | `Users` |
-| Knowledge Base | `Library` |
-| Workspace | `Package` |
-| Dashboard | `LayoutDashboard` |
-| Settings | `Settings` |
-| Create | `Plus` |
-| Search | `Search` |
-| Edit | `Pencil` |
-| Delete | `Trash2` |
-| Download / export | `Download` |
-| Upload / import | `Upload` |
-| Copy | `Copy` |
-| Confirm | `Check` |
-| Close / cancel | `X` |
-| Disclosure | `ChevronRight` |
-| Run | `Play` |
-| Pause | `Pause` |
-| Refresh | `RefreshCw` |
-| Error | `AlertCircle` |
-| Info | `Info` |
-| Protected root | `Lock` |
-| User | `User` |
-| Agent | `Bot` |
-| Skill | `Sparkles` |
-| Logout | `LogOut` |
-| Language (surface) | `Globe` |
-| Language (tool) | `Languages` |
-| Notifications (idle) | `Bell` |
-| Notifications (has unread) | `BellRing` |
-| Mention target | `AtSign` |
-| Planning | `CalendarRange` |
-| Workflows | `Workflow` |
-| Diary | `BookOpen` |
-| Diary (recording) | `Mic` / `MicOff` / `AudioLines` |
-| Diagrams | `Shapes` |
-| Code project | `FolderGit2` |
-| Code branch | `GitBranch` |
-| Businesses | `Building2` |
-| News (RSS feed) | `Rss` |
-| Send (composer fallback) | `Send` |
-| Feedback (positive) | `ThumbsUp` |
-| Feedback (negative) | `ThumbsDown` |
-| Theme (light) | `Sun` |
-| Theme (dark) | `Moon` |
-| Tag | `Tag` / `Tags` |
-| Wish (planning) | `Target` |
-| Deadline (planning) | `Flag` |
-| Sprint / task list | `ListChecks` |
-| Suggestion / hint | `Lightbulb` |
+| Context                    | Icon                            |
+| -------------------------- | ------------------------------- |
+| Chat                       | `MessageCircle`                 |
+| Board                      | `Kanban`                        |
+| Tasks                      | `Clock`                         |
+| Documents                  | `FileText`                      |
+| Whiteboard                 | `Palette`                       |
+| Files                      | `Folder`                        |
+| Contacts                   | `Users`                         |
+| Knowledge Base             | `Library`                       |
+| Workspace                  | `Package`                       |
+| Dashboard                  | `LayoutDashboard`               |
+| Settings                   | `Settings`                      |
+| Create                     | `Plus`                          |
+| Search                     | `Search`                        |
+| Edit                       | `Pencil`                        |
+| Delete                     | `Trash2`                        |
+| Download / export          | `Download`                      |
+| Upload / import            | `Upload`                        |
+| Copy                       | `Copy`                          |
+| Confirm                    | `Check`                         |
+| Close / cancel             | `X`                             |
+| Disclosure                 | `ChevronRight`                  |
+| Run                        | `Play`                          |
+| Pause                      | `Pause`                         |
+| Refresh                    | `RefreshCw`                     |
+| Error                      | `AlertCircle`                   |
+| Info                       | `Info`                          |
+| Protected root             | `Lock`                          |
+| User                       | `User`                          |
+| Agent                      | `Bot`                           |
+| Skill                      | `Sparkles`                      |
+| Logout                     | `LogOut`                        |
+| Language (surface)         | `Globe`                         |
+| Language (tool)            | `Languages`                     |
+| Notifications (idle)       | `Bell`                          |
+| Notifications (has unread) | `BellRing`                      |
+| Mention target             | `AtSign`                        |
+| Planning                   | `CalendarRange`                 |
+| Workflows                  | `Workflow`                      |
+| Diary                      | `BookOpen`                      |
+| Diary (recording)          | `Mic` / `MicOff` / `AudioLines` |
+| Diagrams                   | `Shapes`                        |
+| Code project               | `FolderGit2`                    |
+| Code branch                | `GitBranch`                     |
+| Businesses                 | `Building2`                     |
+| News (RSS feed)            | `Rss`                           |
+| Send (composer fallback)   | `Send`                          |
+| Feedback (positive)        | `ThumbsUp`                      |
+| Feedback (negative)        | `ThumbsDown`                    |
+| Theme (light)              | `Sun`                           |
+| Theme (dark)               | `Moon`                          |
+| Tag                        | `Tag` / `Tags`                  |
+| Wish (planning)            | `Target`                        |
+| Deadline (planning)        | `Flag`                          |
+| Sprint / task list         | `ListChecks`                    |
+| Suggestion / hint          | `Lightbulb`                     |
 
-The barrel exports ~95 icons; the table above lists the *sanctioned UI contexts*. If you add a new tab or feature surface, add its mapping here when you wire up the icon — the barrel is the canonical set; this table tells you which icon belongs to which surface.
+The barrel exports ~95 icons; the table above lists the _sanctioned UI contexts_. If you add a new tab or feature surface, add its mapping here when you wire up the icon — the barrel is the canonical set; this table tells you which icon belongs to which surface.
 
 ---
 
@@ -296,19 +306,19 @@ The barrel exports ~95 icons; the table above lists the *sanctioned UI contexts*
 
 Four sanctioned placements — nowhere else.
 
-| Placement | Size | Opacity | Notes |
-| --- | --- | --- | --- |
-| Brand logo | 20 px | 1.0 | Sidebar header, replaces the old `.brand-dot` |
-| Background watermark | 180-240 px | 0.04 | Fixed-position, bottom-right of `.main`. **Not on Dashboard** (too dense). Non-interactive (`pointer-events: none`). |
-| Empty state | 120 px | 0.85 | Centered above the title in `<EmptyState>` |
-| Auth hero | 160 px | 1.0 | Above the form on Login / Change Password pages |
+| Placement            | Size       | Opacity | Notes                                                                                                                                                                                                                                        |
+| -------------------- | ---------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Brand logo           | 20 px      | 1.0     | Sidebar header, replaces the old `.brand-dot`                                                                                                                                                                                                |
+| Background watermark | 180-240 px | 0.06    | Fixed-position, bottom-right of `.main`. **Not on Dashboard** (too dense). Non-interactive (`pointer-events: none`). Uses the standalone illustrated head at `web/src/assets/rabbit-watermark.svg` — fixed grey palette, not `currentColor`. |
+| Empty state          | 120 px     | 0.85    | Centered above the title in `<EmptyState>`                                                                                                                                                                                                   |
+| Auth hero            | 160 px     | 1.0     | Above the form on Login / Change Password pages                                                                                                                                                                                              |
 
 **Don'ts**
 
 - Don't put the rabbit inside data tables, lists, or card contents.
 - Don't show more than one rabbit on a single screen (brand + watermark is fine because the watermark is subliminal at 0.04).
 - Don't scale below 16 px — it loses detail.
-- Don't recolor. The SVG uses `currentColor`; let the parent text color decide.
+- Don't recolor the inline `<Rabbit>` mascot (brand / empty / auth). It uses `currentColor`; let the parent text colour decide. The watermark SVG is a separate illustrated asset with a fixed grey palette — don't substitute one for the other.
 
 ---
 
@@ -316,19 +326,19 @@ Four sanctioned placements — nowhere else.
 
 The SSE event shapes are defined in `src/agent/sse_events.ts` and shared between backend and frontend. Each event maps to a specific visual treatment; respect the mapping so new agent-facing UIs stay consistent.
 
-| Event | UI |
-| --- | --- |
-| `content` | Plain text in the assistant bubble, streamed. |
-| `reasoning` | Collapsible block above the answer, dim italic, `--text-dim`. |
-| `tool_call` | `ToolCallCard` — bordered card with `--tool-bg`, tool name as header, args folded. |
-| `tool_result` | Appended to the matching `ToolCallCard`, truncated with "expand" affordance. |
-| `usage` | Silent — feeds `StatsFooter`. |
-| `stats` | `StatsFooter` update. |
-| `error` | Red inline banner in the stream. |
-| `turn_end` / `done` | Stops spinners, unlocks composer. |
-| `card_run_started` / `card_run_finished` | Updates `CardRunLog` state in Board. |
-| `notification_created` | Prepends to the notification panel, bumps the bell badge, pushes a `Toast` (top-right) and fires an OS notification — suppressed when the user is already viewing the target session. |
-| `notification_read` | Marks the matching rows read in the panel and decrements the bell badge (multi-tab sync). |
+| Event                                    | UI                                                                                                                                                                                    |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `content`                                | Plain text in the assistant bubble, streamed.                                                                                                                                         |
+| `reasoning`                              | Collapsible block above the answer, dim italic, `--text-dim`.                                                                                                                         |
+| `tool_call`                              | `ToolCallCard` — bordered card with `--tool-bg`, tool name as header, args folded.                                                                                                    |
+| `tool_result`                            | Appended to the matching `ToolCallCard`, truncated with "expand" affordance.                                                                                                          |
+| `usage`                                  | Silent — feeds `StatsFooter`.                                                                                                                                                         |
+| `stats`                                  | `StatsFooter` update.                                                                                                                                                                 |
+| `error`                                  | Red inline banner in the stream.                                                                                                                                                      |
+| `turn_end` / `done`                      | Stops spinners, unlocks composer.                                                                                                                                                     |
+| `card_run_started` / `card_run_finished` | Updates `CardRunLog` state in Board.                                                                                                                                                  |
+| `notification_created`                   | Prepends to the notification panel, bumps the bell badge, pushes a `Toast` (top-right) and fires an OS notification — suppressed when the user is already viewing the target session. |
+| `notification_read`                      | Marks the matching rows read in the panel and decrements the bell badge (multi-tab sync).                                                                                             |
 
 Events may carry `author` (agent name) — when set, render `@name` instead of the default `assistant` label.
 
@@ -338,7 +348,7 @@ Events may carry `author` (agent name) — when set, render `@name` instead of t
 
 - **Empty (page-level):** `<EmptyState>` — rabbit (120 px) + title + optional description + optional CTA. Use this when an entire tab body has nothing to show (the Bin is empty, the Notifications list is empty, a planning project has no wishes yet). Never ship a blank tab. `<EmptyState size="sm">` shrinks the rabbit to 80 px and tightens the padding — use it inside a wide panel that isn't the full tab.
 - **Empty (section-level / inside a card / table):** a minimal one-line muted-text node is fine (`color: var(--text-dim)`, centered, 16 px padding) — see `.tasks-empty` in `web/src/tabs/TasksTab.tsx` for the canonical inline pattern. Don't put a 120 px rabbit inside a table cell or a 240 px sidebar.
-- **Tab with an always-on "+ New" CTA card:** if the list grid always renders a `+ New <thing>` tile (Agents, Skills, Projects), that *is* the empty state — no separate `<EmptyState>` needed. Don't break the always-on CTA pattern when adding a new card grid.
+- **Tab with an always-on "+ New" CTA card:** if the list grid always renders a `+ New <thing>` tile (Agents, Skills, Projects), that _is_ the empty state — no separate `<EmptyState>` needed. Don't break the always-on CTA pattern when adding a new card grid.
 - **Loading:** inline `Loading…` text with the existing `.app-loading` class for full-screen, or a small spinner from `lucide-react` (`Loader2` with `animate-spin`) for in-panel loads. No skeleton screens (adds weight for little gain).
 - **Error:** red banner (`--err` on `--bg-elevated`) with an `AlertCircle` icon + message + optional retry button. Never swallow errors silently; if a fetch fails, say so.
 
