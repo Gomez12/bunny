@@ -2,29 +2,32 @@
 
 ## What remains
 
-`AGENTS.md` lists `bun run i18n:check` as a recommended pre-PR step. It must fail when:
+Nothing in this follow-up. `bun run i18n:check` ships as part of
+[`../plans/i18n-introduction.md`](../plans/i18n-introduction.md) and is
+wired into the `check` chain in `package.json`.
 
-- Translation keys are referenced in code but missing from a locale file.
-- Locale files contain keys no longer used in code.
-- Hardcoded user-facing strings appear outside the i18n layer.
+The script enforces:
 
-None of this exists yet.
+- Every `t("…")` / `<Trans i18nKey="…">` reference under `web/src/`
+  resolves in **both** `en.json` and `nl.json`.
+- No orphan keys (every key in either locale file is referenced).
+- Every English fallback string is non-empty (English is the primary
+  fallback per `AGENTS.md` §i18n).
 
-## Why not done now
+A smoke test at `tests/i18n/i18n-check.test.ts` spawns the script via
+`Bun.spawn` and asserts a clean exit.
 
-Out of scope for the docs-restructure plan ([`../plans/docs-restructure.md`](../plans/docs-restructure.md)).
-
-## Next step
-
-- Add a `scripts/i18n-check.ts`.
-- Add `i18n:check` to `package.json` scripts.
-- Decide which locale file is the source of truth (English fallback per `AGENTS.md`).
+Wholesale migration of every hardcoded string is tracked separately in
+[`./i18n-string-migration.md`](./i18n-string-migration.md).
 
 ## Related files or docs
 
-- [`AGENTS.md`](../../../AGENTS.md)
-- `web/src/i18n/` (current locale layout)
+- [`AGENTS.md`](../../../AGENTS.md) §i18n
+- [`../plans/i18n-introduction.md`](../plans/i18n-introduction.md)
+- [`../../../scripts/i18n-check.ts`](../../../scripts/i18n-check.ts)
+- [`../../../tests/i18n/i18n-check.test.ts`](../../../tests/i18n/i18n-check.test.ts)
+- [`../../../web/src/i18n/index.ts`](../../../web/src/i18n/index.ts)
 
 ## Status
 
-open
+done
