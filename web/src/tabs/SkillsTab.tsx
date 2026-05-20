@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import {
   createSkill,
   deleteSkill,
@@ -29,6 +30,7 @@ type DialogState =
   | { kind: "install" };
 
 export default function SkillsTab({ currentUser, activeProject }: Props) {
+  const { t } = useTranslation();
   const [skills, setSkills] = useState<Skill[] | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -122,13 +124,20 @@ export default function SkillsTab({ currentUser, activeProject }: Props) {
   return (
     <div className="projects">
       <PageHeader
-        title="Skills"
+        title={t("tab.skills.title")}
         description={
-          <>
-            Reusable instruction packages that give agents specialized capabilities on demand.
-            Skills follow the <a href="https://agentskills.io" target="_blank" rel="noreferrer">agentskills.io</a> open
-            standard.
-          </>
+          <Trans
+            i18nKey="tab.skills.descriptionFull"
+            components={{
+              link: (
+                <a
+                  href="https://agentskills.io"
+                  target="_blank"
+                  rel="noreferrer"
+                />
+              ),
+            }}
+          />
         }
       />
 
@@ -140,8 +149,8 @@ export default function SkillsTab({ currentUser, activeProject }: Props) {
           onClick={() => setDialog({ kind: "create" })}
         >
           <div className="project-card__plus">+</div>
-          <div className="project-card__title">New skill</div>
-          <div className="project-card__hint">Write a SKILL.md</div>
+          <div className="project-card__title">{t("tab.skills.newCardTitle")}</div>
+          <div className="project-card__hint">{t("tab.skills.newCardHint")}</div>
         </button>
 
         <button
@@ -149,11 +158,19 @@ export default function SkillsTab({ currentUser, activeProject }: Props) {
           onClick={() => setDialog({ kind: "install" })}
         >
           <div className="project-card__plus">&#8595;</div>
-          <div className="project-card__title">Install from URL</div>
-          <div className="project-card__hint">GitHub or skills.sh</div>
+          <div className="project-card__title">
+            {t("tab.skills.installCardTitle")}
+          </div>
+          <div className="project-card__hint">
+            {t("tab.skills.installCardHint")}
+          </div>
         </button>
 
-        {skills === null && <div className="project-card project-card--loading">Loading…</div>}
+        {skills === null && (
+          <div className="project-card project-card--loading">
+            {t("tab.skills.loading")}
+          </div>
+        )}
 
         {skills?.map((s) => (
           <div
@@ -169,13 +186,13 @@ export default function SkillsTab({ currentUser, activeProject }: Props) {
                 </span>
                 {s.sourceUrl && (
                   <span className="project-card__vis" title={s.sourceUrl}>
-                    installed
+                    {t("tab.skills.installedBadge")}
                   </span>
                 )}
               </div>
               <div className="project-card__meta" style={{ marginTop: 8, flexWrap: "wrap" }}>
                 <span className="project-form__hint" style={{ width: "100%" }}>
-                  Available in:
+                  {t("tab.skills.availableIn")}
                 </span>
                 {projects.map((p) => (
                   <label
@@ -183,8 +200,8 @@ export default function SkillsTab({ currentUser, activeProject }: Props) {
                     className="project-form__chip"
                     title={
                       s.projects.includes(p.name)
-                        ? `Unlink from ${p.name}`
-                        : `Link to ${p.name}`
+                        ? t("tab.skills.unlinkFrom", { name: p.name })
+                        : t("tab.skills.linkTo", { name: p.name })
                     }
                   >
                     <input
@@ -204,16 +221,16 @@ export default function SkillsTab({ currentUser, activeProject }: Props) {
                 <button
                   className="project-card__edit"
                   onClick={() => setDialog({ kind: "edit", skill: s })}
-                  title="Edit"
-                  aria-label={`Edit ${s.name}`}
+                  title={t("common.edit")}
+                  aria-label={t("tab.skills.editAria", { name: s.name })}
                 >
                   ✎
                 </button>
                 <button
                   className="project-card__edit"
                   onClick={() => void handleDelete(s.name)}
-                  title="Delete"
-                  aria-label={`Delete ${s.name}`}
+                  title={t("common.delete")}
+                  aria-label={t("tab.skills.deleteAria", { name: s.name })}
                 >
                   ✕
                 </button>
@@ -244,9 +261,9 @@ export default function SkillsTab({ currentUser, activeProject }: Props) {
         <div className="modal-backdrop" onClick={() => setDialog({ kind: "closed" })}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <form onSubmit={handleInstall} className="project-form">
-              <h2>Install skill from URL</h2>
+              <h2>{t("tab.skills.install.title")}</h2>
               <label className="project-form__field">
-                <span>URL</span>
+                <span>{t("tab.skills.install.urlLabel")}</span>
                 <input
                   type="text"
                   value={installUrl}
@@ -256,7 +273,7 @@ export default function SkillsTab({ currentUser, activeProject }: Props) {
                   required
                 />
                 <span className="project-form__hint">
-                  GitHub URL to a skill directory, or a skills.sh identifier (owner/repo/path)
+                  {t("tab.skills.install.urlHint")}
                 </span>
               </label>
               <div className="project-form__actions">
@@ -266,10 +283,12 @@ export default function SkillsTab({ currentUser, activeProject }: Props) {
                   onClick={() => setDialog({ kind: "closed" })}
                   disabled={installing}
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </button>
                 <button type="submit" className="btn btn--send" disabled={installing}>
-                  {installing ? "Installing…" : "Install"}
+                  {installing
+                    ? t("tab.skills.install.installing")
+                    : t("tab.skills.install.install")}
                 </button>
               </div>
             </form>
@@ -278,8 +297,8 @@ export default function SkillsTab({ currentUser, activeProject }: Props) {
       )}
       <ConfirmDialog
         open={confirmDelete !== null}
-        message={`Delete skill '${confirmDelete}'?`}
-        confirmLabel="Delete"
+        message={t("tab.skills.deleteConfirm", { name: confirmDelete ?? "" })}
+        confirmLabel={t("common.delete")}
         onConfirm={() => void doDelete(confirmDelete!)}
         onCancel={() => setConfirmDelete(null)}
       />

@@ -128,6 +128,29 @@
         "save": "Save"
       }
     },
+    "skills": {
+      "title": "Skills",
+      "descriptionFull": "Reusable instruction packages that give agents specialized capabilities on demand. Skills follow the <link>agentskills.io</link> open standard.",
+      "newCardTitle": "New skill",
+      "newCardHint": "Write a SKILL.md",
+      "installCardTitle": "Install from URL",
+      "installCardHint": "GitHub or skills.sh",
+      "loading": "Loading…",
+      "installedBadge": "installed",
+      "availableIn": "Available in:",
+      "unlinkFrom": "Unlink from {{name}}",
+      "linkTo": "Link to {{name}}",
+      "editAria": "Edit {{name}}",
+      "deleteAria": "Delete {{name}}",
+      "install": {
+        "title": "Install skill from URL",
+        "urlLabel": "URL",
+        "urlHint": "GitHub URL to a skill directory, or a skills.sh identifier (owner/repo/path)",
+        "installing": "Installing…",
+        "install": "Install"
+      },
+      "deleteConfirm": "Delete skill '{{name}}'?"
+    },
     "agents": {
       "title": "Agents",
       "descriptionFull": "Named personalities with their own system prompt and tool set. Call an agent in Chat by prefixing your message with <code>@name</code>.",

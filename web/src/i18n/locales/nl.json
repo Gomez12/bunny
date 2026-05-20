@@ -128,6 +128,29 @@
         "save": "Opslaan"
       }
     },
+    "skills": {
+      "title": "Skills",
+      "descriptionFull": "Herbruikbare instructiepakketten die agents op afroep gespecialiseerde capaciteiten geven. Skills volgen de <link>agentskills.io</link>-open standaard.",
+      "newCardTitle": "Nieuwe skill",
+      "newCardHint": "Schrijf een SKILL.md",
+      "installCardTitle": "Installeren via URL",
+      "installCardHint": "GitHub of skills.sh",
+      "loading": "Laden…",
+      "installedBadge": "geïnstalleerd",
+      "availableIn": "Beschikbaar in:",
+      "unlinkFrom": "Loskoppelen van {{name}}",
+      "linkTo": "Koppelen aan {{name}}",
+      "editAria": "{{name}} bewerken",
+      "deleteAria": "{{name}} verwijderen",
+      "install": {
+        "title": "Skill installeren via URL",
+        "urlLabel": "URL",
+        "urlHint": "GitHub-URL naar een skill-map, of een skills.sh-identifier (owner/repo/path)",
+        "installing": "Installeren…",
+        "install": "Installeren"
+      },
+      "deleteConfirm": "Skill '{{name}}' verwijderen?"
+    },
     "agents": {
       "title": "Agents",
       "descriptionFull": "Genaamde persoonlijkheden met een eigen systeemprompt en gereedschapsset. Roep een agent in Chat aan door je bericht te beginnen met <code>@naam</code>.",
