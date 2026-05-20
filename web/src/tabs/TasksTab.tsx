@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import {
   createScheduledTask,
   deleteScheduledTask,
@@ -29,14 +31,29 @@ function formatTs(ts: number | null): string {
   return new Date(ts).toLocaleString();
 }
 
-function StatusBadge({ status }: { status: "ok" | "error" | null }) {
-  if (!status) return <span className="task-status task-status--idle">never run</span>;
+function StatusBadge({
+  status,
+  t,
+}: {
+  status: "ok" | "error" | null;
+  t: TFunction;
+}) {
+  if (!status) {
+    return (
+      <span className="task-status task-status--idle">
+        {t("tab.tasks.statusNeverRun")}
+      </span>
+    );
+  }
   return (
-    <span className={`task-status task-status--${status}`}>{status === "ok" ? "ok" : "error"}</span>
+    <span className={`task-status task-status--${status}`}>
+      {status === "ok" ? t("tab.tasks.statusOk") : t("tab.tasks.statusError")}
+    </span>
   );
 }
 
 export default function TasksTab({ currentUser, initialErrorsOnly = false }: Props) {
+  const { t } = useTranslation();
   const [tasks, setTasks] = useState<ScheduledTask[] | null>(null);
   const [handlers, setHandlers] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -68,109 +85,124 @@ export default function TasksTab({ currentUser, initialErrorsOnly = false }: Pro
 
   const { system, mine } = useMemo(() => {
     const filtered = errorsOnly
-      ? (tasks ?? []).filter((t) => t.lastStatus === "error")
+      ? (tasks ?? []).filter((task) => task.lastStatus === "error")
       : (tasks ?? []);
     const sys: ScheduledTask[] = [];
     const usr: ScheduledTask[] = [];
-    for (const t of filtered) {
-      if (t.kind === "system") sys.push(t);
-      else usr.push(t);
+    for (const task of filtered) {
+      if (task.kind === "system") sys.push(task);
+      else usr.push(task);
     }
     return { system: sys, mine: usr };
   }, [tasks, errorsOnly]);
 
-  const canEdit = (t: ScheduledTask): boolean => {
-    if (t.kind === "system") return isAdmin;
+  const canEdit = (task: ScheduledTask): boolean => {
+    if (task.kind === "system") return isAdmin;
     if (isAdmin) return true;
-    return t.ownerUserId === currentUser.id;
+    return task.ownerUserId === currentUser.id;
   };
 
-  const handleToggleEnabled = async (t: ScheduledTask) => {
+  const handleToggleEnabled = async (task: ScheduledTask) => {
     try {
-      await patchScheduledTask(t.id, { enabled: !t.enabled });
+      await patchScheduledTask(task.id, { enabled: !task.enabled });
       await refresh();
     } catch (e) {
       alert(e instanceof Error ? e.message : String(e));
     }
   };
 
-  const handleRunNow = async (t: ScheduledTask) => {
+  const handleRunNow = async (task: ScheduledTask) => {
     try {
-      await runScheduledTaskNow(t.id);
+      await runScheduledTaskNow(task.id);
       await refresh();
     } catch (e) {
       alert(e instanceof Error ? e.message : String(e));
     }
   };
 
-  const handleDelete = (t: ScheduledTask) => {
-    setConfirmDelete(t);
+  const handleDelete = (task: ScheduledTask) => {
+    setConfirmDelete(task);
   };
 
-  const doDelete = async (t: ScheduledTask) => {
+  const doDelete = async (task: ScheduledTask) => {
     setConfirmDelete(null);
     try {
-      await deleteScheduledTask(t.id);
+      await deleteScheduledTask(task.id);
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
   };
 
-  const renderRow = (t: ScheduledTask) => (
-    <tr key={t.id}>
-      <td>
-        <div className="task-row__name">{t.name}</div>
-        {t.description && <div className="task-row__desc">{t.description}</div>}
-      </td>
-      <td>
-        <code>{t.handler}</code>
-      </td>
-      <td>
-        <code>{t.cronExpr}</code>
-      </td>
-      <td>
-        <label className="task-toggle">
-          <input
-            type="checkbox"
-            checked={t.enabled}
-            disabled={!canEdit(t)}
-            onChange={() => void handleToggleEnabled(t)}
-          />
-          <span>{t.enabled ? "on" : "off"}</span>
-        </label>
-      </td>
-      <td>
-        <div>{formatTs(t.nextRunAt)}</div>
-        <div className="task-row__muted">last: {formatTs(t.lastRunAt)}</div>
-      </td>
-      <td>
-        <StatusBadge status={t.lastStatus} />
-        {t.lastError && <div className="task-row__error" title={t.lastError}>{t.lastError}</div>}
-      </td>
-      <td className="task-row__actions">
-        {canEdit(t) && (
-          <>
-            <button
-              onClick={() => void handleRunNow(t)}
-              title={t.lastStatus === "error" ? "Retry" : "Run now"}
-            >
-              {t.lastStatus === "error" ? "Retry" : "Run now"}
-            </button>
-            <button onClick={() => setDialog({ kind: "edit", task: t })}>Edit</button>
-            <HistoryButton
-              kind="scheduled_task"
-              entityId={t.id}
-              entityName={t.name}
+  const renderRow = (task: ScheduledTask) => {
+    const runLabel = task.lastStatus === "error"
+      ? t("tab.tasks.retry")
+      : t("tab.tasks.runNow");
+    return (
+      <tr key={task.id}>
+        <td>
+          <div className="task-row__name">{task.name}</div>
+          {task.description && <div className="task-row__desc">{task.description}</div>}
+        </td>
+        <td>
+          <code>{task.handler}</code>
+        </td>
+        <td>
+          <code>{task.cronExpr}</code>
+        </td>
+        <td>
+          <label className="task-toggle">
+            <input
+              type="checkbox"
+              checked={task.enabled}
+              disabled={!canEdit(task)}
+              onChange={() => void handleToggleEnabled(task)}
             />
-            <button onClick={() => void handleDelete(t)} className="task-row__danger">
-              Delete
-            </button>
-          </>
-        )}
-      </td>
-    </tr>
-  );
+            <span>
+              {task.enabled ? t("tab.tasks.toggleOn") : t("tab.tasks.toggleOff")}
+            </span>
+          </label>
+        </td>
+        <td>
+          <div>{formatTs(task.nextRunAt)}</div>
+          <div className="task-row__muted">
+            {t("tab.tasks.lastPrefix", { ts: formatTs(task.lastRunAt) })}
+          </div>
+        </td>
+        <td>
+          <StatusBadge status={task.lastStatus} t={t} />
+          {task.lastError && (
+            <div className="task-row__error" title={task.lastError}>
+              {task.lastError}
+            </div>
+          )}
+        </td>
+        <td className="task-row__actions">
+          {canEdit(task) && (
+            <>
+              <button onClick={() => void handleRunNow(task)} title={runLabel}>
+                {runLabel}
+              </button>
+              <button onClick={() => setDialog({ kind: "edit", task })}>
+                {t("tab.tasks.edit")}
+              </button>
+              <HistoryButton
+                kind="scheduled_task"
+                entityId={task.id}
+                entityName={task.name}
+              />
+              <button
+                onClick={() => void handleDelete(task)}
+                className="task-row__danger"
+              >
+                {t("common.delete")}
+              </button>
+            </>
+          )}
+        </td>
+      </tr>
+    );
+  };
 
   const renderSection = (
     title: string,
@@ -189,12 +221,12 @@ export default function TasksTab({ currentUser, initialErrorsOnly = false }: Pro
         <table className="tasks-table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Handler</th>
-              <th>Cron</th>
-              <th>Enabled</th>
-              <th>Schedule</th>
-              <th>Last</th>
+              <th>{t("tab.tasks.column.name")}</th>
+              <th>{t("tab.tasks.column.handler")}</th>
+              <th>{t("tab.tasks.column.cron")}</th>
+              <th>{t("tab.tasks.column.enabled")}</th>
+              <th>{t("tab.tasks.column.schedule")}</th>
+              <th>{t("tab.tasks.column.last")}</th>
               <th></th>
             </tr>
           </thead>
@@ -207,14 +239,14 @@ export default function TasksTab({ currentUser, initialErrorsOnly = false }: Pro
   return (
     <div className="tasks">
       <PageHeader
-        title="Tasks"
-        description="Periodic background work. System tasks ship with Bunny; you can add your own user tasks."
+        title={t("tab.tasks.title")}
+        description={t("tab.tasks.description")}
         actions={
           <button
             className="btn btn--send"
             onClick={() => setDialog({ kind: "create" })}
           >
-            + New task
+            {t("tab.tasks.newTask")}
           </button>
         }
       />
@@ -228,29 +260,31 @@ export default function TasksTab({ currentUser, initialErrorsOnly = false }: Pro
             checked={errorsOnly}
             onChange={(e) => setErrorsOnly(e.target.checked)}
           />
-          <span>Errors only</span>
+          <span>{t("tab.tasks.errorsOnly")}</span>
         </label>
       </div>
 
       {tasks === null ? (
-        <div className="tasks-empty">Loading…</div>
+        <div className="tasks-empty">{t("tab.tasks.loading")}</div>
       ) : (
         <>
           {renderSection(
-            "System tasks",
+            t("tab.tasks.section.system"),
             isAdmin
-              ? "Built-in. Visible to everyone, editable only by admins."
-              : "Built-in. Visible to everyone; admins can toggle or edit them.",
+              ? t("tab.tasks.section.systemHintAdmin")
+              : t("tab.tasks.section.systemHintUser"),
             system,
-            "No system tasks registered.",
+            t("tab.tasks.section.systemEmpty"),
           )}
           {renderSection(
-            isAdmin ? "User tasks" : "My tasks",
             isAdmin
-              ? "User-created tasks across the install."
-              : "Tasks you created. Other users only see their own.",
+              ? t("tab.tasks.section.userAdmin")
+              : t("tab.tasks.section.userMine"),
+            isAdmin
+              ? t("tab.tasks.section.userHintAdmin")
+              : t("tab.tasks.section.userHintUser"),
             mine,
-            "No user tasks yet — create one to automate a handler on a cron schedule.",
+            t("tab.tasks.section.userEmpty"),
           )}
         </>
       )}
@@ -270,8 +304,10 @@ export default function TasksTab({ currentUser, initialErrorsOnly = false }: Pro
       )}
       <ConfirmDialog
         open={confirmDelete !== null}
-        message={`Delete task '${confirmDelete?.name}'?`}
-        confirmLabel="Delete"
+        message={t("tab.tasks.deleteConfirm", {
+          name: confirmDelete?.name ?? "",
+        })}
+        confirmLabel={t("common.delete")}
         onConfirm={() => void doDelete(confirmDelete!)}
         onCancel={() => setConfirmDelete(null)}
       />
@@ -289,6 +325,7 @@ interface DialogProps {
 }
 
 function TaskDialog({ mode, initial, handlers, isAdmin, onClose, onSaved }: DialogProps) {
+  const { t } = useTranslation();
   const [kind, setKind] = useState<TaskKind>(initial?.kind ?? "user");
   const [handler, setHandler] = useState<string>(initial?.handler ?? handlers[0] ?? "");
   const [name, setName] = useState<string>(initial?.name ?? "");
@@ -313,16 +350,16 @@ function TaskDialog({ mode, initial, handlers, isAdmin, onClose, onSaved }: Dial
       try {
         parsedPayload = JSON.parse(payload);
       } catch {
-        setErr("Payload must be valid JSON (or empty).");
+        setErr(t("tab.tasks.dialog.errInvalidPayload"));
         return;
       }
     }
     if (!name.trim()) {
-      setErr("Name is required.");
+      setErr(t("tab.tasks.dialog.errNameRequired"));
       return;
     }
     if (!cronExpr.trim()) {
-      setErr("Cron expression is required.");
+      setErr(t("tab.tasks.dialog.errCronRequired"));
       return;
     }
     setBusy(true);
@@ -358,25 +395,35 @@ function TaskDialog({ mode, initial, handlers, isAdmin, onClose, onSaved }: Dial
     <div className="modal-backdrop" role="dialog" aria-modal onClick={onClose}>
       <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
         <header className="modal__header">
-          <h2>{mode === "create" ? "New task" : `Edit '${initial?.name}'`}</h2>
-          <button className="modal__close" onClick={onClose} aria-label="Close">
+          <h2>
+            {mode === "create"
+              ? t("tab.tasks.dialog.titleCreate")
+              : t("tab.tasks.dialog.titleEdit", { name: initial?.name ?? "" })}
+          </h2>
+          <button
+            className="modal__close"
+            onClick={onClose}
+            aria-label={t("common.close")}
+          >
             ✕
           </button>
         </header>
         <div className="modal__body">
           <label className="form-row">
-            <span>Kind</span>
+            <span>{t("tab.tasks.dialog.kind")}</span>
             <select
               value={kind}
               disabled={kindLocked}
               onChange={(e) => setKind(e.target.value as TaskKind)}
             >
-              <option value="user">user</option>
-              {isAdmin && <option value="system">system</option>}
+              <option value="user">{t("tab.tasks.dialog.kindUser")}</option>
+              {isAdmin && (
+                <option value="system">{t("tab.tasks.dialog.kindSystem")}</option>
+              )}
             </select>
           </label>
           <label className="form-row">
-            <span>Handler</span>
+            <span>{t("tab.tasks.dialog.handler")}</span>
             <select
               value={handler}
               disabled={handlerLocked}
@@ -390,15 +437,15 @@ function TaskDialog({ mode, initial, handlers, isAdmin, onClose, onSaved }: Dial
             </select>
           </label>
           <label className="form-row">
-            <span>Name</span>
+            <span>{t("tab.tasks.dialog.name")}</span>
             <input value={name} onChange={(e) => setName(e.target.value)} />
           </label>
           <label className="form-row">
-            <span>Description</span>
+            <span>{t("tab.tasks.dialog.description")}</span>
             <input value={description} onChange={(e) => setDescription(e.target.value)} />
           </label>
           <label className="form-row">
-            <span>Cron (minute hour dom month dow)</span>
+            <span>{t("tab.tasks.dialog.cron")}</span>
             <input
               value={cronExpr}
               onChange={(e) => setCronExpr(e.target.value)}
@@ -406,7 +453,7 @@ function TaskDialog({ mode, initial, handlers, isAdmin, onClose, onSaved }: Dial
             />
           </label>
           <label className="form-row form-row--stack">
-            <span>Payload (JSON, optional)</span>
+            <span>{t("tab.tasks.dialog.payload")}</span>
             <textarea
               rows={4}
               value={payload}
@@ -415,15 +462,29 @@ function TaskDialog({ mode, initial, handlers, isAdmin, onClose, onSaved }: Dial
             />
           </label>
           <label className="form-row form-row--inline">
-            <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
-            <span>Enabled</span>
+            <input
+              type="checkbox"
+              checked={enabled}
+              onChange={(e) => setEnabled(e.target.checked)}
+            />
+            <span>{t("tab.tasks.dialog.enabled")}</span>
           </label>
           {err && <div className="project-form__error">{err}</div>}
         </div>
         <div className="project-form__actions">
-          <button type="button" className="btn" onClick={onClose} disabled={busy}>Cancel</button>
-          <button className="btn btn--send" onClick={() => void submit()} disabled={busy}>
-            {busy ? "Saving…" : mode === "create" ? "Create" : "Save"}
+          <button type="button" className="btn" onClick={onClose} disabled={busy}>
+            {t("common.cancel")}
+          </button>
+          <button
+            className="btn btn--send"
+            onClick={() => void submit()}
+            disabled={busy}
+          >
+            {busy
+              ? t("tab.tasks.dialog.saving")
+              : mode === "create"
+                ? t("tab.tasks.dialog.create")
+                : t("tab.tasks.dialog.save")}
           </button>
         </div>
       </div>
