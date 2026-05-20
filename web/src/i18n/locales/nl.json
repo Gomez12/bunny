@@ -63,6 +63,15 @@
       "emptyDescription": "Maak je eerste contact aan of importeer vanuit een .vcf-bestand.",
       "emptySearch": "Geen contacten gevonden voor je zoekopdracht."
     },
+    "board": {
+      "title": "Bord · {{project}}",
+      "addSwimlane": "+ swimlane",
+      "allGroupTab": "Bord",
+      "loading": "Bord laden…",
+      "deleteSwimlaneConfirm": "Swimlane \"{{name}}\" verwijderen? Dit kan niet ongedaan gemaakt worden.",
+      "archiveCardConfirm": "Deze kaart archiveren?",
+      "archive": "Archiveren"
+    },
     "chat": {
       "dropToAttach": "Sleep afbeelding hierheen om bij te voegen",
       "quickChatBadge": "Quick Chat",

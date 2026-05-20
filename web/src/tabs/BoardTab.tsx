@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   DndContext,
   DragOverlay,
@@ -49,6 +50,7 @@ type CardDialogState =
   | { kind: "edit"; card: BoardCardModel };
 
 export default function BoardTab({ project, currentUser, onOpenInChat }: Props) {
+  const { t } = useTranslation();
   const [board, setBoard] = useState<BoardSnapshot | null>(null);
   const [projectMeta, setProjectMeta] = useState<Project | null>(null);
   const [projectAgents, setProjectAgents] = useState<Agent[]>([]);
@@ -340,7 +342,7 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
     return (
       <div className="board">
         {error && <div className="board__error">{error}</div>}
-        {!error && <div className="board__loading">Loading board…</div>}
+        {!error && <div className="board__loading">{t("tab.board.loading")}</div>}
       </div>
     );
   }
@@ -348,11 +350,11 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
   return (
     <div className="board">
       <PageHeader
-        title={<>Board · {project}</>}
+        title={t("tab.board.title", { project })}
         actions={
           canManageLane ? (
             <button className="btn btn--send" onClick={handleAddLane}>
-              + swimlane
+              {t("tab.board.addSwimlane")}
             </button>
           ) : null
         }
@@ -374,7 +376,7 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
                   className={`board__group-tab ${activeGroupTab === null ? "board__group-tab--active" : ""}`}
                   onClick={() => setActiveGroupTab(null)}
                 >
-                  Board
+                  {t("tab.board.allGroupTab")}
                 </button>
                 {groups.map((g) => (
                   <button
@@ -471,15 +473,17 @@ export default function BoardTab({ project, currentUser, onOpenInChat }: Props) 
 
       <ConfirmDialog
         open={confirmDeleteLane !== null}
-        message={`Delete swimlane "${confirmDeleteLane?.name}"? This cannot be undone.`}
-        confirmLabel="Delete"
+        message={t("tab.board.deleteSwimlaneConfirm", {
+          name: confirmDeleteLane?.name ?? "",
+        })}
+        confirmLabel={t("common.delete")}
         onConfirm={() => void confirmDeleteLaneAction()}
         onCancel={() => setConfirmDeleteLane(null)}
       />
       <ConfirmDialog
         open={confirmArchiveCardId !== null}
-        message="Archive this card?"
-        confirmLabel="Archive"
+        message={t("tab.board.archiveCardConfirm")}
+        confirmLabel={t("tab.board.archive")}
         onConfirm={() => void doArchiveCard(confirmArchiveCardId!)}
         onCancel={() => setConfirmArchiveCardId(null)}
       />

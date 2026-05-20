@@ -63,6 +63,15 @@
       "emptyDescription": "Create your first contact or import from a .vcf file.",
       "emptySearch": "No contacts match your search."
     },
+    "board": {
+      "title": "Board · {{project}}",
+      "addSwimlane": "+ swimlane",
+      "allGroupTab": "Board",
+      "loading": "Loading board…",
+      "deleteSwimlaneConfirm": "Delete swimlane \"{{name}}\"? This cannot be undone.",
+      "archiveCardConfirm": "Archive this card?",
+      "archive": "Archive"
+    },
     "chat": {
       "dropToAttach": "Drop image to attach",
       "quickChatBadge": "Quick Chat",
