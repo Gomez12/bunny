@@ -423,12 +423,10 @@ export default function DefinitionDialog(props: Props) {
           />
         )}
 
-        {sourceActive ? <SourceBody /> : <TranslationBody />}
+        {sourceActive ? renderSourceBody() : renderTranslationBody()}
       </div>
 
-      {props.mode === "edit" && initial?.originalLang && (
-        <TranslationsPanelStub />
-      )}
+      {props.mode === "edit" && initial?.originalLang && renderTranslationsPanelStub()}
 
       <Modal.Footer>
         <button className="btn" onClick={handleClose}>
@@ -462,7 +460,12 @@ export default function DefinitionDialog(props: Props) {
   );
 
   // ── Rendered bodies ──────────────────────────────────────────────────────
-  function SourceBody() {
+  // These are plain helpers — NOT React components — because declaring nested
+  // function components causes React to treat each render as a new component
+  // type, unmounting and remounting the whole subtree (and dropping the focused
+  // input on every keystroke). Call them as functions so the JSX stays in the
+  // outer component's tree.
+  function renderSourceBody() {
     return (
       <>
         <div className="kb-dialog__field">
@@ -682,7 +685,7 @@ export default function DefinitionDialog(props: Props) {
     );
   }
 
-  function TranslationBody() {
+  function renderTranslationBody() {
     const t = tr.activeTranslation;
     const pill: PillStatus = t ? translationStatusToPill(t) : "pending";
     const termTr = activeTranslationFields["term"] ?? "";
@@ -779,7 +782,7 @@ export default function DefinitionDialog(props: Props) {
     );
   }
 
-  function TranslationsPanelStub() {
+  function renderTranslationsPanelStub() {
     return null;
   }
 }
