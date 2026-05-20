@@ -62,6 +62,30 @@
       "emptyTitle": "No contacts yet",
       "emptyDescription": "Create your first contact or import from a .vcf file.",
       "emptySearch": "No contacts match your search."
+    },
+    "chat": {
+      "dropToAttach": "Drop image to attach",
+      "quickChatBadge": "Quick Chat",
+      "quickChatAutoHide": "Auto-hides 15 min after the last message.",
+      "forkedFrom": "· forked from {{id}}",
+      "emptyTitle": "How can I help you today?",
+      "emptyDescription": "Project {{project}} · session {{session}}",
+      "attachmentAlt": "attachment {{n}}",
+      "regenerating": "regenerating…",
+      "waitingForModel": "waiting for model…",
+      "errorLabel": "error: {{message}}",
+      "readonlyPrefix": "Viewing all users' sessions (read-only). Switch the sidebar scope back to",
+      "readonlySuffix": "to continue this session.",
+      "scopeMine": "Mine",
+      "quickChatToggleTitle": "Mark this session as a Quick Chat (auto-hides after 15 min of inactivity)",
+      "quickChatLabel": "Quick Chat",
+      "error": {
+        "unsupportedImage": "'{{name}}': only PNG/JPEG/GIF/WEBP images are supported",
+        "imageTooLarge": "'{{name}}' exceeds the {{limit}} MB limit",
+        "uploadFailed": "'{{name}}': {{message}}",
+        "uploadFailedDefault": "upload failed",
+        "cannotReadEntry": "could not read '{{name}}'"
+      }
     }
   }
 }

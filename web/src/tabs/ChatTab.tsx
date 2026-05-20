@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { useTranslation } from "react-i18next";
 import Composer, {
   MAX_IMAGE_BYTES,
   resolveImageMime,
@@ -79,6 +80,7 @@ export default function ChatTab({
   compact = false,
   autoFocusComposer = false,
 }: Props) {
+  const { t } = useTranslation();
   const expandThink = currentUser.expandThinkBubbles;
   const expandTool = currentUser.expandToolBubbles;
   const [history, setHistory] = useState<HistoryTurn[]>([]);
@@ -209,7 +211,9 @@ export default function ChatTab({
           (f) => processDroppedFile(f, composer),
           (err) => {
             console.error("[chat-drop] entry.file rejected", err);
-            composer.reportAttachError(`could not read '${entry.name}'`);
+            composer.reportAttachError(
+              t("tab.chat.error.cannotReadEntry", { name: entry.name }),
+            );
           },
         );
       }
@@ -225,13 +229,16 @@ export default function ChatTab({
     const mime = resolveImageMime(f);
     if (!mime) {
       composer.reportAttachError(
-        `'${f.name}': only PNG/JPEG/GIF/WEBP images are supported`,
+        t("tab.chat.error.unsupportedImage", { name: f.name }),
       );
       return;
     }
     if (f.size > MAX_IMAGE_BYTES) {
       composer.reportAttachError(
-        `'${f.name}' exceeds the ${MAX_IMAGE_BYTES / 1024 / 1024} MB limit`,
+        t("tab.chat.error.imageTooLarge", {
+          name: f.name,
+          limit: MAX_IMAGE_BYTES / 1024 / 1024,
+        }),
       );
       return;
     }
@@ -239,7 +246,13 @@ export default function ChatTab({
       .then((a) => composer.pushAttachment(a))
       .catch((err) =>
         composer.reportAttachError(
-          `'${f.name}': ${err instanceof Error ? err.message : "upload failed"}`,
+          t("tab.chat.error.uploadFailed", {
+            name: f.name,
+            message:
+              err instanceof Error
+                ? err.message
+                : t("tab.chat.error.uploadFailedDefault"),
+          }),
         ),
       );
   };
@@ -507,77 +520,88 @@ export default function ChatTab({
       >
         {isDragOver && (
           <div className="chat__dropzone">
-            <div className="chat__dropzone-inner">Drop image to attach</div>
+            <div className="chat__dropzone-inner">{t("tab.chat.dropToAttach")}</div>
           </div>
         )}
         {activeSessionMeta?.isQuickChat && (
           <div className="chat__quickbanner">
-            <span className="chat__quickbanner-badge">Quick Chat</span>
-            <span>Auto-hides 15 min after the last message.</span>
+            <span className="chat__quickbanner-badge">{t("tab.chat.quickChatBadge")}</span>
+            <span>{t("tab.chat.quickChatAutoHide")}</span>
             {activeSessionMeta.forkedFromSessionId && (
-              <span>· forked from {activeSessionMeta.forkedFromSessionId.slice(0, 8)}</span>
+              <span>
+                {t("tab.chat.forkedFrom", {
+                  id: activeSessionMeta.forkedFromSessionId.slice(0, 8),
+                })}
+              </span>
             )}
           </div>
         )}
         <div className="chat__scroll" ref={scrollRef} onScroll={handleScroll}>
           {isEmpty && (
             <EmptyState
-              title="How can I help you today?"
-              description={`Project ${project} · session ${sessionId.slice(0, 8)}`}
+              title={t("tab.chat.emptyTitle")}
+              description={t("tab.chat.emptyDescription", {
+                project,
+                session: sessionId.slice(0, 8),
+              })}
             />
           )}
-          {history.map((t) => {
-            const versionContent = turnContent.get(t.id) ?? t.content;
-            const isRegenerating = regeneratingTurnId === t.id;
+          {history.map((turn) => {
+            const versionContent = turnContent.get(turn.id) ?? turn.content;
+            const isRegenerating = regeneratingTurnId === turn.id;
             return (
-              <div key={t.id} className="turn">
+              <div key={turn.id} className="turn">
                 <MessageBubble
                   role="user"
-                  authorDisplayName={t.promptDisplayName}
-                  authorUsername={t.promptUsername}
-                  rawContent={t.prompt}
-                  edited={t.promptEdited}
+                  authorDisplayName={turn.promptDisplayName}
+                  authorUsername={turn.promptUsername}
+                  rawContent={turn.prompt}
+                  edited={turn.promptEdited}
                   actions={{
-                    onSave: (c) => handleEditUserPrompt(t, c),
-                    onSaveAndRegenerate: (c) => handleSaveAndRegenerate(t, c),
-                    onFork: (edited) => handleFork(t, t.promptMessageId, edited),
+                    onSave: (c) => handleEditUserPrompt(turn, c),
+                    onSaveAndRegenerate: (c) => handleSaveAndRegenerate(turn, c),
+                    onFork: (edited) => handleFork(turn, turn.promptMessageId, edited),
                   }}
                 >
-                  {t.attachments.length > 0 && (
+                  {turn.attachments.length > 0 && (
                     <div className="bubble__attachments">
-                      {t.attachments.map((a, i) => (
-                        <img key={i} src={a.dataUrl} alt={`attachment ${i + 1}`} />
+                      {turn.attachments.map((a, i) => (
+                        <img
+                          key={i}
+                          src={a.dataUrl}
+                          alt={t("tab.chat.attachmentAlt", { n: i + 1 })}
+                        />
                       ))}
                     </div>
                   )}
-                  {t.prompt}
+                  {turn.prompt}
                 </MessageBubble>
                 <MessageBubble
                   role="assistant"
-                  author={t.author}
+                  author={turn.author}
                   rawContent={versionContent}
-                  edited={t.contentEdited}
-                  regenChain={t.regenChain}
+                  edited={turn.contentEdited}
+                  regenChain={turn.regenChain}
                   selectedIndex={
-                    regenIndex[t.promptMessageId] ?? Math.max(0, t.regenChain.length - 1)
+                    regenIndex[turn.promptMessageId] ?? Math.max(0, turn.regenChain.length - 1)
                   }
                   onSelectIndex={(idx) =>
-                    setRegenIndex((m) => ({ ...m, [t.promptMessageId]: idx }))
+                    setRegenIndex((m) => ({ ...m, [turn.promptMessageId]: idx }))
                   }
                   actions={{
-                    onSave: t.contentMessageId != null
-                      ? (c) => handleEditAssistant(t, c)
+                    onSave: turn.contentMessageId != null
+                      ? (c) => handleEditAssistant(turn, c)
                       : undefined,
-                    onFork: t.contentMessageId != null
-                      ? (edited) => handleFork(t, t.contentMessageId!, edited)
+                    onFork: turn.contentMessageId != null
+                      ? (edited) => handleFork(turn, turn.contentMessageId!, edited)
                       : undefined,
-                    onRegenerate: t.contentMessageId != null
-                      ? () => handleRegenerateAssistant(t)
+                    onRegenerate: turn.contentMessageId != null
+                      ? () => handleRegenerateAssistant(turn)
                       : undefined,
                   }}
                 >
-                  {t.reasoning && <ReasoningBlock text={t.reasoning} defaultOpen={expandThink} />}
-                  {t.toolCalls.map((tc) => (
+                  {turn.reasoning && <ReasoningBlock text={turn.reasoning} defaultOpen={expandThink} />}
+                  {turn.toolCalls.map((tc) => (
                     <ToolCallCard
                       key={tc.id}
                       name={tc.name}
@@ -587,37 +611,41 @@ export default function ChatTab({
                       defaultOpen={expandTool}
                     />
                   ))}
-                  {t.isError
-                    ? <div className="bubble__error">error: {versionContent}</div>
+                  {turn.isError
+                    ? <div className="bubble__error">{t("tab.chat.errorLabel", { message: versionContent })}</div>
                     : versionContent && <MarkdownContent text={versionContent} />}
                   {isRegenerating && (
                     <div className="bubble__pending">
-                      <span className="spinner" /> regenerating…
+                      <span className="spinner" /> {t("tab.chat.regenerating")}
                     </div>
                   )}
-                  <StatsFooter stats={t.stats} />
+                  <StatsFooter stats={turn.stats} />
                 </MessageBubble>
               </div>
             );
           })}
-          {turns.map((t) => (
-            <div key={t.id} className="turn">
+          {turns.map((turn) => (
+            <div key={turn.id} className="turn">
               <MessageBubble
                 role="user"
                 authorDisplayName={currentUser.displayName}
                 authorUsername={currentUser.username}
               >
-                {t.attachments.length > 0 && (
+                {turn.attachments.length > 0 && (
                   <div className="bubble__attachments">
-                    {t.attachments.map((a, i) => (
-                      <img key={i} src={a.dataUrl} alt={`attachment ${i + 1}`} />
+                    {turn.attachments.map((a, i) => (
+                      <img
+                        key={i}
+                        src={a.dataUrl}
+                        alt={t("tab.chat.attachmentAlt", { n: i + 1 })}
+                      />
                     ))}
                   </div>
                 )}
-                {t.prompt}
+                {turn.prompt}
               </MessageBubble>
-              <MessageBubble role="assistant" author={t.author}>
-                {t.items.map((it, i) => {
+              <MessageBubble role="assistant" author={turn.author}>
+                {turn.items.map((it, i) => {
                   switch (it.kind) {
                     case "reasoning":
                       return (
@@ -651,7 +679,7 @@ export default function ChatTab({
                               answer,
                             );
                             markUserQuestionAnswered(
-                              t.id,
+                              turn.id,
                               it.question.questionId,
                               answer,
                             );
@@ -662,19 +690,23 @@ export default function ChatTab({
                       return <MarkdownContent key={`c-${i}`} text={it.text} />;
                   }
                 })}
-                {t.items.length === 0 && !t.done && t.queueState !== "waiting" && (
+                {turn.items.length === 0 && !turn.done && turn.queueState !== "waiting" && (
                   <div className="bubble__pending">
-                    <span className="spinner" /> waiting for model…
+                    <span className="spinner" /> {t("tab.chat.waitingForModel")}
                   </div>
                 )}
-                {!t.done && t.queueState === "waiting" && (
+                {!turn.done && turn.queueState === "waiting" && (
                   <QueueWaitBadge
-                    position={t.queuePosition}
-                    waitedTotalMs={t.queueWaitTotalMs}
+                    position={turn.queuePosition}
+                    waitedTotalMs={turn.queueWaitTotalMs}
                   />
                 )}
-                {t.error && <div className="bubble__error">error: {t.error}</div>}
-                <StatsFooter stats={t.stats} />
+                {turn.error && (
+                  <div className="bubble__error">
+                    {t("tab.chat.errorLabel", { message: turn.error })}
+                  </div>
+                )}
+                <StatsFooter stats={turn.stats} />
               </MessageBubble>
             </div>
           ))}
@@ -682,15 +714,15 @@ export default function ChatTab({
         <div className="chat__composer">
           {adminScope === "all" ? (
             <div className="chat__readonly-note">
-              Viewing all users' sessions (read-only). Switch the sidebar scope back to
+              {t("tab.chat.readonlyPrefix")}{" "}
               <button
                 type="button"
                 className="btn btn--ghost chat__readonly-swap"
                 onClick={() => setAdminScope("mine")}
               >
-                Mine
-              </button>
-              to continue this session.
+                {t("tab.chat.scopeMine")}
+              </button>{" "}
+              {t("tab.chat.readonlySuffix")}
             </div>
           ) : (
             <>
@@ -709,13 +741,13 @@ export default function ChatTab({
                 onChangeActiveAgent={onChangeActiveAgent}
                 autoFocus={autoFocusComposer}
               />
-              <label className="chat__qctoggle" title="Mark this session as a Quick Chat (auto-hides after 15 min of inactivity)">
+              <label className="chat__qctoggle" title={t("tab.chat.quickChatToggleTitle")}>
                 <input
                   type="checkbox"
                   checked={Boolean(activeSessionMeta?.isQuickChat)}
                   onChange={(e) => void handleToggleQuickChat(e.target.checked)}
                 />
-                Quick Chat
+                {t("tab.chat.quickChatLabel")}
               </label>
             </>
           )}

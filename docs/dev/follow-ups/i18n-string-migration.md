@@ -30,7 +30,11 @@ sample land first; the rest is shipped incrementally.
 Migrate one tab per PR (or one component family per PR). Suggested
 order, highest-traffic first:
 
-1. `ChatTab` (composer placeholders, empty state, slash-command labels).
+1. `ChatTab` — done 2026-05-20. Empty-state, Quick Chat banner +
+   toggle, drop-zone, regen/wait labels, error label, admin
+   read-only note. Composer placeholders + slash-command labels live
+   in `Composer.tsx` and remain hardcoded; migrate alongside the
+   composer-family PR.
 2. `BoardTab`, `TasksTab`, `PlanningTab` (card actions, status pills).
 3. `AgentsTab`, `SkillsTab`, `KnowledgeBaseTab` (definition dialogs).
 4. `DiaryTab`, `WhiteboardTab`, `DiagramsTab`, `WorkspaceTab`.

@@ -62,6 +62,30 @@
       "emptyTitle": "Nog geen contacten",
       "emptyDescription": "Maak je eerste contact aan of importeer vanuit een .vcf-bestand.",
       "emptySearch": "Geen contacten gevonden voor je zoekopdracht."
+    },
+    "chat": {
+      "dropToAttach": "Sleep afbeelding hierheen om bij te voegen",
+      "quickChatBadge": "Quick Chat",
+      "quickChatAutoHide": "Verdwijnt automatisch 15 min na het laatste bericht.",
+      "forkedFrom": "· geforkt van {{id}}",
+      "emptyTitle": "Waarmee kan ik je vandaag helpen?",
+      "emptyDescription": "Project {{project}} · sessie {{session}}",
+      "attachmentAlt": "bijlage {{n}}",
+      "regenerating": "opnieuw genereren…",
+      "waitingForModel": "wachten op model…",
+      "errorLabel": "fout: {{message}}",
+      "readonlyPrefix": "Alle sessies bekijken (alleen-lezen). Zet de zijbalk-scope terug op",
+      "readonlySuffix": "om deze sessie voort te zetten.",
+      "scopeMine": "Mijn",
+      "quickChatToggleTitle": "Markeer deze sessie als Quick Chat (verdwijnt automatisch na 15 min inactiviteit)",
+      "quickChatLabel": "Quick Chat",
+      "error": {
+        "unsupportedImage": "'{{name}}': alleen PNG/JPEG/GIF/WEBP-afbeeldingen worden ondersteund",
+        "imageTooLarge": "'{{name}}' overschrijdt de limiet van {{limit}} MB",
+        "uploadFailed": "'{{name}}': {{message}}",
+        "uploadFailedDefault": "uploaden mislukt",
+        "cannotReadEntry": "kon '{{name}}' niet lezen"
+      }
     }
   }
 }
