@@ -1,0 +1,67 @@
+{
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "close": "Close",
+    "delete": "Delete"
+  },
+  "nav": {
+    "groups": {
+      "overview": "Overview",
+      "work": "Work",
+      "content": "Content",
+      "configure": "Configure"
+    },
+    "items": {
+      "dashboard": "Dashboard",
+      "chat": "Chat",
+      "board": "Board",
+      "planning": "Planning",
+      "workflows": "Workflows",
+      "diary": "Diary",
+      "documents": "Documents",
+      "whiteboard": "Whiteboard",
+      "diagrams": "Diagrams",
+      "files": "Files",
+      "code": "Code",
+      "contacts": "Contacts",
+      "businesses": "Businesses",
+      "knowledgeBase": "Knowledge Base",
+      "news": "News",
+      "tasks": "Tasks"
+    },
+    "project": {
+      "label": "Project",
+      "switchTitle": "Switch project"
+    },
+    "theme": {
+      "lightLabel": "Light mode",
+      "darkLabel": "Dark mode",
+      "switchToLight": "Switch to light mode",
+      "switchToDark": "Switch to dark mode"
+    },
+    "logout": "Logout",
+    "a11y": {
+      "openMenu": "Open navigation",
+      "closeMenu": "Close navigation",
+      "openSettings": "Open settings",
+      "newChatWithAgent": "New chat with…"
+    }
+  },
+  "tab": {
+    "projects": {
+      "title": "Projects",
+      "description": "Each project has its own on-disk directory and system prompt.",
+      "deleteConfirm": "Delete project '{{name}}'? Messages will remain but the project metadata is removed."
+    },
+    "trash": {
+      "emptyTitle": "The bin is empty",
+      "emptyDescription": "Items you delete from any tab land here. Anything older than 30 days is purged automatically."
+    },
+    "contacts": {
+      "emptyTitle": "No contacts yet",
+      "emptyDescription": "Create your first contact or import from a .vcf file.",
+      "emptySearch": "No contacts match your search."
+    }
+  }
+}

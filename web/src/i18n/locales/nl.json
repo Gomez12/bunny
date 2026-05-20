@@ -1,0 +1,67 @@
+{
+  "common": {
+    "ok": "OK",
+    "cancel": "Annuleren",
+    "close": "Sluiten",
+    "delete": "Verwijderen"
+  },
+  "nav": {
+    "groups": {
+      "overview": "Overzicht",
+      "work": "Werk",
+      "content": "Inhoud",
+      "configure": "Configuratie"
+    },
+    "items": {
+      "dashboard": "Dashboard",
+      "chat": "Chat",
+      "board": "Bord",
+      "planning": "Planning",
+      "workflows": "Workflows",
+      "diary": "Dagboek",
+      "documents": "Documenten",
+      "whiteboard": "Whiteboard",
+      "diagrams": "Diagrammen",
+      "files": "Bestanden",
+      "code": "Code",
+      "contacts": "Contacten",
+      "businesses": "Bedrijven",
+      "knowledgeBase": "Kennisbank",
+      "news": "Nieuws",
+      "tasks": "Taken"
+    },
+    "project": {
+      "label": "Project",
+      "switchTitle": "Project wisselen"
+    },
+    "theme": {
+      "lightLabel": "Lichte modus",
+      "darkLabel": "Donkere modus",
+      "switchToLight": "Wissel naar lichte modus",
+      "switchToDark": "Wissel naar donkere modus"
+    },
+    "logout": "Uitloggen",
+    "a11y": {
+      "openMenu": "Navigatie openen",
+      "closeMenu": "Navigatie sluiten",
+      "openSettings": "Instellingen openen",
+      "newChatWithAgent": "Nieuwe chat met…"
+    }
+  },
+  "tab": {
+    "projects": {
+      "title": "Projecten",
+      "description": "Elk project heeft een eigen map op schijf en een eigen systeemprompt.",
+      "deleteConfirm": "Project '{{name}}' verwijderen? Berichten blijven bewaard, maar de projectmetadata wordt verwijderd."
+    },
+    "trash": {
+      "emptyTitle": "De prullenbak is leeg",
+      "emptyDescription": "Items die je in een tab verwijdert, komen hier terecht. Alles ouder dan 30 dagen wordt automatisch opgeruimd."
+    },
+    "contacts": {
+      "emptyTitle": "Nog geen contacten",
+      "emptyDescription": "Maak je eerste contact aan of importeer vanuit een .vcf-bestand.",
+      "emptySearch": "Geen contacten gevonden voor je zoekopdracht."
+    }
+  }
+}
