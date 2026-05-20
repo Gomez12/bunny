@@ -165,7 +165,5 @@ binding.
 
 ## Related
 
-- ADR 0017 — Tauri v2 desktop client (parallel implementation, no tray
-  beyond the main window).
 - ADR 0042 — Electron client baseline.
 - ADR 0023 — Quick Chat session flag and auto-hide behaviour.

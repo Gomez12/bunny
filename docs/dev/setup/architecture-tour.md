@@ -89,7 +89,7 @@ web/src/
 ### Top-level extras
 
 ```
-client/                  # Tauri wrapper (Rust + minimal HTML setup page)
+electron/                # Electron desktop wrapper (main.js, preload.js, setup UI)
 docs/                    # this doc corpus (dev/, adr/, styleguide.md, tools.md, http-api.md)
 scripts/build.ts         # compile standalone binary via bun build --compile
 tests/                   # mirrors src/ layout

@@ -60,7 +60,7 @@ The visual language (tokens, components, icon system, rabbit mascot) is document
 
 ## Desktop Client
 
-A Tauri v2 desktop app (`client/`) wraps the web UI in a native window. It connects to a running Bunny server — no embedded server logic. On first launch a setup page asks for the server URL; after saving, subsequent launches navigate directly. Build with `bun run client:build` (requires Rust toolchain). See [ADR 0017](./dev/decisions/0017-tauri-client.md).
+An Electron desktop app (`electron/`) wraps the web UI in a native window. It connects to a running Bunny server — no embedded server logic. On first launch a setup page asks for the server URL; after saving, subsequent launches navigate directly. Build with `bun run electron:build`. See [ADR 0042](./dev/decisions/0042-electron-client.md). The previous Tauri-based client (ADR 0017) was superseded on 2026-05-20.
 
 ## See also
 
@@ -80,7 +80,7 @@ A Tauri v2 desktop app (`client/`) wraps the web UI in a native window. It conne
 - [ADR 0014 — Dashboard](./dev/decisions/0014-dashboard.md)
 - [ADR 0015 — Whiteboards](./dev/decisions/0015-whiteboards.md)
 - [ADR 0016 — Documents](./dev/decisions/0016-documents.md)
-- [ADR 0017 — Tauri desktop client](./dev/decisions/0017-tauri-client.md)
+- [ADR 0017 — Tauri desktop client (superseded by ADR 0042)](./dev/decisions/0017-tauri-client.md)
 - [ADR 0018 — Web tools](./dev/decisions/0018-web-tools.md)
 - [ADR 0019 — Contacts](./dev/decisions/0019-contacts.md)
 - [ADR 0020 — UI redesign & styleguide](./dev/decisions/0020-ui-redesign-and-styleguide.md)

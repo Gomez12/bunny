@@ -87,9 +87,9 @@ See `src/agent/sse_events.ts` for the exact shape.
 
 ## OS toasts
 
-`web/src/lib/osToast.ts` feature-detects `window.__TAURI__` and routes to `@tauri-apps/plugin-notification` on desktop or `window.Notification` in the browser. Permission is requested from the first bell-click (user-gesture requirement). Toasts are suppressed when the user is already viewing the target session.
+`web/src/lib/osToast.ts` calls `window.Notification`, available identically in browsers and the Electron desktop client. Permission is requested from the first bell-click (user-gesture requirement). Toasts are suppressed when the user is already viewing the target session.
 
-Tauri registration: `client/src-tauri/Cargo.toml` includes `tauri-plugin-notification`, registered in `lib.rs` with `notification:default` in the capabilities manifest.
+Electron grants `notifications` automatically via `session.setPermissionRequestHandler` in `electron/main.js` (see ADR 0042).
 
 ## Key invariants
 

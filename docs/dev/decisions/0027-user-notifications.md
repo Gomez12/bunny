@@ -18,8 +18,8 @@ even though v1 only wires up the mention path.
 Introduce a per-user (cross-project) `notifications` subsystem: a single
 table, a small HTTP surface, an in-memory per-user SSE fanout, a mention
 scanner that runs as a fire-and-forget hook on user chat turns, and a web UI
-bell + panel + in-app toast + OS-level toast (web `Notification` API in the
-browser, `tauri-plugin-notification` in the Tauri desktop client).
+bell + panel + in-app toast + OS-level toast (web `Notification` API in both
+the browser and the Electron desktop client).
 
 ### Schema (append-only)
 
@@ -160,20 +160,18 @@ before `handleScheduledTaskRoute`.
 - `ToastStack` is a top-right fixed stack, auto-dismiss 5 s, hover-pause,
   CSS tokens per `docs/dev/styleguide/README.md`. New `notification_created` events
   push a toast unless the panel is open.
-- `osToast.show({ title, body, onClick })` feature-detects `window.__TAURI__`
-  and routes to `@tauri-apps/plugin-notification` on desktop or
-  `window.Notification` in the browser. Silent no-op when permission is
-  denied.
+- `osToast.show({ title, body, onClick })` calls `window.Notification`
+  (available identically in browsers and the Electron desktop client).
+  Silent no-op when permission is denied.
 - Deep-link: `App.tsx` parses `?tab=chat&project=…&session=…#m<id>` on boot
   to jump into the right tab and scroll target.
 
-### Tauri
+### Desktop client
 
-`tauri-plugin-notification = "2"` in `client/src-tauri/Cargo.toml`,
-registered in `lib.rs`, with `notification:default` added to the
-capabilities manifest. `@tauri-apps/plugin-notification` is added to
-`client/package.json` for typed JS helpers — `withGlobalTauri` covers the
-core API only, not plugins.
+Both browsers and Electron expose `window.Notification` natively; the
+Electron main process additionally calls
+`session.setPermissionRequestHandler` to auto-grant `notifications` (see
+ADR 0042). No plugin or Rust crate is required.
 
 ## Out of scope (v1)
 

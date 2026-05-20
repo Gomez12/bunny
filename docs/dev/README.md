@@ -12,7 +12,7 @@ When two of these disagree, trust the code; then fix whichever doc was wrong.
 
 If you're brand new:
 
-1. [`getting-started/setup.md`](./setup/setup.md) — run the CLI, the web server, the Tauri client.
+1. [`getting-started/setup.md`](./setup/setup.md) — run the CLI, the web server, the Electron client.
 2. [`getting-started/architecture-tour.md`](./setup/architecture-tour.md) — the three design principles, one-turn data flow, top-level code map.
 3. [`getting-started/first-change.md`](./setup/first-change.md) — guided walkthrough: queue log → column → route → test.
 4. [`getting-started/conventions.md`](./setup/conventions.md) — the non-negotiables (English-only, append-only schema, queue-log mandate, pre-commit checklist).

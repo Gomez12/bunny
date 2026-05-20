@@ -6,8 +6,8 @@
  * 1. **No replay buffer.** User streams are long-lived (hours or days); a
  *    growing per-user buffer would leak memory for no win — late subscribers
  *    (new tabs, reconnects) just call `GET /api/notifications` for history.
- * 2. **Keepalive pings.** Corporate proxies, the Tauri webview and some
- *    browser middle boxes close idle SSE connections silently. A 25 s
+ * 2. **Keepalive pings.** Corporate proxies and some browser middle boxes
+ *    close idle SSE connections silently. A 25 s
  *    comment-line ping keeps the connection warm. The existing
  *    `openSseStream` frame parser on the web side already ignores non-`data:`
  *    lines, so no frontend change is required.

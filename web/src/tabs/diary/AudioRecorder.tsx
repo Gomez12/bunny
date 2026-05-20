@@ -215,7 +215,7 @@ export default function AudioRecorder({ entryId, onDone, onError }: Props) {
 
   if (state === "done") return null;
 
-  // Tauri / non-secure context: getUserMedia not available
+  // Non-secure context: getUserMedia not available
   if (!mediaAvailable) {
     return (
       <div className="audio-recorder__unavailable">

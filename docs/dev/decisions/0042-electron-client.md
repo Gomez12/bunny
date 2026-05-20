@@ -1,7 +1,7 @@
 # ADR 0042 — Electron Desktop Client
 
 **Status:** Accepted
-**Date:** 2026-05-08
+**Date:** 2026-05-08 (Tauri client retired 2026-05-20)
 
 ## Context
 
@@ -23,8 +23,8 @@ provides identical functionality to the Tauri client (server URL setup,
 navigation interception, system notifications, reset connection) and additionally
 grants microphone access on HTTP server connections.
 
-The Tauri client is retained in parallel. Once the Electron client is proven
-stable in production, the Tauri client can be removed.
+The Tauri client was initially retained in parallel and has since been
+removed (2026-05-20). The Electron client is now the only desktop wrapper.
 
 ## Implementation
 
@@ -91,20 +91,18 @@ mixed-content media requests.
   to prevent a second `BrowserWindow` from opening; off-origin URLs are
   forwarded to `shell.openExternal()`.
 
-Both layers are required for parity with the Tauri client's `on_navigation`
-handler + JavaScript initialisation script pair.
+Both layers are required to keep navigation inside the saved server origin
+and forward everything else to the system browser.
 
-**8. Setup UI by copy, not symlink**
+**8. Self-contained setup UI**
 
-`index.html` and `style.css` are copied verbatim from `client/ui/`. `setup.js`
-is a parallel implementation using `window.electronAPI` instead of
-`window.__TAURI__`. Symlinks are unreliable on Windows in git repositories.
+`electron/ui/{index.html,style.css,setup.js}` host the first-launch setup
+form. `setup.js` uses `window.electronAPI` exposed by the preload script.
 
 **9. `--no-electron-client` build flag**
 
-`scripts/build.ts` gains a `buildElectronClient()` step and a
-`--no-electron-client` CLI flag. The existing `--no-client` flag continues to
-skip only the Tauri build.
+`scripts/build.ts` exposes `buildElectronClient()` and a
+`--no-electron-client` CLI flag to skip the Electron build.
 
 ## Structure
 
@@ -114,9 +112,9 @@ electron/
   main.js               # main process: IPC, permission handler, window, menu
   preload.js            # contextBridge: exposes window.electronAPI
   ui/
-    index.html          # setup form (copy of client/ui/index.html)
-    style.css           # styles (copy of client/ui/style.css)
-    setup.js            # adapted setup logic (window.electronAPI)
+    index.html          # setup form
+    style.css           # styles
+    setup.js            # setup logic (window.electronAPI)
   icons/
     icon.png / .icns / .ico
 ```
@@ -124,14 +122,15 @@ electron/
 ## Consequences
 
 - Microphone access works on plain HTTP server connections.
-- Electron bundles Chromium (~100–200 MB) vs Tauri's native-webview approach
-  (~4–8 MB). Users who do not need microphone may prefer the Tauri client.
+- Electron bundles Chromium (~100–200 MB). The smaller-footprint Tauri client
+  was retired with this ADR because the secure-context gap on HTTP origins
+  made it unusable for the diary subsystem.
 - Each platform requires a native build host. CI needs separate macOS, Windows,
   and Linux runners for the Electron build.
 - Changing the server URL triggers an app relaunch (~1 s latency). Acceptable
   for an infrequent operation.
-- Root `package.json` gains `electron:dev` and `electron:build` scripts.
-- `scripts/build.ts` gains `buildElectronClient()` and `--no-electron-client`.
+- Root `package.json` exposes `electron:dev` and `electron:build` scripts.
+- `scripts/build.ts` exposes `buildElectronClient()` and `--no-electron-client`.
 
 ## Alternatives Rejected
 
@@ -145,8 +144,9 @@ globally, which can break CORS-aware API responses. The
 
 **Upgrading the Tauri client.** Tauri 2.x WKWebView and WebView2 honour the
 browser secure-context rules and provide no equivalent per-origin bypass flag.
+This was the immediate driver for replacing the Tauri client outright.
 
 ## Related
 
-- ADR 0017 — Tauri v2 Desktop Client
+- ADR 0017 — Tauri v2 Desktop Client (superseded)
 - ADR 0041 — Diary subsystem (the subsystem requiring microphone access)

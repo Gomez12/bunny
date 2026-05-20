@@ -107,7 +107,7 @@ Whiteboards and Documents store a thumbnail data URL alongside the payload. Side
 ## 10. Feature detection
 
 - `Contact Picker API` is only on Android Chrome — feature-detect with `'contacts' in navigator`.
-- OS notifications check `window.__TAURI__` first, then `window.Notification`.
+- OS notifications use `window.Notification`, which is available identically in browsers and the Electron client.
 - Markdown rendering degrades gracefully if mermaid fails to load.
 
 ## Related

@@ -57,14 +57,14 @@ cd web && bun run dev        # Vite dev server on :5173 (proxies /api → :3000)
 
 Open http://localhost:5173. First login uses the seeded admin (`admin` / `BUNNY_DEFAULT_ADMIN_PASSWORD`, default `admin`). You'll be forced to change the password on first login — see `concepts/auth.md`.
 
-### Tauri desktop client
+### Electron desktop client
 
 ```sh
-bun run client:dev           # dev mode, opens a native window
-bun run client:build         # platform-specific installer
+bun run electron:dev         # dev mode, opens a native window
+bun run electron:build       # platform-specific installer / portable bundle
 ```
 
-The client does *not* embed the server — it wraps the web UI in a native window and connects to a running Bunny instance. On first launch it asks for the server URL. See [ADR 0017](../decisions/0017-tauri-client.md).
+The client does *not* embed the server — it wraps the web UI in a native window and connects to a running Bunny instance. On first launch it asks for the server URL. See [ADR 0042](../decisions/0042-electron-client.md). The earlier Tauri client (ADR 0017) was removed on 2026-05-20.
 
 ## Scripts cheat-sheet
 
@@ -80,10 +80,10 @@ bun run check                          # typecheck + test
 bun run docs                           # TypeDoc → docs/api/
 
 bun run web:build                      # build web/dist/ (Bun serves it on :3000 in prod)
-bun run build                          # compile standalone binary (all platforms + Tauri)
+bun run build                          # compile standalone binary (all platforms + Electron client)
 bun run build:platform darwin-arm64    # single-platform build
 bun run build -- --no-web              # reuse existing web/dist/
-bun run build -- --no-client           # skip Tauri
+bun run build -- --no-electron-client  # skip the Electron desktop build
 bun run build -- --list                # list build targets
 ```
 

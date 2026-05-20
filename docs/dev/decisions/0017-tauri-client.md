@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR 0042 — Electron Desktop Client](./0042-electron-client.md) (2026-05-20). The `client/` directory and the `client:dev` / `client:build` scripts have been removed; the Electron client (`electron/`) is now the only desktop wrapper.
 
 ## Context
 
