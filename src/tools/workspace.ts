@@ -13,7 +13,7 @@
 
 import type { ToolDescriptor } from "./registry.ts";
 import { toolOk, toolErr, getString } from "./registry.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import {
   listWorkspace,
   readWorkspaceFile,
@@ -64,7 +64,7 @@ function listTool(ctx: WorkspaceToolContext): ToolDescriptor {
         );
         return toolOk({ path: getString(args, "path") ?? "", entries });
       } catch (e) {
-        return toolErr(errorMessage(e));
+        return toolErr(errorDetails(e));
       }
     },
   };
@@ -98,7 +98,7 @@ function readTool(ctx: WorkspaceToolContext): ToolDescriptor {
       try {
         return toolOk(readWorkspaceFile(ctx.project, path, enc, cap));
       } catch (e) {
-        return toolErr(errorMessage(e));
+        return toolErr(errorDetails(e));
       }
     },
   };
@@ -139,7 +139,7 @@ function writeTool(ctx: WorkspaceToolContext): ToolDescriptor {
       try {
         return toolOk(writeWorkspaceFile(ctx.project, path, content, enc));
       } catch (e) {
-        return toolErr(errorMessage(e));
+        return toolErr(errorDetails(e));
       }
     },
   };

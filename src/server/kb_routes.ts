@@ -11,7 +11,7 @@ import type { Database } from "bun:sqlite";
 import type { User } from "../auth/users.ts";
 import type { BunnyConfig } from "../config.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails, errorMessage } from "../util/error.ts";
 import { extractLlmJsonCandidates } from "../util/llm_json.ts";
 import { json, readJson } from "./http.ts";
 import { canSeeProject } from "./routes.ts";
@@ -494,13 +494,12 @@ async function handleGenerate(
         }
       } catch (e) {
         // Guarantee the row never stays 'generating' on a thrown path.
-        const msg = errorMessage(e);
         try {
-          setLlmError(ctx.db, id, msg);
+          setLlmError(ctx.db, id, errorDetails(e));
         } catch {
           // swallow — DB may already be closed during test teardown
         }
-        renderer.onError(msg);
+        renderer.onError(errorMessage(e));
       } finally {
         finishSse(sink);
       }
@@ -685,13 +684,12 @@ async function handleGenerateIllustration(
           });
         }
       } catch (e) {
-        const msg = errorMessage(e);
         try {
-          setSvgError(ctx.db, id, msg);
+          setSvgError(ctx.db, id, errorDetails(e));
         } catch {
           // swallow — DB may already be closed during test teardown
         }
-        renderer.onError(msg);
+        renderer.onError(errorMessage(e));
       } finally {
         finishSse(sink);
       }

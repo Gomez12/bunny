@@ -20,7 +20,7 @@ import type { BunnyQueue } from "../queue/bunqueue.ts";
 import type { User } from "../auth/users.ts";
 import { json } from "./http.ts";
 import { requireProjectAccess } from "./route_helpers.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails, errorMessage } from "../util/error.ts";
 import {
   createDiaryEntry,
   deleteDiaryEntry,
@@ -305,8 +305,12 @@ export async function handleDiaryRoute(
       return json({ error: "no audio uploaded yet" }, 400);
     }
 
-    const { whisperCppPath, whisperModelPath, whisperLanguage, whisperTimeoutMs } =
-      ctx.cfg.diary;
+    const {
+      whisperCppPath,
+      whisperModelPath,
+      whisperLanguage,
+      whisperTimeoutMs,
+    } = ctx.cfg.diary;
 
     if (!whisperCppPath) {
       return json(
@@ -500,7 +504,7 @@ export async function handleDiaryRoute(
                 data: {
                   id,
                   project: entry.project,
-                  error: errorMessage(corrErr),
+                  error: errorDetails(corrErr),
                 },
               });
             }

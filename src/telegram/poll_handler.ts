@@ -28,7 +28,7 @@ import { sweepSeenUpdates } from "../memory/telegram_seen.ts";
 import { registry as toolsRegistry } from "../tools/index.ts";
 import { getUpdates, TelegramApiError } from "./client.ts";
 import { handleTelegramUpdate } from "./handle_update.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import { tokenTail } from "./util.ts";
 
 export const TELEGRAM_POLL_HANDLER = "telegram.poll";
@@ -79,7 +79,7 @@ export async function telegramPollHandler(
               tokenTail: tokenTail(tgCfg.botToken),
               tgErr,
             },
-            error: errorMessage(err),
+            error: errorDetails(err),
           });
           return;
         }
@@ -111,7 +111,7 @@ export async function telegramPollHandler(
                 project: tgCfg.project,
                 updateId: update.update_id,
               },
-              error: errorMessage(err),
+              error: errorDetails(err),
             });
           }
         }

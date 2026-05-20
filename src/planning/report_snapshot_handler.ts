@@ -12,17 +12,14 @@ import type {
   HandlerRegistry,
   TaskHandlerContext,
 } from "../scheduler/handlers.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import {
   buildHeadline,
   buildReportPayload,
   renderReportMarkdown,
   type ReportPayload,
 } from "./report.ts";
-import {
-  createReport,
-  getLatestReport,
-} from "../memory/planning_reports.ts";
+import { createReport, getLatestReport } from "../memory/planning_reports.ts";
 
 export const PLANNING_REPORT_SNAPSHOT_HANDLER = "planning.report_snapshot";
 
@@ -120,7 +117,7 @@ export async function planningReportSnapshotHandler(
         topic: "planning",
         kind: "report.snapshot.error",
         data: { planningProjectId: id },
-        error: errorMessage(e),
+        error: errorDetails(e),
       });
     }
   }

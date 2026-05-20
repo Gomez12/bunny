@@ -34,7 +34,12 @@ import type { Database } from "bun:sqlite";
 import type { BunnyConfig } from "../config.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
 import type { User } from "../auth/users.ts";
-import { errorMessage } from "../util/error.ts";
+import {
+  errorDetails,
+  errorMessage,
+  errorStatus,
+  logUnexpectedError,
+} from "../util/error.ts";
 import { json, readJson } from "./http.ts";
 import { canSeeProject, canEditProject } from "./route_helpers.ts";
 import { getProject } from "../memory/projects.ts";
@@ -120,7 +125,10 @@ export function resolveRuntime(
     case "bash":
       return { exe: "bash", extraArgs: [] };
     case "powershell":
-      return { exe: cfg.scripts.powershellPath || "pwsh", extraArgs: ["-File"] };
+      return {
+        exe: cfg.scripts.powershellPath || "pwsh",
+        extraArgs: ["-File"],
+      };
     case "go":
       return { exe: cfg.scripts.goPath || "go", extraArgs: ["run"] };
     case "sql":
@@ -167,7 +175,8 @@ export async function handleScriptRoute(
   // ── /api/scripts/:id/promote ──────────────────────────────────────────────
   const promoteMatch = pathname.match(/^\/api\/scripts\/(\d+)\/promote$/);
   if (promoteMatch) {
-    if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
+    if (req.method !== "POST")
+      return json({ error: "method not allowed" }, 405);
     return handlePromote(ctx, user, Number(promoteMatch[1]));
   }
 
@@ -197,7 +206,8 @@ export async function handleScriptRoute(
     /^\/api\/scripts\/(\d+)\/versions\/(\d+)\/restore$/,
   );
   if (restoreVersionMatch) {
-    if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
+    if (req.method !== "POST")
+      return json({ error: "method not allowed" }, 405);
     return handleRestoreVersion(
       ctx,
       user,
@@ -209,21 +219,24 @@ export async function handleScriptRoute(
   // ── /api/scripts/:id/run ─────────────────────────────────────────────────
   const runMatch = pathname.match(/^\/api\/scripts\/(\d+)\/run$/);
   if (runMatch) {
-    if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
+    if (req.method !== "POST")
+      return json({ error: "method not allowed" }, 405);
     return handleRun(ctx, user, Number(runMatch[1]));
   }
 
   // ── /api/scripts/:id/chat ─────────────────────────────────────────────────
   const chatMatch = pathname.match(/^\/api\/scripts\/(\d+)\/chat$/);
   if (chatMatch) {
-    if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
+    if (req.method !== "POST")
+      return json({ error: "method not allowed" }, 405);
     return handleChat(req, ctx, user, Number(chatMatch[1]));
   }
 
   // ── /api/scripts/:id/sync ─────────────────────────────────────────────────
   const syncMatch = pathname.match(/^\/api\/scripts\/(\d+)\/sync$/);
   if (syncMatch) {
-    if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
+    if (req.method !== "POST")
+      return json({ error: "method not allowed" }, 405);
     return handleSync(ctx, user, Number(syncMatch[1]));
   }
 
@@ -292,7 +305,16 @@ async function handleCreate(
     recordVersion(ctx.db, "script", script.id, "save", user.id);
 
     // Write to disk
-    writeDisk(cp.project, cp.name, script.name, script.language, script.isTemp, script.content, ctx.db, script.id);
+    writeDisk(
+      cp.project,
+      cp.name,
+      script.name,
+      script.language,
+      script.isTemp,
+      script.content,
+      ctx.db,
+      script.id,
+    );
 
     void ctx.queue.log({
       topic: "scripts",
@@ -303,11 +325,11 @@ async function handleCreate(
 
     return json({ script }, 201);
   } catch (e) {
-    const msg = errorMessage(e);
-    if (msg.includes("UNIQUE constraint")) {
+    if (errorDetails(e).includes("UNIQUE constraint")) {
       return json({ error: "name_conflict" }, 409);
     }
-    return json({ error: msg }, 400);
+    logUnexpectedError(ctx.queue, e, "POST /api/scripts");
+    return json({ error: errorMessage(e) }, errorStatus(e, 400));
   }
 }
 
@@ -338,7 +360,11 @@ async function handleGet(
 
   if (diskState && diskState.diskDiffers) {
     return json({
-      script: { ...script, diskContent: diskState.diskContent, diskDiffers: true },
+      script: {
+        ...script,
+        diskContent: diskState.diskContent,
+        diskDiffers: true,
+      },
     });
   }
 
@@ -385,15 +411,11 @@ async function handlePatch(
 
     // Prune versions if a new one was created
     if (createVersion && patch.content !== undefined) {
-      pruneScriptVersions(
-        ctx.db,
-        id,
-        ctx.cfg.scripts.maxVersionsPerScript,
-      );
+      pruneScriptVersions(ctx.db, id, ctx.cfg.scripts.maxVersionsPerScript);
     }
 
     // Write to disk (handle potential name/language change)
-      const wsRoot = workspaceDir(script.project);
+    const wsRoot = workspaceDir(script.project);
 
     // If name or language changed, remove the old disk file
     if (
@@ -401,7 +423,12 @@ async function handlePatch(
       (patch.language && patch.language !== script.language) ||
       (patch.isTemp !== undefined && patch.isTemp !== script.isTemp)
     ) {
-      const oldRel = scriptRelPath(cp.name, script.name, script.language, script.isTemp);
+      const oldRel = scriptRelPath(
+        cp.name,
+        script.name,
+        script.language,
+        script.isTemp,
+      );
       const oldAbs = join(wsRoot, oldRel);
       if (existsSync(oldAbs)) unlinkSync(oldAbs);
     }
@@ -426,9 +453,10 @@ async function handlePatch(
 
     return json({ script: updated });
   } catch (e) {
-    const msg = errorMessage(e);
-    if (msg.includes("UNIQUE constraint")) return json({ error: "name_conflict" }, 409);
-    return json({ error: msg }, 400);
+    if (errorDetails(e).includes("UNIQUE constraint"))
+      return json({ error: "name_conflict" }, 409);
+    logUnexpectedError(ctx.queue, e, "PATCH /api/scripts/:id");
+    return json({ error: errorMessage(e) }, errorStatus(e, 400));
   }
 }
 
@@ -449,7 +477,7 @@ async function handleDelete(
   if (cp) {
     // Rename disk file to __trash: prefix before DB soft-delete
     const wsRoot = workspaceDir(script.project);
-      const relPath = scriptRelPath(
+    const relPath = scriptRelPath(
       cp.name,
       script.name,
       script.language,
@@ -667,10 +695,11 @@ async function handleRun(
 
   // Load secrets and resolve {{secret:NAME}} tags before writing the temp file.
   const secrets = listSecrets(ctx.db, cp.id);
-  const { content: resolvedContent, unknownTags, usedSecretIds } = substituteSecrets(
-    script.content,
-    secrets,
-  );
+  const {
+    content: resolvedContent,
+    unknownTags,
+    usedSecretIds,
+  } = substituteSecrets(script.content, secrets);
   if (unknownTags.length > 0) {
     return json(
       {
@@ -719,15 +748,12 @@ async function handleRun(
       }, ctx.cfg.scripts.execTimeoutMs);
 
       try {
-        proc = Bun.spawn(
-          [runtime.exe, ...runtime.extraArgs, tmpAbs],
-          {
-            cwd: codeProjectDir,
-            env: { ...process.env, ...secretEnv },
-            stdout: "pipe",
-            stderr: "pipe",
-          },
-        );
+        proc = Bun.spawn([runtime.exe, ...runtime.extraArgs, tmpAbs], {
+          cwd: codeProjectDir,
+          env: { ...process.env, ...secretEnv },
+          stdout: "pipe",
+          stderr: "pipe",
+        });
 
         let outputBytes = 0;
         const limit = ctx.cfg.scripts.maxOutputBytes;
@@ -916,7 +942,10 @@ async function handleSync(
     const updated = updateScript(
       ctx.db,
       id,
-      { content: diskState.diskContent, fileHash: sha256Hex(diskState.diskContent) },
+      {
+        content: diskState.diskContent,
+        fileHash: sha256Hex(diskState.diskContent),
+      },
       { createdBy: undefined, createVersion: true },
     );
     pruneScriptVersions(ctx.db, id, ctx.cfg.scripts.maxVersionsPerScript);
@@ -941,13 +970,15 @@ async function handlePatchRuntimes(
 ): Promise<Response> {
   if (user.role !== "admin") return json({ error: "forbidden" }, 403);
 
-  const body = await readJson<Partial<{
-    bunPath: string;
-    dotnetPath: string;
-    pythonPath: string;
-    powershellPath: string;
-    goPath: string;
-  }>>(req);
+  const body = await readJson<
+    Partial<{
+      bunPath: string;
+      dotnetPath: string;
+      pythonPath: string;
+      powershellPath: string;
+      goPath: string;
+    }>
+  >(req);
   if (!body) return json({ error: "invalid body" }, 400);
 
   writeScriptsConfig(body);
@@ -1037,7 +1068,8 @@ function writeScriptsConfig(
   const parsed = existing
     ? ((Bun.TOML.parse(existing) as Record<string, unknown>) ?? {})
     : {};
-  const current = (parsed["scripts"] as Record<string, unknown> | undefined) ?? {};
+  const current =
+    (parsed["scripts"] as Record<string, unknown> | undefined) ?? {};
   const keyMap: Record<string, string> = {
     bunPath: "bun_path",
     dotnetPath: "dotnet_path",

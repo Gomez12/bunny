@@ -6,6 +6,8 @@
  * with FS semantics.
  */
 
+import { SafeError } from "../util/error.ts";
+
 const RESERVED_SLUGS = new Set([".", "..", "node_modules", ""]);
 
 export function validateSlugName(
@@ -14,13 +16,16 @@ export function validateSlugName(
   label: string,
 ): string {
   if (typeof raw !== "string")
-    throw new Error(`${label} name must be a string`);
+    throw new SafeError(`${label} name must be a string`, { httpStatus: 400 });
   const name = raw.trim().toLowerCase();
   if (RESERVED_SLUGS.has(name))
-    throw new Error(`${label} name '${name}' is reserved`);
+    throw new SafeError(`${label} name '${name}' is reserved`, {
+      httpStatus: 400,
+    });
   if (!regex.test(name)) {
-    throw new Error(
+    throw new SafeError(
       `${label} name must match ${regex.source} (lowercase, digits, _ or -)`,
+      { httpStatus: 400 },
     );
   }
   return name;

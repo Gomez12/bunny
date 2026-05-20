@@ -15,7 +15,7 @@
 import { loadConfig } from "./config.ts";
 import { paths } from "./paths.ts";
 import { getDb } from "./memory/db.ts";
-import { errorMessage } from "./util/error.ts";
+import { errorDetails } from "./util/error.ts";
 import { createBunnyQueue } from "./queue/bunqueue.ts";
 import { createRenderer } from "./agent/render.ts";
 import { runAgent } from "./agent/loop.ts";
@@ -141,7 +141,7 @@ async function main(argv: string[]): Promise<number> {
     ensureProject(db, project, userId);
     ensureProjectDir(project);
   } catch (e) {
-    process.stderr.write(`error: ${errorMessage(e)}\n`);
+    process.stderr.write(`error: ${errorDetails(e)}\n`);
     return 1;
   }
 
@@ -178,7 +178,7 @@ async function main(argv: string[]): Promise<number> {
       renderer,
     });
   } catch (e) {
-    renderer.onError(errorMessage(e));
+    renderer.onError(errorDetails(e));
     await queue.close();
     return 1;
   }

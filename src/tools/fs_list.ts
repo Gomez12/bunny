@@ -9,7 +9,7 @@
 import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { safePath } from "../util/path.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import type { ToolResult } from "./registry.ts";
 
 export function listDirHandler(args: Record<string, unknown>): ToolResult {
@@ -20,7 +20,7 @@ export function listDirHandler(args: Record<string, unknown>): ToolResult {
   try {
     abs = safePath(rawPath);
   } catch (e) {
-    const msg = errorMessage(e);
+    const msg = errorDetails(e);
     return { ok: false, output: msg, error: msg };
   }
 
@@ -41,7 +41,7 @@ export function listDirHandler(args: Record<string, unknown>): ToolResult {
       output: lines.length > 0 ? lines.join("\n") : "(empty directory)",
     };
   } catch (e) {
-    const msg = errorMessage(e);
+    const msg = errorDetails(e);
     return { ok: false, output: msg, error: msg };
   }
 }

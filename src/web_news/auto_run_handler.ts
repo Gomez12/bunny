@@ -12,7 +12,7 @@ import { isAgentLinkedToProject } from "../memory/agents.ts";
 import { selectDueTopics } from "../memory/web_news.ts";
 import { registry as toolRegistry } from "../tools/index.ts";
 import { runTopic } from "./run_topic.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import { getTopic } from "../memory/web_news.ts";
 import { getSystemUserId } from "../auth/seed.ts";
 
@@ -67,7 +67,7 @@ export async function webNewsAutoRunHandler(
         topic: "scheduler",
         kind: "error",
         data: { topicId: cand.id, handler: WEB_NEWS_AUTO_RUN_HANDLER },
-        error: errorMessage(e),
+        error: errorDetails(e),
       });
     }
   }

@@ -10,7 +10,7 @@ import { Database } from "bun:sqlite";
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { paths } from "../paths.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 // Static import so Bun embeds the file in compiled binaries.
 import schemaSql from "./schema.sql" with { type: "text" };
 
@@ -39,7 +39,7 @@ async function ensureSqliteVec(): Promise<void> {
       if (process.env["NODE_ENV"] !== "test") {
         console.warn(
           "[bunny/db] Could not load sqlite-vec extension:",
-          errorMessage(e),
+          errorDetails(e),
         );
       }
     } finally {
@@ -106,7 +106,7 @@ function migrateColumns(db: Database): void {
     try {
       db.run(ddl);
     } catch (e) {
-      const msg = errorMessage(e);
+      const msg = errorDetails(e);
       if (!msg.includes("duplicate column")) throw e;
     }
   };
@@ -352,9 +352,7 @@ function migrateColumns(db: Database): void {
     "ALTER TABLE diary_entries ADD COLUMN correction_status TEXT NOT NULL DEFAULT 'idle'",
   );
   // Per-user UI preferences (global + per-project).
-  addColumn(
-    "ALTER TABLE users ADD COLUMN ui_prefs TEXT NOT NULL DEFAULT '{}'",
-  );
+  addColumn("ALTER TABLE users ADD COLUMN ui_prefs TEXT NOT NULL DEFAULT '{}'");
   // ── Planning wish advice-hide tuple ──────────────────────────────────────
   // When the user dismisses a per-wish suggestion item, we record the
   // (proposed start, proposed end, proposed team) tuple. The /suggestion
@@ -490,7 +488,7 @@ function applySchema(db: Database, embedDim: number): void {
     try {
       db.run(stmt);
     } catch (e) {
-      const msg = errorMessage(e);
+      const msg = errorDetails(e);
       // Skip expected errors when running the declarative schema against an
       // already-migrated DB: tables/indexes already exist, or a statement
       // references a column that only gets added later by migrateColumns.
@@ -506,7 +504,7 @@ function applySchema(db: Database, embedDim: number): void {
          USING vec0(message_id INTEGER PRIMARY KEY, embedding FLOAT[${embedDim}])`,
     );
   } catch (e) {
-    const msg = errorMessage(e);
+    const msg = errorDetails(e);
     // Not fatal if sqlite-vec is absent.
     if (!msg.includes("no such module") && !msg.includes("already exists"))
       throw e;

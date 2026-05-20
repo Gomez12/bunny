@@ -41,7 +41,7 @@ import {
   type Fanout,
 } from "../agent/run_fanout.ts";
 import { runAgent, type RunAgentOptions } from "../agent/loop.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import {
   resolvePrompt,
   interpolate as promptInterpolate,
@@ -432,7 +432,7 @@ async function executeRun(
   try {
     order = computeTopo(def);
   } catch (e) {
-    const msg = errorMessage(e);
+    const msg = errorDetails(e);
     markRunError(opts.db, run.id, msg);
     sendEvent(sink, {
       type: "workflow_run_finished",
@@ -700,7 +700,7 @@ async function dispatchPrompt(
     inv.runCtx.nodes[node.id] = finalAnswer;
     return { status: "done", resultText: finalAnswer };
   } catch (e) {
-    const msg = errorMessage(e);
+    const msg = errorDetails(e);
     const steps = buffer.finalize();
     emitNodeFailure(opts, run, sink, rn, node, msg, {
       logText: buffer.asLogText(),
@@ -779,7 +779,7 @@ async function dispatchShellLike(
         markNodeSkipped(opts.db, rn.id);
         return { status: "cancelled" };
       }
-      const msg = errorMessage(e);
+      const msg = errorDetails(e);
       emitNodeFailure(opts, run, sink, rn, node, msg);
       return { status: "error", error: msg };
     }
@@ -855,7 +855,7 @@ async function dispatchShellLike(
     inv.runCtx.nodes[node.id] = result.tail;
     return { status: "done", resultText: result.tail };
   } catch (e) {
-    const msg = errorMessage(e);
+    const msg = errorDetails(e);
     emitNodeFailure(opts, run, sink, rn, node, msg, {
       logText: buffer.join(""),
       steps: [makeStep({ ok: false, error: msg })],
@@ -1021,7 +1021,7 @@ async function dispatchLoop(
         return { status: "done", resultText: finalAnswer };
       }
     } catch (e) {
-      const msg = errorMessage(e);
+      const msg = errorDetails(e);
       const iterSteps = buffer.finalize();
       markNodeError(opts.db, rn.id, msg, buffer.asLogText(), iterSteps);
       sendEvent(sink, {
@@ -1133,7 +1133,7 @@ async function dispatchInteractive(
       markNodeSkipped(opts.db, rn.id);
       return { status: "cancelled" };
     }
-    const msg = errorMessage(e);
+    const msg = errorDetails(e);
     markNodeError(opts.db, rn.id, msg);
     sendEvent(sink, {
       type: "workflow_node_finished",

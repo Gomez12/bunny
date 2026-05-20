@@ -23,7 +23,7 @@ import type { ToolRegistry } from "../tools/registry.ts";
 import { runAgent } from "../agent/loop.ts";
 import { silentRenderer } from "../agent/render.ts";
 import { setSessionHiddenFromChat } from "../memory/session_visibility.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import { extractLlmJsonCandidates } from "../util/llm_json.ts";
 import { computeNextRun } from "../scheduler/cron.ts";
 import { resolvePrompt, interpolate } from "../prompts/resolve.ts";
@@ -215,7 +215,7 @@ export async function runTopic(opts: RunTopicOpts): Promise<RunTopicResult> {
           kind: "topic.item.upsert_error",
           userId: opts.triggeredBy,
           data: { topicId, project: topic.project, title: item.title },
-          error: errorMessage(e),
+          error: errorDetails(e),
         });
       }
     }
@@ -282,7 +282,7 @@ export async function runTopic(opts: RunTopicOpts): Promise<RunTopicResult> {
 
     return result;
   } catch (e) {
-    const msg = errorMessage(e);
+    const msg = errorDetails(e);
     result.error = msg;
     try {
       releaseTopic(db, topicId, {
@@ -405,7 +405,7 @@ async function runRssFeed(
           kind: "topic.item.upsert_error",
           userId: triggeredBy,
           data: { topicId: topic.id, title: item.title },
-          error: errorMessage(e),
+          error: errorDetails(e),
         });
       }
     }
@@ -431,7 +431,7 @@ async function runRssFeed(
       },
     });
   } catch (e) {
-    const msg = errorMessage(e);
+    const msg = errorDetails(e);
     result.error = msg;
     try {
       releaseTopic(db, topic.id, {
@@ -517,7 +517,7 @@ async function runSiteMonitorTopic(
       },
     });
   } catch (e) {
-    const msg = errorMessage(e);
+    const msg = errorDetails(e);
     result.error = msg;
     try {
       releaseTopic(db, topic.id, {

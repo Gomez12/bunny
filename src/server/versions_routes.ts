@@ -23,7 +23,11 @@ import type { Database } from "bun:sqlite";
 import type { User } from "../auth/users.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
 import { json, readJson } from "./http.ts";
-import { errorMessage } from "../util/error.ts";
+import {
+  errorMessage,
+  errorStatus,
+  logUnexpectedError,
+} from "../util/error.ts";
 import {
   countVersions,
   getVersion,
@@ -170,11 +174,8 @@ async function handleRestore(
   try {
     restoreVersion(ctx.db, auth.kind, entityId, version, user.id);
   } catch (e) {
-    const msg = errorMessage(e);
-    if (msg.includes("not found")) return json({ error: "not_found" }, 404);
-    if (msg.includes("oversized"))
-      return json({ error: "oversized_snapshot" }, 409);
-    return json({ error: msg }, 400);
+    logUnexpectedError(ctx.queue, e, "POST /api/versions/.../restore");
+    return json({ error: errorMessage(e) }, errorStatus(e, 400));
   }
   void ctx.queue.log({
     topic: "versions",

@@ -17,7 +17,7 @@ import { getProject } from "../memory/projects.ts";
 import { getSystemUserId } from "../auth/seed.ts";
 import { resolvePrompt } from "../prompts/resolve.ts";
 import { registry as toolRegistry } from "../tools/index.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import {
   selectPendingDefinitions,
   setLlmError,
@@ -107,7 +107,7 @@ export async function kbAutoGenerateHandler(
         });
       }
     } catch (e) {
-      const msg = errorMessage(e);
+      const msg = errorDetails(e);
       try {
         setLlmError(db, cand.id, msg);
       } catch {

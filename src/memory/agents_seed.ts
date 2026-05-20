@@ -15,7 +15,7 @@
 import type { Database } from "bun:sqlite";
 import type { AgentConfig } from "../config.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import { getSystemUserId } from "../auth/seed.ts";
 import {
   createAgent,
@@ -78,18 +78,36 @@ function ensureBuiltinAgent(
         linked += 1;
       }
     }
-    void queue.log({ topic: "agent", kind: logKind, data: { created: !existing, linkedProjects: linked } });
+    void queue.log({
+      topic: "agent",
+      kind: logKind,
+      data: { created: !existing, linkedProjects: linked },
+    });
   } catch (e) {
-    console.warn(`[bunny] ${name} agent seed failed: ${errorMessage(e)}`);
+    console.warn(`[bunny] ${name} agent seed failed: ${errorDetails(e)}`);
   }
 }
 
 export function ensureNewsAgent(db: Database, queue: BunnyQueue): void {
-  ensureBuiltinAgent(db, queue, NEWS_AGENT_NAME, NEWS_AGENT_DESCRIPTION, NEWS_AGENT_PROMPT, "seed.news");
+  ensureBuiltinAgent(
+    db,
+    queue,
+    NEWS_AGENT_NAME,
+    NEWS_AGENT_DESCRIPTION,
+    NEWS_AGENT_PROMPT,
+    "seed.news",
+  );
 }
 
 export function ensureRssNewsAgent(db: Database, queue: BunnyQueue): void {
-  ensureBuiltinAgent(db, queue, RSS_NEWS_AGENT_NAME, RSS_NEWS_AGENT_DESCRIPTION, RSS_NEWS_AGENT_PROMPT, "seed.rss_news");
+  ensureBuiltinAgent(
+    db,
+    queue,
+    RSS_NEWS_AGENT_NAME,
+    RSS_NEWS_AGENT_DESCRIPTION,
+    RSS_NEWS_AGENT_PROMPT,
+    "seed.rss_news",
+  );
 }
 
 export function ensureDefaultAgent(
@@ -102,7 +120,7 @@ export function ensureDefaultAgent(
     name = validateAgentName(cfg.defaultAgent);
   } catch (e) {
     console.warn(
-      `[bunny] invalid [agent].default_agent '${cfg.defaultAgent}': ${errorMessage(e)}`,
+      `[bunny] invalid [agent].default_agent '${cfg.defaultAgent}': ${errorDetails(e)}`,
     );
     return;
   }
@@ -148,6 +166,6 @@ export function ensureDefaultAgent(
       },
     });
   } catch (e) {
-    console.warn(`[bunny] ensureDefaultAgent failed: ${errorMessage(e)}`);
+    console.warn(`[bunny] ensureDefaultAgent failed: ${errorDetails(e)}`);
   }
 }

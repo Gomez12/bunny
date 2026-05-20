@@ -28,7 +28,7 @@ import type { BunnyConfig } from "../config.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
 import type { ToolRegistry } from "../tools/registry.ts";
 import { runAgent } from "../agent/loop.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import { stripHtmlTags } from "../util/html.ts";
 import {
   advanceLastUpdateId,
@@ -266,7 +266,7 @@ export async function handleTelegramUpdate(
       );
     }
   } catch (err) {
-    const msg = errorMessage(err);
+    const msg = errorDetails(err);
     await replyToMessage(
       tgCfg.botToken,
       message,
@@ -448,7 +448,7 @@ async function replyToMessage(
         topic: "telegram",
         kind: "error",
         data: { stage: "canned_reply", project, chatId: message.chat.id },
-        error: errorMessage(err),
+        error: errorDetails(err),
       });
     }
   }

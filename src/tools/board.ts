@@ -17,7 +17,7 @@
 import type { Database } from "bun:sqlite";
 import type { ToolDescriptor } from "./registry.ts";
 import { toolOk, toolErr, getString } from "./registry.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import {
   archiveCard,
   createCard,
@@ -254,7 +254,7 @@ function boardCreateCardTool(ctx: BoardToolContext): ToolDescriptor {
         });
         return toolOk(summariseCard(card, laneNameMap(lanes)));
       } catch (e) {
-        return toolErr(errorMessage(e));
+        return toolErr(errorDetails(e));
       }
     },
   };
@@ -310,7 +310,7 @@ function boardUpdateCardTool(ctx: BoardToolContext): ToolDescriptor {
           ),
         );
       } catch (e) {
-        return toolErr(errorMessage(e));
+        return toolErr(errorDetails(e));
       }
     },
   };
@@ -345,7 +345,7 @@ function boardMoveCardTool(ctx: BoardToolContext): ToolDescriptor {
         const moved = moveCard(ctx.db, id, { swimlaneId: lane.id });
         return toolOk(summariseCard(moved, laneNameMap(lanes)));
       } catch (e) {
-        return toolErr(errorMessage(e));
+        return toolErr(errorDetails(e));
       }
     },
   };

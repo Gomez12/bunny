@@ -17,7 +17,7 @@
 import type { Database } from "bun:sqlite";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
 import type { TelegramConfig as TelegramRuntimeConfig } from "../config.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import { getTelegramConfig } from "../memory/telegram_config.ts";
 import { getLinkByUser } from "../memory/telegram_links.ts";
 import { sendMessage, sendDocument, TelegramApiError } from "./client.ts";
@@ -106,7 +106,7 @@ export async function sendTelegramToUser(
         source: opts.source ?? "unknown",
         tgErr,
       },
-      error: errorMessage(err),
+      error: errorDetails(err),
     });
   }
 }

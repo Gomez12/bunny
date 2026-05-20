@@ -26,8 +26,12 @@ import { sha256Hex } from "../util/hash.ts";
 import { runAgent } from "../agent/loop.ts";
 import { silentRenderer } from "../agent/render.ts";
 import { setSessionHiddenFromChat } from "../memory/session_visibility.ts";
-import { errorMessage } from "../util/error.ts";
-import { upsertNewsItem, updateSiteHashes, type NewsTopic } from "../memory/web_news.ts";
+import { errorDetails } from "../util/error.ts";
+import {
+  upsertNewsItem,
+  updateSiteHashes,
+  type NewsTopic,
+} from "../memory/web_news.ts";
 import { extractNewsJson, type ParsedNewsItem } from "./run_topic.ts";
 
 export interface SiteMonitorOpts {
@@ -77,11 +81,23 @@ export async function runSiteMonitor(
   // ── Layer 1: raw HTML hash ────────────────────────────────────────────────
   const html = await fetchPage(url);
   if (!html) {
-    return { outcome: "no_content", inserted: 0, duplicates: 0, sessionId: null, insertedItems: [] };
+    return {
+      outcome: "no_content",
+      inserted: 0,
+      duplicates: 0,
+      sessionId: null,
+      insertedItems: [],
+    };
   }
   const htmlHash = sha256Hex(html);
   if (htmlHash === topic.lastHtmlHash) {
-    return { outcome: "unchanged_html", inserted: 0, duplicates: 0, sessionId: null, insertedItems: [] };
+    return {
+      outcome: "unchanged_html",
+      inserted: 0,
+      duplicates: 0,
+      sessionId: null,
+      insertedItems: [],
+    };
   }
 
   // ── Layer 2: markdown hash ────────────────────────────────────────────────
@@ -91,7 +107,13 @@ export async function runSiteMonitor(
     // Only a caching-breaker changed (session tokens, timestamps, ads).
     // Update HTML hash so we don't re-check the markdown next time.
     updateSiteHashes(db, topic.id, htmlHash, topic.lastMdHash);
-    return { outcome: "unchanged_md", inserted: 0, duplicates: 0, sessionId: null, insertedItems: [] };
+    return {
+      outcome: "unchanged_md",
+      inserted: 0,
+      duplicates: 0,
+      sessionId: null,
+      insertedItems: [],
+    };
   }
 
   // ── Layer 3: LLM extraction ───────────────────────────────────────────────
@@ -194,7 +216,7 @@ ${md}`;
           kind: "site_monitor.upsert_error",
           userId: triggeredBy,
           data: { topicId: topic.id, title: item.title },
-          error: errorMessage(e),
+          error: errorDetails(e),
         });
       }
     }
@@ -208,7 +230,7 @@ ${md}`;
       kind: "site_monitor.error",
       userId: triggeredBy,
       data: { topicId: topic.id, project: topic.project },
-      error: errorMessage(e),
+      error: errorDetails(e),
     });
   }
 

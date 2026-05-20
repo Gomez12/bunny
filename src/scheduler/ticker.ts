@@ -23,7 +23,7 @@ import {
 } from "../memory/scheduled_tasks.ts";
 import { computeNextRun } from "./cron.ts";
 import type { HandlerRegistry } from "./handlers.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 
 const TICK_MS = 60_000;
 
@@ -91,7 +91,7 @@ export function startScheduler(opts: StartSchedulerOpts): SchedulerHandle {
         durationMs: Date.now() - started,
       });
     } catch (e) {
-      const msg = errorMessage(e);
+      const msg = errorDetails(e);
       const next = safeNext(task.cronExpr, now);
       setTaskResult(db, task.id, {
         status: "error",
@@ -117,7 +117,7 @@ export function startScheduler(opts: StartSchedulerOpts): SchedulerHandle {
       void queue.log({
         topic: "scheduler",
         kind: "error",
-        error: `claimDueTasks failed: ${errorMessage(e)}`,
+        error: `claimDueTasks failed: ${errorDetails(e)}`,
       });
       return;
     }

@@ -6,6 +6,7 @@
  */
 
 import type { Database } from "bun:sqlite";
+import { SafeError } from "../util/error.ts";
 
 export interface ProjectUiPrefs {
   activeCodeProjectId?: number;
@@ -46,29 +47,38 @@ export function parseProjectUiPrefs(raw: string): ProjectUiPrefs {
 
 export function validateProjectUiPrefsPatch(patch: unknown): ProjectUiPrefs {
   if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
-    throw new Error("prefs must be an object");
+    throw new SafeError("prefs must be an object", { httpStatus: 400 });
   }
   const p = patch as Record<string, unknown>;
   const unknownKeys = Object.keys(p).filter((k) => !ALLOWED_KEYS.has(k));
-  if (unknownKeys.length) throw new Error(`unknown pref keys: ${unknownKeys.join(", ")}`);
+  if (unknownKeys.length)
+    throw new SafeError(`unknown pref keys: ${unknownKeys.join(", ")}`, {
+      httpStatus: 400,
+    });
 
   const out: ProjectUiPrefs = {};
   if ("activeCodeProjectId" in p) {
     const v = p["activeCodeProjectId"];
     if (v !== null && typeof v !== "number")
-      throw new Error("activeCodeProjectId must be a number or null");
+      throw new SafeError("activeCodeProjectId must be a number or null", {
+        httpStatus: 400,
+      });
     if (typeof v === "number") out.activeCodeProjectId = v;
   }
   if ("activeDiagramId" in p) {
     const v = p["activeDiagramId"];
     if (v !== null && typeof v !== "number")
-      throw new Error("activeDiagramId must be a number or null");
+      throw new SafeError("activeDiagramId must be a number or null", {
+        httpStatus: 400,
+      });
     if (typeof v === "number") out.activeDiagramId = v;
   }
   if ("activeWorkflowId" in p) {
     const v = p["activeWorkflowId"];
     if (v !== null && typeof v !== "number")
-      throw new Error("activeWorkflowId must be a number or null");
+      throw new SafeError("activeWorkflowId must be a number or null", {
+        httpStatus: 400,
+      });
     if (typeof v === "number") out.activeWorkflowId = v;
   }
   if ("hiddenTopicIds" in p) {
@@ -77,7 +87,9 @@ export function validateProjectUiPrefsPatch(patch: unknown): ProjectUiPrefs {
       !Array.isArray(v) ||
       !(v as unknown[]).every((n) => typeof n === "number")
     )
-      throw new Error("hiddenTopicIds must be an array of numbers");
+      throw new SafeError("hiddenTopicIds must be an array of numbers", {
+        httpStatus: 400,
+      });
     out.hiddenTopicIds = v as number[];
   }
   return out;

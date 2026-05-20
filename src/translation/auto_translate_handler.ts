@@ -39,7 +39,7 @@ import { silentRenderer } from "../agent/render.ts";
 import { registry as toolsRegistry } from "../tools/index.ts";
 import { setSessionHiddenFromChat } from "../memory/session_visibility.ts";
 import { getSystemUserId } from "../auth/seed.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import { extractLlmJsonCandidates } from "../util/llm_json.ts";
 
 export const TRANSLATION_HANDLER = "translation.auto_translate_scan";
@@ -245,7 +245,7 @@ export async function autoTranslateHandler(
       try {
         await translateOne(ctx, kind, row);
       } catch (e) {
-        const msg = errorMessage(e);
+        const msg = errorDetails(e);
         try {
           setError(ctx.db, kind, row.id, msg);
         } catch {

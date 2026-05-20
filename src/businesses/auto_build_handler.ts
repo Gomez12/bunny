@@ -33,7 +33,7 @@ import { getSystemUserId } from "../auth/seed.ts";
 import { listProjects } from "../memory/projects.ts";
 import { resolvePrompt, interpolate } from "../prompts/resolve.ts";
 import { registry as toolRegistry } from "../tools/index.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import {
   listContacts,
   linkContactBusiness,
@@ -333,7 +333,7 @@ export async function runBusinessAutoBuild(
           });
         }
       } catch (e) {
-        const msg = errorMessage(e);
+        const msg = errorDetails(e);
         void queue.log({
           topic: "business",
           kind: "auto_build.enrich_error",

@@ -10,6 +10,7 @@
  */
 
 import type { Database } from "bun:sqlite";
+import { SafeError } from "../util/error.ts";
 import { backfillTranslationSlotsForProject } from "./translatable.ts";
 
 export type ProjectVisibility = "public" | "private";
@@ -35,29 +36,41 @@ export function validateLanguages(
   rawDefault: unknown,
 ): { languages: string[]; defaultLanguage: string } {
   if (!Array.isArray(rawLanguages) || rawLanguages.length === 0) {
-    throw new Error("languages must be a non-empty array of ISO 639-1 codes");
+    throw new SafeError(
+      "languages must be a non-empty array of ISO 639-1 codes",
+      { httpStatus: 400 },
+    );
   }
   const languages: string[] = [];
   for (const l of rawLanguages) {
     if (typeof l !== "string") {
-      throw new Error("languages must contain only strings");
+      throw new SafeError("languages must contain only strings", {
+        httpStatus: 400,
+      });
     }
     const code = l.toLowerCase();
     if (!ISO_639_1_RE.test(code)) {
-      throw new Error(`invalid language code '${l}' (ISO 639-1 expected)`);
+      throw new SafeError(`invalid language code '${l}' (ISO 639-1 expected)`, {
+        httpStatus: 400,
+      });
     }
     if (!languages.includes(code)) languages.push(code);
   }
   if (typeof rawDefault !== "string") {
-    throw new Error("default_language must be a string");
+    throw new SafeError("default_language must be a string", {
+      httpStatus: 400,
+    });
   }
   const def = rawDefault.toLowerCase();
   if (!ISO_639_1_RE.test(def)) {
-    throw new Error(`invalid default_language '${rawDefault}'`);
+    throw new SafeError(`invalid default_language '${rawDefault}'`, {
+      httpStatus: 400,
+    });
   }
   if (!languages.includes(def)) {
-    throw new Error(
+    throw new SafeError(
       `default_language '${def}' must be listed in languages [${languages.join(", ")}]`,
+      { httpStatus: 400 },
     );
   }
   return { languages, defaultLanguage: def };
@@ -193,7 +206,8 @@ export function updateProject(
   patch: UpdateProjectPatch,
 ): Project {
   const existing = getProject(db, name);
-  if (!existing) throw new Error(`project '${name}' not found`);
+  if (!existing)
+    throw new SafeError(`project '${name}' not found`, { httpStatus: 404 });
   const description =
     patch.description === undefined ? existing.description : patch.description;
   const visibility = patch.visibility ?? existing.visibility;
@@ -236,7 +250,10 @@ export function updateProject(
 
 export function deleteProject(db: Database, name: string): void {
   if (name === DEFAULT_PROJECT)
-    throw new Error(`cannot delete the default '${DEFAULT_PROJECT}' project`);
+    throw new SafeError(
+      `cannot delete the default '${DEFAULT_PROJECT}' project`,
+      { httpStatus: 400 },
+    );
   db.prepare(`DELETE FROM projects WHERE name = ?`).run(name);
 }
 

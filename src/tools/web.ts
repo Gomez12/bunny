@@ -1,7 +1,7 @@
 import type { WebConfig } from "../config.ts";
 import type { ToolDescriptor } from "./registry.ts";
 import { toolOk, toolErr, getString } from "./registry.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import { stripHtmlTags } from "../util/html.ts";
 import { writeWorkspaceFile } from "../memory/workspace_fs.ts";
 import { NodeHtmlMarkdown } from "node-html-markdown";
@@ -152,7 +152,7 @@ function fetchTool(ctx: WebToolContext): ToolDescriptor {
       } catch (e) {
         if ((e as Error).name === "AbortError")
           return toolErr(`request timed out after ${FETCH_TIMEOUT_MS / 1000}s`);
-        return toolErr(errorMessage(e));
+        return toolErr(errorDetails(e));
       }
     },
   };
@@ -352,7 +352,7 @@ function searchTool(ctx: WebToolContext): ToolDescriptor {
         }
         return toolOk({ query, results, source });
       } catch (e) {
-        return toolErr(errorMessage(e));
+        return toolErr(errorDetails(e));
       }
     },
   };
@@ -412,7 +412,7 @@ function downloadTool(ctx: WebToolContext): ToolDescriptor {
           return toolErr(
             `download timed out after ${FETCH_TIMEOUT_MS / 1000}s`,
           );
-        return toolErr(errorMessage(e));
+        return toolErr(errorDetails(e));
       }
     },
   };

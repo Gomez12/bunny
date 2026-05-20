@@ -8,7 +8,7 @@ import type {
 } from "../scheduler/handlers.ts";
 import { runCard } from "./run_card.ts";
 import { registry as toolRegistry } from "../tools/index.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import { isAgentLinkedToProject } from "../memory/agents.ts";
 
 export const BOARD_AUTO_RUN_HANDLER = "board.auto_run_scan";
@@ -79,7 +79,7 @@ export async function boardAutoRunHandler(
         triggerKind: "scheduled",
       });
     } catch (e) {
-      const msg = errorMessage(e);
+      const msg = errorDetails(e);
       void queue.log({
         topic: "scheduler",
         kind: "error",

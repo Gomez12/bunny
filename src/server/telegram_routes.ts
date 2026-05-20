@@ -27,7 +27,7 @@ import type { User } from "../auth/users.ts";
 import type { BunnyConfig } from "../config.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
 import type { Project } from "../memory/projects.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails, errorMessage } from "../util/error.ts";
 import { json, readJson } from "./http.ts";
 import { getProject, validateProjectName } from "../memory/projects.ts";
 import { getUserById } from "../auth/users.ts";
@@ -141,7 +141,7 @@ export async function handleTelegramPublicRoute(
       topic: "telegram",
       kind: "error",
       data: { stage: "webhook.dispatch", project },
-      error: errorMessage(err),
+      error: errorDetails(err),
     });
   });
   return json({ ok: true });

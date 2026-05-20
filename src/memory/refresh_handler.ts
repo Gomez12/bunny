@@ -20,7 +20,7 @@ import { silentRenderer } from "../agent/render.ts";
 import { setSessionHiddenFromChat } from "./session_visibility.ts";
 import { resolvePrompt, interpolate } from "../prompts/resolve.ts";
 import { registry as toolRegistry } from "../tools/index.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import { SYSTEM_USERNAME } from "../auth/seed.ts";
 import { getUserByUsername } from "../auth/users.ts";
 import { getUserNewsSoul } from "./news_soul.ts";
@@ -340,7 +340,7 @@ export async function memoryRefreshHandler(
         runUserId: systemUserId,
       });
     } catch (e) {
-      const msg = errorMessage(e);
+      const msg = errorDetails(e);
       try {
         setUserProjectMemoryError(db, pair.userId, pair.project, msg);
       } catch {
@@ -383,7 +383,7 @@ export async function memoryRefreshHandler(
           runUserId: systemUserId,
         });
       } catch (e) {
-        const msg = errorMessage(e);
+        const msg = errorDetails(e);
         try {
           setAgentProjectMemoryError(db, pair.agent, pair.project, msg);
         } catch {
@@ -423,7 +423,7 @@ export async function memoryRefreshHandler(
           project: cfg.agent.defaultProject,
         });
       } catch (e) {
-        const msg = errorMessage(e);
+        const msg = errorDetails(e);
         try {
           setUserSoulError(db, cand.userId, msg);
         } catch {
@@ -647,10 +647,9 @@ async function refreshUserSoul(
   // Include the stable news interests profile so the main soul has a reference
   // point for content preferences without being swung by individual items.
   const newsSoul = getUserNewsSoul(db, userId);
-  const newsSoulBlock =
-    newsSoul?.soul
-      ? `\n\nUser's news interests profile (stable reference — do not overwrite, only inform):\n${newsSoul.soul}`
-      : "";
+  const newsSoulBlock = newsSoul?.soul
+    ? `\n\nUser's news interests profile (stable reference — do not overwrite, only inform):\n${newsSoul.soul}`
+    : "";
 
   const systemPrompt = interpolate(resolvePrompt("memory.user_soul.refresh"), {
     userDisplay,

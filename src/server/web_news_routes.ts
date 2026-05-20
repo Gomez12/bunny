@@ -20,7 +20,12 @@ import type { Database } from "bun:sqlite";
 import type { User } from "../auth/users.ts";
 import type { BunnyConfig } from "../config.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
-import { errorMessage } from "../util/error.ts";
+import {
+  errorMessage,
+  errorStatus,
+  logUnexpectedError,
+  SafeError,
+} from "../util/error.ts";
 import { json, readJson } from "./http.ts";
 import { canEditProject, canSeeProject } from "./routes.ts";
 import {
@@ -77,7 +82,9 @@ export async function handleWebNewsRoute(
     if (req.method === "GET") return handleListFeedPatterns(ctx);
     if (req.method === "POST") return handleCreateFeedPattern(req, ctx, user);
   }
-  const feedPatternIdMatch = pathname.match(/^\/api\/news\/feed-patterns\/(\d+)$/);
+  const feedPatternIdMatch = pathname.match(
+    /^\/api\/news\/feed-patterns\/(\d+)$/,
+  );
   if (feedPatternIdMatch) {
     const id = Number(feedPatternIdMatch[1]);
     if (req.method === "DELETE") return handleDeleteFeedPattern(ctx, user, id);
@@ -89,7 +96,8 @@ export async function handleWebNewsRoute(
   );
   if (discoverMatch) {
     const project = decodeURIComponent(discoverMatch[1]!);
-    if (req.method === "POST") return handleDiscoverFeed(req, ctx, user, project);
+    if (req.method === "POST")
+      return handleDiscoverFeed(req, ctx, user, project);
   }
 
   const topicsMatch = pathname.match(
@@ -137,7 +145,9 @@ export async function handleWebNewsRoute(
     if (req.method === "GET") return handleListItems(ctx, user, project, url);
   }
 
-  const reactionsMatch = pathname.match(/^\/api\/projects\/([^/]+)\/news\/reactions$/);
+  const reactionsMatch = pathname.match(
+    /^\/api\/projects\/([^/]+)\/news\/reactions$/,
+  );
   if (reactionsMatch) {
     const project = decodeURIComponent(reactionsMatch[1]!);
     if (req.method === "GET") return handleListReactions(ctx, user, project);
@@ -159,8 +169,10 @@ export async function handleWebNewsRoute(
   if (reactMatch) {
     const project = decodeURIComponent(reactMatch[1]!);
     const id = Number(reactMatch[2]);
-    if (req.method === "POST") return handleSetReaction(req, ctx, user, project, id);
-    if (req.method === "DELETE") return handleRemoveReaction(ctx, user, project, id);
+    if (req.method === "POST")
+      return handleSetReaction(req, ctx, user, project, id);
+    if (req.method === "DELETE")
+      return handleRemoveReaction(ctx, user, project, id);
   }
 
   return null;
@@ -214,7 +226,8 @@ function loadTopicFor(
 
 function validateCron(raw: string): string {
   const trimmed = raw.trim();
-  if (!trimmed) throw new Error("cron expression is required");
+  if (!trimmed)
+    throw new SafeError("cron expression is required", { httpStatus: 400 });
   computeNextRun(trimmed, Date.now()); // throws on malformed
   return trimmed;
 }
@@ -225,10 +238,14 @@ function validateAgent(
   agentName: string,
 ): void {
   const agent = getAgent(ctx.db, agentName);
-  if (!agent) throw new Error(`agent '${agentName}' does not exist`);
+  if (!agent)
+    throw new SafeError(`agent '${agentName}' does not exist`, {
+      httpStatus: 400,
+    });
   if (!isAgentLinkedToProject(ctx.db, project, agentName)) {
-    throw new Error(
+    throw new SafeError(
       `agent '${agentName}' is not available in project '${project}'`,
+      { httpStatus: 400 },
     );
   }
 }
@@ -317,7 +334,8 @@ async function handleCreate(
     });
     return json({ topic }, 201);
   } catch (e) {
-    return json({ error: errorMessage(e) }, 400);
+    logUnexpectedError(ctx.queue, e, "POST /api/projects/:p/news/topics");
+    return json({ error: errorMessage(e) }, errorStatus(e, 400));
   }
 }
 
@@ -389,7 +407,8 @@ async function handlePatch(
     });
     return json({ topic: updated });
   } catch (e) {
-    return json({ error: errorMessage(e) }, 400);
+    logUnexpectedError(ctx.queue, e, "PATCH /api/news/topics/:id");
+    return json({ error: errorMessage(e) }, errorStatus(e, 400));
   }
 }
 
@@ -530,10 +549,14 @@ async function handleDiscoverFeed(
   const body = await readJson<{ url?: string }>(req);
   const rawUrl = body?.url?.trim();
   if (!rawUrl) return json({ error: "missing url" }, 400);
-  if (!/^https?:\/\//i.test(rawUrl)) return json({ error: "url must start with http:// or https://" }, 400);
+  if (!/^https?:\/\//i.test(rawUrl))
+    return json({ error: "url must start with http:// or https://" }, 400);
 
   try {
-    const feeds = await discoverFeeds(rawUrl, { db: ctx.db, llmCfg: ctx.cfg.llm });
+    const feeds = await discoverFeeds(rawUrl, {
+      db: ctx.db,
+      llmCfg: ctx.cfg.llm,
+    });
     void ctx.queue.log({
       topic: "web_news",
       kind: "discover_feed",
@@ -558,7 +581,12 @@ async function handleCreateFeedPattern(
   user: User,
 ): Promise<Response> {
   if (user.role !== "admin") return json({ error: "forbidden" }, 403);
-  const body = await readJson<{ site?: string; name?: string; pattern?: string; variables?: unknown }>(req);
+  const body = await readJson<{
+    site?: string;
+    name?: string;
+    pattern?: string;
+    variables?: unknown;
+  }>(req);
   if (!body?.site?.trim()) return json({ error: "missing site" }, 400);
   if (!body?.name?.trim()) return json({ error: "missing name" }, 400);
   if (!body?.pattern?.trim()) return json({ error: "missing pattern" }, 400);
@@ -606,7 +634,8 @@ async function handleSetReaction(
   const r = resolveProject(ctx, user, rawProject);
   if (!r.ok) return r.error;
   const item = getNewsItem(ctx.db, id);
-  if (!item || item.project !== r.project) return json({ error: "not found" }, 404);
+  if (!item || item.project !== r.project)
+    return json({ error: "not found" }, 404);
   const body = await readJson<{ reaction?: string }>(req);
   if (body?.reaction !== "up" && body?.reaction !== "down")
     return json({ error: "reaction must be 'up' or 'down'" }, 400);

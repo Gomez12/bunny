@@ -20,7 +20,7 @@
 
 import type { Database } from "bun:sqlite";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import { deleteWebhook, setWebhook, TelegramApiError } from "./client.ts";
 import {
   getTelegramConfig,
@@ -85,7 +85,7 @@ export async function applyTransport(opts: ApplyTransportOpts): Promise<void> {
       topic: "telegram",
       kind: "error",
       data: { stage: "apply_transport", project: opts.project, tgErr },
-      error: errorMessage(err),
+      error: errorDetails(err),
     });
     throw err;
   }

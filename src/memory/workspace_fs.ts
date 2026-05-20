@@ -26,6 +26,7 @@ import {
 import { join, dirname, posix, relative, resolve } from "node:path";
 import { workspaceDir, WORKSPACE_DEFAULT_SUBDIRS } from "./project_assets.ts";
 import { ensureProjectDir } from "./project_assets.ts";
+import { SafeError } from "../util/error.ts";
 
 export interface WorkspaceEntry {
   name: string;
@@ -59,7 +60,9 @@ export function safeWorkspacePath(
   const abs = resolve(root, cleaned);
   const relFromRoot = relative(root, abs);
   if (relFromRoot.startsWith("..") || resolve(root, relFromRoot) !== abs) {
-    throw new Error(`path escapes workspace: ${relPath}`);
+    throw new SafeError(`path escapes workspace: ${relPath}`, {
+      httpStatus: 400,
+    });
   }
   return { abs, root, rel: cleaned };
 }
@@ -75,12 +78,17 @@ function normaliseRel(raw: string): string {
 }
 
 function assertNotProtected(rel: string): void {
-  if (rel === "") throw new Error("cannot modify the workspace root");
+  if (rel === "")
+    throw new SafeError("cannot modify the workspace root", {
+      httpStatus: 400,
+    });
   const top = rel.split("/")[0]!;
   // Only the top-level default dirs themselves are locked — their contents
   // are freely editable.
   if (PROTECTED_ROOTS.has(rel) && PROTECTED_ROOTS.has(top)) {
-    throw new Error(`'${rel}' is a protected workspace directory`);
+    throw new SafeError(`'${rel}' is a protected workspace directory`, {
+      httpStatus: 400,
+    });
   }
 }
 

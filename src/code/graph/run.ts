@@ -31,7 +31,7 @@ import {
   type CodeProject,
 } from "../../memory/code_projects.ts";
 import { workspaceRelForCode } from "../clone.ts";
-import { errorMessage } from "../../util/error.ts";
+import { errorDetails } from "../../util/error.ts";
 import { ensureCacheDir, readCache, sha256Hex, writeCache } from "./cache.ts";
 import { langForFile, GRAMMAR_VERSIONS } from "./grammars.ts";
 import { buildGraph, serialiseGraph } from "./build.ts";
@@ -93,7 +93,7 @@ export async function runGraph(
     rootAbs = abs;
     outDirAbs = graphOutDirForRoot(rootAbs);
   } catch (e) {
-    const msg = errorMessage(e);
+    const msg = errorDetails(e);
     setGraphError(ctx.db, codeProjectId, msg);
     return { ok: false };
   }
@@ -160,7 +160,7 @@ export async function runGraph(
       });
     } catch (e) {
       clearTimeout(timeout);
-      const msg = errorMessage(e);
+      const msg = errorDetails(e);
       setGraphError(ctx.db, codeProjectId, msg);
       sendSseEvent(sink, {
         type: "code_graph_run_finished",
@@ -277,7 +277,7 @@ async function runPhases(
       sendSseEvent(sink, {
         type: "code_graph_log",
         codeProjectId: cp.id,
-        text: `skip ${file.relPath}: ${errorMessage(e)}`,
+        text: `skip ${file.relPath}: ${errorDetails(e)}`,
       });
       extraction = { nodes: [], edges: [] };
     }

@@ -24,7 +24,7 @@ import { getProject } from "../memory/projects.ts";
 import { getSystemUserId } from "../auth/seed.ts";
 import { resolvePrompt, interpolate } from "../prompts/resolve.ts";
 import { registry as toolRegistry } from "../tools/index.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import {
   ENTITY_SOUL_CHAR_LIMIT,
   extractSoulJson,
@@ -159,7 +159,7 @@ export async function refreshOneBusinessSoul(
     });
     return "ok";
   } catch (e) {
-    const msg = errorMessage(e);
+    const msg = errorDetails(e);
     try {
       setBusinessSoulError(db, business.id, msg, cadenceMs);
     } catch {

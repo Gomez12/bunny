@@ -11,9 +11,12 @@
  */
 
 import type { Database } from "bun:sqlite";
-import type { HandlerRegistry, TaskHandlerContext } from "../scheduler/handlers.ts";
+import type {
+  HandlerRegistry,
+  TaskHandlerContext,
+} from "../scheduler/handlers.ts";
 import { chatSync } from "../llm/adapter.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import { getReactionsSummary } from "./news_reactions.ts";
 import {
   claimUserNewsSoulForRefresh,
@@ -29,7 +32,10 @@ export const NEWS_SOUL_REFRESH_HANDLER = "memory.news_soul.refresh";
 const MAX_SOUL_CHARS = 1_200;
 const MAX_CONCURRENT = 3;
 
-function buildPrompt(currentSoul: string, reactions: ReturnType<typeof getReactionsSummary>): string {
+function buildPrompt(
+  currentSoul: string,
+  reactions: ReturnType<typeof getReactionsSummary>,
+): string {
   const reactionLines = reactions
     .map((r) => {
       const label = r.reaction === "up" ? "👍" : "👎";
@@ -74,10 +80,14 @@ async function refreshOneUser(
 
     const response = await chatSync(ctx.cfg.llm, {
       model: ctx.cfg.llm.model,
-      messages: [{ role: "user", content: buildPrompt(current?.soul ?? "", reactions) }],
+      messages: [
+        { role: "user", content: buildPrompt(current?.soul ?? "", reactions) },
+      ],
     });
 
-    const updated = (response.message.content ?? "").trim().slice(0, MAX_SOUL_CHARS);
+    const updated = (response.message.content ?? "")
+      .trim()
+      .slice(0, MAX_SOUL_CHARS);
     setUserNewsSoulAuto(db, userId, updated);
 
     void ctx.queue.log({
@@ -87,7 +97,7 @@ async function refreshOneUser(
       data: { reactions: reactions.length, chars: updated.length },
     });
   } catch (e) {
-    const msg = errorMessage(e);
+    const msg = errorDetails(e);
     setUserNewsSoulError(db, userId, msg);
     void ctx.queue.log({
       topic: "memory",

@@ -16,14 +16,18 @@ import { loadConfig } from "../config.ts";
 import { paths } from "../paths.ts";
 import { getDb } from "../memory/db.ts";
 import { createBunnyQueue } from "../queue/bunqueue.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import { safePath } from "../util/path.ts";
 import { handleApi, type RouteCtx } from "./routes.ts";
 import { webBundle } from "./web_bundle.ts";
 import { ensureSeedUsers } from "../auth/seed.ts";
 import { ensureProject, validateProjectName } from "../memory/projects.ts";
 import { ensureProjectDir } from "../memory/project_assets.ts";
-import { ensureDefaultAgent, ensureNewsAgent, ensureRssNewsAgent } from "../memory/agents_seed.ts";
+import {
+  ensureDefaultAgent,
+  ensureNewsAgent,
+  ensureRssNewsAgent,
+} from "../memory/agents_seed.ts";
 import { ensureSeededLibrary } from "../memory/diagram_node_library.ts";
 import { SEEDED_NODES } from "../diagrams/seed_library.ts";
 import { backfillAllTranslationSlots } from "../memory/translatable.ts";
@@ -171,13 +175,13 @@ export async function startServer(
     ensureProject(db, defaultProject);
     ensureProjectDir(defaultProject);
   } catch (e) {
-    console.warn("[bunny] invalid [agent].default_project:", errorMessage(e));
+    console.warn("[bunny] invalid [agent].default_project:", errorDetails(e));
   }
   // Heal sidecar gaps from older builds / DBs that predate language-aware flows.
   try {
     backfillAllTranslationSlots(db);
   } catch (e) {
-    console.warn("[bunny] translation backfill failed:", errorMessage(e));
+    console.warn("[bunny] translation backfill failed:", errorDetails(e));
   }
   // Reclaim web_news topics stuck in 'running' from a prior crash.
   try {
@@ -187,7 +191,7 @@ export async function startServer(
   } catch (e) {
     console.warn(
       "[bunny] failed to release stuck web_news topics:",
-      errorMessage(e),
+      errorDetails(e),
     );
   }
   const queue = createBunnyQueue(db);
@@ -231,7 +235,7 @@ export async function startServer(
   } catch (e) {
     console.warn(
       "[bunny] failed to seed board.auto_run_scan:",
-      errorMessage(e),
+      errorDetails(e),
     );
   }
   const translationCron = "*/5 * * * *";
@@ -246,7 +250,7 @@ export async function startServer(
   } catch (e) {
     console.warn(
       "[bunny] failed to seed translation.auto_translate_scan:",
-      errorMessage(e),
+      errorDetails(e),
     );
   }
   const translationSweepCron = "0 3 * * *";
@@ -261,7 +265,7 @@ export async function startServer(
   } catch (e) {
     console.warn(
       "[bunny] failed to seed translation.sweep_stuck:",
-      errorMessage(e),
+      errorDetails(e),
     );
   }
   const versioningPruneCron = "0 4 * * *";
@@ -274,10 +278,7 @@ export async function startServer(
       nextRunAt: computeNextRun(versioningPruneCron, bootNow),
     });
   } catch (e) {
-    console.warn(
-      "[bunny] failed to seed versioning.prune:",
-      errorMessage(e),
-    );
+    console.warn("[bunny] failed to seed versioning.prune:", errorDetails(e));
   }
   const webNewsAutoRunCron = "* * * * *";
   try {
@@ -291,7 +292,7 @@ export async function startServer(
   } catch (e) {
     console.warn(
       "[bunny] failed to seed web_news.auto_run_scan:",
-      errorMessage(e),
+      errorDetails(e),
     );
   }
   const telegramPollCron = "* * * * *";
@@ -304,7 +305,7 @@ export async function startServer(
       nextRunAt: computeNextRun(telegramPollCron, bootNow),
     });
   } catch (e) {
-    console.warn("[bunny] failed to seed telegram.poll:", errorMessage(e));
+    console.warn("[bunny] failed to seed telegram.poll:", errorDetails(e));
   }
   // Self-heal webhook registrations that may have drifted while the server
   // was offline (token rotation, transport flip, …). Errors are swallowed —
@@ -322,7 +323,7 @@ export async function startServer(
   } catch (e) {
     console.warn(
       "[bunny] failed to seed kb.auto_generate_scan:",
-      errorMessage(e),
+      errorDetails(e),
     );
   }
   const kbSweepStuckCron = "*/5 * * * *";
@@ -335,7 +336,7 @@ export async function startServer(
       nextRunAt: computeNextRun(kbSweepStuckCron, bootNow),
     });
   } catch (e) {
-    console.warn("[bunny] failed to seed kb.sweep_stuck:", errorMessage(e));
+    console.warn("[bunny] failed to seed kb.sweep_stuck:", errorDetails(e));
   }
   const memoryRefreshCron = "0 * * * *";
   try {
@@ -347,7 +348,7 @@ export async function startServer(
       nextRunAt: computeNextRun(memoryRefreshCron, bootNow),
     });
   } catch (e) {
-    console.warn("[bunny] failed to seed memory.refresh:", errorMessage(e));
+    console.warn("[bunny] failed to seed memory.refresh:", errorDetails(e));
   }
   const newsSoulRefreshCron = "0 */6 * * *";
   try {
@@ -359,7 +360,10 @@ export async function startServer(
       nextRunAt: computeNextRun(newsSoulRefreshCron, bootNow),
     });
   } catch (e) {
-    console.warn("[bunny] failed to seed memory.news_soul.refresh:", errorMessage(e));
+    console.warn(
+      "[bunny] failed to seed memory.news_soul.refresh:",
+      errorDetails(e),
+    );
   }
   const contactSoulRefreshCron = cfg.contacts.soulRefreshCron;
   try {
@@ -373,7 +377,7 @@ export async function startServer(
   } catch (e) {
     console.warn(
       "[bunny] failed to seed contact.soul_refresh:",
-      errorMessage(e),
+      errorDetails(e),
     );
   }
   const contactSoulSweepCron = "*/5 * * * *";
@@ -388,7 +392,7 @@ export async function startServer(
   } catch (e) {
     console.warn(
       "[bunny] failed to seed contact.soul_sweep_stuck:",
-      errorMessage(e),
+      errorDetails(e),
     );
   }
   const businessSoulRefreshCron = cfg.businesses.soulRefreshCron;
@@ -403,7 +407,7 @@ export async function startServer(
   } catch (e) {
     console.warn(
       "[bunny] failed to seed business.soul_refresh:",
-      errorMessage(e),
+      errorDetails(e),
     );
   }
   const businessSoulSweepCron = "*/5 * * * *";
@@ -418,7 +422,7 @@ export async function startServer(
   } catch (e) {
     console.warn(
       "[bunny] failed to seed business.soul_sweep_stuck:",
-      errorMessage(e),
+      errorDetails(e),
     );
   }
   const businessAutoBuildCron = cfg.businesses.autoBuildCron;
@@ -433,13 +437,13 @@ export async function startServer(
   } catch (e) {
     console.warn(
       "[bunny] failed to seed business.auto_build:",
-      errorMessage(e),
+      errorDetails(e),
     );
   }
   try {
     seedScriptsSyncTask(db, cfg.scripts.syncCron);
   } catch (e) {
-    console.warn("[bunny] failed to seed scripts.sync_scan:", errorMessage(e));
+    console.warn("[bunny] failed to seed scripts.sync_scan:", errorDetails(e));
   }
   const planningSuggestionRefreshCron = cfg.planning.suggestionRefreshCron;
   try {
@@ -453,7 +457,7 @@ export async function startServer(
   } catch (e) {
     console.warn(
       "[bunny] failed to seed planning.suggestion_refresh:",
-      errorMessage(e),
+      errorDetails(e),
     );
   }
   const planningReportSnapshotCron = cfg.planning.reportSnapshotCron;
@@ -468,7 +472,7 @@ export async function startServer(
   } catch (e) {
     console.warn(
       "[bunny] failed to seed planning.report_snapshot:",
-      errorMessage(e),
+      errorDetails(e),
     );
   }
   const quickChatHideCron = "*/5 * * * *";
@@ -484,7 +488,7 @@ export async function startServer(
   } catch (e) {
     console.warn(
       "[bunny] failed to seed session.hide_inactive_quick_chats:",
-      errorMessage(e),
+      errorDetails(e),
     );
   }
   const scheduler = startScheduler({
@@ -533,10 +537,13 @@ export async function startServer(
           // return a generic message. Per-route 400 validation errors flow
           // through their own catch blocks where the message is intentional.
           console.error("[bunny/api] unhandled error:", e);
-          res = new Response(JSON.stringify({ error: "Internal server error" }), {
-            status: 500,
-            headers: { "Content-Type": "application/json" },
-          });
+          res = new Response(
+            JSON.stringify({ error: "Internal server error" }),
+            {
+              status: 500,
+              headers: { "Content-Type": "application/json" },
+            },
+          );
         }
       } else if (haveStatic) {
         res = await serveStatic(url.pathname, webRoot);

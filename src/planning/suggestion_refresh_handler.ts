@@ -14,17 +14,26 @@ import type {
   HandlerRegistry,
   TaskHandlerContext,
 } from "../scheduler/handlers.ts";
-import { errorMessage } from "../util/error.ts";
-import { selectStalePlanningProjectIds, replacePending } from "../memory/planning_suggestions.ts";
+import { errorDetails } from "../util/error.ts";
+import {
+  selectStalePlanningProjectIds,
+  replacePending,
+} from "../memory/planning_suggestions.ts";
 import { listWishes } from "../memory/planning_wishes.ts";
 import { listTeams } from "../memory/planning_teams.ts";
 import { listDeadlines } from "../memory/planning_deadlines.ts";
 import { listTags } from "../memory/planning_tags.ts";
 import { getPlanningProject } from "../memory/planning_projects.ts";
-import { computeSchedule, formatDate, addBusinessDays, parseDate } from "./scheduler.ts";
+import {
+  computeSchedule,
+  formatDate,
+  addBusinessDays,
+  parseDate,
+} from "./scheduler.ts";
 import { buildNonWorkingDateSet } from "../memory/calendar.ts";
 
-export const PLANNING_SUGGESTION_REFRESH_HANDLER = "planning.suggestion_refresh";
+export const PLANNING_SUGGESTION_REFRESH_HANDLER =
+  "planning.suggestion_refresh";
 
 export function buildAndStoreSuggestion(
   db: Database,
@@ -85,7 +94,10 @@ export function buildAndStoreSuggestion(
     },
     generatedByUserId,
   );
-  return { placements: out.placements.length, bottlenecks: out.bottlenecks.length };
+  return {
+    placements: out.placements.length,
+    bottlenecks: out.bottlenecks.length,
+  };
 }
 
 export async function planningSuggestionRefreshHandler(
@@ -108,7 +120,7 @@ export async function planningSuggestionRefreshHandler(
         topic: "planning",
         kind: "suggestion.refresh.error",
         data: { planningProjectId: id },
-        error: errorMessage(e),
+        error: errorDetails(e),
       });
     }
   }

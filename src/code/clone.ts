@@ -27,7 +27,7 @@ import {
   setGitReady,
   type CodeProject,
 } from "../memory/code_projects.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 
 /** Schemes accepted at the route boundary. Public read-only access only. */
 export const ALLOWED_GIT_SCHEMES = ["https:", "git:"] as const;
@@ -97,7 +97,7 @@ export async function cloneCodeProject(
       setGitReady(ctx.db, id);
       return true;
     } catch (e) {
-      setGitError(ctx.db, id, errorMessage(e));
+      setGitError(ctx.db, id, errorDetails(e));
       return false;
     }
   }
@@ -118,7 +118,7 @@ export async function cloneCodeProject(
     const { abs } = safeWorkspacePath(cp.project, workspaceRelForCode(cp));
     targetDir = abs;
   } catch (e) {
-    const msg = errorMessage(e);
+    const msg = errorDetails(e);
     setGitError(ctx.db, id, msg);
     void ctx.queue.log({
       topic: "code",
@@ -187,7 +187,7 @@ export async function cloneCodeProject(
     return true;
   } catch (e) {
     clearTimeout(timeout);
-    const msg = errorMessage(e);
+    const msg = errorDetails(e);
     setGitError(ctx.db, id, msg);
     void ctx.queue.log({
       topic: "code",

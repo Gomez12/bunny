@@ -8,7 +8,7 @@
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { safePath } from "../util/path.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import type { ToolResult } from "./registry.ts";
 
 export function editFileHandler(args: Record<string, unknown>): ToolResult {
@@ -42,7 +42,7 @@ export function editFileHandler(args: Record<string, unknown>): ToolResult {
   try {
     abs = safePath(rawPath);
   } catch (e) {
-    const msg = errorMessage(e);
+    const msg = errorDetails(e);
     return { ok: false, output: msg, error: msg };
   }
 
@@ -50,7 +50,7 @@ export function editFileHandler(args: Record<string, unknown>): ToolResult {
   try {
     content = readFileSync(abs, "utf8");
   } catch (e) {
-    const msg = errorMessage(e);
+    const msg = errorDetails(e);
     return {
       ok: false,
       output: `Could not read ${rawPath}: ${msg}`,
@@ -79,7 +79,7 @@ export function editFileHandler(args: Record<string, unknown>): ToolResult {
     writeFileSync(abs, updated, "utf8");
     return { ok: true, output: `Successfully edited ${rawPath}` };
   } catch (e) {
-    const msg = errorMessage(e);
+    const msg = errorDetails(e);
     return {
       ok: false,
       output: `Could not write ${rawPath}: ${msg}`,

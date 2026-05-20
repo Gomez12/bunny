@@ -30,7 +30,7 @@ import {
   subscribeFanout,
   type Fanout,
 } from "../agent/run_fanout.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import {
   clearAutoRun,
   getCard,
@@ -199,7 +199,7 @@ export async function runCard(opts: RunCardOpts): Promise<RunCardResult> {
         }
       }
     } catch (e) {
-      const msg = errorMessage(e);
+      const msg = errorDetails(e);
       markRunError(opts.db, run.id, msg);
       renderer.onError(msg);
       sendSseEvent(sink, {

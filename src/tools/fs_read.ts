@@ -7,7 +7,7 @@
 
 import { readFileSync } from "node:fs";
 import { safePath } from "../util/path.ts";
-import { errorMessage } from "../util/error.ts";
+import { errorDetails } from "../util/error.ts";
 import type { ToolResult } from "./registry.ts";
 
 const MAX_BYTES = 200_000; // ~200 KB — reasonable LLM context budget
@@ -26,7 +26,7 @@ export function readFileHandler(args: Record<string, unknown>): ToolResult {
   try {
     abs = safePath(rawPath);
   } catch (e) {
-    const msg = errorMessage(e);
+    const msg = errorDetails(e);
     return { ok: false, output: msg, error: msg };
   }
 
@@ -43,7 +43,7 @@ export function readFileHandler(args: Record<string, unknown>): ToolResult {
     }
     return { ok: true, output: buf.toString("utf8") };
   } catch (e) {
-    const msg = errorMessage(e);
+    const msg = errorDetails(e);
     return { ok: false, output: msg, error: msg };
   }
 }

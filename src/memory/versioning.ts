@@ -38,6 +38,8 @@
 
 import type { Database } from "bun:sqlite";
 
+import { SafeError } from "../util/error.ts";
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 /**
@@ -150,7 +152,11 @@ export interface VersionableEntityDef {
    * the endpoint admin-only for that kind.
    */
   readonly canSee?: (db: Database, userId: string, entityId: string) => boolean;
-  readonly canEdit?: (db: Database, userId: string, entityId: string) => boolean;
+  readonly canEdit?: (
+    db: Database,
+    userId: string,
+    entityId: string,
+  ) => boolean;
 }
 
 /** Lightweight metadata returned by `listVersions` — never includes `snapshot_json`. */
@@ -570,11 +576,14 @@ export function restoreVersion(
   const id = String(entityId);
   const target = getVersion(db, kind, id, version);
   if (!target) {
-    throw new Error(`version not found: ${kind}/${id}@${version}`);
+    throw new SafeError(`version not found: ${kind}/${id}@${version}`, {
+      httpStatus: 404,
+    });
   }
   if (target.flags.includes("oversized") || target.snapshot === null) {
-    throw new Error(
+    throw new SafeError(
       `cannot restore oversized snapshot: ${kind}/${id}@${version}`,
+      { httpStatus: 409 },
     );
   }
 
@@ -649,8 +658,7 @@ export function pruneEntityVersions(
   db: Database,
   opts: { maxSavePerEntity?: number; kind?: VersionableKind } = {},
 ): PruneResult {
-  const cap =
-    opts.maxSavePerEntity ?? CONFIG.maxVersionsPerEntity;
+  const cap = opts.maxSavePerEntity ?? CONFIG.maxVersionsPerEntity;
   if (cap <= 0) return { deleted: 0, entities: 0 };
 
   const tx = db.transaction((): PruneResult => {
