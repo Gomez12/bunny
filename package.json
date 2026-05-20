@@ -23,7 +23,8 @@
     "docs": "typedoc",
     "fmt": "bun x prettier --write src tests",
     "docs:check": "bun run scripts/docs-check.ts",
-    "check": "bun run typecheck && bun run web:typecheck && bun test && bun run docs:check",
+    "i18n:check": "bun run scripts/i18n-check.ts",
+    "check": "bun run typecheck && bun run web:typecheck && bun test && bun run docs:check && bun run i18n:check",
     "electron:dev": "bun --cwd electron run dev",
     "electron:build": "bun --cwd electron run build"
   },
