@@ -29,3 +29,4 @@ Archive lives in [`tasklistarchive.md`](./tasklistarchive.md). Keep at most 50 `
 | open | docs/dev/follow-ups/safe-error-class.md | 4h | Introduce `SafeError` class so `errorMessage()` can refuse to expose `Error.message` for unintended exceptions (closes `js/stack-trace-exposure`) |
 | done | docs/dev/decisions/0042-electron-client.md | 1h | Remove the Tauri desktop client (`client/`); Electron client (ADR 0042) is now the only desktop wrapper |
 | done | docs/dev/decisions/0015-whiteboards.md | 15m | Add 256px LLM-only screenshot export for whiteboard edit; keep default 1024px export untouched |
+| done | docs/dev/plans/entity-revision-history.md | 70h | Universal entity versioning (ADR 0046): 23 kinds, /api/versions, HistoryButton/EntityHistoryModal, prune scheduler, script_versions backfill |

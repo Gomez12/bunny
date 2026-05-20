@@ -57,6 +57,29 @@ hardDelete(kind, id):
 
 `UNIQUE(project, name)` constraints can't be weakened without breaking the live data model. So soft-delete renames the row to `__trash:<id>:<original>` inside the same transaction. Every list/get query filters `AND deleted_at IS NULL`, so users never see the mangled name. Restore strips the prefix; if another live row already uses the original name, restore returns `name_conflict` (HTTP 409) so the admin can resolve it.
 
+## Versioning hooks on trash/restore
+
+`softDelete` and `restore` are the lifecycle boundary for the universal entity versioning system (ADR 0046). The hook order matters:
+
+```
+softDelete(db, kind, id, userId):
+  if getVersionableDef(kind):
+    recordVersion(db, kind, id, 'pre_delete', userId)   -- BEFORE rename + sidecar drop
+  UPDATE <table> SET deleted_at = …, <nameColumn> = '__trash:…'
+  DELETE FROM <translationSidecar>
+
+restore(db, kind, id):
+  -- existence + name-conflict checks first (may abort with HTTP 409)
+  if getVersionableDef(kind):
+    recordVersion(db, kind, id, 'pre_restore', null)    -- AFTER checks, BEFORE rename + reseed
+  UPDATE <table> SET deleted_at = NULL, <nameColumn> = <stripped>
+  reseedTranslations(db, id)
+```
+
+`pre_delete` captures the canonical state — original name, populated translation list — so a later restore-from-version round-trips correctly. `pre_restore` captures the trashed/mangled row state-being-replaced right before the un-mangle, so undoing the restore returns to the same trash entry. `restore` does not take a user argument today; its `pre_restore` snapshots are recorded with `created_by = null`. Both hooks are guarded by `getVersionableDef(kind)`, so trashable kinds that have not opted into versioning stay no-ops.
+
+Lifecycle markers (`pre_delete` / `pre_restore`) always insert — they bypass dedup and debounce. See [`entities/entity-versioning.md`](./entities/entity-versioning.md) for the full snapshot lifecycle.
+
 ## Translation sidecars on trash/restore
 
 - **Soft-delete drops sidecars.** This keeps `translatable.ts` ignorant of trash and avoids the scheduler chasing ghost entities.
@@ -92,5 +115,7 @@ The user-visible delete endpoints (`DELETE /api/whiteboards/:id`, etc.) continue
 ## Related
 
 - [ADR 0025 — Soft-delete and trash bin](../decisions/0025-soft-delete-and-trash.md)
+- [ADR 0046 — Universal entity versioning](../decisions/0046-entity-versioning.md) — `pre_delete` / `pre_restore` markers.
+- [`entities/entity-versioning.md`](./entities/entity-versioning.md) — snapshot lifecycle, registry.
 - [`translation-pipeline.md`](./translation-pipeline.md) — sidecar lifecycle interaction.
 - [`../agents/add-a-trashable-entity.md`](../agents/add-a-trashable-entity.md).
