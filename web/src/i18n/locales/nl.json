@@ -3,7 +3,8 @@
     "ok": "OK",
     "cancel": "Annuleren",
     "close": "Sluiten",
-    "delete": "Verwijderen"
+    "delete": "Verwijderen",
+    "edit": "Bewerken"
   },
   "nav": {
     "groups": {
@@ -126,6 +127,24 @@
         "create": "Aanmaken",
         "save": "Opslaan"
       }
+    },
+    "agents": {
+      "title": "Agents",
+      "descriptionFull": "Genaamde persoonlijkheden met een eigen systeemprompt en gereedschapsset. Roep een agent in Chat aan door je bericht te beginnen met <code>@naam</code>.",
+      "newCardTitle": "Nieuwe agent",
+      "newCardHint": "Prompt, tools, subagents",
+      "loading": "Laden…",
+      "scopeLabel": "scope: {{value}}",
+      "subagentBadge": "subagent",
+      "knowsPeers": "kent collega's",
+      "allTools": "alle tools",
+      "toolsCount": "{{count}} tools",
+      "availableIn": "Beschikbaar in:",
+      "unlinkFrom": "Loskoppelen van {{name}}",
+      "linkTo": "Koppelen aan {{name}}",
+      "editAria": "{{name}} bewerken",
+      "deleteAria": "{{name}} verwijderen",
+      "deleteConfirm": "Agent '{{name}}' verwijderen? Berichten blijven; de agentconfiguratie + koppelingen verdwijnen."
     },
     "planning": {
       "emptyNoneTitle": "Nog geen planningprojecten",

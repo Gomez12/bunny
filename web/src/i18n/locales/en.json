@@ -3,7 +3,8 @@
     "ok": "OK",
     "cancel": "Cancel",
     "close": "Close",
-    "delete": "Delete"
+    "delete": "Delete",
+    "edit": "Edit"
   },
   "nav": {
     "groups": {
@@ -126,6 +127,24 @@
         "create": "Create",
         "save": "Save"
       }
+    },
+    "agents": {
+      "title": "Agents",
+      "descriptionFull": "Named personalities with their own system prompt and tool set. Call an agent in Chat by prefixing your message with <code>@name</code>.",
+      "newCardTitle": "New agent",
+      "newCardHint": "Prompt, tools, subagents",
+      "loading": "Loading…",
+      "scopeLabel": "scope: {{value}}",
+      "subagentBadge": "subagent",
+      "knowsPeers": "knows peers",
+      "allTools": "all tools",
+      "toolsCount": "{{count}} tools",
+      "availableIn": "Available in:",
+      "unlinkFrom": "Unlink from {{name}}",
+      "linkTo": "Link to {{name}}",
+      "editAria": "Edit {{name}}",
+      "deleteAria": "Delete {{name}}",
+      "deleteConfirm": "Delete agent '{{name}}'? Messages remain; the agent config + links go away."
     },
     "planning": {
       "emptyNoneTitle": "No planning projects yet",

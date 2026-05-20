@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import {
   createAgent,
   deleteAgent,
@@ -28,6 +29,7 @@ type DialogState =
   | { kind: "edit"; agent: Agent };
 
 export default function AgentsTab({ currentUser, activeProject }: Props) {
+  const { t } = useTranslation();
   const [agents, setAgents] = useState<Agent[] | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [tools, setTools] = useState<string[]>([]);
@@ -37,10 +39,14 @@ export default function AgentsTab({ currentUser, activeProject }: Props) {
 
   const refresh = useCallback(async () => {
     try {
-      const [a, p, t] = await Promise.all([fetchAgents(), fetchProjects(), fetchToolNames()]);
+      const [a, p, tl] = await Promise.all([
+        fetchAgents(),
+        fetchProjects(),
+        fetchToolNames(),
+      ]);
       setAgents(a);
       setProjects(p);
-      setTools(t);
+      setTools(tl);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -103,12 +109,12 @@ export default function AgentsTab({ currentUser, activeProject }: Props) {
   return (
     <div className="projects">
       <PageHeader
-        title="Agents"
+        title={t("tab.agents.title")}
         description={
-          <>
-            Named personalities with their own system prompt and tool set. Call an agent in Chat by
-            prefixing your message with <code>@name</code>.
-          </>
+          <Trans
+            i18nKey="tab.agents.descriptionFull"
+            components={{ code: <code /> }}
+          />
         }
       />
 
@@ -120,11 +126,15 @@ export default function AgentsTab({ currentUser, activeProject }: Props) {
           onClick={() => setDialog({ kind: "create" })}
         >
           <div className="project-card__plus">+</div>
-          <div className="project-card__title">New agent</div>
-          <div className="project-card__hint">Prompt, tools, subagents</div>
+          <div className="project-card__title">{t("tab.agents.newCardTitle")}</div>
+          <div className="project-card__hint">{t("tab.agents.newCardHint")}</div>
         </button>
 
-        {agents === null && <div className="project-card project-card--loading">Loading…</div>}
+        {agents === null && (
+          <div className="project-card project-card--loading">
+            {t("tab.agents.loading")}
+          </div>
+        )}
 
         {agents?.map((a) => (
           <div
@@ -138,18 +148,30 @@ export default function AgentsTab({ currentUser, activeProject }: Props) {
                 <span className={`project-card__vis project-card__vis--${a.visibility}`}>
                   {a.visibility}
                 </span>
-                <span className="project-card__vis">scope: {a.contextScope}</span>
-                {a.isSubagent && <span className="project-card__vis">subagent</span>}
-                {a.knowsOtherAgents && <span className="project-card__vis">knows peers</span>}
+                <span className="project-card__vis">
+                  {t("tab.agents.scopeLabel", { value: a.contextScope })}
+                </span>
+                {a.isSubagent && (
+                  <span className="project-card__vis">
+                    {t("tab.agents.subagentBadge")}
+                  </span>
+                )}
+                {a.knowsOtherAgents && (
+                  <span className="project-card__vis">
+                    {t("tab.agents.knowsPeers")}
+                  </span>
+                )}
                 {a.tools === null ? (
-                  <span className="project-card__vis">all tools</span>
+                  <span className="project-card__vis">{t("tab.agents.allTools")}</span>
                 ) : (
-                  <span className="project-card__vis">{a.tools.length} tools</span>
+                  <span className="project-card__vis">
+                    {t("tab.agents.toolsCount", { count: a.tools.length })}
+                  </span>
                 )}
               </div>
               <div className="project-card__meta" style={{ marginTop: 8, flexWrap: "wrap" }}>
                 <span className="project-form__hint" style={{ width: "100%" }}>
-                  Available in:
+                  {t("tab.agents.availableIn")}
                 </span>
                 {projects.map((p) => (
                   <label
@@ -157,8 +179,8 @@ export default function AgentsTab({ currentUser, activeProject }: Props) {
                     className="project-form__chip"
                     title={
                       a.projects.includes(p.name)
-                        ? `Unlink from ${p.name}`
-                        : `Link to ${p.name}`
+                        ? t("tab.agents.unlinkFrom", { name: p.name })
+                        : t("tab.agents.linkTo", { name: p.name })
                     }
                   >
                     <input
@@ -178,16 +200,16 @@ export default function AgentsTab({ currentUser, activeProject }: Props) {
                 <button
                   className="project-card__edit"
                   onClick={() => setDialog({ kind: "edit", agent: a })}
-                  title="Edit"
-                  aria-label={`Edit ${a.name}`}
+                  title={t("common.edit")}
+                  aria-label={t("tab.agents.editAria", { name: a.name })}
                 >
                   ✎
                 </button>
                 <button
                   className="project-card__edit"
                   onClick={() => void handleDelete(a.name)}
-                  title="Delete"
-                  aria-label={`Delete ${a.name}`}
+                  title={t("common.delete")}
+                  aria-label={t("tab.agents.deleteAria", { name: a.name })}
                 >
                   ✕
                 </button>
@@ -220,8 +242,8 @@ export default function AgentsTab({ currentUser, activeProject }: Props) {
       )}
       <ConfirmDialog
         open={confirmDelete !== null}
-        message={`Delete agent '${confirmDelete}'? Messages remain; the agent config + links go away.`}
-        confirmLabel="Delete"
+        message={t("tab.agents.deleteConfirm", { name: confirmDelete ?? "" })}
+        confirmLabel={t("common.delete")}
         onConfirm={() => void doDelete(confirmDelete!)}
         onCancel={() => setConfirmDelete(null)}
       />
