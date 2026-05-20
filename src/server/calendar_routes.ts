@@ -20,10 +20,14 @@ import type { BunnyQueue } from "../queue/bunqueue.ts";
 import type { User } from "../auth/users.ts";
 
 import { errorMessage } from "../util/error.ts";
+import { tryParseLlmJson } from "../util/llm_json.ts";
 import { json, readJson } from "./http.ts";
 import { canEditProject, canSeeProject } from "./route_helpers.ts";
 import { getProject } from "../memory/projects.ts";
-import { getPlanningProject, canEditPlanningProject } from "../memory/planning_projects.ts";
+import {
+  getPlanningProject,
+  canEditPlanningProject,
+} from "../memory/planning_projects.ts";
 import { getTeam } from "../memory/planning_teams.ts";
 import {
   bulkInsertHolidays,
@@ -96,8 +100,16 @@ export async function handleCalendarRoute(
   if (pathname === "/api/calendar/global/weekends" && req.method === "POST") {
     if (user.role !== "admin") return json({ error: "forbidden" }, 403);
     const body = await readJson<{ year?: number }>(req);
-    if (!body?.year || !Number.isInteger(body.year) || body.year < 1970 || body.year > 2100) {
-      return json({ error: "year is required and must be between 1970 and 2100" }, 400);
+    if (
+      !body?.year ||
+      !Number.isInteger(body.year) ||
+      body.year < 1970 ||
+      body.year > 2100
+    ) {
+      return json(
+        { error: "year is required and must be between 1970 and 2100" },
+        400,
+      );
     }
     const count = bulkInsertWeekends(ctx.db, body.year, user.id);
     void ctx.queue.log({
@@ -118,7 +130,10 @@ export async function handleCalendarRoute(
     }
     const { countryCode, year } = body;
     if (!/^[A-Z]{2}$/.test(countryCode)) {
-      return json({ error: "countryCode must be ISO 3166-1 alpha-2 (e.g. NL)" }, 400);
+      return json(
+        { error: "countryCode must be ISO 3166-1 alpha-2 (e.g. NL)" },
+        400,
+      );
     }
     if (!Number.isInteger(year) || year < 1970 || year > 2100) {
       return json({ error: "year out of range" }, 400);
@@ -158,11 +173,13 @@ export async function handleCalendarRoute(
     const project = getProject(ctx.db, projectName);
     if (!project) return json({ error: "project not found" }, 404);
     if (req.method === "GET") {
-      if (!canSeeProject(project, user)) return json({ error: "forbidden" }, 403);
+      if (!canSeeProject(project, user))
+        return json({ error: "forbidden" }, 403);
       return json(listProjectExceptions(ctx.db, projectName));
     }
     if (req.method === "POST") {
-      if (!canEditProject(project, user)) return json({ error: "forbidden" }, 403);
+      if (!canEditProject(project, user))
+        return json({ error: "forbidden" }, 403);
       return handleCreateProject(req, ctx, user, projectName);
     }
   }
@@ -174,8 +191,10 @@ export async function handleCalendarRoute(
     const id = Number(mm[2]);
     const project = getProject(ctx.db, projectName);
     if (!project) return json({ error: "project not found" }, 404);
-    if (!canEditProject(project, user)) return json({ error: "forbidden" }, 403);
-    if (req.method === "PATCH") return handlePatch(req, ctx, user, id, "project");
+    if (!canEditProject(project, user))
+      return json({ error: "forbidden" }, 403);
+    if (req.method === "PATCH")
+      return handlePatch(req, ctx, user, id, "project");
     if (req.method === "DELETE") return handleDelete(ctx, user, id, "project");
   }
 
@@ -186,10 +205,16 @@ export async function handleCalendarRoute(
     const pp = getPlanningProject(ctx.db, ppId);
     if (!pp) return json({ error: "planning project not found" }, 404);
     const project = getProject(ctx.db, pp.project);
-    if (!project || !canSeeProject(project, user)) return json({ error: "forbidden" }, 403);
+    if (!project || !canSeeProject(project, user))
+      return json({ error: "forbidden" }, 403);
     const from = url.searchParams.get("from");
     const to = url.searchParams.get("to");
-    if (!from || !to || !/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+    if (
+      !from ||
+      !to ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(from) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(to)
+    ) {
       return json({ error: "from and to are required (YYYY-MM-DD)" }, 400);
     }
     const set = buildNonWorkingDateSet(ctx.db, from, to, {
@@ -206,12 +231,14 @@ export async function handleCalendarRoute(
     const pp = getPlanningProject(ctx.db, ppId);
     if (!pp) return json({ error: "planning project not found" }, 404);
     const project = getProject(ctx.db, pp.project);
-    if (!project || !canSeeProject(project, user)) return json({ error: "forbidden" }, 403);
+    if (!project || !canSeeProject(project, user))
+      return json({ error: "forbidden" }, 403);
     if (req.method === "GET") {
       return json(listPlanningExceptions(ctx.db, ppId));
     }
     if (req.method === "POST") {
-      if (!canEditPlanningProject(user, pp, project)) return json({ error: "forbidden" }, 403);
+      if (!canEditPlanningProject(user, pp, project))
+        return json({ error: "forbidden" }, 403);
       return handleCreatePlanning(req, ctx, user, ppId);
     }
   }
@@ -224,9 +251,12 @@ export async function handleCalendarRoute(
     const pp = getPlanningProject(ctx.db, ppId);
     if (!pp) return json({ error: "planning project not found" }, 404);
     const project = getProject(ctx.db, pp.project);
-    if (!project || !canEditPlanningProject(user, pp, project)) return json({ error: "forbidden" }, 403);
-    if (req.method === "PATCH") return handlePatch(req, ctx, user, excId, "planning");
-    if (req.method === "DELETE") return handleDelete(ctx, user, excId, "planning");
+    if (!project || !canEditPlanningProject(user, pp, project))
+      return json({ error: "forbidden" }, 403);
+    if (req.method === "PATCH")
+      return handlePatch(req, ctx, user, excId, "planning");
+    if (req.method === "DELETE")
+      return handleDelete(ctx, user, excId, "planning");
   }
 
   // ── Team: list + create ───────────────────────────────────────────────────
@@ -238,12 +268,14 @@ export async function handleCalendarRoute(
     const pp = getPlanningProject(ctx.db, team.planningProjectId);
     if (!pp) return json({ error: "planning project not found" }, 404);
     const project = getProject(ctx.db, pp.project);
-    if (!project || !canSeeProject(project, user)) return json({ error: "forbidden" }, 403);
+    if (!project || !canSeeProject(project, user))
+      return json({ error: "forbidden" }, 403);
     if (req.method === "GET") {
       return json(listTeamExceptions(ctx.db, teamId));
     }
     if (req.method === "POST") {
-      if (!canEditPlanningProject(user, pp, project)) return json({ error: "forbidden" }, 403);
+      if (!canEditPlanningProject(user, pp, project))
+        return json({ error: "forbidden" }, 403);
       return handleCreateTeam(req, ctx, user, teamId, team.planningProjectId);
     }
   }
@@ -258,8 +290,10 @@ export async function handleCalendarRoute(
     const pp = getPlanningProject(ctx.db, team.planningProjectId);
     if (!pp) return json({ error: "planning project not found" }, 404);
     const project = getProject(ctx.db, pp.project);
-    if (!project || !canEditPlanningProject(user, pp, project)) return json({ error: "forbidden" }, 403);
-    if (req.method === "PATCH") return handlePatch(req, ctx, user, excId, "team");
+    if (!project || !canEditPlanningProject(user, pp, project))
+      return json({ error: "forbidden" }, 403);
+    if (req.method === "PATCH")
+      return handlePatch(req, ctx, user, excId, "team");
     if (req.method === "DELETE") return handleDelete(ctx, user, excId, "team");
   }
 
@@ -348,9 +382,12 @@ async function handleCreateGlobal(
     name?: string;
     countryCode?: string;
   }>(req);
-  if (!body?.date || !body.kind) return json({ error: "date and kind are required" }, 400);
-  if (!isValidDate(body.date)) return json({ error: "invalid date format" }, 400);
-  if (!isValidKind(body.kind)) return json({ error: "kind must be non_working or workable" }, 400);
+  if (!body?.date || !body.kind)
+    return json({ error: "date and kind are required" }, 400);
+  if (!isValidDate(body.date))
+    return json({ error: "invalid date format" }, 400);
+  if (!isValidKind(body.kind))
+    return json({ error: "kind must be non_working or workable" }, 400);
   try {
     const exc = createGlobalException(ctx.db, {
       date: body.date,
@@ -377,10 +414,15 @@ async function handleCreateProject(
   user: User,
   projectName: string,
 ): Promise<Response> {
-  const body = await readJson<{ date?: string; kind?: string; name?: string }>(req);
-  if (!body?.date || !body.kind) return json({ error: "date and kind are required" }, 400);
-  if (!isValidDate(body.date)) return json({ error: "invalid date format" }, 400);
-  if (!isValidKind(body.kind)) return json({ error: "kind must be non_working or workable" }, 400);
+  const body = await readJson<{ date?: string; kind?: string; name?: string }>(
+    req,
+  );
+  if (!body?.date || !body.kind)
+    return json({ error: "date and kind are required" }, 400);
+  if (!isValidDate(body.date))
+    return json({ error: "invalid date format" }, 400);
+  if (!isValidKind(body.kind))
+    return json({ error: "kind must be non_working or workable" }, 400);
   try {
     const exc = createProjectException(ctx.db, projectName, {
       date: body.date,
@@ -392,7 +434,12 @@ async function handleCreateProject(
       topic: "calendar",
       kind: "exception.create",
       userId: user.id,
-      data: { id: exc.id, scope: "project", date: exc.date, project: projectName },
+      data: {
+        id: exc.id,
+        scope: "project",
+        date: exc.date,
+        project: projectName,
+      },
     });
     return json(exc, 201);
   } catch (e) {
@@ -406,10 +453,15 @@ async function handleCreatePlanning(
   user: User,
   ppId: number,
 ): Promise<Response> {
-  const body = await readJson<{ date?: string; kind?: string; name?: string }>(req);
-  if (!body?.date || !body.kind) return json({ error: "date and kind are required" }, 400);
-  if (!isValidDate(body.date)) return json({ error: "invalid date format" }, 400);
-  if (!isValidKind(body.kind)) return json({ error: "kind must be non_working or workable" }, 400);
+  const body = await readJson<{ date?: string; kind?: string; name?: string }>(
+    req,
+  );
+  if (!body?.date || !body.kind)
+    return json({ error: "date and kind are required" }, 400);
+  if (!isValidDate(body.date))
+    return json({ error: "invalid date format" }, 400);
+  if (!isValidKind(body.kind))
+    return json({ error: "kind must be non_working or workable" }, 400);
   try {
     const exc = createPlanningException(ctx.db, ppId, {
       date: body.date,
@@ -421,7 +473,12 @@ async function handleCreatePlanning(
       topic: "calendar",
       kind: "exception.create",
       userId: user.id,
-      data: { id: exc.id, scope: "planning", date: exc.date, planningProjectId: ppId },
+      data: {
+        id: exc.id,
+        scope: "planning",
+        date: exc.date,
+        planningProjectId: ppId,
+      },
     });
     return json(exc, 201);
   } catch (e) {
@@ -436,10 +493,15 @@ async function handleCreateTeam(
   teamId: number,
   planningProjectId: number,
 ): Promise<Response> {
-  const body = await readJson<{ date?: string; kind?: string; name?: string }>(req);
-  if (!body?.date || !body.kind) return json({ error: "date and kind are required" }, 400);
-  if (!isValidDate(body.date)) return json({ error: "invalid date format" }, 400);
-  if (!isValidKind(body.kind)) return json({ error: "kind must be non_working or workable" }, 400);
+  const body = await readJson<{ date?: string; kind?: string; name?: string }>(
+    req,
+  );
+  if (!body?.date || !body.kind)
+    return json({ error: "date and kind are required" }, 400);
+  if (!isValidDate(body.date))
+    return json({ error: "invalid date format" }, 400);
+  if (!isValidKind(body.kind))
+    return json({ error: "kind must be non_working or workable" }, 400);
   try {
     const exc = createTeamException(ctx.db, teamId, planningProjectId, {
       date: body.date,
@@ -464,10 +526,15 @@ async function handleCreateUser(
   ctx: CalendarRouteCtx,
   user: User,
 ): Promise<Response> {
-  const body = await readJson<{ date?: string; kind?: string; name?: string }>(req);
-  if (!body?.date || !body.kind) return json({ error: "date and kind are required" }, 400);
-  if (!isValidDate(body.date)) return json({ error: "invalid date format" }, 400);
-  if (!isValidKind(body.kind)) return json({ error: "kind must be non_working or workable" }, 400);
+  const body = await readJson<{ date?: string; kind?: string; name?: string }>(
+    req,
+  );
+  if (!body?.date || !body.kind)
+    return json({ error: "date and kind are required" }, 400);
+  if (!isValidDate(body.date))
+    return json({ error: "invalid date format" }, 400);
+  if (!isValidKind(body.kind))
+    return json({ error: "kind must be non_working or workable" }, 400);
   try {
     const exc = createUserException(ctx.db, user.id, {
       date: body.date,
@@ -570,7 +637,12 @@ function handleHolidayFetch(
             userId: user.id,
             data: { countryCode, year, count },
           });
-          const ev = JSON.stringify({ type: "holidays_inserted", count, countryCode, year });
+          const ev = JSON.stringify({
+            type: "holidays_inserted",
+            count,
+            countryCode,
+            year,
+          });
           sink.enqueue(SSE_ENCODER.encode(`data: ${ev}\n\n`));
         }
       } catch (e) {
@@ -594,29 +666,18 @@ function handleHolidayFetch(
 function extractHolidayJson(
   raw: string,
 ): Array<{ date: string; name: string }> | null {
-  const fencedJson = raw.match(/```json\s*\n([\s\S]*?)\n```/);
-  const fencedBare = raw.match(/```\s*\n([\s\S]*?)\n```/);
-  const candidates = [fencedJson?.[1], fencedBare?.[1]].filter(Boolean);
-
-  for (const candidate of candidates) {
-    try {
-      const parsed = JSON.parse(candidate!);
-      if (
-        Array.isArray(parsed) &&
-        parsed.every(
-          (item) =>
-            typeof item === "object" &&
-            typeof item.date === "string" &&
-            typeof item.name === "string",
-        )
-      ) {
-        return parsed;
-      }
-    } catch {
-      // Try next candidate.
-    }
-  }
-  return null;
+  return tryParseLlmJson<Array<{ date: string; name: string }>>(
+    raw,
+    (v): v is Array<{ date: string; name: string }> =>
+      Array.isArray(v) &&
+      v.every(
+        (item) =>
+          item !== null &&
+          typeof item === "object" &&
+          typeof (item as { date?: unknown }).date === "string" &&
+          typeof (item as { name?: unknown }).name === "string",
+      ),
+  );
 }
 
 // ── Validation helpers ────────────────────────────────────────────────────────

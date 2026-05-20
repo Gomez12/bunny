@@ -22,6 +22,7 @@ import {
   type WhiteboardSummary,
   type ServerEvent,
 } from "../api";
+import { tryParseLlmJson } from "../../../src/util/llm_json";
 
 interface Props {
   project: string;
@@ -175,13 +176,8 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
     setDirty(false);
   }, [saveNow]);
 
-  const extractJson = (text: string): string | null => {
-    const fenceMatch = text.match(/```json?\s*\n?([\s\S]*?)\n?\s*```/);
-    if (fenceMatch) return fenceMatch[1]!;
-    const trimmed = text.trim();
-    if (trimmed.startsWith("[")) return trimmed;
-    return null;
-  };
+  const extractElementsArray = (text: string): unknown[] | null =>
+    tryParseLlmJson<unknown[]>(text, (v): v is unknown[] => Array.isArray(v));
 
   const handleSend = async (prompt: string) => {
     if (!apiRef.current || activeId === null) return;
@@ -283,17 +279,15 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
         }
       }
 
-      const jsonStr = extractJson(fullContent);
-      if (!jsonStr) {
+      const parsed = extractElementsArray(fullContent);
+      if (!parsed) {
         setError("Could not extract valid JSON from the response");
         setStreaming(false);
         return;
       }
 
       try {
-        const parsed = JSON.parse(jsonStr);
-        if (!Array.isArray(parsed)) throw new Error("expected array");
-        const restored = restoreElements(parsed, null);
+        const restored = restoreElements(parsed as ExcalidrawElement[], null);
         apiRef.current.updateScene({ elements: restored });
         const restoredJson = JSON.stringify(restored);
         lastSavedRef.current = restoredJson;

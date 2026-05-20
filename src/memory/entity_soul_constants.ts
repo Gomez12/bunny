@@ -1,3 +1,5 @@
+import { tryParseLlmJson } from "../util/llm_json.ts";
+
 /**
  * Constants shared across the per-entity soul subsystem (ADR 0036).
  *
@@ -22,35 +24,18 @@ export function clampSoul(text: string): string {
 }
 
 /**
- * Walk the candidate JSON payloads embedded in a model response, in the
- * order: `\`\`\`json\`\`\`` fence → bare `\`\`\`` fence → first/last brace
- * span. Each candidate is JSON-parsed; the first that succeeds and yields
- * a plain object is returned. Used by every "give me back JSON" handler in
- * the codebase (KB definition generate, soul refresh, auto-build enrich) so
- * the parsing-tolerance contract stays uniform.
+ * Thin wrapper around the shared LLM-JSON extractor that constrains the
+ * result to a plain object (rejects arrays and primitives). Used by the
+ * soul-refresh + KB-definition + auto-build-enrich handlers so every
+ * "give-me-back-JSON" caller has identical parsing tolerance — see
+ * `src/util/llm_json.ts` for the candidate-list strategy.
  */
 export function extractFencedJson(raw: string): Record<string, unknown> | null {
-  const candidates: string[] = [];
-  const fencedJson = raw.match(/```json\s*\n([\s\S]*?)\n```/);
-  if (fencedJson?.[1]) candidates.push(fencedJson[1]);
-  const fencedBare = raw.match(/```\s*\n([\s\S]*?)\n```/);
-  if (fencedBare?.[1]) candidates.push(fencedBare[1]);
-  const firstBrace = raw.indexOf("{");
-  const lastBrace = raw.lastIndexOf("}");
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    candidates.push(raw.slice(firstBrace, lastBrace + 1));
-  }
-  for (const candidate of candidates) {
-    try {
-      const obj = JSON.parse(candidate.trim());
-      if (obj && typeof obj === "object" && !Array.isArray(obj)) {
-        return obj as Record<string, unknown>;
-      }
-    } catch {
-      continue;
-    }
-  }
-  return null;
+  return tryParseLlmJson<Record<string, unknown>>(
+    raw,
+    (v): v is Record<string, unknown> =>
+      !!v && typeof v === "object" && !Array.isArray(v),
+  );
 }
 
 /**

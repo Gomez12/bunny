@@ -14,6 +14,7 @@ import type { LlmConfig } from "../../../config.ts";
 import { chatSync } from "../../../llm/adapter.ts";
 import { resolvePrompt, interpolate } from "../../../prompts/resolve.ts";
 import type { FileExtraction, GraphEdge, GraphNode } from "../types.ts";
+import { tryParseLlmJson } from "../../../util/llm_json.ts";
 
 const MAX_DOC_CONTENT_CHARS = 24_000;
 
@@ -144,36 +145,15 @@ interface RawExtraction {
 }
 
 function parseDocExtractJson(text: string): RawExtraction | undefined {
-  // Accept either a fenced ```json block or a bare JSON object.
-  const fence = text.match(/```json\s*([\s\S]+?)\s*```/i);
-  const candidate = fence?.[1] ?? text;
-  try {
-    const parsed = JSON.parse(candidate);
-    if (
-      parsed &&
-      typeof parsed === "object" &&
-      Array.isArray((parsed as RawExtraction).nodes) &&
-      Array.isArray((parsed as RawExtraction).edges)
-    ) {
-      return parsed as RawExtraction;
-    }
-  } catch {
-    /* fallthrough */
-  }
-  // Last-ditch: try to find the first `{…}` block and parse that.
-  const firstBrace = text.indexOf("{");
-  const lastBrace = text.lastIndexOf("}");
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    try {
-      const obj = JSON.parse(text.slice(firstBrace, lastBrace + 1));
-      if (obj && Array.isArray(obj.nodes) && Array.isArray(obj.edges)) {
-        return obj as RawExtraction;
-      }
-    } catch {
-      /* give up */
-    }
-  }
-  return undefined;
+  const parsed = tryParseLlmJson<RawExtraction>(
+    text,
+    (v): v is RawExtraction =>
+      !!v &&
+      typeof v === "object" &&
+      Array.isArray((v as RawExtraction).nodes) &&
+      Array.isArray((v as RawExtraction).edges),
+  );
+  return parsed ?? undefined;
 }
 
 const ALLOWED_NODE_KINDS = [

@@ -12,6 +12,7 @@ import type { User } from "../auth/users.ts";
 import type { BunnyConfig } from "../config.ts";
 import type { BunnyQueue } from "../queue/bunqueue.ts";
 import { errorMessage } from "../util/error.ts";
+import { extractLlmJsonCandidates } from "../util/llm_json.ts";
 import { json, readJson } from "./http.ts";
 import { canSeeProject } from "./routes.ts";
 import { getProject, validateProjectName } from "../memory/projects.ts";
@@ -518,57 +519,51 @@ async function handleGenerate(
 }
 
 /**
- * Extract the JSON payload from the LLM's final answer. Accepts either a
- * ```json``` fence, a bare ``` fence, or a raw JSON object — in that order.
+ * Extract the JSON payload from the LLM's final answer. Delegates fence /
+ * brace stripping to the shared `extractLlmJsonCandidates` so every "give
+ * me JSON" caller stays in lockstep on parsing tolerance; layered on top is
+ * this caller's own schema validation (short/long strings + sources array).
  */
 export function extractDefinitionJson(raw: string): {
   short: string;
   long: string;
   sources: DefinitionSource[];
 } | null {
-  const candidates: string[] = [];
-  const fencedJson = raw.match(/```json\s*\n([\s\S]*?)\n```/);
-  if (fencedJson?.[1]) candidates.push(fencedJson[1]);
-  const fencedBare = raw.match(/```\s*\n([\s\S]*?)\n```/);
-  if (fencedBare?.[1]) candidates.push(fencedBare[1]);
-  const firstBrace = raw.indexOf("{");
-  const lastBrace = raw.lastIndexOf("}");
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    candidates.push(raw.slice(firstBrace, lastBrace + 1));
-  }
-
-  for (const candidate of candidates) {
+  for (const candidate of extractLlmJsonCandidates(raw)) {
+    let obj: {
+      shortDescription?: unknown;
+      longDescription?: unknown;
+      sources?: unknown;
+    };
     try {
-      const obj = JSON.parse(candidate.trim());
-      const short =
-        typeof obj.shortDescription === "string"
-          ? obj.shortDescription.trim()
-          : "";
-      const long =
-        typeof obj.longDescription === "string"
-          ? obj.longDescription.trim()
-          : "";
-      const sources: DefinitionSource[] = [];
-      if (Array.isArray(obj.sources)) {
-        for (const s of obj.sources) {
-          if (
-            s &&
-            typeof s === "object" &&
-            typeof s.title === "string" &&
-            typeof s.url === "string"
-          ) {
-            const url = s.url.trim();
-            if (/^https?:\/\//i.test(url)) {
-              sources.push({ title: s.title.trim(), url });
-            }
-          }
-        }
-      }
-      if (!short && !long && sources.length === 0) continue;
-      return { short, long, sources };
+      obj = JSON.parse(candidate) as typeof obj;
     } catch {
       continue;
     }
+    const short =
+      typeof obj.shortDescription === "string"
+        ? obj.shortDescription.trim()
+        : "";
+    const long =
+      typeof obj.longDescription === "string" ? obj.longDescription.trim() : "";
+    const sources: DefinitionSource[] = [];
+    if (Array.isArray(obj.sources)) {
+      for (const s of obj.sources) {
+        if (
+          s &&
+          typeof s === "object" &&
+          typeof s.title === "string" &&
+          typeof s.url === "string"
+        ) {
+          const url = s.url.trim();
+          if (/^https?:\/\//i.test(url)) {
+            sources.push({ title: s.title.trim(), url });
+          }
+        }
+      }
+    }
+    if (!short && !long && sources.length === 0) continue;
+    return { short, long, sources };
   }
 
   return null;

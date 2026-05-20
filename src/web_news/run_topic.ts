@@ -24,6 +24,7 @@ import { runAgent } from "../agent/loop.ts";
 import { silentRenderer } from "../agent/render.ts";
 import { setSessionHiddenFromChat } from "../memory/session_visibility.ts";
 import { errorMessage } from "../util/error.ts";
+import { extractLlmJsonCandidates } from "../util/llm_json.ts";
 import { computeNextRun } from "../scheduler/cron.ts";
 import { resolvePrompt, interpolate } from "../prompts/resolve.ts";
 import {
@@ -89,10 +90,24 @@ export async function runTopic(opts: RunTopicOpts): Promise<RunTopicResult> {
 
   // ── Dispatch to type-specific runner ────────────────────────────────────────
   if (topic.topicType === "rss_feed") {
-    return runRssFeed(topic, { db, queue, cfg, tools, triggeredBy: opts.triggeredBy, now });
+    return runRssFeed(topic, {
+      db,
+      queue,
+      cfg,
+      tools,
+      triggeredBy: opts.triggeredBy,
+      now,
+    });
   }
   if (topic.topicType === "site_monitor") {
-    return runSiteMonitorTopic(topic, { db, queue, cfg, tools, triggeredBy: opts.triggeredBy, now });
+    return runSiteMonitorTopic(topic, {
+      db,
+      queue,
+      cfg,
+      tools,
+      triggeredBy: opts.triggeredBy,
+      now,
+    });
   }
   // ── keyword_search (existing flow) ──────────────────────────────────────────
 
@@ -311,7 +326,8 @@ function notifySubscribers(
   if (insertedItems.length === 0) return;
   const digest = buildDigest(topic, insertedItems);
   const subs = listTopicSubscribers(db, topic.id).map((s) => s.userId);
-  const recipients = subs.length > 0 ? subs : topic.createdBy ? [topic.createdBy] : [];
+  const recipients =
+    subs.length > 0 ? subs : topic.createdBy ? [topic.createdBy] : [];
   for (const uid of recipients) {
     void sendTelegramToUser(db, queue, cfg.telegram, {
       userId: uid,
@@ -376,7 +392,10 @@ async function runRssFeed(
         });
         if (inserted) {
           result.inserted++;
-          insertedItems.push({ ...item, source: item.source ?? (parsed.feedTitle || null) });
+          insertedItems.push({
+            ...item,
+            source: item.source ?? (parsed.feedTitle || null),
+          });
         } else {
           result.duplicates++;
         }
@@ -403,7 +422,13 @@ async function runRssFeed(
       topic: "web_news",
       kind: "topic.run.done",
       userId: triggeredBy,
-      data: { topicId: topic.id, project: topic.project, mode: "rss", inserted: result.inserted, duplicates: result.duplicates },
+      data: {
+        topicId: topic.id,
+        project: topic.project,
+        mode: "rss",
+        inserted: result.inserted,
+        duplicates: result.duplicates,
+      },
     });
   } catch (e) {
     const msg = errorMessage(e);
@@ -414,7 +439,9 @@ async function runRssFeed(
         error: msg,
         nextUpdateAt: safeNext(topic.updateCron, now),
       });
-    } catch { /* swallow */ }
+    } catch {
+      /* swallow */
+    }
     void queue.log({
       topic: "web_news",
       kind: "topic.run.error",
@@ -481,7 +508,13 @@ async function runSiteMonitorTopic(
       topic: "web_news",
       kind: "topic.run.done",
       userId: opts.triggeredBy,
-      data: { topicId: topic.id, project: topic.project, mode: "site_monitor", outcome: monitorResult.outcome, inserted: result.inserted },
+      data: {
+        topicId: topic.id,
+        project: topic.project,
+        mode: "site_monitor",
+        outcome: monitorResult.outcome,
+        inserted: result.inserted,
+      },
     });
   } catch (e) {
     const msg = errorMessage(e);
@@ -492,7 +525,9 @@ async function runSiteMonitorTopic(
         error: msg,
         nextUpdateAt: safeNext(topic.updateCron, now),
       });
-    } catch { /* swallow */ }
+    } catch {
+      /* swallow */
+    }
     void queue.log({
       topic: "web_news",
       kind: "topic.run.error",
@@ -573,32 +608,22 @@ function buildUserMessage(
 }
 
 /**
- * Extract the JSON payload from the LLM's final answer. Accepts `\`\`\`json`,
- * bare ``` ``` ``` fences, or a raw `{...}` block. Mirrors
- * `src/server/kb_routes.ts:extractDefinitionJson`.
+ * Extract the JSON payload from the LLM's final answer. Delegates fence /
+ * brace stripping to the shared `extractLlmJsonCandidates`; this caller's
+ * own schema check (`items` array, optional `improvedTerms`) sits on top.
  */
 export function extractNewsJson(raw: string): ParsedNewsPayload | null {
-  const candidates: string[] = [];
-  const fencedJson = raw.match(/```json\s*\n([\s\S]*?)\n```/);
-  if (fencedJson?.[1]) candidates.push(fencedJson[1]);
-  const fencedBare = raw.match(/```\s*\n([\s\S]*?)\n```/);
-  if (fencedBare?.[1]) candidates.push(fencedBare[1]);
-  const firstBrace = raw.indexOf("{");
-  const lastBrace = raw.lastIndexOf("}");
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    candidates.push(raw.slice(firstBrace, lastBrace + 1));
-  }
-
-  for (const candidate of candidates) {
+  for (const candidate of extractLlmJsonCandidates(raw)) {
+    let obj: { items?: unknown; improvedTerms?: unknown };
     try {
-      const obj = JSON.parse(candidate.trim());
-      const items = parseItems(obj?.items);
-      if (items === null) continue;
-      const improvedTerms = parseImprovedTerms(obj?.improvedTerms);
-      return { items, improvedTerms };
+      obj = JSON.parse(candidate) as typeof obj;
     } catch {
       continue;
     }
+    const items = parseItems(obj?.items);
+    if (items === null) continue;
+    const improvedTerms = parseImprovedTerms(obj?.improvedTerms);
+    return { items, improvedTerms };
   }
   return null;
 }

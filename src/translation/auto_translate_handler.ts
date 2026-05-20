@@ -40,6 +40,7 @@ import { registry as toolsRegistry } from "../tools/index.ts";
 import { setSessionHiddenFromChat } from "../memory/session_visibility.ts";
 import { getSystemUserId } from "../auth/seed.ts";
 import { errorMessage } from "../util/error.ts";
+import { extractLlmJsonCandidates } from "../util/llm_json.ts";
 
 export const TRANSLATION_HANDLER = "translation.auto_translate_scan";
 
@@ -86,33 +87,25 @@ export function extractTranslationJson(
   raw: string,
   expectedKeys: readonly string[],
 ): Record<string, string> | null {
-  const candidates: string[] = [];
-  const fencedJson = raw.match(/```json\s*\n([\s\S]*?)\n```/);
-  if (fencedJson?.[1]) candidates.push(fencedJson[1]);
-  const fencedBare = raw.match(/```\s*\n([\s\S]*?)\n```/);
-  if (fencedBare?.[1]) candidates.push(fencedBare[1]);
-  const firstBrace = raw.indexOf("{");
-  const lastBrace = raw.lastIndexOf("}");
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    candidates.push(raw.slice(firstBrace, lastBrace + 1));
-  }
-
-  for (const candidate of candidates) {
+  for (const candidate of extractLlmJsonCandidates(raw)) {
+    let obj: Record<string, unknown>;
     try {
-      const obj = JSON.parse(candidate.trim());
-      if (!obj || typeof obj !== "object") continue;
-      const out: Record<string, string> = {};
-      let matched = false;
-      for (const key of expectedKeys) {
-        if (typeof obj[key] === "string") {
-          out[key] = obj[key];
-          matched = true;
-        }
-      }
-      if (matched) return out;
+      const parsed = JSON.parse(candidate);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+        continue;
+      obj = parsed as Record<string, unknown>;
     } catch {
       continue;
     }
+    const out: Record<string, string> = {};
+    let matched = false;
+    for (const key of expectedKeys) {
+      if (typeof obj[key] === "string") {
+        out[key] = obj[key] as string;
+        matched = true;
+      }
+    }
+    if (matched) return out;
   }
   return null;
 }

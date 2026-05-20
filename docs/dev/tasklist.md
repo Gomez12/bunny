@@ -5,6 +5,7 @@ Archive lives in [`tasklistarchive.md`](./tasklistarchive.md). Keep at most 50 `
 
 | Status | Related document | Estimated work | Description |
 | --- | --- | ---: | --- |
+| done | src/util/llm_json.ts | 1h | Central lenient JSON extractor for LLM responses; tolerant fence regex + raw/{}/[] fallbacks; collapse 6 duplicated extractors |
 | done | docs/dev/plans/docs-restructure.md | 4h | Restructure `docs/` to match the AGENTS.md layout |
 | done | docs/dev/architecture/scheduler.md | 30m | Fix broken paths and registry API in scheduler.md |
 | done | docs/dev/architecture/agent-loop.md | 5m | Fix ToolRegistry path (src/tools/registry.ts) |
