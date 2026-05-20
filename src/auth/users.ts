@@ -341,6 +341,11 @@ export function setUserSoulManual(
 /**
  * Persist the LLM-merged soul and advance the watermark. Truncates if the
  * model overshot the budget; never stores more than the cap.
+ *
+ * When the model returns empty content (e.g. blank reply, parse failure
+ * upstream), the existing `soul` column is left untouched — only the
+ * watermark/status metadata advances. Otherwise a flaky refresh could wipe a
+ * carefully-built soul.
  */
 export function setUserSoulAuto(
   db: Database,
@@ -348,20 +353,31 @@ export function setUserSoulAuto(
   soul: string,
   watermarkMessageId: number,
 ): User | null {
-  const trimmed =
+  const trimmed = (
     soul.length > MEMORY_FIELD_CHAR_LIMIT
       ? soul.slice(0, MEMORY_FIELD_CHAR_LIMIT)
-      : soul;
+      : soul
+  ).trim();
   const now = Date.now();
-  const info = db
-    .prepare(
-      `UPDATE users
-       SET soul = ?, soul_watermark_message_id = ?, soul_status = 'idle',
-           soul_error = NULL, soul_refreshing_at = NULL,
-           soul_refreshed_at = ?, updated_at = ?
-       WHERE id = ?`,
-    )
-    .run(trimmed, watermarkMessageId, now, now, id);
+  const info = trimmed
+    ? db
+        .prepare(
+          `UPDATE users
+           SET soul = ?, soul_watermark_message_id = ?, soul_status = 'idle',
+               soul_error = NULL, soul_refreshing_at = NULL,
+               soul_refreshed_at = ?, updated_at = ?
+           WHERE id = ?`,
+        )
+        .run(trimmed, watermarkMessageId, now, now, id)
+    : db
+        .prepare(
+          `UPDATE users
+           SET soul_watermark_message_id = ?, soul_status = 'idle',
+               soul_error = NULL, soul_refreshing_at = NULL,
+               soul_refreshed_at = ?, updated_at = ?
+           WHERE id = ?`,
+        )
+        .run(watermarkMessageId, now, now, id);
   if (info.changes === 0) return null;
   return getUserById(db, id);
 }

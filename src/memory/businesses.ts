@@ -667,17 +667,29 @@ export function setBusinessSoulAuto(
   cadenceMs: number = ENTITY_SOUL_DEFAULT_CADENCE_MS,
   opts: { markStale?: boolean } = {},
 ): void {
-  const trimmed = clampSoul(soul);
+  const trimmed = clampSoul(soul).trim();
   const now = Date.now();
   const next = now + cadenceMs;
-  db.prepare(
-    `UPDATE businesses
-       SET soul = ?, soul_sources = ?, soul_status = 'idle', soul_error = NULL,
-           soul_refreshing_at = NULL, soul_refreshed_at = ?, soul_next_refresh_at = ?,
-           updated_at = ?
-     WHERE id = ? AND deleted_at IS NULL`,
-  ).run(trimmed, JSON.stringify(sources), now, next, now, id);
-  if (opts.markStale) markTranslationsStale(db, BUSINESS_KIND, id);
+  // Empty LLM output ⇒ leave `soul` and `soul_sources` untouched; mirrors
+  // setContactSoulAuto. Prevents a flaky refresh from wiping the body.
+  if (trimmed) {
+    db.prepare(
+      `UPDATE businesses
+         SET soul = ?, soul_sources = ?, soul_status = 'idle', soul_error = NULL,
+             soul_refreshing_at = NULL, soul_refreshed_at = ?, soul_next_refresh_at = ?,
+             updated_at = ?
+       WHERE id = ? AND deleted_at IS NULL`,
+    ).run(trimmed, JSON.stringify(sources), now, next, now, id);
+    if (opts.markStale) markTranslationsStale(db, BUSINESS_KIND, id);
+  } else {
+    db.prepare(
+      `UPDATE businesses
+         SET soul_status = 'idle', soul_error = NULL,
+             soul_refreshing_at = NULL, soul_refreshed_at = ?, soul_next_refresh_at = ?,
+             updated_at = ?
+       WHERE id = ? AND deleted_at IS NULL`,
+    ).run(now, next, now, id);
+  }
 }
 
 export function claimBusinessSoulRefresh(

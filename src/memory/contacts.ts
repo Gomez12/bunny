@@ -953,17 +953,31 @@ export function setContactSoulAuto(
   cadenceMs: number = ENTITY_SOUL_DEFAULT_CADENCE_MS,
   opts: { markStale?: boolean } = {},
 ): void {
-  const trimmed = clampSoul(soul);
+  const trimmed = clampSoul(soul).trim();
   const now = Date.now();
   const next = now + cadenceMs;
-  db.prepare(
-    `UPDATE contacts
-       SET soul = ?, soul_sources = ?, soul_status = 'idle', soul_error = NULL,
-           soul_refreshing_at = NULL, soul_refreshed_at = ?, soul_next_refresh_at = ?,
-           updated_at = ?
-     WHERE id = ? AND deleted_at IS NULL`,
-  ).run(trimmed, JSON.stringify(sources), now, next, now, id);
-  if (opts.markStale) markTranslationsStale(db, CONTACT_KIND, id);
+  // Empty LLM output ⇒ leave `soul` and `soul_sources` untouched; the next
+  // tick can retry. Status/refresh metadata still advances so the row doesn't
+  // stay `'refreshing'` and we don't retry immediately. Translation stale
+  // marking is suppressed too — there's nothing new to translate.
+  if (trimmed) {
+    db.prepare(
+      `UPDATE contacts
+         SET soul = ?, soul_sources = ?, soul_status = 'idle', soul_error = NULL,
+             soul_refreshing_at = NULL, soul_refreshed_at = ?, soul_next_refresh_at = ?,
+             updated_at = ?
+       WHERE id = ? AND deleted_at IS NULL`,
+    ).run(trimmed, JSON.stringify(sources), now, next, now, id);
+    if (opts.markStale) markTranslationsStale(db, CONTACT_KIND, id);
+  } else {
+    db.prepare(
+      `UPDATE contacts
+         SET soul_status = 'idle', soul_error = NULL,
+             soul_refreshing_at = NULL, soul_refreshed_at = ?, soul_next_refresh_at = ?,
+             updated_at = ?
+       WHERE id = ? AND deleted_at IS NULL`,
+    ).run(now, next, now, id);
+  }
 }
 
 /**

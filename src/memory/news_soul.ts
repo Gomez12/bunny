@@ -60,15 +60,31 @@ export function getUserNewsSoul(db: Database, userId: string): UserNewsSoul | nu
   return row ? rowToNewsSoul(row) : null;
 }
 
+/**
+ * Persist the LLM-merged news soul. When the model returns empty content,
+ * the existing `news_soul` column is left untouched — only the status
+ * metadata advances. Prevents a flaky refresh from wiping the profile.
+ */
 export function setUserNewsSoulAuto(db: Database, userId: string, soul: string): void {
+  const trimmed = soul.trim();
   const now = Date.now();
-  db.prepare(
-    `UPDATE users
-        SET news_soul = ?, news_soul_status = 'idle', news_soul_error = NULL,
-            news_soul_refreshed_at = ?, news_soul_refreshing_at = NULL,
-            updated_at = ?
-      WHERE id = ?`,
-  ).run(soul, now, now, userId);
+  if (trimmed) {
+    db.prepare(
+      `UPDATE users
+          SET news_soul = ?, news_soul_status = 'idle', news_soul_error = NULL,
+              news_soul_refreshed_at = ?, news_soul_refreshing_at = NULL,
+              updated_at = ?
+        WHERE id = ?`,
+    ).run(trimmed, now, now, userId);
+  } else {
+    db.prepare(
+      `UPDATE users
+          SET news_soul_status = 'idle', news_soul_error = NULL,
+              news_soul_refreshed_at = ?, news_soul_refreshing_at = NULL,
+              updated_at = ?
+        WHERE id = ?`,
+    ).run(now, now, userId);
+  }
 }
 
 export function setUserNewsSoulError(db: Database, userId: string, error: string): void {

@@ -139,6 +139,10 @@ export function setUserProjectMemoryManual(
  * Persist the LLM's merged result and advance the watermark. Truncates if the
  * model returned more than the budget — the call site should also have nudged
  * the model with the budget, but we never store > cap regardless.
+ *
+ * When the model returns empty content, the existing `memory` column is left
+ * untouched — only the watermark/status metadata advances. Prevents a flaky
+ * refresh from wiping a carefully-built memory.
  */
 export function setUserProjectMemoryAuto(
   db: Database,
@@ -147,14 +151,23 @@ export function setUserProjectMemoryAuto(
   memory: string,
   watermarkMessageId: number,
 ): UserProjectMemory {
-  const trimmed = clampMemory(memory);
+  const trimmed = clampMemory(memory).trim();
   const now = Date.now();
-  db.prepare(
-    `UPDATE user_project_memory
-     SET memory = ?, watermark_message_id = ?, status = 'idle', error = NULL,
-         refreshing_at = NULL, refreshed_at = ?, updated_at = ?
-     WHERE user_id = ? AND project = ?`,
-  ).run(trimmed, watermarkMessageId, now, now, userId, project);
+  if (trimmed) {
+    db.prepare(
+      `UPDATE user_project_memory
+       SET memory = ?, watermark_message_id = ?, status = 'idle', error = NULL,
+           refreshing_at = NULL, refreshed_at = ?, updated_at = ?
+       WHERE user_id = ? AND project = ?`,
+    ).run(trimmed, watermarkMessageId, now, now, userId, project);
+  } else {
+    db.prepare(
+      `UPDATE user_project_memory
+       SET watermark_message_id = ?, status = 'idle', error = NULL,
+           refreshing_at = NULL, refreshed_at = ?, updated_at = ?
+       WHERE user_id = ? AND project = ?`,
+    ).run(watermarkMessageId, now, now, userId, project);
+  }
   return getUserProjectMemory(db, userId, project)!;
 }
 

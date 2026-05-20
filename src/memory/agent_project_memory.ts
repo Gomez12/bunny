@@ -118,6 +118,13 @@ export function setAgentProjectMemoryManual(
   return getAgentProjectMemory(db, agent, project)!;
 }
 
+/**
+ * Persist the LLM's merged result and advance the watermark.
+ *
+ * When the model returns empty content, the existing `memory` column is left
+ * untouched — only the watermark/status metadata advances. Prevents a flaky
+ * refresh from wiping a carefully-built memory.
+ */
 export function setAgentProjectMemoryAuto(
   db: Database,
   agent: string,
@@ -125,14 +132,23 @@ export function setAgentProjectMemoryAuto(
   memory: string,
   watermarkMessageId: number,
 ): AgentProjectMemory {
-  const trimmed = clampMemory(memory);
+  const trimmed = clampMemory(memory).trim();
   const now = Date.now();
-  db.prepare(
-    `UPDATE agent_project_memory
-     SET memory = ?, watermark_message_id = ?, status = 'idle', error = NULL,
-         refreshing_at = NULL, refreshed_at = ?, updated_at = ?
-     WHERE agent = ? AND project = ?`,
-  ).run(trimmed, watermarkMessageId, now, now, agent, project);
+  if (trimmed) {
+    db.prepare(
+      `UPDATE agent_project_memory
+       SET memory = ?, watermark_message_id = ?, status = 'idle', error = NULL,
+           refreshing_at = NULL, refreshed_at = ?, updated_at = ?
+       WHERE agent = ? AND project = ?`,
+    ).run(trimmed, watermarkMessageId, now, now, agent, project);
+  } else {
+    db.prepare(
+      `UPDATE agent_project_memory
+       SET watermark_message_id = ?, status = 'idle', error = NULL,
+           refreshing_at = NULL, refreshed_at = ?, updated_at = ?
+       WHERE agent = ? AND project = ?`,
+    ).run(watermarkMessageId, now, now, agent, project);
+  }
   return getAgentProjectMemory(db, agent, project)!;
 }
 
