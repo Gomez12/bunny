@@ -304,21 +304,21 @@ The barrel exports ~95 icons; the table above lists the _sanctioned UI contexts_
 
 ## 6. Rabbit mascot
 
-Four sanctioned placements — nowhere else.
+Four sanctioned placements — nowhere else. All four render the same illustrated grey head from `web/src/assets/rabbit-watermark.svg`: the `<Rabbit>` component renders it as an `<img>` for brand / empty / auth contexts, and the `.app-shell__main::before` rule uses it as a CSS background for the watermark.
 
-| Placement            | Size       | Opacity | Notes                                                                                                                                                                                                                                        |
-| -------------------- | ---------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Brand logo           | 20 px      | 1.0     | Sidebar header, replaces the old `.brand-dot`                                                                                                                                                                                                |
-| Background watermark | 180-240 px | 0.06    | Fixed-position, bottom-right of `.main`. **Not on Dashboard** (too dense). Non-interactive (`pointer-events: none`). Uses the standalone illustrated head at `web/src/assets/rabbit-watermark.svg` — fixed grey palette, not `currentColor`. |
-| Empty state          | 120 px     | 0.85    | Centered above the title in `<EmptyState>`                                                                                                                                                                                                   |
-| Auth hero            | 160 px     | 1.0     | Above the form on Login / Change Password pages                                                                                                                                                                                              |
+| Placement            | Size       | Opacity | Notes                                                                                                                |
+| -------------------- | ---------- | ------- | -------------------------------------------------------------------------------------------------------------------- |
+| Brand logo           | 20 px      | 1.0     | Sidebar header, replaces the old `.brand-dot`                                                                        |
+| Background watermark | 180-240 px | 0.06    | Fixed-position, bottom-right of `.main`. **Not on Dashboard** (too dense). Non-interactive (`pointer-events: none`). |
+| Empty state          | 120 px     | 0.85    | Centered above the title in `<EmptyState>`                                                                           |
+| Auth hero            | 160 px     | 1.0     | Above the form on Login / Change Password pages                                                                      |
 
 **Don'ts**
 
 - Don't put the rabbit inside data tables, lists, or card contents.
-- Don't show more than one rabbit on a single screen (brand + watermark is fine because the watermark is subliminal at 0.04).
+- Don't show more than one rabbit on a single screen (brand + watermark is fine because the watermark is subliminal at 0.06).
 - Don't scale below 16 px — it loses detail.
-- Don't recolor the inline `<Rabbit>` mascot (brand / empty / auth). It uses `currentColor`; let the parent text colour decide. The watermark SVG is a separate illustrated asset with a fixed grey palette — don't substitute one for the other.
+- Don't recolor. The asset has a fixed grey palette; tinting via `color` / `filter` is not part of the look. Pick a different illustration if you need a different colour.
 
 ---
 

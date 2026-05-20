@@ -4990,11 +4990,10 @@ button {
   min-width: 240px;
 }
 .nav__brand-rabbit {
-  color: var(--accent);
   display: inline-flex;
   flex-shrink: 0;
   width: 20px;
-  height: 23px;
+  height: 20px;
 }
 .nav__brand-text {
   opacity: 0;
@@ -5320,7 +5319,6 @@ button {
   padding: 24px 12px;
 }
 .empty-state__rabbit {
-  color: var(--accent);
   opacity: 0.85;
   margin-bottom: 4px;
 }
