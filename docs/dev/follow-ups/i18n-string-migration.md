@@ -35,7 +35,18 @@ order, highest-traffic first:
    read-only note. Composer placeholders + slash-command labels live
    in `Composer.tsx` and remain hardcoded; migrate alongside the
    composer-family PR.
-2. `BoardTab`, `TasksTab`, `PlanningTab` (card actions, status pills).
+2. `BoardTab`, `TasksTab`, `PlanningTab` — done 2026-05-20.
+   - `BoardTab`: title, group-tab, swimlane/archive confirms,
+     loading state.
+   - `TasksTab` + embedded `TaskDialog`: page header, table
+     columns, section copy, status badge, dialog form
+     labels/validation, action buttons.
+   - `PlanningTab` shell: empty states + trash confirm. The
+     planning sub-views (`PlanningRoadmapView`,
+     `PlanningWishesView`, `PlanningDeadlinesView`,
+     `PlanningTeamsView`, `PlanningTagsView`,
+     `PlanningReportView`, `PlanningCalendarView`) still hold
+     hardcoded copy and ship as a separate PR.
 3. `AgentsTab`, `SkillsTab`, `KnowledgeBaseTab` (definition dialogs).
 4. `DiaryTab`, `WhiteboardTab`, `DiagramsTab`, `WorkspaceTab`.
 5. The remaining tabs (`FilesTab`, `BusinessesTab`, `IntegrationsTab`,

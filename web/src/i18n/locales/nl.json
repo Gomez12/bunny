@@ -127,6 +127,16 @@
         "save": "Opslaan"
       }
     },
+    "planning": {
+      "emptyNoneTitle": "Nog geen planningprojecten",
+      "emptyNoneDescription": "Maak er één aan om deadlines, wensen en teams te groeperen op een Gantt-roadmap.",
+      "emptyNoneAction": "Nieuw planningproject",
+      "emptyPickTitle": "Kies een planningproject",
+      "emptyPickDescription": "Open de kiezer bovenaan de rail om er één te selecteren.",
+      "emptyPickAction": "Selecteer er een",
+      "trashConfirm": "\"{{name}}\" naar de prullenbak verplaatsen? Je kunt het terughalen via Instellingen → Prullenbak.",
+      "moveToTrash": "Naar prullenbak"
+    },
     "chat": {
       "dropToAttach": "Sleep afbeelding hierheen om bij te voegen",
       "quickChatBadge": "Quick Chat",

@@ -127,6 +127,16 @@
         "save": "Save"
       }
     },
+    "planning": {
+      "emptyNoneTitle": "No planning projects yet",
+      "emptyNoneDescription": "Create one to start grouping deadlines, wishes and teams onto a Gantt roadmap.",
+      "emptyNoneAction": "New planning project",
+      "emptyPickTitle": "Pick a planning project",
+      "emptyPickDescription": "Open the picker at the top of the rail to choose one.",
+      "emptyPickAction": "Pick one",
+      "trashConfirm": "Move \"{{name}}\" to the trash? You can restore it from Settings → Trash.",
+      "moveToTrash": "Move to Trash"
+    },
     "chat": {
       "dropToAttach": "Drop image to attach",
       "quickChatBadge": "Quick Chat",

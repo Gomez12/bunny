@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { AuthUser, PlanningProject } from "../api";
 import {
   createPlanningProject,
@@ -56,6 +57,7 @@ interface Props {
 }
 
 export default function PlanningTab({ project, currentUser: _currentUser }: Props) {
+  const { t } = useTranslation();
   const [items, setItems] = useState<PlanningProject[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeId, setActiveIdRaw] = useState<number | null>(() =>
@@ -179,13 +181,13 @@ export default function PlanningTab({ project, currentUser: _currentUser }: Prop
           <EmptyState
             title={
               items.length === 0
-                ? "No planning projects yet"
-                : "Pick a planning project"
+                ? t("tab.planning.emptyNoneTitle")
+                : t("tab.planning.emptyPickTitle")
             }
             description={
               items.length === 0
-                ? "Create one to start grouping deadlines, wishes and teams onto a Gantt roadmap."
-                : "Open the picker at the top of the rail to choose one."
+                ? t("tab.planning.emptyNoneDescription")
+                : t("tab.planning.emptyPickDescription")
             }
             action={
               <button
@@ -193,7 +195,9 @@ export default function PlanningTab({ project, currentUser: _currentUser }: Prop
                 className="btn btn--primary"
                 onClick={items.length === 0 ? openNewDialog : openPicker}
               >
-                {items.length === 0 ? "New planning project" : "Pick one"}
+                {items.length === 0
+                  ? t("tab.planning.emptyNoneAction")
+                  : t("tab.planning.emptyPickAction")}
               </button>
             }
           />
@@ -263,8 +267,10 @@ export default function PlanningTab({ project, currentUser: _currentUser }: Prop
 
       <ConfirmDialog
         open={confirmDelete !== null}
-        message={`Move "${confirmDelete?.name}" to the trash? You can restore it from Settings → Trash.`}
-        confirmLabel="Move to Trash"
+        message={t("tab.planning.trashConfirm", {
+          name: confirmDelete?.name ?? "",
+        })}
+        confirmLabel={t("tab.planning.moveToTrash")}
         onConfirm={() => void confirmDoDelete()}
         onCancel={() => setConfirmDelete(null)}
       />
