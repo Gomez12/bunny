@@ -2,23 +2,17 @@
 
 ## What remains
 
-`AGENTS.md` §"Pull Requests" prescribes `bun run docs:check` and lists what it must enforce:
+Nothing. `bun run docs:check` is implemented and wired into `bun run check`.
 
-- Every plan in `docs/dev/plans/` is referenced from `docs/dev/tasklist.md`.
-- `docs/dev/tasklist.md` keeps at most 50 `done` rows.
-- Every `job.kind` registered by `registerAllAgents` / `registerTaxonomyPurgeHandlers` appears in the matching table of `docs/dev/architecture/job-inventory.md`. Same diff also runs from `tests/docs/job-inventory.test.ts`.
+## History
 
-None of these checks exist yet. There is no `docs:check` script in `package.json` and no `tests/docs/job-inventory.test.ts`.
+`AGENTS.md` §"Pull Requests" prescribes `bun run docs:check`. As shipped it enforces:
 
-## Why not done now
+- Every `*.md` under `docs/dev/plans/` (except the `README.md` directory index) is referenced from `docs/dev/tasklist.md`.
+- `docs/dev/tasklist.md` keeps at most 50 rows whose status column is exactly `done`.
+- Every `job.kind` registered via `registry.register(KIND_HANDLER, …)` in `src/` appears in `docs/dev/architecture/job-inventory.md`, and vice versa. Same diff also runs from [`tests/docs/job-inventory.test.ts`](../../../tests/docs/job-inventory.test.ts); both share helpers in [`scripts/_lib/job_inventory.ts`](../../../scripts/_lib/job_inventory.ts).
 
-Out of scope for the docs-restructure plan ([`../plans/docs-restructure.md`](../plans/docs-restructure.md)). Restructure first, tooling second.
-
-## Next step
-
-- Add a `scripts/docs-check.ts` with the three checks.
-- Add `docs:check` to `package.json` scripts.
-- Add the companion `tests/docs/job-inventory.test.ts`.
+The script is at [`scripts/docs-check.ts`](../../../scripts/docs-check.ts) and runs from [`tests/docs/docs-check.test.ts`](../../../tests/docs/docs-check.test.ts) as a green-path smoke test.
 
 ## Related files or docs
 
@@ -28,4 +22,4 @@ Out of scope for the docs-restructure plan ([`../plans/docs-restructure.md`](../
 
 ## Status
 
-open
+done

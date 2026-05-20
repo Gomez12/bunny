@@ -22,7 +22,8 @@
     "web:typecheck": "bun --cwd web tsc --noEmit",
     "docs": "typedoc",
     "fmt": "bun x prettier --write src tests",
-    "check": "bun run typecheck && bun run web:typecheck && bun test",
+    "docs:check": "bun run scripts/docs-check.ts",
+    "check": "bun run typecheck && bun run web:typecheck && bun test && bun run docs:check",
     "electron:dev": "bun --cwd electron run dev",
     "electron:build": "bun --cwd electron run build"
   },
