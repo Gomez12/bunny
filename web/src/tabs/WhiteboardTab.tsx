@@ -4,6 +4,7 @@ import WhiteboardSidebar from "../components/WhiteboardSidebar";
 import EntityComposer from "../components/EntityComposer";
 import WhiteboardCanvas, {
   exportCanvasPng,
+  exportCanvasPngForLlm,
   exportThumbnail,
   restoreElements,
   type ExcalidrawImperativeAPI,
@@ -30,9 +31,9 @@ interface Props {
 export default function WhiteboardTab({ project, onOpenInChat }: Props) {
   const [whiteboards, setWhiteboards] = useState<WhiteboardSummary[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
-  const [initialElements, setInitialElements] = useState<readonly ExcalidrawElement[] | undefined>(
-    undefined,
-  );
+  const [initialElements, setInitialElements] = useState<
+    readonly ExcalidrawElement[] | undefined
+  >(undefined);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mode, setMode] = useState<"edit" | "question">("edit");
   const [streaming, setStreaming] = useState(false);
@@ -55,7 +56,9 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
 
   useEffect(() => {
     void fetchUiConfig()
-      .then((cfg) => { autosaveMs.current = cfg.autosaveIntervalMs; })
+      .then((cfg) => {
+        autosaveMs.current = cfg.autosaveIntervalMs;
+      })
       .catch(() => {});
   }, []);
 
@@ -121,7 +124,9 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
   const handleRename = async (id: number, name: string) => {
     try {
       await patchWhiteboard(id, { name });
-      setWhiteboards((prev) => prev.map((w) => (w.id === id ? { ...w, name } : w)));
+      setWhiteboards((prev) =>
+        prev.map((w) => (w.id === id ? { ...w, name } : w)),
+      );
     } catch (e) {
       setError(String(e));
     }
@@ -135,9 +140,16 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
     lastSavedRef.current = elementsJson;
     try {
       const thumb = await exportThumbnail(apiRef.current);
-      await patchWhiteboard(activeId, { elementsJson, thumbnail: thumb || null });
+      await patchWhiteboard(activeId, {
+        elementsJson,
+        thumbnail: thumb || null,
+      });
       setWhiteboards((prev) =>
-        prev.map((w) => (w.id === activeId ? { ...w, thumbnail: thumb || null, updatedAt: Date.now() } : w)),
+        prev.map((w) =>
+          w.id === activeId
+            ? { ...w, thumbnail: thumb || null, updatedAt: Date.now() }
+            : w,
+        ),
       );
     } catch {
       // silent — will retry on next change
@@ -213,7 +225,7 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
       const elementsJson = JSON.stringify(elements);
       let screenshotDataUrl: string | undefined;
       try {
-        screenshotDataUrl = await exportCanvasPng(apiRef.current);
+        screenshotDataUrl = await exportCanvasPngForLlm(apiRef.current);
       } catch {
         // canvas might be empty
       }
@@ -225,7 +237,11 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` })) as { error?: string };
+        const err = (await res
+          .json()
+          .catch(() => ({ error: `HTTP ${res.status}` }))) as {
+          error?: string;
+        };
         setError(err.error ?? `HTTP ${res.status}`);
         setStreaming(false);
         return;
@@ -257,7 +273,10 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
           try {
             const ev = JSON.parse(raw) as ServerEvent;
             if (ev.type === "content") fullContent += ev.text;
-            if (ev.type === "error") { setEditPreviewError(ev.message); setError(ev.message); }
+            if (ev.type === "error") {
+              setEditPreviewError(ev.message);
+              setError(ev.message);
+            }
           } catch {
             // ignore parse errors
           }
@@ -284,9 +303,15 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
           thumbnail: thumb || null,
         });
         setWhiteboards((prev) =>
-          prev.map((w) => (w.id === activeId ? { ...w, thumbnail: thumb || null, updatedAt: Date.now() } : w)),
+          prev.map((w) =>
+            w.id === activeId
+              ? { ...w, thumbnail: thumb || null, updatedAt: Date.now() }
+              : w,
+          ),
         );
-        setEditPreview(`✓ Whiteboard updated (${restored.length} element${restored.length !== 1 ? "s" : ""})`);
+        setEditPreview(
+          `✓ Whiteboard updated (${restored.length} element${restored.length !== 1 ? "s" : ""})`,
+        );
       } catch (e) {
         const msg = `Invalid elements JSON: ${e}`;
         setError(msg);
@@ -329,16 +354,25 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
             {error && (
               <div className="wb-tab__error">
                 {error}
-                <button className="wb-tab__error-close" onClick={() => setError(null)}>
+                <button
+                  className="wb-tab__error-close"
+                  onClick={() => setError(null)}
+                >
                   &times;
                 </button>
               </div>
             )}
             {(editPreview || editPreviewError) && !streaming && (
               <div className="entity-composer__preview">
-                {editPreview && <pre className="entity-composer__preview-text">{editPreview}</pre>}
+                {editPreview && (
+                  <pre className="entity-composer__preview-text">
+                    {editPreview}
+                  </pre>
+                )}
                 {editPreviewError && (
-                  <span className="entity-composer__preview-error">{editPreviewError}</span>
+                  <span className="entity-composer__preview-error">
+                    {editPreviewError}
+                  </span>
                 )}
               </div>
             )}
@@ -354,7 +388,10 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
             />
           </>
         ) : (
-          <EmptyState title="No whiteboards yet" description="Create one to get started." />
+          <EmptyState
+            title="No whiteboards yet"
+            description="Create one to get started."
+          />
         )}
       </div>
     </div>

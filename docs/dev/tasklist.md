@@ -28,3 +28,4 @@ Archive lives in [`tasklistarchive.md`](./tasklistarchive.md). Keep at most 50 `
 | needs-testing | docs/dev/follow-ups/code-scanning-alerts.md | 2h | Resolve open GitHub code scanning alerts (sanitization, xss-through-dom, stack-trace-exposure) — local checks green, waiting on CodeQL re-scan |
 | open | docs/dev/follow-ups/safe-error-class.md | 4h | Introduce `SafeError` class so `errorMessage()` can refuse to expose `Error.message` for unintended exceptions (closes `js/stack-trace-exposure`) |
 | done | docs/dev/decisions/0042-electron-client.md | 1h | Remove the Tauri desktop client (`client/`); Electron client (ADR 0042) is now the only desktop wrapper |
+| done | docs/dev/decisions/0015-whiteboards.md | 15m | Add 256px LLM-only screenshot export for whiteboard edit; keep default 1024px export untouched |

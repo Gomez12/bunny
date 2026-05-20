@@ -1,5 +1,9 @@
 import { useEffect, useRef, useCallback } from "react";
-import { Excalidraw, exportToBlob, restoreElements } from "@excalidraw/excalidraw";
+import {
+  Excalidraw,
+  exportToBlob,
+  restoreElements,
+} from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -25,7 +29,10 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-function exportBlob(api: ExcalidrawImperativeAPI, maxWidthOrHeight: number): Promise<Blob> {
+function exportBlob(
+  api: ExcalidrawImperativeAPI,
+  maxWidthOrHeight: number,
+): Promise<Blob> {
   return exportToBlob({
     elements: api.getSceneElements(),
     appState: { ...api.getAppState(), exportWithDarkMode: false },
@@ -35,11 +42,26 @@ function exportBlob(api: ExcalidrawImperativeAPI, maxWidthOrHeight: number): Pro
   });
 }
 
-export async function exportCanvasPng(api: ExcalidrawImperativeAPI): Promise<string> {
+export async function exportCanvasPng(
+  api: ExcalidrawImperativeAPI,
+): Promise<string> {
   return blobToDataUrl(await exportBlob(api, 1024));
 }
 
-export async function exportThumbnail(api: ExcalidrawImperativeAPI): Promise<string> {
+// Kept intentionally small: the Excalidraw JSON is the source of truth, so
+// these pixels only need to convey rough spatial/layout cues. Vision tokens
+// scale with pixel area, so 256px ≈ 16x cheaper than the 1024px default.
+const LLM_SCREENSHOT_MAX_DIM = 256;
+
+export async function exportCanvasPngForLlm(
+  api: ExcalidrawImperativeAPI,
+): Promise<string> {
+  return blobToDataUrl(await exportBlob(api, LLM_SCREENSHOT_MAX_DIM));
+}
+
+export async function exportThumbnail(
+  api: ExcalidrawImperativeAPI,
+): Promise<string> {
   if (api.getSceneElements().length === 0) return "";
   return blobToDataUrl(await exportBlob(api, 200));
 }
@@ -63,7 +85,9 @@ export default function WhiteboardCanvas({
 
   useEffect(() => {
     if (apiRef.current && initialElements) {
-      apiRef.current.updateScene({ elements: initialElements as ExcalidrawElement[] });
+      apiRef.current.updateScene({
+        elements: initialElements as ExcalidrawElement[],
+      });
     }
   }, [initialElements]);
 
@@ -81,7 +105,11 @@ export default function WhiteboardCanvas({
       <div className="wb-canvas__inner">
         <Excalidraw
           excalidrawAPI={handleApiReady}
-          initialData={initialElements ? { elements: initialElements as ExcalidrawElement[] } : undefined}
+          initialData={
+            initialElements
+              ? { elements: initialElements as ExcalidrawElement[] }
+              : undefined
+          }
           onChange={onChange}
           theme="dark"
           UIOptions={{ welcomeScreen: false }}

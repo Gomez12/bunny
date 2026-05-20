@@ -30,6 +30,10 @@ Using `runAgent` instead of a direct `chat()` call gives us: audit logging throu
 
 Generated client-side via Excalidraw's `exportToBlob` at 200px max dimension. Stored as PNG data URLs in the `thumbnail` column. This avoids server-side rendering dependencies.
 
+### LLM screenshot size
+
+The PNG screenshot attached to edit-mode LLM calls is exported via a dedicated `exportCanvasPngForLlm` helper at **256px** max dimension. Vision tokens scale with pixel area, so the smaller size is roughly 16× cheaper than the 1024px default and still conveys enough spatial/layout context — the Excalidraw elements JSON remains the source of truth. The general-purpose `exportCanvasPng` (1024px) is kept untouched for other uses (downloads, previews).
+
 ### System prompt override
 
 `RunAgentOptions` gains an optional `systemPromptOverride` field. When set, it replaces the entire composed system prompt (project + agent + recall). This is used by the whiteboard edit endpoint to give the LLM precise Excalidraw element schema instructions.
