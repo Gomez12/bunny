@@ -54,9 +54,9 @@ Each task needs:
 Use this format:
 
 ```md
-| Status | Related document | Estimated work | Description |
-| --- | --- | ---: | --- |
-| open | docs/dev/plans/example.md | 4h | Add feature |
+| Status | Related document          | Estimated work | Description |
+| ------ | ------------------------- | -------------: | ----------- |
+| open   | docs/dev/plans/example.md |             4h | Add feature |
 ```
 
 Allowed statuses:
@@ -73,15 +73,15 @@ done
 
 Meaning:
 
-| Status | Meaning |
-| --- | --- |
-| `open` | Known. Not started. |
-| `in-progress` | Work happening. |
+| Status          | Meaning                     |
+| --------------- | --------------------------- |
+| `open`          | Known. Not started.         |
+| `in-progress`   | Work happening.             |
 | `needs-testing` | Code done. Checks not done. |
-| `deferred` | Later. Not now. |
-| `paused` | Started. Blocked. |
-| `rejected` | Will not do. |
-| `done` | Finished and checked. |
+| `deferred`      | Later. Not now.             |
+| `paused`        | Started. Blocked.           |
+| `rejected`      | Will not do.                |
+| `done`          | Finished and checked.       |
 
 Keep max 50 `done` tasks in `docs/dev/tasklist.md`.
 
@@ -443,13 +443,13 @@ Test names use English.
 Good:
 
 ```ts
-it("shows a localized validation message when the email address is invalid", () => {})
+it("shows a localized validation message when the email address is invalid", () => {});
 ```
 
 Bad:
 
 ```ts
-it("test error", () => {})
+it("test error", () => {});
 ```
 
 ---
@@ -663,10 +663,10 @@ bun run i18n:check
 
 - Every plan in `docs/dev/plans/` is referenced from `docs/dev/tasklist.md`.
 - `docs/dev/tasklist.md` keeps at most 50 `done` rows.
-- Every `job.kind` registered by `registerAllAgents` /
-  `registerTaxonomyPurgeHandlers` appears in the matching table of
-  `docs/dev/architecture/job-inventory.md`. Same diff also runs from
-  `tests/docs/job-inventory.test.ts`.
+- Every `job.kind` registered via the per-domain `register…Handler`
+  helpers wired in `src/server/index.ts` appears in the
+  `docs/dev/architecture/job-inventory.md` table. Same diff also runs
+  from `tests/docs/job-inventory.test.ts`.
 
 Use real project scripts if different.
 
