@@ -1,4 +1,5 @@
 import { useState, type ComponentType } from "react";
+import { useTranslation } from "react-i18next";
 import Rabbit from "./Rabbit";
 import {
   MessageCircle,
@@ -54,47 +55,51 @@ type IconType = ComponentType<{ size?: number; strokeWidth?: number }>;
 
 type NavItem = {
   id: NavTabId;
-  label: string;
   icon: IconType;
 };
 
+type NavGroupId = "overview" | "work" | "content" | "configure";
+
 type NavGroup = {
-  label: string;
+  id: NavGroupId;
   items: NavItem[];
 };
 
+// Structural list — labels are resolved at render time via the literal
+// `t("nav.items.<id>")` / `t("nav.groups.<id>")` calls in the body of
+// `Sidebar`. That keeps every key visible to `bun run i18n:check`.
 const NAV: NavGroup[] = [
   {
-    label: "Overview",
-    items: [{ id: "dashboard", label: "Dashboard", icon: LayoutDashboard }],
+    id: "overview",
+    items: [{ id: "dashboard", icon: LayoutDashboard }],
   },
   {
-    label: "Work",
+    id: "work",
     items: [
-      { id: "chat", label: "Chat", icon: MessageCircle },
-      { id: "board", label: "Board", icon: Kanban },
-      { id: "planning", label: "Planning", icon: CalendarRange },
-      { id: "workflows", label: "Workflows", icon: Workflow },
-      { id: "diary", label: "Diary", icon: BookOpen },
+      { id: "chat", icon: MessageCircle },
+      { id: "board", icon: Kanban },
+      { id: "planning", icon: CalendarRange },
+      { id: "workflows", icon: Workflow },
+      { id: "diary", icon: BookOpen },
     ],
   },
   {
-    label: "Content",
+    id: "content",
     items: [
-      { id: "documents", label: "Documents", icon: FileText },
-      { id: "whiteboard", label: "Whiteboard", icon: Palette },
-      { id: "diagrams", label: "Diagrams", icon: Shapes },
-      { id: "files", label: "Files", icon: Folder },
-      { id: "code", label: "Code", icon: Code },
-      { id: "contacts", label: "Contacts", icon: Users },
-      { id: "businesses", label: "Businesses", icon: Building2 },
-      { id: "knowledge-base", label: "Knowledge Base", icon: Library },
-      { id: "news", label: "News", icon: Newspaper },
+      { id: "documents", icon: FileText },
+      { id: "whiteboard", icon: Palette },
+      { id: "diagrams", icon: Shapes },
+      { id: "files", icon: Folder },
+      { id: "code", icon: Code },
+      { id: "contacts", icon: Users },
+      { id: "businesses", icon: Building2 },
+      { id: "knowledge-base", icon: Library },
+      { id: "news", icon: Newspaper },
     ],
   },
   {
-    label: "Configure",
-    items: [{ id: "tasks", label: "Tasks", icon: Clock }],
+    id: "configure",
+    items: [{ id: "tasks", icon: Clock }],
   },
 ];
 
@@ -132,18 +137,54 @@ export default function Sidebar({
   notifications,
   onNewChatWithAgent,
 }: Props) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const closeDrawer = () => setOpen(false);
 
   const isDark = theme === "dark";
-  const themeLabel = isDark ? "Switch to light mode" : "Switch to dark mode";
+  const themeLabel = isDark
+    ? t("nav.theme.switchToLight")
+    : t("nav.theme.switchToDark");
+
+  // Static lookups keep every i18n key as a literal string so
+  // `bun run i18n:check` can verify each one resolves.
+  const groupLabel: Record<NavGroupId, string> = {
+    overview: t("nav.groups.overview"),
+    work: t("nav.groups.work"),
+    content: t("nav.groups.content"),
+    configure: t("nav.groups.configure"),
+  };
+  const itemLabel: Record<NavTabId, string> = {
+    dashboard: t("nav.items.dashboard"),
+    chat: t("nav.items.chat"),
+    board: t("nav.items.board"),
+    planning: t("nav.items.planning"),
+    workflows: t("nav.items.workflows"),
+    diary: t("nav.items.diary"),
+    documents: t("nav.items.documents"),
+    whiteboard: t("nav.items.whiteboard"),
+    diagrams: t("nav.items.diagrams"),
+    files: t("nav.items.files"),
+    code: t("nav.items.code"),
+    contacts: t("nav.items.contacts"),
+    businesses: t("nav.items.businesses"),
+    "knowledge-base": t("nav.items.knowledgeBase"),
+    news: t("nav.items.news"),
+    tasks: t("nav.items.tasks"),
+    // The tabs below have no sidebar entry; they're reached via the user-row
+    // gear icon, the notification bell, or the project picker. Provide
+    // fallbacks so the map remains exhaustive against NavTabId.
+    settings: "",
+    notifications: "",
+    workspace: "",
+  };
 
   return (
     <>
       <button
         type="button"
         className="nav__drawer-btn"
-        aria-label={open ? "Close navigation" : "Open navigation"}
+        aria-label={open ? t("nav.a11y.closeMenu") : t("nav.a11y.openMenu")}
         onClick={() => setOpen((v) => !v)}
       >
         {open ? <X size={16} /> : <Menu size={16} />}
@@ -152,7 +193,9 @@ export default function Sidebar({
         className={`nav ${open ? "nav--open" : ""}`}
         aria-label="Primary"
         onMouseLeave={(e) => {
-          const focused = e.currentTarget.querySelector(":focus") as HTMLElement | null;
+          const focused = e.currentTarget.querySelector(
+            ":focus",
+          ) as HTMLElement | null;
           focused?.blur();
         }}
       >
@@ -171,15 +214,15 @@ export default function Sidebar({
               onPickProjectTab();
               closeDrawer();
             }}
-            title="Switch project"
+            title={t("nav.project.switchTitle")}
           >
-            <span className="nav__project-label">Project</span>
+            <span className="nav__project-label">{t("nav.project.label")}</span>
             <span className="nav__project-value">{activeProject}</span>
           </button>
 
           {NAV.map((group) => (
-            <div className="nav__group" key={group.label}>
-              <div className="nav__group-label">{group.label}</div>
+            <div className="nav__group" key={group.id}>
+              <div className="nav__group-label">{groupLabel[group.id]}</div>
               {group.items.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
@@ -197,14 +240,16 @@ export default function Sidebar({
                       <span className="nav__item-icon">
                         <Icon {...ICON_DEFAULTS} />
                       </span>
-                      <span className="nav__item-label">{item.label}</span>
+                      <span className="nav__item-label">
+                        {itemLabel[item.id]}
+                      </span>
                     </button>
                     {item.id === "chat" && (
                       <button
                         type="button"
                         className="nav__item-extra"
-                        title="New chat with…"
-                        aria-label="New chat with…"
+                        title={t("nav.a11y.newChatWithAgent")}
+                        aria-label={t("nav.a11y.newChatWithAgent")}
                         onClick={() => {
                           onNewChatWithAgent();
                           closeDrawer();
@@ -243,8 +288,8 @@ export default function Sidebar({
                   onPickTab("settings");
                   closeDrawer();
                 }}
-                title="Open settings"
-                aria-label="Open settings"
+                title={t("nav.a11y.openSettings")}
+                aria-label={t("nav.a11y.openSettings")}
               >
                 <Settings size={14} />
               </button>
@@ -258,11 +303,18 @@ export default function Sidebar({
             aria-label={themeLabel}
           >
             {isDark ? <Sun size={14} /> : <Moon size={14} />}
-            <span>{isDark ? "Light mode" : "Dark mode"}</span>
+            <span>
+              {isDark ? t("nav.theme.lightLabel") : t("nav.theme.darkLabel")}
+            </span>
           </button>
-          <button type="button" className="nav__logout" onClick={onLogout} aria-label="Logout">
+          <button
+            type="button"
+            className="nav__logout"
+            onClick={onLogout}
+            aria-label={t("nav.logout")}
+          >
             <LogOut size={14} />
-            <span>Logout</span>
+            <span>{t("nav.logout")}</span>
           </button>
         </div>
       </nav>

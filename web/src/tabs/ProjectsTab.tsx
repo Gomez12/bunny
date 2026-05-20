@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   createProject,
   deleteProject,
@@ -11,7 +12,9 @@ import {
   type AuthUser,
   type Project,
 } from "../api";
-import ProjectDialog, { type ProjectDialogValue } from "../components/ProjectDialog";
+import ProjectDialog, {
+  type ProjectDialogValue,
+} from "../components/ProjectDialog";
 import ConfirmDialog from "../components/ConfirmDialog";
 import PageHeader from "../components/PageHeader";
 
@@ -26,7 +29,12 @@ type DialogState =
   | { kind: "create" }
   | { kind: "edit"; project: Project };
 
-export default function ProjectsTab({ currentUser, activeProject, onPickProject }: Props) {
+export default function ProjectsTab({
+  currentUser,
+  activeProject,
+  onPickProject,
+}: Props) {
+  const { t } = useTranslation();
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +43,10 @@ export default function ProjectsTab({ currentUser, activeProject, onPickProject 
 
   const refresh = useCallback(async () => {
     try {
-      const [p, a] = await Promise.all([fetchProjects(), fetchAgents().catch(() => [])]);
+      const [p, a] = await Promise.all([
+        fetchProjects(),
+        fetchAgents().catch(() => []),
+      ]);
       setProjects(p);
       setAgents(a);
       setError(null);
@@ -79,19 +90,29 @@ export default function ProjectsTab({ currentUser, activeProject, onPickProject 
       defaultLanguage: v.defaultLanguage,
       autoBuildBusinesses: v.autoBuildBusinesses,
     });
-    const before = agents.filter((a) => a.projects.includes(v.name)).map((a) => a.name);
+    const before = agents
+      .filter((a) => a.projects.includes(v.name))
+      .map((a) => a.name);
     await syncAgentLinks(v.name, before, v.linkedAgents);
     await refresh();
   };
 
-  const syncAgentLinks = async (project: string, before: string[], after: string[]) => {
+  const syncAgentLinks = async (
+    project: string,
+    before: string[],
+    after: string[],
+  ) => {
     const beforeSet = new Set(before);
     const afterSet = new Set(after);
     const toLink = after.filter((n) => !beforeSet.has(n));
     const toUnlink = before.filter((n) => !afterSet.has(n));
     await Promise.all([
-      ...toLink.map((n) => linkAgentToProject(project, n).catch(() => undefined)),
-      ...toUnlink.map((n) => unlinkAgentFromProject(project, n).catch(() => undefined)),
+      ...toLink.map((n) =>
+        linkAgentToProject(project, n).catch(() => undefined),
+      ),
+      ...toUnlink.map((n) =>
+        unlinkAgentFromProject(project, n).catch(() => undefined),
+      ),
     ]);
   };
 
@@ -112,8 +133,8 @@ export default function ProjectsTab({ currentUser, activeProject, onPickProject 
   return (
     <div className="projects">
       <PageHeader
-        title="Projects"
-        description="Each project has its own on-disk directory and system prompt."
+        title={t("tab.projects.title")}
+        description={t("tab.projects.description")}
       />
 
       {error && <div className="projects__error">{error}</div>}
@@ -125,10 +146,14 @@ export default function ProjectsTab({ currentUser, activeProject, onPickProject 
         >
           <div className="project-card__plus">+</div>
           <div className="project-card__title">New project</div>
-          <div className="project-card__hint">Name, description, system prompt</div>
+          <div className="project-card__hint">
+            Name, description, system prompt
+          </div>
         </button>
 
-        {projects === null && <div className="project-card project-card--loading">Loading…</div>}
+        {projects === null && (
+          <div className="project-card project-card--loading">Loading…</div>
+        )}
 
         {projects?.map((p) => (
           <div
@@ -141,12 +166,18 @@ export default function ProjectsTab({ currentUser, activeProject, onPickProject 
               title={`Open ${p.name} in Chat`}
             >
               <div className="project-card__title">{p.name}</div>
-              {p.description && <div className="project-card__desc">{p.description}</div>}
+              {p.description && (
+                <div className="project-card__desc">{p.description}</div>
+              )}
               <div className="project-card__meta">
-                <span className={`project-card__vis project-card__vis--${p.visibility}`}>
+                <span
+                  className={`project-card__vis project-card__vis--${p.visibility}`}
+                >
                   {p.visibility}
                 </span>
-                {p.name === activeProject && <span className="project-card__active">active</span>}
+                {p.name === activeProject && (
+                  <span className="project-card__active">active</span>
+                )}
               </div>
             </button>
             {canEdit(p) && (
@@ -200,8 +231,8 @@ export default function ProjectsTab({ currentUser, activeProject, onPickProject 
       )}
       <ConfirmDialog
         open={confirmDelete !== null}
-        message={`Delete project '${confirmDelete}'? Messages will remain but the project metadata is removed.`}
-        confirmLabel="Delete"
+        message={t("tab.projects.deleteConfirm", { name: confirmDelete ?? "" })}
+        confirmLabel={t("common.delete")}
         onConfirm={() => void doDelete(confirmDelete!)}
         onCancel={() => setConfirmDelete(null)}
       />

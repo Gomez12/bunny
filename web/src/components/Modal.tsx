@@ -5,6 +5,7 @@ import {
   useRef,
   type ReactNode,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { X } from "../lib/icons";
 
 // Module-scope ESC stack: only the top-most open Modal responds to Escape.
@@ -98,6 +99,7 @@ interface HeaderProps {
 }
 
 function ModalHeader({ title, onClose: overrideClose }: HeaderProps) {
+  const { t } = useTranslation();
   const ctx = useModalCtx("Modal.Header");
   const onClose = overrideClose ?? ctx.onClose;
   return (
@@ -107,7 +109,7 @@ function ModalHeader({ title, onClose: overrideClose }: HeaderProps) {
         type="button"
         className="modal__close"
         onClick={onClose}
-        aria-label="Close"
+        aria-label={t("common.close")}
       >
         <X size={16} />
       </button>

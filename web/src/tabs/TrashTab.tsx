@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   hardDeleteTrashed,
   listTrash,
@@ -36,6 +37,7 @@ function fmtTs(ts: number): string {
 }
 
 export default function TrashTab() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<TrashItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
@@ -112,9 +114,7 @@ export default function TrashTab() {
       setItems((prev) => prev?.filter((x) => rowKey(x) !== key) ?? null);
       setBanner(`Permanently deleted "${item.name}".`);
     } catch (e) {
-      setBanner(
-        `Delete failed: ${e instanceof Error ? e.message : String(e)}`,
-      );
+      setBanner(`Delete failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setBusy(null);
     }
@@ -127,9 +127,8 @@ export default function TrashTab() {
         <p className="trash__hint">
           Soft-deleted documents, whiteboards, contacts, and knowledge-base
           definitions live here. Restore puts them back where they came from;
-          delete forever removes the row and cascades to its translations.
-          Click <strong>Delete forever</strong> twice within a few seconds to
-          confirm.
+          delete forever removes the row and cascades to its translations. Click{" "}
+          <strong>Delete forever</strong> twice within a few seconds to confirm.
         </p>
         <button className="trash__reload" onClick={() => void reload()}>
           <RefreshCw {...ICON_DEFAULTS} />
@@ -162,8 +161,8 @@ export default function TrashTab() {
 
       {items && items.length === 0 && (
         <EmptyState
-          title="The bin is empty"
-          description="Items you delete from any tab land here. Anything older than 30 days is purged automatically."
+          title={t("tab.trash.emptyTitle")}
+          description={t("tab.trash.emptyDescription")}
         />
       )}
 
@@ -213,7 +212,9 @@ export default function TrashTab() {
                       }`}
                       onClick={() => void handleHardDelete(item)}
                       disabled={isBusy}
-                      title={isArmed ? "Click again to confirm" : "Delete forever"}
+                      title={
+                        isArmed ? "Click again to confirm" : "Delete forever"
+                      }
                     >
                       <Trash2 {...ICON_DEFAULTS} />
                       {isArmed ? "Confirm?" : "Delete forever"}

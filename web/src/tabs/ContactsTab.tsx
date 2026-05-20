@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import EntityComposer from "../components/EntityComposer";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { Trash2 } from "../lib/icons";
 import HistoryButton from "../components/HistoryButton";
-import ContactDialog, { type ContactDialogValue } from "../components/ContactDialog";
+import ContactDialog, {
+  type ContactDialogValue,
+} from "../components/ContactDialog";
 import ContactImportDialog from "../components/ContactImportDialog";
 import EmptyState from "../components/EmptyState";
 import type { ParsedVCard } from "../lib/vcard";
@@ -39,7 +42,12 @@ type DialogState =
   | { kind: "edit"; contact: Contact }
   | { kind: "import" };
 
-export default function ContactsTab({ project, currentUser, onOpenInChat }: Props) {
+export default function ContactsTab({
+  project,
+  currentUser,
+  onOpenInChat,
+}: Props) {
+  const { t } = useTranslation();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [total, setTotal] = useState(0);
   const [groups, setGroups] = useState<ContactGroup[]>([]);
@@ -51,7 +59,10 @@ export default function ContactsTab({ project, currentUser, onOpenInChat }: Prop
   const [error, setError] = useState<string | null>(null);
   const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
   const [editGroupName, setEditGroupName] = useState("");
-  const [confirmDeleteGroup, setConfirmDeleteGroup] = useState<{ id: number; name: string } | null>(null);
+  const [confirmDeleteGroup, setConfirmDeleteGroup] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
   const editGroupRef = useRef<HTMLInputElement>(null);
 
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -60,7 +71,9 @@ export default function ContactsTab({ project, currentUser, onOpenInChat }: Prop
   useEffect(() => {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     searchTimerRef.current = setTimeout(() => setDebouncedSearch(search), 300);
-    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
   }, [search]);
 
   const refresh = useCallback(async () => {
@@ -81,10 +94,13 @@ export default function ContactsTab({ project, currentUser, onOpenInChat }: Prop
     }
   }, [project, debouncedSearch, activeGroupId]);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
 
   useEffect(() => {
-    if (editingGroupId !== null && editGroupRef.current) editGroupRef.current.focus();
+    if (editingGroupId !== null && editGroupRef.current)
+      editGroupRef.current.focus();
   }, [editingGroupId]);
 
   const canEdit = (c: Contact) =>
@@ -147,7 +163,15 @@ export default function ContactsTab({ project, currentUser, onOpenInChat }: Prop
   const handleCreateGroup = async () => {
     const name = prompt("Group name:");
     if (!name?.trim()) return;
-    const colors = ["#7c5cff", "#ef4444", "#22c55e", "#f59e0b", "#3b82f6", "#ec4899", "#14b8a6"];
+    const colors = [
+      "#7c5cff",
+      "#ef4444",
+      "#22c55e",
+      "#f59e0b",
+      "#3b82f6",
+      "#ec4899",
+      "#14b8a6",
+    ];
     const color = colors[groups.length % colors.length];
     try {
       await createContactGroup(project, { name: name.trim(), color });
@@ -193,7 +217,8 @@ export default function ContactsTab({ project, currentUser, onOpenInChat }: Prop
     return contacts
       .map((c) => {
         const parts = [c.name];
-        if (c.title || c.company) parts.push(`(${[c.title, c.company].filter(Boolean).join(" @ ")})`);
+        if (c.title || c.company)
+          parts.push(`(${[c.title, c.company].filter(Boolean).join(" @ ")})`);
         if (c.emails.length) parts.push(`Email: ${c.emails.join(", ")}`);
         if (c.phones.length) parts.push(`Phone: ${c.phones.join(", ")}`);
         if (c.tags.length) parts.push(`Tags: ${c.tags.join(", ")}`);
@@ -227,14 +252,22 @@ export default function ContactsTab({ project, currentUser, onOpenInChat }: Prop
     try {
       const res = await editContacts(project, { prompt, contactsSummary });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` })) as { error?: string };
+        const err = (await res
+          .json()
+          .catch(() => ({ error: `HTTP ${res.status}` }))) as {
+          error?: string;
+        };
         setError(err.error ?? `HTTP ${res.status}`);
         setStreaming(false);
         return;
       }
 
       const reader = res.body?.getReader();
-      if (!reader) { setError("No response body"); setStreaming(false); return; }
+      if (!reader) {
+        setError("No response body");
+        setStreaming(false);
+        return;
+      }
 
       const decoder = new TextDecoder();
       let buffer = "";
@@ -268,7 +301,8 @@ export default function ContactsTab({ project, currentUser, onOpenInChat }: Prop
 
   const initials = (name: string) => {
     const parts = name.trim().split(/\s+/);
-    if (parts.length >= 2) return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
+    if (parts.length >= 2)
+      return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
     return name.slice(0, 2).toUpperCase();
   };
 
@@ -278,7 +312,10 @@ export default function ContactsTab({ project, currentUser, onOpenInChat }: Prop
     <div className="contacts-tab">
       {/* ── Sidebar ──────────────────────────────────────────────────── */}
       <div className="sidebar">
-        <button className="btn btn--accent sidebar__new" onClick={handleCreateGroup}>
+        <button
+          className="btn btn--accent sidebar__new"
+          onClick={handleCreateGroup}
+        >
           + New Group
         </button>
 
@@ -317,10 +354,15 @@ export default function ContactsTab({ project, currentUser, onOpenInChat }: Prop
                 ) : (
                   <div className="sidebar__group-row">
                     {g.color && (
-                      <span className="sidebar__group-dot" style={{ background: g.color }} />
+                      <span
+                        className="sidebar__group-dot"
+                        style={{ background: g.color }}
+                      />
                     )}
                     <span className="sidebar__item-title">{g.name}</span>
-                    <span className="sidebar__group-count">{g.memberCount}</span>
+                    <span className="sidebar__group-count">
+                      {g.memberCount}
+                    </span>
                     <span className="sidebar__group-actions">
                       <button
                         className="sidebar__group-action-btn"
@@ -393,16 +435,22 @@ export default function ContactsTab({ project, currentUser, onOpenInChat }: Prop
         {error && (
           <div className="contacts-tab__error">
             {error}
-            <button className="contacts-tab__error-close" onClick={() => setError(null)}>
+            <button
+              className="contacts-tab__error-close"
+              onClick={() => setError(null)}
+            >
               &times;
             </button>
           </div>
         )}
 
         {contacts.length === 0 && !debouncedSearch && activeGroupId === null ? (
-          <EmptyState title="No contacts yet" description="Create your first contact or import from a .vcf file." />
+          <EmptyState
+            title={t("tab.contacts.emptyTitle")}
+            description={t("tab.contacts.emptyDescription")}
+          />
         ) : contacts.length === 0 ? (
-          <EmptyState size="sm" title="No contacts match your search." />
+          <EmptyState size="sm" title={t("tab.contacts.emptySearch")} />
         ) : (
           <div className="contacts-grid">
             {contacts.map((c) => (
@@ -441,10 +489,14 @@ export default function ContactsTab({ project, currentUser, onOpenInChat }: Prop
                 {c.tags.length > 0 && (
                   <div className="contact-card__tags">
                     {c.tags.slice(0, 3).map((tag) => (
-                      <span key={tag} className="contact-card__tag">{tag}</span>
+                      <span key={tag} className="contact-card__tag">
+                        {tag}
+                      </span>
                     ))}
                     {c.tags.length > 3 && (
-                      <span className="contact-card__tag">+{c.tags.length - 3}</span>
+                      <span className="contact-card__tag">
+                        +{c.tags.length - 3}
+                      </span>
                     )}
                   </div>
                 )}
