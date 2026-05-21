@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import type { AuthUser, Contact, ContactGroup, SocialHandle } from "../api";
 import { fetchContact, refreshContactSoul } from "../api";
 import LanguageTabs, { translationStatusToPill } from "./LanguageTabs";
@@ -39,6 +40,7 @@ export default function ContactDialog({
   onClose,
   onSubmit,
 }: Props) {
+  const { t } = useTranslation();
   const [name, setName] = useState(initial?.name ?? "");
   const [emails, setEmails] = useState<string[]>(
     initial?.emails?.length ? initial.emails : [""],
@@ -96,7 +98,7 @@ export default function ContactDialog({
 
   const handleAvatarFile = (file: File) => {
     if (file.size > 200 * 1024) {
-      alert("Avatar must be under 200KB");
+      alert(t("dialog.contact.avatarTooLarge"));
       return;
     }
     const reader = new FileReader();
@@ -135,11 +137,15 @@ export default function ContactDialog({
     <Modal onClose={onClose} size="md">
       <form className="project-form" onSubmit={handleSubmit}>
         <Modal.Header
-          title={mode === "create" ? "New Contact" : "Edit Contact"}
+          title={
+            mode === "create"
+              ? t("dialog.contact.titleCreate")
+              : t("dialog.contact.titleEdit")
+          }
         />
 
         <label className="project-form__field">
-          Name *
+          {t("dialog.contact.nameLabelStar")}
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -149,13 +155,13 @@ export default function ContactDialog({
         </label>
 
         <div className="project-form__field">
-          Emails
+          {t("dialog.contact.emailsLabel")}
           {emails.map((email, i) => (
             <div key={i} className="contact-form__multi-row">
               <input
                 type="email"
                 value={email}
-                placeholder="email@example.com"
+                placeholder={t("dialog.contact.emailPlaceholder")}
                 onChange={(e) =>
                   updateList(emails, i, e.target.value, setEmails)
                 }
@@ -164,7 +170,7 @@ export default function ContactDialog({
                 type="button"
                 className="contact-form__remove-btn"
                 onClick={() => removeFromList(emails, i, setEmails)}
-                title="Remove"
+                title={t("dialog.contact.removeAria")}
               >
                 &times;
               </button>
@@ -175,18 +181,18 @@ export default function ContactDialog({
             className="contact-form__add-btn"
             onClick={() => addToList(emails, setEmails)}
           >
-            + Add email
+            {t("dialog.contact.addEmail")}
           </button>
         </div>
 
         <div className="project-form__field">
-          Phones
+          {t("dialog.contact.phonesLabel")}
           {phones.map((phone, i) => (
             <div key={i} className="contact-form__multi-row">
               <input
                 type="tel"
                 value={phone}
-                placeholder="+31 6 12345678"
+                placeholder={t("dialog.contact.phonePlaceholder")}
                 onChange={(e) =>
                   updateList(phones, i, e.target.value, setPhones)
                 }
@@ -195,7 +201,7 @@ export default function ContactDialog({
                 type="button"
                 className="contact-form__remove-btn"
                 onClick={() => removeFromList(phones, i, setPhones)}
-                title="Remove"
+                title={t("dialog.contact.removeAria")}
               >
                 &times;
               </button>
@@ -206,7 +212,7 @@ export default function ContactDialog({
             className="contact-form__add-btn"
             onClick={() => addToList(phones, setPhones)}
           >
-            + Add phone
+            {t("dialog.contact.addPhone")}
           </button>
         </div>
 
@@ -214,14 +220,14 @@ export default function ContactDialog({
           style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}
         >
           <label className="project-form__field">
-            Company
+            {t("dialog.contact.companyLabel")}
             <input
               value={company}
               onChange={(e) => setCompany(e.target.value)}
             />
           </label>
           <label className="project-form__field">
-            Title / Role
+            {t("dialog.contact.titleLabel")}
             <input value={title} onChange={(e) => setTitle(e.target.value)} />
           </label>
         </div>
@@ -235,16 +241,16 @@ export default function ContactDialog({
         />
 
         <label className="project-form__field">
-          Tags (comma-separated)
+          {t("dialog.contact.tagsLabel")}
           <input
             value={tagsStr}
             onChange={(e) => setTagsStr(e.target.value)}
-            placeholder="client, vip, partner"
+            placeholder={t("dialog.contact.tagsPlaceholder")}
           />
         </label>
 
         <div className="project-form__field">
-          Social profiles
+          {t("dialog.contact.socialsLabel")}
           {socials.length === 0 && (
             <div
               style={{
@@ -253,8 +259,7 @@ export default function ContactDialog({
                 marginBottom: 6,
               }}
             >
-              Add public handles or URLs so the auto-refresh can summarise what
-              this contact is currently up to.
+              {t("dialog.contact.socialsHint")}
             </div>
           )}
           {socials.map((s, i) => (
@@ -277,7 +282,9 @@ export default function ContactDialog({
               <input
                 value={s.handle}
                 placeholder={
-                  s.platform === "website" ? "https://..." : "@handle or URL"
+                  s.platform === "website"
+                    ? t("dialog.contact.socialPlaceholderWebsite")
+                    : t("dialog.contact.socialPlaceholderHandle")
                 }
                 onChange={(e) => {
                   const next = [...socials];
@@ -291,7 +298,7 @@ export default function ContactDialog({
                 onClick={() =>
                   setSocials(socials.filter((_, idx) => idx !== i))
                 }
-                title="Remove"
+                title={t("dialog.contact.removeAria")}
               >
                 &times;
               </button>
@@ -304,7 +311,7 @@ export default function ContactDialog({
               setSocials([...socials, { platform: "twitter", handle: "" }])
             }
           >
-            + Add social profile
+            {t("dialog.contact.addSocial")}
           </button>
         </div>
 
@@ -320,7 +327,7 @@ export default function ContactDialog({
                   initial.id,
                 );
                 if (!res.ok) {
-                  alert(`Refresh failed: HTTP ${res.status}`);
+                  alert(t("dialog.contact.refreshFailed", { status: res.status }));
                   return;
                 }
                 // Drain the SSE so the run actually starts on the server.
@@ -340,7 +347,7 @@ export default function ContactDialog({
 
         {allGroups.length > 0 && (
           <div className="project-form__field">
-            Groups
+            {t("dialog.contact.groupsLabel")}
             <div className="contact-form__groups">
               {allGroups.map((g) => (
                 <label key={g.id} className="project-form__chip">
@@ -370,12 +377,12 @@ export default function ContactDialog({
         )}
 
         <div className="project-form__field">
-          Avatar
+          {t("dialog.contact.avatarLabel")}
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {avatar && (
               <img
                 src={avatar}
-                alt="avatar"
+                alt={t("dialog.contact.avatarAlt")}
                 className="contact-form__avatar-preview"
               />
             )}
@@ -401,14 +408,18 @@ export default function ContactDialog({
 
         <Modal.Footer>
           <button type="button" className="btn" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             type="submit"
             className="btn btn--accent"
             disabled={saving || !name.trim()}
           >
-            {saving ? "Saving..." : mode === "create" ? "Create" : "Save"}
+            {saving
+              ? t("dialog.contact.saving")
+              : mode === "create"
+                ? t("common.create")
+                : t("common.save")}
           </button>
         </Modal.Footer>
       </form>
@@ -429,6 +440,7 @@ function SoulSection({
   refreshing: boolean;
   onStartRefresh: () => Promise<void>;
 }) {
+  const { t } = useTranslation();
   // We snapshot the initial row, then re-fetch after a successful refresh so
   // the user immediately sees the new soul/status.
   const [current, setCurrent] = useState<Contact>(initial);
@@ -442,13 +454,15 @@ function SoulSection({
   };
   return (
     <div className="project-form__field">
-      Soul (auto-refreshed)
+      {t("dialog.contact.soulLabel")}
       <div className="soul-status-row">
         <StatusPill status={soulStatusToPill(current.soulStatus)} />
         <span>
           {current.soulRefreshedAt
-            ? `last refreshed ${new Date(current.soulRefreshedAt).toLocaleString()}`
-            : "never refreshed"}
+            ? t("dialog.contact.lastRefreshed", {
+                when: new Date(current.soulRefreshedAt).toLocaleString(),
+              })
+            : t("dialog.contact.neverRefreshed")}
         </span>
         <button
           type="button"
@@ -456,13 +470,15 @@ function SoulSection({
           disabled={refreshing || current.soulStatus === "refreshing"}
           onClick={() => void handleClick()}
         >
-          {refreshing ? "Refreshing…" : "Refresh now"}
+          {refreshing
+            ? t("dialog.contact.refreshing")
+            : t("dialog.contact.refreshNow")}
         </button>
       </div>
       <div
         className={`soul-preview${current.soul ? "" : " soul-preview--empty"}`}
       >
-        {current.soul || "(empty — will be filled on next refresh)"}
+        {current.soul || t("dialog.contact.soulEmpty")}
       </div>
       {current.soulError && (
         <div className="lang-readonly__error">{current.soulError}</div>
@@ -490,6 +506,7 @@ function NotesField({
   notes: string;
   setNotes: (v: string) => void;
 }) {
+  const { t } = useTranslation();
   const originalLang = initial?.originalLang ?? null;
   const tr = useTranslations(
     "contact",
@@ -508,7 +525,7 @@ function NotesField({
   if (!showTabs) {
     return (
       <label className="project-form__field">
-        Notes
+        {t("dialog.contact.notesLabel")}
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
@@ -519,13 +536,13 @@ function NotesField({
   }
 
   const isSourceActive = tr.activeLang === originalLang;
-  const t = tr.activeTranslation;
-  const pill: PillStatus = t ? translationStatusToPill(t) : "pending";
-  const translatedNotes = (t?.fields["notes"] ?? "") as string;
+  const active = tr.activeTranslation;
+  const pill: PillStatus = active ? translationStatusToPill(active) : "pending";
+  const translatedNotes = (active?.fields["notes"] ?? "") as string;
 
   return (
     <div className="project-form__field">
-      <span>Notes</span>
+      <span>{t("dialog.contact.notesLabel")}</span>
       <LanguageTabs
         languages={tr.languages}
         sourceLang={originalLang!}
@@ -550,7 +567,7 @@ function NotesField({
             }}
           >
             <span style={{ fontSize: 12, color: "var(--text-dim)" }}>
-              Read-only translation — edit the source tab to change the content.
+              {t("dialog.contact.notesReadonlyHint")}
             </span>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <StatusPill status={pill} />
@@ -558,21 +575,23 @@ function NotesField({
                 type="button"
                 className="btn"
                 onClick={() => void tr.translate()}
-                disabled={tr.triggering || t?.status === "translating"}
+                disabled={tr.triggering || active?.status === "translating"}
               >
-                {tr.triggering ? "Sending…" : "Translate now"}
+                {tr.triggering
+                  ? t("dialog.contact.translating")
+                  : t("dialog.contact.translateNow")}
               </button>
             </div>
           </div>
           <div className="lang-readonly">
             {translatedNotes || (
               <em style={{ color: "var(--text-faint)" }}>
-                Not translated yet.
+                {t("dialog.contact.notTranslatedYet")}
               </em>
             )}
           </div>
-          {t?.status === "error" && t.error && (
-            <div className="lang-readonly__error">{t.error}</div>
+          {active?.status === "error" && active.error && (
+            <div className="lang-readonly__error">{active.error}</div>
           )}
         </>
       )}
