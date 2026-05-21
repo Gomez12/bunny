@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { Agent, AuthUser, Swimlane } from "../api";
 import { listUsers } from "../api";
 import Modal from "./Modal";
@@ -41,6 +42,7 @@ export default function SwimlaneDialog({
   onClose,
   onSubmit,
 }: Props) {
+  const { t } = useTranslation();
   const [name, setName] = useState(initial?.name ?? "");
   const [autoRun, setAutoRun] = useState(initial?.autoRun ?? false);
   const [wipLimit, setWipLimit] = useState<string>(
@@ -93,7 +95,7 @@ export default function SwimlaneDialog({
 
   const submit = async () => {
     if (!name.trim()) {
-      setError("Name is required");
+      setError(t("dialog.swimlane.errNameRequired"));
       return;
     }
     setBusy(true);
@@ -127,28 +129,32 @@ export default function SwimlaneDialog({
         }}
       >
         <Modal.Header
-          title={mode === "create" ? "New swimlane" : "Edit swimlane"}
+          title={
+            mode === "create"
+              ? t("dialog.swimlane.titleCreate")
+              : t("dialog.swimlane.titleEdit")
+          }
         />
 
         <label className="project-form__field">
-          <span>Name</span>
+          <span>{t("dialog.swimlane.nameLabel")}</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Lane name"
+            placeholder={t("dialog.swimlane.namePlaceholder")}
             autoFocus
             required
           />
         </label>
 
         <div className="project-form__field">
-          <span>Color</span>
+          <span>{t("dialog.swimlane.colorLabel")}</span>
           <div className="lane-color-picker">
             <button
               type="button"
               className={`lane-color-swatch lane-color-swatch--none ${color === null ? "lane-color-swatch--active" : ""}`}
               onClick={() => setColor(null)}
-              title="No color"
+              title={t("dialog.swimlane.colorNone")}
             />
             {LANE_COLORS.map((c) => (
               <button
@@ -164,11 +170,11 @@ export default function SwimlaneDialog({
         </div>
 
         <label className="project-form__field">
-          <span>Group</span>
+          <span>{t("dialog.swimlane.groupLabel")}</span>
           <input
             value={group}
             onChange={(e) => setGroup(e.target.value)}
-            placeholder="No group"
+            placeholder={t("dialog.swimlane.groupPlaceholder")}
             list="lane-groups"
           />
           <datalist id="lane-groups">
@@ -176,10 +182,7 @@ export default function SwimlaneDialog({
               <option key={g} value={g} />
             ))}
           </datalist>
-          <span className="project-form__hint">
-            Lanes with the same group are visually grouped together on the
-            board.
-          </span>
+          <span className="project-form__hint">{t("dialog.swimlane.groupHint")}</span>
         </label>
 
         <label className="project-form__field project-form__field--inline">
@@ -188,24 +191,22 @@ export default function SwimlaneDialog({
             checked={autoRun}
             onChange={(e) => setAutoRun(e.target.checked)}
           />
-          <span>
-            Auto-run — scheduler will auto-run agent cards in this lane
-          </span>
+          <span>{t("dialog.swimlane.autoRunLabel")}</span>
         </label>
 
         <label className="project-form__field">
-          <span>WIP limit</span>
+          <span>{t("dialog.swimlane.wipLabel")}</span>
           <input
             type="number"
             min={0}
             value={wipLimit}
             onChange={(e) => setWipLimit(e.target.value)}
-            placeholder="No limit"
+            placeholder={t("dialog.swimlane.wipPlaceholder")}
           />
         </label>
 
         <div className="project-form__field">
-          <span>Default assignee</span>
+          <span>{t("dialog.swimlane.defaultAssigneeLabel")}</span>
           <div className="card-assignee-tabs">
             {(["none", "user", "agent"] as const).map((k) => (
               <button
@@ -214,7 +215,11 @@ export default function SwimlaneDialog({
                 className={`card-assignee-tab ${assigneeKind === k ? "card-assignee-tab--active" : ""}`}
                 onClick={() => setAssigneeKind(k)}
               >
-                {k === "none" ? "None" : k === "user" ? "User" : "Agent"}
+                {k === "none"
+                  ? t("dialog.swimlane.assigneeNone")
+                  : k === "user"
+                    ? t("dialog.swimlane.assigneeUser")
+                    : t("dialog.swimlane.assigneeAgent")}
               </button>
             ))}
           </div>
@@ -222,7 +227,7 @@ export default function SwimlaneDialog({
 
         {assigneeKind === "user" && (
           <label className="project-form__field">
-            <span>User</span>
+            <span>{t("dialog.swimlane.userLabel")}</span>
             <select
               value={assigneeUserId ?? ""}
               onChange={(e) => setAssigneeUserId(e.target.value || null)}
@@ -238,12 +243,12 @@ export default function SwimlaneDialog({
 
         {assigneeKind === "agent" && (
           <label className="project-form__field">
-            <span>Agent</span>
+            <span>{t("dialog.swimlane.agentLabel")}</span>
             <select
               value={assigneeAgent ?? ""}
               onChange={(e) => setAssigneeAgent(e.target.value || null)}
             >
-              <option value="">— pick an agent —</option>
+              <option value="">{t("dialog.swimlane.pickAgent")}</option>
               {agents.map((a) => (
                 <option key={a.name} value={a.name}>
                   {a.name}
@@ -251,23 +256,20 @@ export default function SwimlaneDialog({
               ))}
             </select>
             {agents.length === 0 && (
-              <span className="project-form__hint">
-                No agents are linked to this project. Link one in the Agents tab
-                first.
-              </span>
+              <span className="project-form__hint">{t("dialog.swimlane.noAgentsHint")}</span>
             )}
           </label>
         )}
 
         <label className="project-form__field">
-          <span>Next swimlane (auto-move after agent run)</span>
+          <span>{t("dialog.swimlane.nextLaneLabel")}</span>
           <select
             value={nextSwimlaneId ?? ""}
             onChange={(e) =>
               setNextSwimlaneId(e.target.value ? Number(e.target.value) : null)
             }
           >
-            <option value="">— none —</option>
+            <option value="">{t("dialog.swimlane.nextLaneNone")}</option>
             {otherLanes.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -285,10 +287,14 @@ export default function SwimlaneDialog({
             onClick={onClose}
             disabled={busy}
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button type="submit" className="btn btn--send" disabled={busy}>
-            {busy ? "Saving…" : mode === "create" ? "Create" : "Save"}
+            {busy
+              ? t("common.saving")
+              : mode === "create"
+                ? t("common.create")
+                : t("common.save")}
           </button>
         </Modal.Footer>
       </form>

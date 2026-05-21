@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { Agent, AuthUser, BoardCard, Swimlane } from "../api";
 import { listUsers, runCard } from "../api";
 import CardRunLog from "./CardRunLog";
@@ -42,6 +43,7 @@ export default function CardDialog({
   onSubmit,
   onOpenSession,
 }: Props) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [swimlaneId, setSwimlaneId] = useState<number>(
@@ -97,7 +99,7 @@ export default function CardDialog({
 
   const submit = async () => {
     if (!title.trim()) {
-      setError("Title is required");
+      setError(t("dialog.card.errTitleRequired"));
       return;
     }
     setBusy(true);
@@ -136,7 +138,7 @@ export default function CardDialog({
         <Modal.Header
           title={
             <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-              {mode === "create" ? "New card" : "Edit card"}
+              {mode === "create" ? t("dialog.card.titleCreate") : t("dialog.card.titleEdit")}
               {mode === "edit" && initial && (
                 <HistoryButton
                   kind="board_card"
@@ -149,29 +151,29 @@ export default function CardDialog({
         />
 
         <label className="project-form__field">
-          <span>Title</span>
+          <span>{t("dialog.card.titleLabel")}</span>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Short summary"
+            placeholder={t("dialog.card.titlePlaceholder")}
             autoFocus
             required
           />
         </label>
 
         <label className="project-form__field">
-          <span>Description</span>
+          <span>{t("dialog.card.descriptionLabel")}</span>
           <textarea
             rows={5}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="What needs to happen?"
+            placeholder={t("dialog.card.descriptionPlaceholder")}
           />
         </label>
 
         <div className="project-form__row">
           <label className="project-form__field">
-            <span>Estimate (hours)</span>
+            <span>{t("dialog.card.estimateLabel")}</span>
             <input
               type="number"
               min={0}
@@ -182,7 +184,7 @@ export default function CardDialog({
             />
           </label>
           <label className="project-form__field">
-            <span>Done (%)</span>
+            <span>{t("dialog.card.percentLabel")}</span>
             <input
               type="number"
               min={0}
@@ -195,7 +197,7 @@ export default function CardDialog({
         </div>
 
         <label className="project-form__field">
-          <span>Swimlane</span>
+          <span>{t("dialog.card.swimlaneLabel")}</span>
           <select
             value={swimlaneId}
             onChange={(e) => setSwimlaneId(Number(e.target.value))}
@@ -209,7 +211,7 @@ export default function CardDialog({
         </label>
 
         <div className="project-form__field">
-          <span>Assignee</span>
+          <span>{t("dialog.card.assigneeLabel")}</span>
           <div className="card-assignee-tabs">
             {(["none", "user", "agent"] as const).map((k) => (
               <button
@@ -218,7 +220,11 @@ export default function CardDialog({
                 className={`card-assignee-tab ${assigneeKind === k ? "card-assignee-tab--active" : ""}`}
                 onClick={() => setAssigneeKind(k)}
               >
-                {k === "none" ? "None" : k === "user" ? "User" : "Agent"}
+                {k === "none"
+                  ? t("dialog.card.assigneeNone")
+                  : k === "user"
+                    ? t("dialog.card.assigneeUser")
+                    : t("dialog.card.assigneeAgent")}
               </button>
             ))}
           </div>
@@ -226,7 +232,7 @@ export default function CardDialog({
 
         {assigneeKind === "user" && (
           <label className="project-form__field">
-            <span>User</span>
+            <span>{t("dialog.card.userLabel")}</span>
             <select
               value={assigneeUserId ?? ""}
               onChange={(e) => setAssigneeUserId(e.target.value || null)}
@@ -247,22 +253,18 @@ export default function CardDialog({
               checked={autoRun}
               onChange={(e) => setAutoRun(e.target.checked)}
             />
-            <span>
-              Auto-run — let the scheduler start this card on the next tick of
-              the board.auto_run_scan task (the flag clears automatically once
-              queued).
-            </span>
+            <span>{t("dialog.card.autoRunLabel")}</span>
           </label>
         )}
 
         {assigneeKind === "agent" && (
           <label className="project-form__field">
-            <span>Agent</span>
+            <span>{t("dialog.card.agentLabel")}</span>
             <select
               value={assigneeAgent ?? ""}
               onChange={(e) => setAssigneeAgent(e.target.value || null)}
             >
-              <option value="">— pick an agent —</option>
+              <option value="">{t("dialog.card.pickAgent")}</option>
               {agents.map((a) => (
                 <option key={a.name} value={a.name}>
                   {a.name}
@@ -270,10 +272,7 @@ export default function CardDialog({
               ))}
             </select>
             {agents.length === 0 && (
-              <span className="project-form__hint">
-                No agents are linked to this project. Link one in the Agents tab
-                first.
-              </span>
+              <span className="project-form__hint">{t("dialog.card.noAgentsHint")}</span>
             )}
           </label>
         )}
@@ -287,10 +286,14 @@ export default function CardDialog({
             onClick={onClose}
             disabled={busy}
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button type="submit" className="btn btn--send" disabled={busy}>
-            {busy ? "Saving…" : mode === "create" ? "Create" : "Save"}
+            {busy
+              ? t("common.saving")
+              : mode === "create"
+                ? t("common.create")
+                : t("common.save")}
           </button>
         </Modal.Footer>
       </form>
@@ -323,9 +326,9 @@ export default function CardDialog({
                   setRunError(e instanceof Error ? e.message : String(e));
                 }
               }}
-              title="Run this card with the assigned agent"
+              title={t("dialog.card.runTitle")}
             >
-              ▶ Run
+              {t("dialog.card.runBtn")}
             </button>
             {runError && <span className="card-runs__err">{runError}</span>}
           </div>
