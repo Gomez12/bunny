@@ -173,6 +173,45 @@
         "disconnectConfirm": "Disconnect Telegram for this project?"
       }
     },
+    "news": {
+      "sidebarHeading": "Topics",
+      "addTopic": "Topic",
+      "addTopicTitle": "Keyword topic — agent searches the web",
+      "addFeedTitle": "RSS/Atom feed",
+      "addSiteTitle": "Site monitor — check a page for changes",
+      "loading": "Loading…",
+      "noTopicsTitle": "No topics yet",
+      "noTopicsDescription": "Create a topic to let an agent periodically gather news about it.",
+      "showInView": "Show in news view",
+      "hideFromView": "Hide from news view",
+      "status": {
+        "running": "Running…",
+        "lastRunFailed": "Last run failed",
+        "idle": "Idle"
+      },
+      "badge": {
+        "rss": "RSS",
+        "rssTitle": "RSS/Atom feed",
+        "site": "Site",
+        "siteTitle": "Site monitor"
+      },
+      "termsOne": "1 term",
+      "termsMany": "{{count}} terms",
+      "lastRun": "last run {{ts}}",
+      "actions": {
+        "runNow": "Run now",
+        "regenerate": "Regenerate terms on next run"
+      },
+      "mainHeading": "News",
+      "template": {
+        "list": "List",
+        "newspaper": "Newspaper"
+      },
+      "noNewsTitle": "No news yet",
+      "noNewsDescriptionNoTopics": "Create a topic and run it to see items here.",
+      "noNewsDescriptionWithTopics": "Click the ▶ button on a topic to fetch the first batch.",
+      "deleteConfirm": "Delete topic \"{{name}}\"? This also removes its items."
+    },
     "notifications": {
       "title": "Notifications",
       "a11y": {

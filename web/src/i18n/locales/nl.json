@@ -173,6 +173,45 @@
         "disconnectConfirm": "Telegram voor dit project loskoppelen?"
       }
     },
+    "news": {
+      "sidebarHeading": "Onderwerpen",
+      "addTopic": "Onderwerp",
+      "addTopicTitle": "Trefwoord-onderwerp — agent zoekt op het web",
+      "addFeedTitle": "RSS/Atom-feed",
+      "addSiteTitle": "Site-monitor — controleer een pagina op wijzigingen",
+      "loading": "Laden…",
+      "noTopicsTitle": "Nog geen onderwerpen",
+      "noTopicsDescription": "Maak een onderwerp aan en laat een agent er periodiek nieuws over verzamelen.",
+      "showInView": "In nieuwsweergave tonen",
+      "hideFromView": "Verbergen uit nieuwsweergave",
+      "status": {
+        "running": "Bezig…",
+        "lastRunFailed": "Laatste run mislukt",
+        "idle": "Inactief"
+      },
+      "badge": {
+        "rss": "RSS",
+        "rssTitle": "RSS/Atom-feed",
+        "site": "Site",
+        "siteTitle": "Site-monitor"
+      },
+      "termsOne": "1 term",
+      "termsMany": "{{count}} termen",
+      "lastRun": "laatste run {{ts}}",
+      "actions": {
+        "runNow": "Nu uitvoeren",
+        "regenerate": "Termen opnieuw genereren bij volgende run"
+      },
+      "mainHeading": "Nieuws",
+      "template": {
+        "list": "Lijst",
+        "newspaper": "Krant"
+      },
+      "noNewsTitle": "Nog geen nieuws",
+      "noNewsDescriptionNoTopics": "Maak een onderwerp aan en voer het uit om hier items te zien.",
+      "noNewsDescriptionWithTopics": "Klik op de ▶-knop bij een onderwerp om de eerste batch op te halen.",
+      "deleteConfirm": "Onderwerp \"{{name}}\" verwijderen? Hiermee verwijder je ook de items."
+    },
     "notifications": {
       "title": "Meldingen",
       "a11y": {

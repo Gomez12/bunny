@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useProjectUiPrefs } from "../hooks/useProjectUiPrefs";
 import { useUiPrefs } from "../hooks/useUiPrefs";
 import {
@@ -41,10 +43,7 @@ import {
 
 type TemplateId = "list" | "newspaper";
 
-const TEMPLATES: Array<{ id: TemplateId; label: string }> = [
-  { id: "list", label: "List" },
-  { id: "newspaper", label: "Newspaper" },
-];
+const TEMPLATE_IDS: TemplateId[] = ["list", "newspaper"];
 
 const TEMPLATE_STORAGE_KEY = "bunny.webNews.template";
 const POLL_INTERVAL_MS = 5_000;
@@ -77,12 +76,26 @@ type DialogState =
   | { kind: "create-site" }
   | { kind: "edit"; topic: NewsTopic };
 
-function topicTypeBadge(t: NewsTopic): React.ReactNode {
-  if (t.topicType === "rss_feed") {
-    return <span className="news-type-badge news-type-badge--rss" title="RSS/Atom feed"><Rss size={10} /> RSS</span>;
+function topicTypeBadge(topic: NewsTopic, t: TFunction): React.ReactNode {
+  if (topic.topicType === "rss_feed") {
+    return (
+      <span
+        className="news-type-badge news-type-badge--rss"
+        title={t("tab.news.badge.rssTitle")}
+      >
+        <Rss size={10} /> {t("tab.news.badge.rss")}
+      </span>
+    );
   }
-  if (t.topicType === "site_monitor") {
-    return <span className="news-type-badge news-type-badge--site" title="Site monitor"><Globe size={10} /> Site</span>;
+  if (topic.topicType === "site_monitor") {
+    return (
+      <span
+        className="news-type-badge news-type-badge--site"
+        title={t("tab.news.badge.siteTitle")}
+      >
+        <Globe size={10} /> {t("tab.news.badge.site")}
+      </span>
+    );
   }
   return null;
 }
@@ -93,6 +106,7 @@ function readStoredTemplate(): TemplateId {
 }
 
 export default function WebNewsTab({ project, currentUser }: Props) {
+  const { t } = useTranslation();
   const { prefs: projectPrefs, setPref: setProjectPref } = useProjectUiPrefs(project);
   const { prefs: globalPrefs, setPref: setGlobalPref } = useUiPrefs();
 
@@ -297,21 +311,21 @@ export default function WebNewsTab({ project, currentUser }: Props) {
     <div className="news-tab">
       <aside className="news-tab__sidebar">
         <header className="news-tab__sidebar-header">
-          <h2>Topics</h2>
+          <h2>{t("tab.news.sidebarHeading")}</h2>
           <div className="news-tab__add-menu">
             <button
               type="button"
               className="btn btn--primary btn--sm"
               onClick={() => setDialog({ kind: "create-topic" })}
-              title="Keyword topic — agent searches the web"
+              title={t("tab.news.addTopicTitle")}
             >
-              <Plus size={14} /> Topic
+              <Plus size={14} /> {t("tab.news.addTopic")}
             </button>
             <button
               type="button"
               className="btn btn--secondary btn--sm"
               onClick={() => setDialog({ kind: "create-feed" })}
-              title="RSS/Atom feed"
+              title={t("tab.news.addFeedTitle")}
             >
               <Rss size={14} />
             </button>
@@ -319,7 +333,7 @@ export default function WebNewsTab({ project, currentUser }: Props) {
               type="button"
               className="btn btn--secondary btn--sm"
               onClick={() => setDialog({ kind: "create-site" })}
-              title="Site monitor — check a page for changes"
+              title={t("tab.news.addSiteTitle")}
             >
               <Globe size={14} />
             </button>
@@ -328,13 +342,13 @@ export default function WebNewsTab({ project, currentUser }: Props) {
 
         {loading ? (
           <div className="news-tab__loading">
-            <Loader2 size={16} /> Loading…
+            <Loader2 size={16} /> {t("tab.news.loading")}
           </div>
         ) : topics.length === 0 ? (
           <EmptyState
             size="sm"
-            title="No topics yet"
-            description="Create a topic to let an agent periodically gather news about it."
+            title={t("tab.news.noTopicsTitle")}
+            description={t("tab.news.noTopicsDescription")}
           />
         ) : (
           <ul className="news-tab__topics">
@@ -361,23 +375,23 @@ export default function WebNewsTab({ project, currentUser }: Props) {
                       onChange={() => toggleTopicVisibility(topic.id)}
                       title={
                         hiddenTopicIds.has(topic.id)
-                          ? "Show in news view"
-                          : "Hide from news view"
+                          ? t("tab.news.showInView")
+                          : t("tab.news.hideFromView")
                       }
                     />
                     <span
                       className={`news-status-dot ${statusClass}`}
                       title={
                         topic.runStatus === "running"
-                          ? "Running…"
+                          ? t("tab.news.status.running")
                           : topic.lastRunStatus === "error"
-                            ? "Last run failed"
-                            : "Idle"
+                            ? t("tab.news.status.lastRunFailed")
+                            : t("tab.news.status.idle")
                       }
                     />
                     <div className="news-tab__topic-text">
                       <strong>
-                        {topicTypeBadge(topic)}
+                        {topicTypeBadge(topic, t)}
                         {topic.name}
                       </strong>
                       <small>
@@ -385,13 +399,18 @@ export default function WebNewsTab({ project, currentUser }: Props) {
                           ? topic.feedUrl ?? "—"
                           : topic.topicType === "site_monitor"
                             ? topic.siteUrl ?? "—"
-                            : `${topic.terms.length} term${topic.terms.length === 1 ? "" : "s"}`}{" "}
+                            : topic.terms.length === 1
+                              ? t("tab.news.termsOne")
+                              : t("tab.news.termsMany", {
+                                  count: topic.terms.length,
+                                })}{" "}
                         · {topic.agent}
                       </small>
                       {topic.lastRunAt && (
                         <small>
-                          last run{" "}
-                          {new Date(topic.lastRunAt).toLocaleString()}
+                          {t("tab.news.lastRun", {
+                            ts: new Date(topic.lastRunAt).toLocaleString(),
+                          })}
                         </small>
                       )}
                       {topic.lastRunError && (
@@ -408,7 +427,7 @@ export default function WebNewsTab({ project, currentUser }: Props) {
                         className="btn btn--ghost btn--xs"
                         onClick={() => handleRunNow(topic)}
                         disabled={topic.runStatus === "running"}
-                        title="Run now"
+                        title={t("tab.news.actions.runNow")}
                       >
                         <Play size={14} />
                       </button>
@@ -417,7 +436,7 @@ export default function WebNewsTab({ project, currentUser }: Props) {
                           type="button"
                           className="btn btn--ghost btn--xs"
                           onClick={() => handleRegenerate(topic)}
-                          title="Regenerate terms on next run"
+                          title={t("tab.news.actions.regenerate")}
                         >
                           <RefreshCw size={14} />
                         </button>
@@ -426,7 +445,7 @@ export default function WebNewsTab({ project, currentUser }: Props) {
                         type="button"
                         className="btn btn--ghost btn--xs"
                         onClick={() => setDialog({ kind: "edit", topic })}
-                        title="Edit"
+                        title={t("common.edit")}
                       >
                         <Pencil size={14} />
                       </button>
@@ -439,7 +458,7 @@ export default function WebNewsTab({ project, currentUser }: Props) {
                         type="button"
                         className="btn btn--ghost btn--xs"
                         onClick={() => handleDelete(topic)}
-                        title="Delete"
+                        title={t("common.delete")}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -454,19 +473,21 @@ export default function WebNewsTab({ project, currentUser }: Props) {
 
       <section className="news-tab__main">
         <header className="news-tab__header">
-          <h1>News</h1>
+          <h1>{t("tab.news.mainHeading")}</h1>
           <div className="news-tab__template-picker" role="tablist">
-            {TEMPLATES.map((t) => (
+            {TEMPLATE_IDS.map((id) => (
               <button
-                key={t.id}
+                key={id}
                 type="button"
                 className={`btn btn--ghost btn--sm ${
-                  template === t.id ? "btn--active" : ""
+                  template === id ? "btn--active" : ""
                 }`}
-                onClick={() => setTemplate(t.id)}
-                aria-pressed={template === t.id}
+                onClick={() => setTemplate(id)}
+                aria-pressed={template === id}
               >
-                {t.label}
+                {id === "list"
+                  ? t("tab.news.template.list")
+                  : t("tab.news.template.newspaper")}
               </button>
             ))}
           </div>
@@ -480,11 +501,11 @@ export default function WebNewsTab({ project, currentUser }: Props) {
 
         {visibleItems.length === 0 ? (
           <EmptyState
-            title="No news yet"
+            title={t("tab.news.noNewsTitle")}
             description={
               topics.length === 0
-                ? "Create a topic and run it to see items here."
-                : "Click the ▶ button on a topic to fetch the first batch."
+                ? t("tab.news.noNewsDescriptionNoTopics")
+                : t("tab.news.noNewsDescriptionWithTopics")
             }
           />
         ) : template === "newspaper" ? (
@@ -542,8 +563,10 @@ export default function WebNewsTab({ project, currentUser }: Props) {
 
       <ConfirmDialog
         open={confirmDeleteTopic !== null}
-        message={`Delete topic "${confirmDeleteTopic?.name}"? This also removes its items.`}
-        confirmLabel="Delete"
+        message={t("tab.news.deleteConfirm", {
+          name: confirmDeleteTopic?.name ?? "",
+        })}
+        confirmLabel={t("common.delete")}
         onConfirm={() => void confirmDeleteTopicAction()}
         onCancel={() => setConfirmDeleteTopic(null)}
       />

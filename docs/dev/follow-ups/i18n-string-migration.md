@@ -69,8 +69,15 @@ order, highest-traffic first:
      two setError() paths, trash confirm). The
      `DIAGRAM_TYPE_LABELS` constant still holds raw labels;
      migrate alongside the diagram-types refactor.
-5. The remaining tabs (`FilesTab`, `BusinessesTab`, `IntegrationsTab`,
-   `WebNewsTab`, `NotificationsTab`, `CodeTab`, `DiagramsTab`).
+5. The remaining tabs (`FilesTab`, `BusinessesTab`,
+   `IntegrationsTab`, `WebNewsTab`, `NotificationsTab`,
+   `CodeTab`) — done 2026-05-21. `DiagramsTab` shipped with
+   step 4. Each migration moved the static strings to `t()` /
+   `<Trans>`; embedded sub-views (CodeShowCodeView,
+   CodeChatView, CodeGraphView, CodeScriptsView,
+   CodeSecretsView, news-template renderers, dialog
+   components) and the dynamic-key lookups (e.g.
+   DIAGRAM_TYPE_LABELS) remain as component-family follow-ups.
 6. `pages/`.
 7. The rest of `components/` (forms, menus, popovers).
 
