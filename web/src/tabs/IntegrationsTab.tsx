@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import type { AuthUser } from "../api";
 import {
   deleteTelegramConfigApi,
@@ -23,6 +24,7 @@ export default function IntegrationsTab({
   currentUser: AuthUser;
   activeProject: string;
 }) {
+  const { t } = useTranslation();
   const [config, setConfig] = useState<TelegramConfigDto | null>(null);
   const [publicBaseUrl, setPublicBaseUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,13 +69,11 @@ export default function IntegrationsTab({
     };
   }, [activeProject]);
 
-  if (loading) return <div className="app-loading">Loading…</div>;
+  if (loading) return <div className="app-loading">{t("tab.integrations.loading")}</div>;
   if (forbidden) {
     return (
       <div className="integrations-tab">
-        <p className="muted">
-          You don't have permission to configure integrations for this project.
-        </p>
+        <p className="muted">{t("tab.integrations.forbidden")}</p>
       </div>
     );
   }
@@ -91,7 +91,7 @@ export default function IntegrationsTab({
       const r = await saveTelegramConfig(activeProject, patch);
       setConfig(r.config);
       setBotToken("");
-      setMsg("Saved.");
+      setMsg(t("tab.integrations.telegram.msgSaved"));
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -104,7 +104,7 @@ export default function IntegrationsTab({
     try {
       await deleteTelegramConfigApi(activeProject);
       setConfig(null);
-      setMsg("Telegram disconnected.");
+      setMsg(t("tab.integrations.telegram.msgDisconnected"));
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -118,7 +118,7 @@ export default function IntegrationsTab({
       await regenerateTelegramWebhookSecret(activeProject);
       const r = await fetchTelegramConfig(activeProject);
       setConfig(r.config);
-      setMsg("Webhook secret rotated.");
+      setMsg(t("tab.integrations.telegram.msgSecretRotated"));
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -130,12 +130,12 @@ export default function IntegrationsTab({
     setErr(null);
     const cid = Number(testChatId.trim());
     if (!Number.isFinite(cid)) {
-      setErr("Chat ID must be a number");
+      setErr(t("tab.integrations.telegram.errChatIdNotNumber"));
       return;
     }
     try {
       await telegramTestSend(activeProject, cid, testText.trim() || undefined);
-      setMsg(`Sent test message to chat ${cid}.`);
+      setMsg(t("tab.integrations.telegram.msgSent", { chatId: cid }));
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     }
@@ -144,10 +144,13 @@ export default function IntegrationsTab({
   return (
     <div className="integrations-tab">
       <header className="tab-header">
-        <h2>Integrations</h2>
+        <h2>{t("tab.integrations.title")}</h2>
         <p className="muted">
-          Third-party services wired into project <strong>{activeProject}</strong>.
-          Only admins and the project creator can change these settings.
+          <Trans
+            i18nKey="tab.integrations.descriptionFull"
+            values={{ project: activeProject }}
+            components={{ strong: <strong /> }}
+          />
         </p>
       </header>
 
@@ -155,32 +158,33 @@ export default function IntegrationsTab({
         <header className="integration-card__head">
           <Send size={20} strokeWidth={1.75} />
           <div>
-            <h3>Telegram</h3>
-            <p className="muted">
-              Link a Telegram bot to chat with this project from your phone and
-              receive notifications, card-run results, and news digests.
-            </p>
+            <h3>{t("tab.integrations.telegram.name")}</h3>
+            <p className="muted">{t("tab.integrations.telegram.description")}</p>
           </div>
         </header>
 
         {config ? (
           <div className="integration-card__state">
             <div className="kv">
-              <span>Bot</span>
+              <span>{t("tab.integrations.telegram.kv.bot")}</span>
               <strong>@{config.botUsername}</strong>{" "}
               <span className="muted">({config.botTokenMasked})</span>
             </div>
             <div className="kv">
-              <span>Transport</span>
+              <span>{t("tab.integrations.telegram.kv.transport")}</span>
               <strong>{config.transport}</strong>
             </div>
             <div className="kv">
-              <span>Enabled</span>
-              <strong>{config.enabled ? "yes" : "no"}</strong>
+              <span>{t("tab.integrations.telegram.kv.enabled")}</span>
+              <strong>
+                {config.enabled
+                  ? t("tab.integrations.telegram.kv.yes")
+                  : t("tab.integrations.telegram.kv.no")}
+              </strong>
             </div>
             {config.webhookUrl && (
               <div className="kv">
-                <span>Webhook URL</span>
+                <span>{t("tab.integrations.telegram.kv.webhookUrl")}</span>
                 <code>{config.webhookUrl}</code>
                 <button
                   type="button"
@@ -188,27 +192,28 @@ export default function IntegrationsTab({
                   onClick={() =>
                     navigator.clipboard.writeText(config.webhookUrl ?? "")
                   }
-                  title="Copy URL"
+                  title={t("tab.integrations.telegram.copyUrl")}
                 >
                   <Copy size={16} strokeWidth={1.75} />
                 </button>
               </div>
             )}
             <div className="kv">
-              <span>Last update id</span>
+              <span>{t("tab.integrations.telegram.kv.lastUpdateId")}</span>
               <strong>{config.lastUpdateId}</strong>
             </div>
           </div>
         ) : (
-          <p className="muted">
-            No bot configured. Create one with @BotFather, then paste its token
-            below.
-          </p>
+          <p className="muted">{t("tab.integrations.telegram.noBot")}</p>
         )}
 
         <div className="integration-form">
           <label>
-            <span>Bot token {config ? "(leave blank to keep existing)" : ""}</span>
+            <span>
+              {config
+                ? t("tab.integrations.telegram.botTokenLabelExisting")
+                : t("tab.integrations.telegram.botTokenLabel")}
+            </span>
             <input
               type="password"
               value={botToken}
@@ -219,7 +224,7 @@ export default function IntegrationsTab({
           </label>
 
           <fieldset className="radios">
-            <legend>Transport</legend>
+            <legend>{t("tab.integrations.telegram.transportLegend")}</legend>
             <label>
               <input
                 type="radio"
@@ -227,7 +232,7 @@ export default function IntegrationsTab({
                 checked={transport === "poll"}
                 onChange={() => setTransport("poll")}
               />
-              Short-polling (default — works anywhere)
+              {t("tab.integrations.telegram.transportPoll")}
             </label>
             <label>
               <input
@@ -239,11 +244,13 @@ export default function IntegrationsTab({
                 title={
                   publicBaseUrl
                     ? undefined
-                    : "Set BUNNY_PUBLIC_BASE_URL to enable webhook mode"
+                    : t("tab.integrations.telegram.transportWebhookDisabledTitle")
                 }
               />
-              Webhook
-              {publicBaseUrl ? "" : " (requires BUNNY_PUBLIC_BASE_URL)"}
+              {t("tab.integrations.telegram.transportWebhook")}
+              {publicBaseUrl
+                ? ""
+                : t("tab.integrations.telegram.transportWebhookSuffix")}
             </label>
           </fieldset>
 
@@ -253,7 +260,7 @@ export default function IntegrationsTab({
               checked={enabled}
               onChange={(e) => setEnabled(e.target.checked)}
             />
-            Enabled
+            {t("tab.integrations.telegram.enabledCheckbox")}
           </label>
 
           <div className="actions">
@@ -263,7 +270,11 @@ export default function IntegrationsTab({
               onClick={save}
               disabled={saving || (!config && !botToken.trim())}
             >
-              {saving ? "Saving…" : config ? "Update" : "Connect"}
+              {saving
+                ? t("tab.integrations.telegram.saving")
+                : config
+                  ? t("tab.integrations.telegram.update")
+                  : t("tab.integrations.telegram.connect")}
             </button>
             {config && (
               <>
@@ -274,7 +285,8 @@ export default function IntegrationsTab({
                     onClick={rotateSecret}
                     disabled={saving}
                   >
-                    <RefreshCw size={16} strokeWidth={1.75} /> Rotate secret
+                    <RefreshCw size={16} strokeWidth={1.75} />{" "}
+                    {t("tab.integrations.telegram.rotateSecret")}
                   </button>
                 )}
                 {currentUser.role === "admin" && (
@@ -284,7 +296,8 @@ export default function IntegrationsTab({
                     onClick={() => setConfirmDisconnect(true)}
                     disabled={saving}
                   >
-                    <Trash2 size={16} strokeWidth={1.75} /> Disconnect
+                    <Trash2 size={16} strokeWidth={1.75} />{" "}
+                    {t("tab.integrations.telegram.disconnect")}
                   </button>
                 )}
               </>
@@ -293,15 +306,15 @@ export default function IntegrationsTab({
 
           {config && (
             <div className="test-send">
-              <h4>Test send</h4>
+              <h4>{t("tab.integrations.telegram.testSend")}</h4>
               <div className="test-send__row">
                 <input
-                  placeholder="Chat ID (e.g. 123456789)"
+                  placeholder={t("tab.integrations.telegram.testChatIdPlaceholder")}
                   value={testChatId}
                   onChange={(e) => setTestChatId(e.target.value)}
                 />
                 <input
-                  placeholder="Message (optional)"
+                  placeholder={t("tab.integrations.telegram.testMessagePlaceholder")}
                   value={testText}
                   onChange={(e) => setTestText(e.target.value)}
                 />
@@ -311,13 +324,15 @@ export default function IntegrationsTab({
                   onClick={testSend}
                   disabled={!testChatId.trim()}
                 >
-                  <Check size={16} strokeWidth={1.75} /> Send
+                  <Check size={16} strokeWidth={1.75} />{" "}
+                  {t("tab.integrations.telegram.send")}
                 </button>
               </div>
               <p className="muted">
-                Find a chat's numeric ID via{" "}
-                <code>@userinfobot</code> or the bot's <code>getMe</code>{" "}
-                response.
+                <Trans
+                  i18nKey="tab.integrations.telegram.testSendHelp"
+                  components={{ code: <code /> }}
+                />
               </p>
             </div>
           )}
@@ -328,8 +343,8 @@ export default function IntegrationsTab({
       </section>
       <ConfirmDialog
         open={confirmDisconnect}
-        message="Disconnect Telegram for this project?"
-        confirmLabel="Disconnect"
+        message={t("tab.integrations.telegram.disconnectConfirm")}
+        confirmLabel={t("tab.integrations.telegram.disconnect")}
         onConfirm={() => { setConfirmDisconnect(false); void remove(); }}
         onCancel={() => setConfirmDisconnect(false)}
       />

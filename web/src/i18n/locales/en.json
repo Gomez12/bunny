@@ -128,6 +128,51 @@
         "save": "Save"
       }
     },
+    "integrations": {
+      "loading": "Loading…",
+      "forbidden": "You don't have permission to configure integrations for this project.",
+      "title": "Integrations",
+      "descriptionFull": "Third-party services wired into project <strong>{{project}}</strong>. Only admins and the project creator can change these settings.",
+      "telegram": {
+        "name": "Telegram",
+        "description": "Link a Telegram bot to chat with this project from your phone and receive notifications, card-run results, and news digests.",
+        "kv": {
+          "bot": "Bot",
+          "transport": "Transport",
+          "enabled": "Enabled",
+          "yes": "yes",
+          "no": "no",
+          "webhookUrl": "Webhook URL",
+          "lastUpdateId": "Last update id"
+        },
+        "copyUrl": "Copy URL",
+        "noBot": "No bot configured. Create one with @BotFather, then paste its token below.",
+        "botTokenLabel": "Bot token",
+        "botTokenLabelExisting": "Bot token (leave blank to keep existing)",
+        "transportLegend": "Transport",
+        "transportPoll": "Short-polling (default — works anywhere)",
+        "transportWebhook": "Webhook",
+        "transportWebhookSuffix": " (requires BUNNY_PUBLIC_BASE_URL)",
+        "transportWebhookDisabledTitle": "Set BUNNY_PUBLIC_BASE_URL to enable webhook mode",
+        "enabledCheckbox": "Enabled",
+        "saving": "Saving…",
+        "connect": "Connect",
+        "update": "Update",
+        "rotateSecret": "Rotate secret",
+        "disconnect": "Disconnect",
+        "testSend": "Test send",
+        "testChatIdPlaceholder": "Chat ID (e.g. 123456789)",
+        "testMessagePlaceholder": "Message (optional)",
+        "send": "Send",
+        "testSendHelp": "Find a chat's numeric ID via <code>@userinfobot</code> or the bot's <code>getMe</code> response.",
+        "msgSaved": "Saved.",
+        "msgDisconnected": "Telegram disconnected.",
+        "msgSecretRotated": "Webhook secret rotated.",
+        "msgSent": "Sent test message to chat {{chatId}}.",
+        "errChatIdNotNumber": "Chat ID must be a number",
+        "disconnectConfirm": "Disconnect Telegram for this project?"
+      }
+    },
     "notifications": {
       "title": "Notifications",
       "a11y": {

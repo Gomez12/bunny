@@ -128,6 +128,51 @@
         "save": "Opslaan"
       }
     },
+    "integrations": {
+      "loading": "Laden…",
+      "forbidden": "Je hebt geen rechten om integraties voor dit project in te stellen.",
+      "title": "Integraties",
+      "descriptionFull": "Externe diensten gekoppeld aan project <strong>{{project}}</strong>. Alleen beheerders en de projectmaker kunnen deze instellingen wijzigen.",
+      "telegram": {
+        "name": "Telegram",
+        "description": "Koppel een Telegram-bot om vanaf je telefoon met dit project te chatten en meldingen, kaartresultaten en nieuws-digests te ontvangen.",
+        "kv": {
+          "bot": "Bot",
+          "transport": "Transport",
+          "enabled": "Ingeschakeld",
+          "yes": "ja",
+          "no": "nee",
+          "webhookUrl": "Webhook-URL",
+          "lastUpdateId": "Laatste update-id"
+        },
+        "copyUrl": "URL kopiëren",
+        "noBot": "Geen bot ingesteld. Maak er één aan met @BotFather en plak de token hieronder.",
+        "botTokenLabel": "Bot-token",
+        "botTokenLabelExisting": "Bot-token (leeg laten om bestaande te behouden)",
+        "transportLegend": "Transport",
+        "transportPoll": "Short-polling (standaard — werkt overal)",
+        "transportWebhook": "Webhook",
+        "transportWebhookSuffix": " (vereist BUNNY_PUBLIC_BASE_URL)",
+        "transportWebhookDisabledTitle": "Stel BUNNY_PUBLIC_BASE_URL in om webhook-modus te activeren",
+        "enabledCheckbox": "Ingeschakeld",
+        "saving": "Opslaan…",
+        "connect": "Verbinden",
+        "update": "Bijwerken",
+        "rotateSecret": "Secret roteren",
+        "disconnect": "Loskoppelen",
+        "testSend": "Testbericht",
+        "testChatIdPlaceholder": "Chat-ID (bv. 123456789)",
+        "testMessagePlaceholder": "Bericht (optioneel)",
+        "send": "Verstuur",
+        "testSendHelp": "Vind het numerieke chat-ID via <code>@userinfobot</code> of het <code>getMe</code>-antwoord van de bot.",
+        "msgSaved": "Opgeslagen.",
+        "msgDisconnected": "Telegram losgekoppeld.",
+        "msgSecretRotated": "Webhook-secret geroteerd.",
+        "msgSent": "Testbericht verstuurd naar chat {{chatId}}.",
+        "errChatIdNotNumber": "Chat-ID moet een getal zijn",
+        "disconnectConfirm": "Telegram voor dit project loskoppelen?"
+      }
+    },
     "notifications": {
       "title": "Meldingen",
       "a11y": {
