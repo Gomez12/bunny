@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import {
   createNewsTopic,
   discoverFeeds,
@@ -11,12 +13,28 @@ import {
 import { ExternalLink, Globe, Loader2, Rss, Search, X } from "../../lib/icons";
 import Modal from "../Modal";
 
-const CRON_PRESETS: Array<{ label: string; value: string }> = [
-  { label: "Every hour", value: "0 * * * *" },
-  { label: "Every 6 hours", value: "0 */6 * * *" },
-  { label: "Daily 07:00", value: "0 7 * * *" },
-  { label: "Weekly Mon 08:00", value: "0 8 * * 1" },
+const CRON_PRESETS: Array<{ key: "hourly" | "every6h" | "daily7" | "weeklyMon8"; value: string }> = [
+  { key: "hourly", value: "0 * * * *" },
+  { key: "every6h", value: "0 */6 * * *" },
+  { key: "daily7", value: "0 7 * * *" },
+  { key: "weeklyMon8", value: "0 8 * * 1" },
 ];
+
+function presetLabel(
+  key: (typeof CRON_PRESETS)[number]["key"],
+  t: TFunction,
+): string {
+  switch (key) {
+    case "hourly":
+      return t("dialog.cronPresets.hourly");
+    case "every6h":
+      return t("dialog.cronPresets.every6h");
+    case "daily7":
+      return t("dialog.cronPresets.daily7");
+    case "weeklyMon8":
+      return t("dialog.cronPresets.weeklyMon8");
+  }
+}
 
 type DiscoverState =
   | { kind: "idle" }
@@ -32,6 +50,7 @@ type Props = {
 };
 
 export default function FeedDialog({ project, initial, onCancel, onDone }: Props) {
+  const { t } = useTranslation();
   const [patterns, setPatterns] = useState<FeedPattern[]>([]);
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
@@ -96,7 +115,7 @@ export default function FeedDialog({ project, initial, onCancel, onDone }: Props
     try {
       const feeds = await discoverFeeds(project, url);
       if (feeds.length === 0) {
-        setDiscoverState({ kind: "error", message: "No feeds found on this page." });
+        setDiscoverState({ kind: "error", message: t("dialog.feed.discoverNone") });
       } else {
         setDiscoverState({ kind: "done", feeds });
         if (feeds.length === 1) {
@@ -122,8 +141,8 @@ export default function FeedDialog({ project, initial, onCancel, onDone }: Props
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!feedUrl.trim()) { setError("Feed URL is required"); return; }
-    if (!name.trim()) { setError("Name is required"); return; }
+    if (!feedUrl.trim()) { setError(t("dialog.feed.errFeedUrlRequired")); return; }
+    if (!name.trim()) { setError(t("dialog.feed.errNameRequired")); return; }
     setSubmitting(true);
     setError(null);
     try {
@@ -150,24 +169,24 @@ export default function FeedDialog({ project, initial, onCancel, onDone }: Props
   return (
     <Modal onClose={onCancel} size="md">
       <form onSubmit={(e) => void handleSubmit(e)}>
-        <Modal.Header title={initial ? "Edit RSS feed" : "New RSS feed"} />
+        <Modal.Header
+          title={initial ? t("dialog.feed.titleEdit") : t("dialog.feed.titleCreate")}
+        />
         <Modal.Body>
           {error && <p className="form-error" style={{ marginBottom: "12px" }}>{error}</p>}
 
           {/* ── Feed URL ── */}
           <fieldset className="form-group">
-            <legend className="form-label">Feed URL</legend>
+            <legend className="form-label">{t("dialog.feed.feedUrlLegend")}</legend>
 
             {/* Discover from page */}
-            <p className="form-hint" style={{ marginBottom: "8px" }}>
-              Paste a website URL to discover its feeds, or enter a feed URL directly.
-            </p>
+            <p className="form-hint" style={{ marginBottom: "8px" }}>{t("dialog.feed.discoverHint")}</p>
             <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
               <input
                 ref={urlRef}
                 type="url"
                 className="input"
-                placeholder="https://example.com"
+                placeholder={t("dialog.feed.discoverPlaceholder")}
                 value={discoverUrl}
                 onChange={(e) => setDiscoverUrl(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void handleDiscover(); } }}
@@ -180,7 +199,7 @@ export default function FeedDialog({ project, initial, onCancel, onDone }: Props
                 disabled={discoverState.kind === "loading" || !discoverUrl.trim()}
               >
                 {discoverState.kind === "loading" ? <Loader2 size={14} className="spin" /> : <Search size={14} />}
-                Discover
+                {t("dialog.feed.discover")}
               </button>
             </div>
             {discoverState.kind === "done" && discoverState.feeds.length > 0 && (
@@ -209,7 +228,7 @@ export default function FeedDialog({ project, initial, onCancel, onDone }: Props
             {patterns.length > 0 && (
               <details style={{ marginBottom: "8px" }}>
                 <summary className="form-hint" style={{ cursor: "pointer", userSelect: "none" }}>
-                  Or pick from a known pattern (GitHub, Reddit, …)
+                  {t("dialog.feed.patternSummary")}
                 </summary>
                 <div style={{ paddingTop: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
                   <div style={{ display: "flex", gap: "8px" }}>
@@ -218,7 +237,7 @@ export default function FeedDialog({ project, initial, onCancel, onDone }: Props
                       value={selectedSite}
                       onChange={(e) => { setSelectedSite(e.target.value); setSelectedPattern(null); setPatternVarValues({}); }}
                     >
-                      <option value="">— Site —</option>
+                      <option value="">{t("dialog.feed.siteOption")}</option>
                       {sites.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
                     {selectedSite && (
@@ -231,7 +250,7 @@ export default function FeedDialog({ project, initial, onCancel, onDone }: Props
                           setPatternVarValues({});
                         }}
                       >
-                        <option value="">— Pattern —</option>
+                        <option value="">{t("dialog.feed.patternOption")}</option>
                         {patternsForSite.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                       </select>
                     )}
@@ -257,7 +276,7 @@ export default function FeedDialog({ project, initial, onCancel, onDone }: Props
                         onClick={applyPattern}
                         disabled={resolvedPatternUrl.includes("{") || !resolvedPatternUrl}
                       >
-                        Use
+                        {t("dialog.feed.usePattern")}
                       </button>
                     </div>
                   )}
@@ -271,14 +290,14 @@ export default function FeedDialog({ project, initial, onCancel, onDone }: Props
               <input
                 type="url"
                 className="input"
-                placeholder="https://example.com/feed.xml"
+                placeholder={t("dialog.feed.feedUrlPlaceholder")}
                 value={feedUrl}
                 onChange={(e) => setFeedUrl(e.target.value)}
                 required
                 style={{ flex: 1 }}
               />
               {safeFeedHref && (
-                <a href={safeFeedHref} target="_blank" rel="noopener noreferrer" className="btn btn--ghost btn--xs" title="Open feed">
+                <a href={safeFeedHref} target="_blank" rel="noopener noreferrer" className="btn btn--ghost btn--xs" title={t("dialog.feed.openFeed")}>
                   <ExternalLink size={12} />
                 </a>
               )}
@@ -287,7 +306,7 @@ export default function FeedDialog({ project, initial, onCancel, onDone }: Props
 
           {/* ── Name ── */}
           <div className="form-group">
-            <label className="form-label" htmlFor="feed-name">Name</label>
+            <label className="form-label" htmlFor="feed-name">{t("dialog.feed.nameLabel")}</label>
             <input
               id="feed-name"
               type="text"
@@ -300,7 +319,7 @@ export default function FeedDialog({ project, initial, onCancel, onDone }: Props
 
           {/* ── Description ── */}
           <div className="form-group">
-            <label className="form-label" htmlFor="feed-desc">Description</label>
+            <label className="form-label" htmlFor="feed-desc">{t("dialog.feed.descriptionLabel")}</label>
             <input
               id="feed-desc"
               type="text"
@@ -312,7 +331,7 @@ export default function FeedDialog({ project, initial, onCancel, onDone }: Props
 
           {/* ── Schedule ── */}
           <div className="form-group">
-            <label className="form-label" htmlFor="feed-cron">Update schedule</label>
+            <label className="form-label" htmlFor="feed-cron">{t("dialog.feed.updateScheduleLabel")}</label>
             <div style={{ display: "flex", gap: "8px" }}>
               <input
                 id="feed-cron"
@@ -329,15 +348,19 @@ export default function FeedDialog({ project, initial, onCancel, onDone }: Props
                 value={CRON_PRESETS.find((p) => p.value === updateCron)?.value ?? ""}
                 onChange={(e) => { if (e.target.value) setUpdateCron(e.target.value); }}
               >
-                <option value="">Preset…</option>
-                {CRON_PRESETS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                <option value="">{t("dialog.cronPresets.label")}</option>
+                {CRON_PRESETS.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {presetLabel(p.key, t)}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
 
           {/* ── Max items ── */}
           <div className="form-group">
-            <label className="form-label">Max items per run: {maxItemsPerRun}</label>
+            <label className="form-label">{t("dialog.feed.maxItemsLabel", { count: maxItemsPerRun })}</label>
             <input
               type="range"
               min={1}
@@ -357,17 +380,17 @@ export default function FeedDialog({ project, initial, onCancel, onDone }: Props
               onChange={(e) => setEnabled(e.target.checked)}
             />
             <label htmlFor="feed-enabled" className="form-label" style={{ margin: 0 }}>
-              Enabled
+              {t("dialog.feed.enabledLabel")}
             </label>
           </div>
         </Modal.Body>
         <Modal.Footer>
           <button type="button" className="btn btn--ghost" onClick={onCancel}>
-            <X size={14} /> Cancel
+            <X size={14} /> {t("common.cancel")}
           </button>
           <button type="submit" className="btn btn--primary" disabled={submitting}>
             {submitting ? <Loader2 size={14} className="spin" /> : null}
-            {initial ? "Save" : "Add feed"}
+            {initial ? t("common.save") : t("dialog.feed.addFeed")}
           </button>
         </Modal.Footer>
       </form>

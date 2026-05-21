@@ -39,13 +39,13 @@ function presetLabel(
 ): string {
   switch (key) {
     case "hourly":
-      return t("dialog.topic.preset.hourly");
+      return t("dialog.cronPresets.hourly");
     case "every6h":
-      return t("dialog.topic.preset.every6h");
+      return t("dialog.cronPresets.every6h");
     case "daily7":
-      return t("dialog.topic.preset.daily7");
+      return t("dialog.cronPresets.daily7");
     case "weeklyMon8":
-      return t("dialog.topic.preset.weeklyMon8");
+      return t("dialog.cronPresets.weeklyMon8");
   }
 }
 
