@@ -47,7 +47,16 @@ order, highest-traffic first:
      `PlanningTeamsView`, `PlanningTagsView`,
      `PlanningReportView`, `PlanningCalendarView`) still hold
      hardcoded copy and ship as a separate PR.
-3. `AgentsTab`, `SkillsTab`, `KnowledgeBaseTab` (definition dialogs).
+3. `AgentsTab`, `SkillsTab`, `KnowledgeBaseTab` — done 2026-05-21.
+   - `AgentsTab` + `SkillsTab`: page header (Trans + `<code>` /
+     `<link>` slots), card grid, project link chips, action
+     buttons, install-from-URL modal, delete confirms.
+   - `KnowledgeBaseTab` shell + `DefinitionsTab`: sub-tab label,
+     search placeholder, empty states, card status/active chips,
+     project badge, delete action.
+   - The `DefinitionDialog`, `AgentDialog`, `SkillDialog`
+     components still carry hardcoded copy and ship as a
+     follow-up component-family PR.
 4. `DiaryTab`, `WhiteboardTab`, `DiagramsTab`, `WorkspaceTab`.
 5. The remaining tabs (`FilesTab`, `BusinessesTab`, `IntegrationsTab`,
    `WebNewsTab`, `NotificationsTab`, `CodeTab`, `DiagramsTab`).

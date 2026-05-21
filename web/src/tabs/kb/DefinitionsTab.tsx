@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import EmptyState from "../../components/EmptyState";
 import DefinitionDialog from "../../components/DefinitionDialog";
 import HistoryButton from "../../components/HistoryButton";
@@ -25,6 +26,7 @@ type Props = {
 };
 
 export default function DefinitionsTab({ project, currentUser }: Props) {
+  const { t } = useTranslation();
   const [definitions, setDefinitions] = useState<Definition[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -101,20 +103,60 @@ export default function DefinitionsTab({ project, currentUser }: Props) {
 
   const statusChip = (d: Definition) => {
     if (d.llmStatus === "generating") {
-      return <span className="kb-chip kb-chip--generating">Generating…</span>;
+      return (
+        <span className="kb-chip kb-chip--generating">
+          {t("tab.kb.definitions.status.generating")}
+        </span>
+      );
     }
     if (d.llmStatus === "error") {
-      return <span className="kb-chip kb-chip--error" title={d.llmError ?? undefined}>Error</span>;
+      return (
+        <span className="kb-chip kb-chip--error" title={d.llmError ?? undefined}>
+          {t("tab.kb.definitions.status.error")}
+        </span>
+      );
     }
-    if (d.llmCleared) return <span className="kb-chip kb-chip--cleared">Cleared</span>;
-    if (d.llmShort || d.llmLong) return <span className="kb-chip kb-chip--ok">AI filled</span>;
-    return <span className="kb-chip kb-chip--idle">Not generated</span>;
+    if (d.llmCleared) {
+      return (
+        <span className="kb-chip kb-chip--cleared">
+          {t("tab.kb.definitions.status.cleared")}
+        </span>
+      );
+    }
+    if (d.llmShort || d.llmLong) {
+      return (
+        <span className="kb-chip kb-chip--ok">
+          {t("tab.kb.definitions.status.aiFilled")}
+        </span>
+      );
+    }
+    return (
+      <span className="kb-chip kb-chip--idle">
+        {t("tab.kb.definitions.status.notGenerated")}
+      </span>
+    );
   };
 
   const activeBadge = (d: Definition) => {
-    if (d.activeDescription === "short") return <span className="kb-chip kb-chip--active">Short</span>;
-    if (d.activeDescription === "long") return <span className="kb-chip kb-chip--active">Long</span>;
-    return <span className="kb-chip kb-chip--active">Manual</span>;
+    if (d.activeDescription === "short") {
+      return (
+        <span className="kb-chip kb-chip--active">
+          {t("tab.kb.definitions.active.short")}
+        </span>
+      );
+    }
+    if (d.activeDescription === "long") {
+      return (
+        <span className="kb-chip kb-chip--active">
+          {t("tab.kb.definitions.active.long")}
+        </span>
+      );
+    }
+    return (
+      <span className="kb-chip kb-chip--active">
+        {t("tab.kb.definitions.active.manual")}
+      </span>
+    );
   };
 
   return (
@@ -124,7 +166,7 @@ export default function DefinitionsTab({ project, currentUser }: Props) {
           <input
             className="kb-tab__search"
             type="text"
-            placeholder="Search definitions…"
+            placeholder={t("tab.kb.definitions.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -133,7 +175,7 @@ export default function DefinitionsTab({ project, currentUser }: Props) {
           className="btn btn--send"
           onClick={() => setDialog({ kind: "create" })}
         >
-          + New definition
+          {t("tab.kb.definitions.newDefinition")}
         </button>
       </div>
 
@@ -146,16 +188,22 @@ export default function DefinitionsTab({ project, currentUser }: Props) {
 
       {definitions.length === 0 && !debouncedSearch ? (
         <EmptyState
-          title="No definitions yet"
-          description="Add a term and let the LLM draft short + long descriptions for you, or write the description by hand."
+          title={t("tab.kb.definitions.emptyTitle")}
+          description={t("tab.kb.definitions.emptyDescription")}
           action={
             <button className="btn btn--send" onClick={() => setDialog({ kind: "create" })}>
-              + New definition
+              {t("tab.kb.definitions.newDefinition")}
             </button>
           }
         />
       ) : definitions.length === 0 ? (
-        <EmptyState title="No matches" description={`Nothing matches "${debouncedSearch}".`} size="sm" />
+        <EmptyState
+          title={t("tab.kb.definitions.noMatchesTitle")}
+          description={t("tab.kb.definitions.noMatchesDescription", {
+            query: debouncedSearch,
+          })}
+          size="sm"
+        />
       ) : (
         <div className="kb-grid">
           {definitions.map((d) => (
@@ -174,10 +222,20 @@ export default function DefinitionsTab({ project, currentUser }: Props) {
             >
               <div className="kb-card__header">
                 <span className="kb-card__term">{d.term}</span>
-                {d.originalLang && <LangBadge lang={d.originalLang} title={`Source language: ${d.originalLang.toUpperCase()}`} />}
+                {d.originalLang && (
+                  <LangBadge
+                    lang={d.originalLang}
+                    title={t("tab.kb.definitions.sourceLangTitle", {
+                      lang: d.originalLang.toUpperCase(),
+                    })}
+                  />
+                )}
                 {d.isProjectDependent && (
-                  <span className="kb-chip kb-chip--project" title="Project-dependent definition">
-                    project
+                  <span
+                    className="kb-chip kb-chip--project"
+                    title={t("tab.kb.definitions.projectBadgeTitle")}
+                  >
+                    {t("tab.kb.definitions.projectBadge")}
                   </span>
                 )}
               </div>
@@ -191,7 +249,11 @@ export default function DefinitionsTab({ project, currentUser }: Props) {
                 {statusChip(d)}
               </div>
               <p className="kb-card__preview">
-                {activeText(d) || <em className="kb-card__preview--empty">No description yet.</em>}
+                {activeText(d) || (
+                  <em className="kb-card__preview--empty">
+                    {t("tab.kb.definitions.noDescription")}
+                  </em>
+                )}
               </p>
               {canEdit(d) && (
                 <div className="kb-card__actions" onClick={(e) => e.stopPropagation()}>
@@ -203,8 +265,8 @@ export default function DefinitionsTab({ project, currentUser }: Props) {
                   <button
                     className="kb-card__action-btn"
                     onClick={() => void handleDelete(d)}
-                    title="Delete"
-                    aria-label="Delete"
+                    title={t("common.delete")}
+                    aria-label={t("common.delete")}
                   >
                     &times;
                   </button>

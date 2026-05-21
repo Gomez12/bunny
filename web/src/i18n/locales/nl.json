@@ -128,6 +128,39 @@
         "save": "Opslaan"
       }
     },
+    "kb": {
+      "a11y": {
+        "sections": "Kennisbank-secties"
+      },
+      "subtab": {
+        "definitions": "Definities"
+      },
+      "loading": "Laden…",
+      "definitions": {
+        "searchPlaceholder": "Zoek in definities…",
+        "newDefinition": "+ Nieuwe definitie",
+        "emptyTitle": "Nog geen definities",
+        "emptyDescription": "Voeg een term toe en laat de LLM korte + lange beschrijvingen opstellen, of schrijf de beschrijving zelf.",
+        "noMatchesTitle": "Geen resultaten",
+        "noMatchesDescription": "Niets komt overeen met \"{{query}}\".",
+        "sourceLangTitle": "Brontaal: {{lang}}",
+        "projectBadge": "project",
+        "projectBadgeTitle": "Projectafhankelijke definitie",
+        "noDescription": "Nog geen beschrijving.",
+        "status": {
+          "generating": "Genereren…",
+          "error": "Fout",
+          "cleared": "Gewist",
+          "aiFilled": "AI ingevuld",
+          "notGenerated": "Niet gegenereerd"
+        },
+        "active": {
+          "short": "Kort",
+          "long": "Lang",
+          "manual": "Handmatig"
+        }
+      }
+    },
     "skills": {
       "title": "Skills",
       "descriptionFull": "Herbruikbare instructiepakketten die agents op afroep gespecialiseerde capaciteiten geven. Skills volgen de <link>agentskills.io</link>-open standaard.",
