@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Plus, BookOpen, Loader2, Trash2, Mic } from "../lib/icons";
 import EmptyState from "../components/EmptyState";
 import PageHeader from "../components/PageHeader";
@@ -29,13 +30,6 @@ interface Props {
   currentUser: AuthUser;
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  idle: "No audio",
-  transcribing: "Transcribing…",
-  done: "Transcribed",
-  error: "Error",
-};
-
 function formatDate(ms: number): string {
   return new Date(ms).toLocaleDateString("nl-NL", {
     year: "numeric",
@@ -48,7 +42,23 @@ export default function DiaryTab({
   project,
   currentUser: _currentUser,
 }: Props) {
+  const { t } = useTranslation();
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
+
+  const statusLabel = (status: string): string => {
+    switch (status) {
+      case "idle":
+        return t("tab.diary.status.idle");
+      case "transcribing":
+        return t("tab.diary.status.transcribing");
+      case "done":
+        return t("tab.diary.status.done");
+      case "error":
+        return t("tab.diary.status.error");
+      default:
+        return status;
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [activeEntry, setActiveEntry] = useState<DiaryEntry | null>(null);
   const [creating, setCreating] = useState(false);
@@ -101,7 +111,7 @@ export default function DiaryTab({
 
   async function handleDelete(id: number, e: React.MouseEvent) {
     e.stopPropagation();
-    if (!confirm("Delete this diary entry?")) return;
+    if (!confirm(t("tab.diary.deleteConfirm"))) return;
     const res = await fetch(`/api/diary/${id}`, {
       method: "DELETE",
       credentials: "include",
@@ -135,7 +145,7 @@ export default function DiaryTab({
         title={
           <span className="page-header__title-with-icon">
             <BookOpen size={18} />
-            Diary
+            {t("tab.diary.title")}
           </span>
         }
         actions={
@@ -149,7 +159,7 @@ export default function DiaryTab({
             ) : (
               <Plus size={13} />
             )}
-            New entry
+            {t("tab.diary.newEntry")}
           </button>
         }
       />
@@ -160,8 +170,8 @@ export default function DiaryTab({
         </div>
       ) : entries.length === 0 ? (
         <EmptyState
-          title="No diary entries yet"
-          description="Record voice memos and get them transcribed automatically."
+          title={t("tab.diary.emptyTitle")}
+          description={t("tab.diary.emptyDescription")}
         />
       ) : (
         <ul className="diary-tab__list">
@@ -183,7 +193,7 @@ export default function DiaryTab({
                     en.title
                   ) : (
                     <span className="diary-item__title--empty">
-                      Untitled entry
+                      {t("tab.diary.untitled")}
                     </span>
                   )}
                 </div>
@@ -194,8 +204,7 @@ export default function DiaryTab({
                   <span
                     className={`diary-badge diary-badge--${en.transcriptionStatus}`}
                   >
-                    {STATUS_LABEL[en.transcriptionStatus] ??
-                      en.transcriptionStatus}
+                    {statusLabel(en.transcriptionStatus)}
                   </span>
                   <span className="diary-badge diary-badge--lang">
                     {en.language}
@@ -204,7 +213,7 @@ export default function DiaryTab({
               </div>
               <button
                 className="btn btn--ghost btn--icon btn--sm diary-item__delete"
-                title="Delete entry"
+                title={t("tab.diary.deleteEntryTitle")}
                 onClick={(e) => void handleDelete(en.id, e)}
               >
                 <Trash2 size={14} />

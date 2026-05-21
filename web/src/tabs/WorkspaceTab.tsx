@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { AuthUser } from "../api";
 import SubTabs from "../components/SubTabs";
 
@@ -23,23 +24,24 @@ export default function WorkspaceTab({
   onPickProject,
   initialSub = "projects",
 }: Props) {
+  const { t } = useTranslation();
   const [sub, setSub] = useState<Sub>(initialSub);
 
   return (
     <div className="workspace-tab">
       <SubTabs<Sub>
-        ariaLabel="Workspace sections"
+        ariaLabel={t("tab.workspace.a11y.sections")}
         current={sub}
         onChange={setSub}
         items={[
-          { id: "projects", label: "Projects" },
-          { id: "agents", label: "Agents" },
-          { id: "skills", label: "Skills" },
-          { id: "memory", label: "Memory" },
-          { id: "integrations", label: "Integrations" },
+          { id: "projects", label: t("tab.workspace.subtab.projects") },
+          { id: "agents", label: t("tab.workspace.subtab.agents") },
+          { id: "skills", label: t("tab.workspace.subtab.skills") },
+          { id: "memory", label: t("tab.workspace.subtab.memory") },
+          { id: "integrations", label: t("tab.workspace.subtab.integrations") },
         ]}
       />
-      <Suspense fallback={<div className="app-loading">Loading…</div>}>
+      <Suspense fallback={<div className="app-loading">{t("tab.workspace.loading")}</div>}>
         {sub === "projects" && (
           <ProjectsTab
             currentUser={currentUser}

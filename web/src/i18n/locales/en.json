@@ -128,6 +128,34 @@
         "save": "Save"
       }
     },
+    "workspace": {
+      "a11y": {
+        "sections": "Workspace sections"
+      },
+      "subtab": {
+        "projects": "Projects",
+        "agents": "Agents",
+        "skills": "Skills",
+        "memory": "Memory",
+        "integrations": "Integrations"
+      },
+      "loading": "Loading…"
+    },
+    "diary": {
+      "title": "Diary",
+      "newEntry": "New entry",
+      "emptyTitle": "No diary entries yet",
+      "emptyDescription": "Record voice memos and get them transcribed automatically.",
+      "untitled": "Untitled entry",
+      "deleteEntryTitle": "Delete entry",
+      "deleteConfirm": "Delete this diary entry?",
+      "status": {
+        "idle": "No audio",
+        "transcribing": "Transcribing…",
+        "done": "Transcribed",
+        "error": "Error"
+      }
+    },
     "kb": {
       "a11y": {
         "sections": "Knowledge Base sections"
