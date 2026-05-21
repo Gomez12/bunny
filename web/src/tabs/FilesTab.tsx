@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import ConfirmDialog from "../components/ConfirmDialog";
 import {
   deleteWorkspaceEntry,
@@ -27,6 +28,7 @@ function formatTime(ms: number): string {
 }
 
 export default function FilesTab({ project, currentUser }: Props) {
+  const { t } = useTranslation();
   const [path, setPath] = useState<string>("");
   const [entries, setEntries] = useState<WorkspaceEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -63,7 +65,7 @@ export default function FilesTab({ project, currentUser }: Props) {
   const breadcrumbs = useMemo(() => {
     const parts = path ? path.split("/") : [];
     const crumbs: Array<{ label: string; path: string }> = [
-      { label: "workspace", path: "" },
+      { label: t("tab.files.workspaceCrumb"), path: "" },
     ];
     let acc = "";
     for (const p of parts) {
@@ -71,7 +73,7 @@ export default function FilesTab({ project, currentUser }: Props) {
       crumbs.push({ label: p, path: acc });
     }
     return crumbs;
-  }, [path]);
+  }, [path, t]);
 
   const goUp = () => {
     if (!path) return;
@@ -118,7 +120,7 @@ export default function FilesTab({ project, currentUser }: Props) {
   };
 
   const onRename = async (e: WorkspaceEntry) => {
-    const next = prompt("New name:", e.name);
+    const next = prompt(t("tab.files.renamePrompt"), e.name);
     if (!next || next === e.name) return;
     const parent = e.path.includes("/") ? e.path.slice(0, e.path.lastIndexOf("/")) : "";
     const to = parent ? `${parent}/${next}` : next;
@@ -131,7 +133,7 @@ export default function FilesTab({ project, currentUser }: Props) {
   };
 
   const onNewFolder = async () => {
-    const name = prompt("Folder name:");
+    const name = prompt(t("tab.files.newFolderPrompt"));
     if (!name) return;
     const rel = path ? `${path}/${name}` : name;
     try {
@@ -165,19 +167,19 @@ export default function FilesTab({ project, currentUser }: Props) {
         <div className="files-actions">
           {path && (
             <button className="btn btn--ghost" onClick={goUp}>
-              ↑ Up
+              {t("tab.files.up")}
             </button>
           )}
           {canEdit && (
             <>
               <button className="btn btn--ghost" onClick={onNewFolder}>
-                New folder
+                {t("tab.files.newFolder")}
               </button>
               <button
                 className="btn btn--send"
                 onClick={() => fileInputRef.current?.click()}
               >
-                Upload
+                {t("tab.files.upload")}
               </button>
               <input
                 ref={fileInputRef}
@@ -206,20 +208,20 @@ export default function FilesTab({ project, currentUser }: Props) {
         onDrop={onDrop}
       >
         {loading ? (
-          <div className="files-empty">Loading…</div>
+          <div className="files-empty">{t("tab.files.loading")}</div>
         ) : entries.length === 0 ? (
           <EmptyState
             size="sm"
-            title="This directory is empty"
-            description={canEdit ? "Drag files here or use the Upload button." : undefined}
+            title={t("tab.files.emptyTitle")}
+            description={canEdit ? t("tab.files.emptyDescription") : undefined}
           />
         ) : (
           <table className="files-table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Size</th>
-                <th>Modified</th>
+                <th>{t("tab.files.column.name")}</th>
+                <th>{t("tab.files.column.size")}</th>
+                <th>{t("tab.files.column.modified")}</th>
                 <th></th>
               </tr>
             </thead>
@@ -242,7 +244,7 @@ export default function FilesTab({ project, currentUser }: Props) {
                         {locked && (
                           <Lock
                             size={12}
-                            aria-label="protected"
+                            aria-label={t("tab.files.protected")}
                             style={{ marginLeft: 4, verticalAlign: "middle" }}
                           />
                         )}
@@ -256,19 +258,19 @@ export default function FilesTab({ project, currentUser }: Props) {
                           className="btn btn--ghost btn--sm"
                           href={workspaceDownloadUrl(project, e.path)}
                         >
-                          Download
+                          {t("tab.files.download")}
                         </a>
                       )}
                       {canEdit && !locked && (
                         <>
                           <button className="btn btn--sm" onClick={() => onRename(e)}>
-                            Rename
+                            {t("tab.files.rename")}
                           </button>
                           <button
                             className="btn btn--danger btn--sm"
                             onClick={() => onDelete(e)}
                           >
-                            Delete
+                            {t("common.delete")}
                           </button>
                         </>
                       )}
@@ -283,8 +285,16 @@ export default function FilesTab({ project, currentUser }: Props) {
 
       <ConfirmDialog
         open={confirmDeleteEntry !== null}
-        message={`Delete "${confirmDeleteEntry?.name}"${confirmDeleteEntry?.kind === "dir" ? " and its contents" : ""}?`}
-        confirmLabel="Delete"
+        message={
+          confirmDeleteEntry?.kind === "dir"
+            ? t("tab.files.deleteConfirmDir", {
+                name: confirmDeleteEntry?.name ?? "",
+              })
+            : t("tab.files.deleteConfirmFile", {
+                name: confirmDeleteEntry?.name ?? "",
+              })
+        }
+        confirmLabel={t("common.delete")}
         onConfirm={() => void confirmDeleteEntryAction()}
         onCancel={() => setConfirmDeleteEntry(null)}
       />

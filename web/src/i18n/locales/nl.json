@@ -128,6 +128,27 @@
         "save": "Opslaan"
       }
     },
+    "files": {
+      "workspaceCrumb": "workspace",
+      "up": "↑ Omhoog",
+      "newFolder": "Nieuwe map",
+      "upload": "Uploaden",
+      "loading": "Laden…",
+      "emptyTitle": "Deze map is leeg",
+      "emptyDescription": "Sleep bestanden hierheen of gebruik de Upload-knop.",
+      "column": {
+        "name": "Naam",
+        "size": "Grootte",
+        "modified": "Gewijzigd"
+      },
+      "protected": "beschermd",
+      "download": "Downloaden",
+      "rename": "Hernoemen",
+      "renamePrompt": "Nieuwe naam:",
+      "newFolderPrompt": "Mapnaam:",
+      "deleteConfirmFile": "\"{{name}}\" verwijderen?",
+      "deleteConfirmDir": "\"{{name}}\" en de inhoud verwijderen?"
+    },
     "diagrams": {
       "title": "Diagrammen",
       "newDiagram": "Nieuw diagram",
