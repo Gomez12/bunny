@@ -149,6 +149,16 @@
       "deleteConfirmFile": "\"{{name}}\" verwijderen?",
       "deleteConfirmDir": "\"{{name}}\" en de inhoud verwijderen?"
     },
+    "code": {
+      "emptyNoneTitle": "Nog geen codeprojecten",
+      "emptyNoneDescription": "Maak er één aan voor een repository of een lokale werkmap.",
+      "emptyNoneAction": "Nieuw codeproject",
+      "emptyPickTitle": "Kies een codeproject",
+      "emptyPickDescription": "Open de kiezer bovenaan de rail om er één te selecteren.",
+      "emptyPickAction": "Selecteer er een",
+      "trashConfirm": "\"{{name}}\" naar de prullenbak verplaatsen? Je kunt het terughalen via Instellingen → Prullenbak.",
+      "moveToTrash": "Naar prullenbak"
+    },
     "diagrams": {
       "title": "Diagrammen",
       "newDiagram": "Nieuw diagram",

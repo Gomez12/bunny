@@ -149,6 +149,16 @@
       "deleteConfirmFile": "Delete \"{{name}}\"?",
       "deleteConfirmDir": "Delete \"{{name}}\" and its contents?"
     },
+    "code": {
+      "emptyNoneTitle": "No code projects yet",
+      "emptyNoneDescription": "Create one to hold a repository or a local scratch folder.",
+      "emptyNoneAction": "New code project",
+      "emptyPickTitle": "Pick a code project",
+      "emptyPickDescription": "Open the picker at the top of the rail to choose one.",
+      "emptyPickAction": "Pick one",
+      "trashConfirm": "Move \"{{name}}\" to the trash? You can restore it from Settings → Trash.",
+      "moveToTrash": "Move to Trash"
+    },
     "diagrams": {
       "title": "Diagrams",
       "newDiagram": "New diagram",

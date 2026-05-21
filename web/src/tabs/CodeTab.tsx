@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { AuthUser, CodeProject } from "../api";
 import { useProjectUiPrefs } from "../hooks/useProjectUiPrefs";
 import {
@@ -49,6 +50,7 @@ interface Props {
  * dialogs, and dispatches to the selected feature view in the main pane.
  */
 export default function CodeTab({ project, currentUser }: Props) {
+  const { t } = useTranslation();
   const { prefs, synced: prefsSynced, setPref } = useProjectUiPrefs(project);
 
   const [items, setItems] = useState<CodeProject[]>([]);
@@ -200,13 +202,13 @@ export default function CodeTab({ project, currentUser }: Props) {
           <EmptyState
             title={
               items.length === 0
-                ? "No code projects yet"
-                : "Pick a code project"
+                ? t("tab.code.emptyNoneTitle")
+                : t("tab.code.emptyPickTitle")
             }
             description={
               items.length === 0
-                ? "Create one to hold a repository or a local scratch folder."
-                : "Open the picker at the top of the rail to choose one."
+                ? t("tab.code.emptyNoneDescription")
+                : t("tab.code.emptyPickDescription")
             }
             action={
               <button
@@ -214,7 +216,9 @@ export default function CodeTab({ project, currentUser }: Props) {
                 className="btn btn--primary"
                 onClick={items.length === 0 ? openNewDialog : openPicker}
               >
-                {items.length === 0 ? "New code project" : "Pick one"}
+                {items.length === 0
+                  ? t("tab.code.emptyNoneAction")
+                  : t("tab.code.emptyPickAction")}
               </button>
             }
           />
@@ -291,8 +295,10 @@ export default function CodeTab({ project, currentUser }: Props) {
 
       <ConfirmDialog
         open={confirmDeleteProject !== null}
-        message={`Move "${confirmDeleteProject?.name}" to the trash? You can restore it from Settings → Trash.`}
-        confirmLabel="Move to Trash"
+        message={t("tab.code.trashConfirm", {
+          name: confirmDeleteProject?.name ?? "",
+        })}
+        confirmLabel={t("tab.code.moveToTrash")}
         onConfirm={() => void confirmDelete()}
         onCancel={() => setConfirmDeleteProject(null)}
       />
