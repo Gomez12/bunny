@@ -49,6 +49,37 @@
       "newChatWithAgent": "New chat with…"
     }
   },
+  "sidebar": {
+    "newChat": "+ New chat",
+    "newQuick": "+ Quick",
+    "newQuickTitle": "Start a Quick Chat — auto-hides after 15 min of inactivity",
+    "searchMessages": "Search messages…",
+    "scopeAria": "Session scope",
+    "scopeMine": "Mine",
+    "scopeAll": "All",
+    "sectionSessions": "Sessions",
+    "showHiddenTitle": "Show sessions you have hidden",
+    "showHidden": "Show hidden",
+    "noSessions": "No sessions yet.",
+    "quickChatPrefix": "(quick chat)\n",
+    "hiddenPrefix": "(hidden from chat)\n",
+    "quickBadge": "QC",
+    "untitled": "(untitled)",
+    "anonymous": "anonymous",
+    "msgCount": "{{count}} msg",
+    "hiddenBadge": "hidden",
+    "showInChat": "Show in chat",
+    "hideFromChat": "Hide from chat"
+  },
+  "whiteboardSidebar": {
+    "newWhiteboard": "+ New whiteboard",
+    "newPlaceholder": "Whiteboard name…",
+    "rename": "Rename",
+    "moveToTrash": "Move to trash",
+    "empty": "No whiteboards yet",
+    "trashConfirm": "Move \"{{name}}\" to the trash?",
+    "moveToTrashBtn": "Move to Trash"
+  },
   "chat": {
     "reasoning": {
       "thinking": "thinking"

@@ -1,4 +1,5 @@
 import { memo, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   fetchSessions,
   setSessionHiddenFromChat,
@@ -60,6 +61,7 @@ export default memo(function SessionSidebar({
   allowToggleHidden,
   scopeToggle,
 }: Props) {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [localBump, setLocalBump] = useState(0);
@@ -102,28 +104,28 @@ export default memo(function SessionSidebar({
     <aside className="sidebar">
       <div className="sidebar__new-row">
         <button className="btn btn--send sidebar__new" onClick={onNew}>
-          + New chat
+          {t("sidebar.newChat")}
         </button>
         {onNewQuickChat && (
           <button
             type="button"
             className="btn btn--ghost sidebar__new-quick"
-            title="Start a Quick Chat — auto-hides after 15 min of inactivity"
+            title={t("sidebar.newQuickTitle")}
             onClick={onNewQuickChat}
           >
-            + Quick
+            {t("sidebar.newQuick")}
           </button>
         )}
       </div>
       <input
         type="search"
         className="sidebar__search"
-        placeholder="Search messages…"
+        placeholder={t("sidebar.searchMessages")}
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
       {scopeToggle && (
-        <div className="sidebar__scope" role="tablist" aria-label="Session scope">
+        <div className="sidebar__scope" role="tablist" aria-label={t("sidebar.scopeAria")}>
           <button
             type="button"
             role="tab"
@@ -134,7 +136,7 @@ export default memo(function SessionSidebar({
             }
             onClick={() => scopeToggle.onChange("mine")}
           >
-            Mine
+            {t("sidebar.scopeMine")}
           </button>
           <button
             type="button"
@@ -146,26 +148,26 @@ export default memo(function SessionSidebar({
             }
             onClick={() => scopeToggle.onChange("all")}
           >
-            All
+            {t("sidebar.scopeAll")}
           </button>
         </div>
       )}
       <div className="sidebar__section">
-        <span>Sessions</span>
+        <span>{t("sidebar.sectionSessions")}</span>
         {showHiddenToggle && (
-          <label className="sidebar__hidden-toggle" title="Show sessions you have hidden">
+          <label className="sidebar__hidden-toggle" title={t("sidebar.showHiddenTitle")}>
             <input
               type="checkbox"
               checked={showHiddenToggle.value}
               onChange={(e) => showHiddenToggle.onChange(e.target.checked)}
             />
-            Show hidden
+            {t("sidebar.showHidden")}
           </label>
         )}
       </div>
       <ul className="sidebar__list">
         {sessions.length === 0 && (
-          <li className="sidebar__empty">No sessions yet.</li>
+          <li className="sidebar__empty">{t("sidebar.noSessions")}</li>
         )}
         {sessions.map((s) => (
           <li key={s.sessionId} className="sidebar__row">
@@ -178,31 +180,35 @@ export default memo(function SessionSidebar({
               }
               onClick={() => onPick(s.sessionId)}
               title={
-                (s.isQuickChat ? "(quick chat)\n" : "") +
-                (s.hiddenFromChat ? "(hidden from chat)\n" : "") +
+                (s.isQuickChat ? t("sidebar.quickChatPrefix") : "") +
+                (s.hiddenFromChat ? t("sidebar.hiddenPrefix") : "") +
                 new Date(s.lastTs).toLocaleString()
               }
             >
               <div className="sidebar__item-title">
-                {s.isQuickChat && <span className="sidebar__quick-badge">QC</span>}
-                {s.title || "(untitled)"}
+                {s.isQuickChat && (
+                  <span className="sidebar__quick-badge">{t("sidebar.quickBadge")}</span>
+                )}
+                {s.title || t("sidebar.untitled")}
               </div>
               <div className="sidebar__item-meta">
                 {showOwner && (
                   <span className="sidebar__owner">
-                    {s.displayName || s.username || "anonymous"}
+                    {s.displayName || s.username || t("sidebar.anonymous")}
                   </span>
                 )}
-                <span>{s.messageCount} msg</span>
-                {s.hiddenFromChat && <span className="sidebar__hidden-badge">hidden</span>}
+                <span>{t("sidebar.msgCount", { count: s.messageCount })}</span>
+                {s.hiddenFromChat && (
+                  <span className="sidebar__hidden-badge">{t("sidebar.hiddenBadge")}</span>
+                )}
               </div>
             </button>
             {allowToggleHidden && (
               <button
                 type="button"
                 className="sidebar__hide-btn"
-                title={s.hiddenFromChat ? "Show in chat" : "Hide from chat"}
-                aria-label={s.hiddenFromChat ? "Show in chat" : "Hide from chat"}
+                title={s.hiddenFromChat ? t("sidebar.showInChat") : t("sidebar.hideFromChat")}
+                aria-label={s.hiddenFromChat ? t("sidebar.showInChat") : t("sidebar.hideFromChat")}
                 onClick={(e) => {
                   e.stopPropagation();
                   void toggleHidden(s);

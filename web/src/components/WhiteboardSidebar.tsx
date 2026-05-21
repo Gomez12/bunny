@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import type { WhiteboardSummary } from "../api";
 import { Trash2 } from "../lib/icons";
 import HistoryButton from "./HistoryButton";
@@ -21,6 +22,7 @@ export default function WhiteboardSidebar({
   onDelete,
   onRename,
 }: Props) {
+  const { t } = useTranslation();
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -66,7 +68,7 @@ export default function WhiteboardSidebar({
         className="btn btn--accent sidebar__new"
         onClick={() => setCreating(true)}
       >
-        + New whiteboard
+        {t("whiteboardSidebar.newWhiteboard")}
       </button>
 
       {creating && (
@@ -80,7 +82,7 @@ export default function WhiteboardSidebar({
           <input
             ref={inputRef}
             className="sidebar__search"
-            placeholder="Whiteboard name…"
+            placeholder={t("whiteboardSidebar.newPlaceholder")}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onBlur={() => {
@@ -129,7 +131,7 @@ export default function WhiteboardSidebar({
             </button>
             <button
               className="sidebar__hide-btn"
-              title="Rename"
+              title={t("whiteboardSidebar.rename")}
               onClick={() => {
                 setEditingId(wb.id);
                 setEditName(wb.name);
@@ -144,7 +146,7 @@ export default function WhiteboardSidebar({
             />
             <button
               className="sidebar__hide-btn"
-              title="Move to trash"
+              title={t("whiteboardSidebar.moveToTrash")}
               onClick={() => setConfirmDelete({ id: wb.id, name: wb.name })}
             >
               <Trash2 size={13} strokeWidth={1.75} />
@@ -152,14 +154,16 @@ export default function WhiteboardSidebar({
           </li>
         ))}
         {whiteboards.length === 0 && !creating && (
-          <li className="sidebar__empty">No whiteboards yet</li>
+          <li className="sidebar__empty">{t("whiteboardSidebar.empty")}</li>
         )}
       </ul>
 
       <ConfirmDialog
         open={confirmDelete !== null}
-        message={`Move "${confirmDelete?.name}" to the trash?`}
-        confirmLabel="Move to Trash"
+        message={t("whiteboardSidebar.trashConfirm", {
+          name: confirmDelete?.name ?? "",
+        })}
+        confirmLabel={t("whiteboardSidebar.moveToTrashBtn")}
         onConfirm={() => {
           if (!confirmDelete) return;
           onDelete(confirmDelete.id);

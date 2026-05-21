@@ -49,6 +49,37 @@
       "newChatWithAgent": "Nieuwe chat met…"
     }
   },
+  "sidebar": {
+    "newChat": "+ Nieuwe chat",
+    "newQuick": "+ Quick",
+    "newQuickTitle": "Start een Quick Chat — verdwijnt automatisch na 15 min inactiviteit",
+    "searchMessages": "Zoek in berichten…",
+    "scopeAria": "Sessie-scope",
+    "scopeMine": "Mijn",
+    "scopeAll": "Alle",
+    "sectionSessions": "Sessies",
+    "showHiddenTitle": "Toon sessies die je verborgen hebt",
+    "showHidden": "Verborgen tonen",
+    "noSessions": "Nog geen sessies.",
+    "quickChatPrefix": "(quick chat)\n",
+    "hiddenPrefix": "(verborgen uit chat)\n",
+    "quickBadge": "QC",
+    "untitled": "(naamloos)",
+    "anonymous": "anoniem",
+    "msgCount": "{{count}} ber.",
+    "hiddenBadge": "verborgen",
+    "showInChat": "In chat tonen",
+    "hideFromChat": "Verbergen uit chat"
+  },
+  "whiteboardSidebar": {
+    "newWhiteboard": "+ Nieuw whiteboard",
+    "newPlaceholder": "Whiteboardnaam…",
+    "rename": "Hernoemen",
+    "moveToTrash": "Naar prullenbak",
+    "empty": "Nog geen whiteboards",
+    "trashConfirm": "\"{{name}}\" naar de prullenbak verplaatsen?",
+    "moveToTrashBtn": "Naar prullenbak"
+  },
   "chat": {
     "reasoning": {
       "thinking": "denken"
