@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import Modal from "./Modal";
 import StatusPill, { soulStatusToPill } from "./StatusPill";
 import { SOCIAL_PLATFORMS } from "../lib/socials";
@@ -37,6 +38,7 @@ export default function BusinessDialog({
   onClose,
   onSubmit,
 }: Props) {
+  const { t } = useTranslation();
   const [name, setName] = useState(initial?.name ?? "");
   const [domain, setDomain] = useState(initial?.domain ?? "");
   const [website, setWebsite] = useState(initial?.website ?? "");
@@ -108,7 +110,7 @@ export default function BusinessDialog({
 
   const handleLogoFile = (file: File) => {
     if (file.size > 200 * 1024) {
-      alert("Logo must be under 200KB");
+      alert(t("dialog.business.logoTooLarge"));
       return;
     }
     const reader = new FileReader();
@@ -144,11 +146,15 @@ export default function BusinessDialog({
     <Modal onClose={onClose} size="md">
       <form className="project-form" onSubmit={handleSubmit}>
         <Modal.Header
-          title={mode === "create" ? "New Business" : "Edit Business"}
+          title={
+            mode === "create"
+              ? t("dialog.business.titleCreate")
+              : t("dialog.business.titleEdit")
+          }
         />
 
         <label className="project-form__field">
-          Name *
+          {t("dialog.business.nameLabelStar")}
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -161,25 +167,25 @@ export default function BusinessDialog({
           style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}
         >
           <label className="project-form__field">
-            Domain
+            {t("dialog.business.domainLabel")}
             <input
               value={domain}
               onChange={(e) => setDomain(e.target.value)}
-              placeholder="acme.com"
+              placeholder={t("dialog.business.domainPlaceholder")}
             />
           </label>
           <label className="project-form__field">
-            Website
+            {t("dialog.business.websiteLabel")}
             <input
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
-              placeholder="https://acme.com"
+              placeholder={t("dialog.business.websitePlaceholder")}
             />
           </label>
         </div>
 
         <label className="project-form__field">
-          Description
+          {t("dialog.business.descriptionLabel")}
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -188,7 +194,7 @@ export default function BusinessDialog({
         </label>
 
         <label className="project-form__field">
-          Notes
+          {t("dialog.business.notesLabel")}
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
@@ -197,13 +203,13 @@ export default function BusinessDialog({
         </label>
 
         <div className="project-form__field">
-          Emails
+          {t("dialog.business.emailsLabel")}
           {emails.map((email, i) => (
             <div key={i} className="contact-form__multi-row">
               <input
                 type="email"
                 value={email}
-                placeholder="info@acme.com"
+                placeholder={t("dialog.business.emailPlaceholder")}
                 onChange={(e) =>
                   updateList(emails, i, e.target.value, setEmails)
                 }
@@ -222,12 +228,12 @@ export default function BusinessDialog({
             className="contact-form__add-btn"
             onClick={() => addToList(emails, setEmails)}
           >
-            + Add email
+            {t("dialog.business.addEmail")}
           </button>
         </div>
 
         <div className="project-form__field">
-          Phones
+          {t("dialog.business.phonesLabel")}
           {phones.map((phone, i) => (
             <div key={i} className="contact-form__multi-row">
               <input
@@ -251,58 +257,57 @@ export default function BusinessDialog({
             className="contact-form__add-btn"
             onClick={() => addToList(phones, setPhones)}
           >
-            + Add phone
+            {t("dialog.business.addPhone")}
           </button>
         </div>
 
         <div className="project-form__field">
           <span className="soul-status-row">
-            <span>Address</span>
+            <span>{t("dialog.business.addressLabel")}</span>
             {initial?.addressFetchedAt && (
               <span style={{ fontSize: 11, color: "var(--text-faint)" }}>
-                auto-filled{" "}
-                {new Date(initial.addressFetchedAt).toLocaleDateString()}
+                {t("dialog.business.addressAutoFilled", {
+                  when: new Date(initial.addressFetchedAt).toLocaleDateString(),
+                })}
               </span>
             )}
           </span>
           <input
             value={street}
-            placeholder="Street + number"
+            placeholder={t("dialog.business.streetPlaceholder")}
             onChange={(e) => setStreet(e.target.value)}
           />
           <div className="business-form__address-row business-form__address-row--zip-city">
             <input
               value={postalCode}
-              placeholder="Postal code"
+              placeholder={t("dialog.business.postalCodePlaceholder")}
               onChange={(e) => setPostalCode(e.target.value)}
             />
             <input
               value={city}
-              placeholder="City"
+              placeholder={t("dialog.business.cityPlaceholder")}
               onChange={(e) => setCity(e.target.value)}
             />
           </div>
           <div className="business-form__address-row business-form__address-row--region-country">
             <input
               value={region}
-              placeholder="Region / state (optional)"
+              placeholder={t("dialog.business.regionPlaceholder")}
               onChange={(e) => setRegion(e.target.value)}
             />
             <input
               value={country}
-              placeholder="Country (NL, DE, …)"
+              placeholder={t("dialog.business.countryPlaceholder")}
               onChange={(e) => setCountry(e.target.value)}
             />
           </div>
           <span className="project-form__hint" style={{ marginTop: 6 }}>
-            Filled automatically by the soul-refresh handler from the business
-            website's contact / imprint page. Manual edits override the
-            auto-fill until the next refresh.
+            {t("dialog.business.addressHint")}
           </span>
         </div>
 
         <div className="project-form__field">
-          Social profiles
+          {t("dialog.business.socialsLabel")}
           {socials.length === 0 && (
             <div
               style={{
@@ -311,8 +316,7 @@ export default function BusinessDialog({
                 marginBottom: 6,
               }}
             >
-              Add public handles or URLs so the auto-refresh can summarise what
-              this business is currently up to.
+              {t("dialog.business.socialsHint")}
             </div>
           )}
           {socials.map((s, i) => (
@@ -335,7 +339,9 @@ export default function BusinessDialog({
               <input
                 value={s.handle}
                 placeholder={
-                  s.platform === "website" ? "https://..." : "@handle or URL"
+                  s.platform === "website"
+                    ? t("dialog.business.socialPlaceholderWebsite")
+                    : t("dialog.business.socialPlaceholderHandle")
                 }
                 onChange={(e) => {
                   const next = [...socials];
@@ -361,26 +367,26 @@ export default function BusinessDialog({
               setSocials([...socials, { platform: "linkedin", handle: "" }])
             }
           >
-            + Add social profile
+            {t("dialog.business.addSocial")}
           </button>
         </div>
 
         <label className="project-form__field">
-          Tags (comma-separated)
+          {t("dialog.business.tagsLabel")}
           <input
             value={tagsStr}
             onChange={(e) => setTagsStr(e.target.value)}
-            placeholder="vendor, partner, prospect"
+            placeholder={t("dialog.business.tagsPlaceholder")}
           />
         </label>
 
         <div className="project-form__field">
-          Logo
+          {t("dialog.business.logoLabel")}
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {logo && (
               <img
                 src={logo}
-                alt="logo"
+                alt={t("dialog.business.logoAlt")}
                 className="contact-form__avatar-preview"
               />
             )}
@@ -416,7 +422,7 @@ export default function BusinessDialog({
                   initial.id,
                 );
                 if (!res.ok) {
-                  alert(`Refresh failed: HTTP ${res.status}`);
+                  alert(t("dialog.business.refreshFailed", { status: res.status }));
                   return;
                 }
                 const reader = res.body?.getReader();
@@ -435,14 +441,18 @@ export default function BusinessDialog({
 
         <Modal.Footer>
           <button type="button" className="btn" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             type="submit"
             className="btn btn--accent"
             disabled={saving || !name.trim()}
           >
-            {saving ? "Saving..." : mode === "create" ? "Create" : "Save"}
+            {saving
+              ? t("dialog.business.saving")
+              : mode === "create"
+                ? t("common.create")
+                : t("common.save")}
           </button>
         </Modal.Footer>
       </form>
@@ -459,6 +469,7 @@ function SoulSection({
   refreshing: boolean;
   onStartRefresh: () => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [current, setCurrent] = useState<Business>(initial);
   const handleClick = async () => {
     await onStartRefresh();
@@ -470,13 +481,15 @@ function SoulSection({
   };
   return (
     <div className="project-form__field">
-      Soul (auto-refreshed)
+      {t("dialog.business.soulLabel")}
       <div className="soul-status-row">
         <StatusPill status={soulStatusToPill(current.soulStatus)} />
         <span>
           {current.soulRefreshedAt
-            ? `last refreshed ${new Date(current.soulRefreshedAt).toLocaleString()}`
-            : "never refreshed"}
+            ? t("dialog.business.lastRefreshed", {
+                when: new Date(current.soulRefreshedAt).toLocaleString(),
+              })
+            : t("dialog.business.neverRefreshed")}
         </span>
         <button
           type="button"
@@ -484,13 +497,15 @@ function SoulSection({
           disabled={refreshing || current.soulStatus === "refreshing"}
           onClick={() => void handleClick()}
         >
-          {refreshing ? "Refreshing…" : "Refresh now"}
+          {refreshing
+            ? t("dialog.business.refreshing")
+            : t("dialog.business.refreshNow")}
         </button>
       </div>
       <div
         className={`soul-preview${current.soul ? "" : " soul-preview--empty"}`}
       >
-        {current.soul || "(empty — will be filled on next refresh)"}
+        {current.soul || t("dialog.business.soulEmpty")}
       </div>
       {current.soulError && (
         <div className="lang-readonly__error">{current.soulError}</div>

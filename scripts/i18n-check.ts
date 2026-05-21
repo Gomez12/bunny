@@ -77,13 +77,46 @@ function* walkSourceFiles(root: string): Generator<string> {
  * file before scanning. Keeps the JSDoc example `t("nav.items.<id>")`
  * out of the extracted-key set.
  *
- * String literals do not contain unescaped line breaks in practice and
- * comments do not nest, so a simple lexer suffices.
+ * Naive comment regexes confuse `/*` / `*\/` that appear inside string
+ * literals — e.g. `accept="image/*"` followed later by an actual block
+ * comment closer would eat every `t("…")` call between them. To avoid
+ * that, we first mask string-literal contents with spaces, locate
+ * comment ranges in the masked text, then strip those ranges from the
+ * ORIGINAL source so real string content (including the `t("key")`
+ * calls we're about to extract) is preserved.
  */
 function stripComments(src: string): string {
-  return src
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+  // Mask string-literal bodies so embedded `/*` / `*/` (e.g.
+  // accept="image/*") don't trip the block-comment regex below. Each
+  // alternative explicitly disallows newlines for `'…'` and `"…"` (JS
+  // doesn't allow unescaped newlines in those anyway) so apostrophes in
+  // English contractions inside comments — "can't", "don't" — can't
+  // accidentally pair up across line boundaries and swallow real code.
+  // Backticks (template literals) intentionally span newlines.
+  const masked = src.replace(
+    /"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`/g,
+    (m) => m[0]! + " ".repeat(m.length - 2) + m[m.length - 1]!,
+  );
+  const ranges: Array<[number, number]> = [];
+  const blockRe = /\/\*[\s\S]*?\*\//g;
+  for (let m: RegExpExecArray | null; (m = blockRe.exec(masked)) !== null; ) {
+    ranges.push([m.index, m.index + m[0].length]);
+  }
+  const lineRe = /(^|[^:])\/\/[^\n]*/g;
+  for (let m: RegExpExecArray | null; (m = lineRe.exec(masked)) !== null; ) {
+    const offset = m[1]?.length ?? 0;
+    ranges.push([m.index + offset, m.index + m[0].length]);
+  }
+  ranges.sort((a, b) => a[0] - b[0]);
+  let out = "";
+  let cursor = 0;
+  for (const [a, b] of ranges) {
+    if (a < cursor) continue;
+    out += src.slice(cursor, a);
+    cursor = b;
+  }
+  out += src.slice(cursor);
+  return out;
 }
 
 /**
