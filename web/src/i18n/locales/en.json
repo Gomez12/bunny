@@ -128,6 +128,45 @@
         "save": "Save"
       }
     },
+    "notifications": {
+      "title": "Notifications",
+      "a11y": {
+        "list": "Notifications",
+        "unreadDot": "Unread"
+      },
+      "markAllRead": "Mark all read",
+      "filter": {
+        "all": "All",
+        "unread": "Unread"
+      },
+      "listEmptyAll": "You're all caught up.",
+      "listEmptyUnread": "No unread notifications.",
+      "loadMore": "Load more",
+      "emptyTitle": "You're all caught up",
+      "emptyDescription": "When someone mentions you in a chat, it shows up here.",
+      "kind": {
+        "mention": "Mention",
+        "mentionBlocked": "Mention not delivered"
+      },
+      "unknownActor": "unknown",
+      "actions": {
+        "markRead": "Mark read",
+        "dismiss": "Dismiss",
+        "openConversation": "Open conversation",
+        "openTheConversation": "Open the conversation"
+      },
+      "meta": {
+        "from": "From",
+        "project": "Project",
+        "when": "When"
+      },
+      "relativeTime": {
+        "justNow": "just now",
+        "minutesAgo": "{{count}}m ago",
+        "hoursAgo": "{{count}}h ago",
+        "daysAgo": "{{count}}d ago"
+      }
+    },
     "files": {
       "workspaceCrumb": "workspace",
       "up": "↑ Up",

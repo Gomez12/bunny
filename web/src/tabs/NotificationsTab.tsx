@@ -10,6 +10,8 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { AlertCircle, AtSign, Check, ExternalLink, Trash2 } from "../lib/icons";
 import EmptyState from "../components/EmptyState";
 import type { NotificationDto } from "../api";
@@ -32,12 +34,21 @@ function fullTimestamp(ms: number): string {
   return new Date(ms).toLocaleString();
 }
 
-function relativeTime(ms: number): string {
+function relativeTime(ms: number, t: TFunction): string {
   const delta = Date.now() - ms;
-  if (delta < 60_000) return "just now";
-  if (delta < 3_600_000) return `${Math.floor(delta / 60_000)}m ago`;
-  if (delta < 86_400_000) return `${Math.floor(delta / 3_600_000)}h ago`;
-  if (delta < 7 * 86_400_000) return `${Math.floor(delta / 86_400_000)}d ago`;
+  if (delta < 60_000) return t("tab.notifications.relativeTime.justNow");
+  if (delta < 3_600_000)
+    return t("tab.notifications.relativeTime.minutesAgo", {
+      count: Math.floor(delta / 60_000),
+    });
+  if (delta < 86_400_000)
+    return t("tab.notifications.relativeTime.hoursAgo", {
+      count: Math.floor(delta / 3_600_000),
+    });
+  if (delta < 7 * 86_400_000)
+    return t("tab.notifications.relativeTime.daysAgo", {
+      count: Math.floor(delta / 86_400_000),
+    });
   return new Date(ms).toLocaleDateString();
 }
 
@@ -48,9 +59,10 @@ function kindIcon(kind: string) {
   return <AtSign size={16} strokeWidth={1.75} />;
 }
 
-function kindLabel(kind: string): string {
-  if (kind === "mention") return "Mention";
-  if (kind === "mention_blocked") return "Mention not delivered";
+function kindLabel(kind: string, t: TFunction): string {
+  if (kind === "mention") return t("tab.notifications.kind.mention");
+  if (kind === "mention_blocked")
+    return t("tab.notifications.kind.mentionBlocked");
   return kind;
 }
 
@@ -65,6 +77,7 @@ export default function NotificationsTab({
   onNavigate,
   onRequestPermission,
 }: Props) {
+  const { t } = useTranslation();
   const [activeId, setActiveId] = useState<number | null>(null);
   const [filter, setFilter] = useState<"all" | "unread">("all");
 
@@ -109,10 +122,10 @@ export default function NotificationsTab({
 
   return (
     <div className="notif-tab">
-      <aside className="notif-tab__list" aria-label="Notifications">
+      <aside className="notif-tab__list" aria-label={t("tab.notifications.a11y.list")}>
         <header className="notif-tab__list-header">
           <div className="notif-tab__list-title">
-            <span>Notifications</span>
+            <span>{t("tab.notifications.title")}</span>
             {unreadCount > 0 && (
               <span className="notif-tab__count">{unreadCount}</span>
             )}
@@ -123,7 +136,7 @@ export default function NotificationsTab({
               className="notif-tab__list-action"
               onClick={() => void onMarkAllRead()}
             >
-              Mark all read
+              {t("tab.notifications.markAllRead")}
             </button>
           )}
         </header>
@@ -136,7 +149,7 @@ export default function NotificationsTab({
             className={`notif-tab__filter-btn ${filter === "all" ? "notif-tab__filter-btn--active" : ""}`}
             onClick={() => setFilter("all")}
           >
-            All
+            {t("tab.notifications.filter.all")}
           </button>
           <button
             type="button"
@@ -145,15 +158,15 @@ export default function NotificationsTab({
             className={`notif-tab__filter-btn ${filter === "unread" ? "notif-tab__filter-btn--active" : ""}`}
             onClick={() => setFilter("unread")}
           >
-            Unread
+            {t("tab.notifications.filter.unread")}
           </button>
         </div>
 
         {filtered.length === 0 ? (
           <div className="notif-tab__list-empty">
             {filter === "unread"
-              ? "No unread notifications."
-              : "You're all caught up."}
+              ? t("tab.notifications.listEmptyUnread")
+              : t("tab.notifications.listEmptyAll")}
           </div>
         ) : (
           <ul className="notif-tab__list-items">
@@ -179,14 +192,14 @@ export default function NotificationsTab({
                         <span className="notif-tab__item-body">{n.body}</span>
                       )}
                       <span className="notif-tab__item-meta">
-                        {relativeTime(n.createdAt)}
+                        {relativeTime(n.createdAt, t)}
                         {n.project ? ` · ${n.project}` : ""}
                       </span>
                     </span>
                     {unread && (
                       <span
                         className="notif-tab__item-dot"
-                        aria-label="Unread"
+                        aria-label={t("tab.notifications.a11y.unreadDot")}
                       />
                     )}
                   </button>
@@ -203,7 +216,7 @@ export default function NotificationsTab({
               className="notif-tab__list-action"
               onClick={() => void onLoadMore()}
             >
-              Load more
+              {t("tab.notifications.loadMore")}
             </button>
           </footer>
         )}
@@ -220,8 +233,8 @@ export default function NotificationsTab({
         ) : (
           <div className="notif-tab__detail-empty">
             <EmptyState
-              title="You're all caught up"
-              description="When someone mentions you in a chat, it shows up here."
+              title={t("tab.notifications.emptyTitle")}
+              description={t("tab.notifications.emptyDescription")}
             />
           </div>
         )}
@@ -243,7 +256,9 @@ function NotificationDetail({
   onMarkRead,
   onDismiss,
 }: DetailProps) {
-  const actorName = n.actorDisplayName || n.actorUsername || "unknown";
+  const { t } = useTranslation();
+  const actorName =
+    n.actorDisplayName || n.actorUsername || t("tab.notifications.unknownActor");
   const unread = n.readAt == null;
 
   return (
@@ -251,7 +266,7 @@ function NotificationDetail({
       <header className="notif-tab__article-header">
         <div className="notif-tab__article-kind">
           {kindIcon(n.kind)}
-          <span>{kindLabel(n.kind)}</span>
+          <span>{kindLabel(n.kind, t)}</span>
         </div>
         <div className="notif-tab__article-actions">
           {unread && (
@@ -259,20 +274,22 @@ function NotificationDetail({
               type="button"
               className="notif-tab__article-action"
               onClick={() => void onMarkRead(n.id)}
-              title="Mark read"
-              aria-label="Mark read"
+              title={t("tab.notifications.actions.markRead")}
+              aria-label={t("tab.notifications.actions.markRead")}
             >
-              <Check size={14} /> <span>Mark read</span>
+              <Check size={14} />{" "}
+              <span>{t("tab.notifications.actions.markRead")}</span>
             </button>
           )}
           <button
             type="button"
             className="notif-tab__article-action notif-tab__article-action--danger"
             onClick={() => void onDismiss(n.id)}
-            title="Dismiss"
-            aria-label="Dismiss"
+            title={t("tab.notifications.actions.dismiss")}
+            aria-label={t("tab.notifications.actions.dismiss")}
           >
-            <Trash2 size={14} /> <span>Dismiss</span>
+            <Trash2 size={14} />{" "}
+            <span>{t("tab.notifications.actions.dismiss")}</span>
           </button>
         </div>
       </header>
@@ -284,7 +301,7 @@ function NotificationDetail({
       <dl className="notif-tab__article-meta">
         {n.actorUsername && (
           <>
-            <dt>From</dt>
+            <dt>{t("tab.notifications.meta.from")}</dt>
             <dd>
               {actorName}
               {n.actorUsername !== actorName && (
@@ -298,13 +315,13 @@ function NotificationDetail({
         )}
         {n.project && (
           <>
-            <dt>Project</dt>
+            <dt>{t("tab.notifications.meta.project")}</dt>
             <dd>{n.project}</dd>
           </>
         )}
-        <dt>When</dt>
+        <dt>{t("tab.notifications.meta.when")}</dt>
         <dd>
-          {relativeTime(n.createdAt)}{" "}
+          {relativeTime(n.createdAt, t)}{" "}
           <span className="notif-tab__article-muted">
             · {fullTimestamp(n.createdAt)}
           </span>
@@ -321,8 +338,8 @@ function NotificationDetail({
             <ExternalLink size={14} />
             <span>
               {n.kind === "mention_blocked"
-                ? "Open the conversation"
-                : "Open conversation"}
+                ? t("tab.notifications.actions.openTheConversation")
+                : t("tab.notifications.actions.openConversation")}
             </span>
           </button>
         </div>

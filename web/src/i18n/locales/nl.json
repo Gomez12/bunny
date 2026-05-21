@@ -128,6 +128,45 @@
         "save": "Opslaan"
       }
     },
+    "notifications": {
+      "title": "Meldingen",
+      "a11y": {
+        "list": "Meldingen",
+        "unreadDot": "Ongelezen"
+      },
+      "markAllRead": "Alles als gelezen markeren",
+      "filter": {
+        "all": "Alle",
+        "unread": "Ongelezen"
+      },
+      "listEmptyAll": "Je bent helemaal bij.",
+      "listEmptyUnread": "Geen ongelezen meldingen.",
+      "loadMore": "Meer laden",
+      "emptyTitle": "Je bent helemaal bij",
+      "emptyDescription": "Wanneer iemand je in een chat noemt, verschijnt het hier.",
+      "kind": {
+        "mention": "Vermelding",
+        "mentionBlocked": "Vermelding niet bezorgd"
+      },
+      "unknownActor": "onbekend",
+      "actions": {
+        "markRead": "Markeer als gelezen",
+        "dismiss": "Verwijderen",
+        "openConversation": "Open gesprek",
+        "openTheConversation": "Open het gesprek"
+      },
+      "meta": {
+        "from": "Van",
+        "project": "Project",
+        "when": "Wanneer"
+      },
+      "relativeTime": {
+        "justNow": "zojuist",
+        "minutesAgo": "{{count}}m geleden",
+        "hoursAgo": "{{count}}u geleden",
+        "daysAgo": "{{count}}d geleden"
+      }
+    },
     "files": {
       "workspaceCrumb": "workspace",
       "up": "↑ Omhoog",
