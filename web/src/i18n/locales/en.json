@@ -128,6 +128,24 @@
         "save": "Save"
       }
     },
+    "diagrams": {
+      "title": "Diagrams",
+      "newDiagram": "New diagram",
+      "emptyTitle": "No diagrams yet",
+      "emptyDescription": "Create a Visio-like diagram and edit it with AI.",
+      "trashConfirm": "Move this diagram to trash?",
+      "unsaved": "Unsaved",
+      "aiGenerating": "AI is generating the diagram…",
+      "aiEditing": "AI is editing the diagram…",
+      "deleteAria": "Delete {{name}}",
+      "backToGallery": "Back to gallery",
+      "rename": "Rename",
+      "deleteDiagram": "Delete diagram",
+      "error": {
+        "editFailed": "Edit failed",
+        "noData": "No diagram data returned"
+      }
+    },
     "whiteboard": {
       "emptyTitle": "No whiteboards yet",
       "emptyDescription": "Create one to get started.",

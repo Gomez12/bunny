@@ -128,6 +128,24 @@
         "save": "Opslaan"
       }
     },
+    "diagrams": {
+      "title": "Diagrammen",
+      "newDiagram": "Nieuw diagram",
+      "emptyTitle": "Nog geen diagrammen",
+      "emptyDescription": "Maak een Visio-achtig diagram en bewerk het met AI.",
+      "trashConfirm": "Dit diagram naar prullenbak verplaatsen?",
+      "unsaved": "Niet opgeslagen",
+      "aiGenerating": "AI genereert het diagram…",
+      "aiEditing": "AI bewerkt het diagram…",
+      "deleteAria": "{{name}} verwijderen",
+      "backToGallery": "Terug naar galerij",
+      "rename": "Hernoemen",
+      "deleteDiagram": "Diagram verwijderen",
+      "error": {
+        "editFailed": "Bewerken mislukt",
+        "noData": "Geen diagramdata ontvangen"
+      }
+    },
     "whiteboard": {
       "emptyTitle": "Nog geen whiteboards",
       "emptyDescription": "Maak er één aan om te beginnen.",

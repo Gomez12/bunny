@@ -57,7 +57,18 @@ order, highest-traffic first:
    - The `DefinitionDialog`, `AgentDialog`, `SkillDialog`
      components still carry hardcoded copy and ship as a
      follow-up component-family PR.
-4. `DiaryTab`, `WhiteboardTab`, `DiagramsTab`, `WorkspaceTab`.
+4. `DiaryTab`, `WhiteboardTab`, `DiagramsTab`, `WorkspaceTab` —
+   done 2026-05-21.
+   - `WorkspaceTab` shell (5 sub-tab labels, aria-label, loading).
+   - `DiaryTab` (title, new entry, empty state, list item,
+     transcription status badges, delete confirm).
+   - `WhiteboardTab` (composer placeholders, AI-edit overlay,
+     edit-preview success / error strings, empty state).
+   - `DiagramsTab` (gallery header, empty state, toolbar
+     tooltips, AI overlay, unsaved badge, delete/aria labels,
+     two setError() paths, trash confirm). The
+     `DIAGRAM_TYPE_LABELS` constant still holds raw labels;
+     migrate alongside the diagram-types refactor.
 5. The remaining tabs (`FilesTab`, `BusinessesTab`, `IntegrationsTab`,
    `WebNewsTab`, `NotificationsTab`, `CodeTab`, `DiagramsTab`).
 6. `pages/`.

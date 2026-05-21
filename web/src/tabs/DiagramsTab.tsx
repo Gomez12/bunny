@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useProjectUiPrefs } from "../hooks/useProjectUiPrefs";
 import EmptyState from "../components/EmptyState";
 import DiagramCanvas, { type DiagramCanvasRef, type DiagramContent } from "./diagrams/DiagramCanvas";
@@ -41,6 +42,7 @@ function emptyContent(): DiagramContent {
 }
 
 export default function DiagramsTab({ project, currentUser, onOpenInChat }: Props) {
+  const { t } = useTranslation();
   const { prefs, setPref } = useProjectUiPrefs(project);
   const [diagrams, setDiagrams] = useState<DiagramSummary[]>([]);
   const [activeDiagram, setActiveDiagram] = useState<DiagramFull | null>(null);
@@ -231,7 +233,7 @@ export default function DiagramsTab({ project, currentUser, onOpenInChat }: Prop
         contentJson: JSON.stringify(currentContent),
       });
       if (!res.ok || !res.body) {
-        setError("Edit failed");
+        setError(t("tab.diagrams.error.editFailed"));
         return;
       }
       const parsed = await streamToContent(res);
@@ -243,7 +245,7 @@ export default function DiagramsTab({ project, currentUser, onOpenInChat }: Prop
         lastSavedRef.current = serialized;
         setDirty(false);
       } else {
-        setError("No diagram data returned");
+        setError(t("tab.diagrams.error.noData"));
       }
     } catch (e) {
       setError(String(e));
@@ -253,7 +255,7 @@ export default function DiagramsTab({ project, currentUser, onOpenInChat }: Prop
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Move this diagram to trash?")) return;
+    if (!confirm(t("tab.diagrams.trashConfirm"))) return;
     await deleteDiagram(id);
     if (activeDiagram?.id === id) setActiveDiagram(null);
     void reload();
@@ -298,21 +300,23 @@ export default function DiagramsTab({ project, currentUser, onOpenInChat }: Prop
     return (
       <div className="diagrams-tab">
         <div className="diagrams-tab__gallery-header">
-          <span className="diagrams-tab__gallery-title">Diagrams</span>
+          <span className="diagrams-tab__gallery-title">
+            {t("tab.diagrams.title")}
+          </span>
           <button
             type="button"
             className="btn btn--accent"
             onClick={() => setShowNewDialog(true)}
             disabled={creating}
           >
-            <Plus size={14} /> New diagram
+            <Plus size={14} /> {t("tab.diagrams.newDiagram")}
           </button>
         </div>
 
         {diagrams.length === 0 ? (
           <EmptyState
-            title="No diagrams yet"
-            description="Create a Visio-like diagram and edit it with AI."
+            title={t("tab.diagrams.emptyTitle")}
+            description={t("tab.diagrams.emptyDescription")}
             action={
               <button
                 type="button"
@@ -320,7 +324,7 @@ export default function DiagramsTab({ project, currentUser, onOpenInChat }: Prop
                 onClick={() => setShowNewDialog(true)}
                 disabled={creating}
               >
-                <Plus size={14} /> New diagram
+                <Plus size={14} /> {t("tab.diagrams.newDiagram")}
               </button>
             }
           />
@@ -359,8 +363,8 @@ export default function DiagramsTab({ project, currentUser, onOpenInChat }: Prop
                     type="button"
                     className="diagram-card__del"
                     onClick={(e) => { e.stopPropagation(); void handleDelete(d.id); }}
-                    title="Delete"
-                    aria-label={`Delete ${d.name}`}
+                    title={t("common.delete")}
+                    aria-label={t("tab.diagrams.deleteAria", { name: d.name })}
                   >
                     <Trash2 size={13} />
                   </button>
@@ -391,7 +395,7 @@ export default function DiagramsTab({ project, currentUser, onOpenInChat }: Prop
           type="button"
           className="btn diagrams-tab__back"
           onClick={() => { setActiveDiagram(null); setContent(emptyContent()); }}
-          title="Back to gallery"
+          title={t("tab.diagrams.backToGallery")}
         >
           <ChevronLeft size={16} />
         </button>
@@ -415,14 +419,18 @@ export default function DiagramsTab({ project, currentUser, onOpenInChat }: Prop
         <span className="diagrams-tab__type-badge">
           {DIAGRAM_TYPE_LABELS[activeDiagram.diagramType] ?? activeDiagram.diagramType}
         </span>
-        {dirty && <span className="diagrams-tab__unsaved">Unsaved</span>}
+        {dirty && (
+          <span className="diagrams-tab__unsaved">
+            {t("tab.diagrams.unsaved")}
+          </span>
+        )}
         {(generating || streaming) && <Loader2 size={14} className="spinner" />}
         <div className="diagrams-tab__toolbar-actions">
           {canEdit && (
             <button
               type="button"
               className="btn"
-              title="Rename"
+              title={t("tab.diagrams.rename")}
               onClick={() => { setRenameValue(activeDiagram.name); setRenaming(true); }}
             >
               <Pencil size={14} />
@@ -432,7 +440,7 @@ export default function DiagramsTab({ project, currentUser, onOpenInChat }: Prop
             <button
               type="button"
               className="btn"
-              title="Delete diagram"
+              title={t("tab.diagrams.deleteDiagram")}
               onClick={() => void handleDelete(activeDiagram.id)}
             >
               <Trash2 size={14} />
@@ -442,7 +450,7 @@ export default function DiagramsTab({ project, currentUser, onOpenInChat }: Prop
             type="button"
             className="btn btn--accent"
             onClick={() => setShowNewDialog(true)}
-            title="New diagram"
+            title={t("tab.diagrams.newDiagram")}
           >
             <Plus size={14} />
           </button>
@@ -472,7 +480,9 @@ export default function DiagramsTab({ project, currentUser, onOpenInChat }: Prop
               <div className="diagrams-tab__overlay">
                 <span className="spinner" />
                 <span>
-                  {generating ? "AI is generating the diagram…" : "AI is editing the diagram…"}
+                  {generating
+                    ? t("tab.diagrams.aiGenerating")
+                    : t("tab.diagrams.aiEditing")}
                 </span>
               </div>
             )}
