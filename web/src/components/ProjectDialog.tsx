@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import type {
   Agent,
   CalendarException,
@@ -79,6 +80,7 @@ export default function ProjectDialog({
   onClose,
   onSubmit,
 }: Props) {
+  const { t } = useTranslation();
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [systemPrompt, setSystemPrompt] = useState(initial?.systemPrompt ?? "");
@@ -121,23 +123,21 @@ export default function ProjectDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nameValid) {
-      setError(
-        "Name must be lowercase letters, digits, _ or - (max 63 chars).",
-      );
+      setError(t("dialog.project.errNameSlug"));
       return;
     }
     const parsedLastN = validateOverride(lastN);
     const parsedRecallK = validateOverride(recallK);
     if (parsedLastN === undefined || parsedRecallK === undefined) {
-      setError("Memory overrides must be blank or a non-negative integer.");
+      setError(t("dialog.project.errMemoryOverride"));
       return;
     }
     if (languages.length === 0) {
-      setError("Pick at least one language for the project.");
+      setError(t("dialog.project.errLanguagePick"));
       return;
     }
     if (!languages.includes(defaultLanguage)) {
-      setError("Default language must be one of the selected languages.");
+      setError(t("dialog.project.errDefaultLangNotInSet"));
       return;
     }
     setSubmitting(true);
@@ -168,45 +168,49 @@ export default function ProjectDialog({
     <Modal onClose={onClose} size="md">
       <form onSubmit={handleSubmit} className="project-form">
         <Modal.Header
-          title={mode === "create" ? "New project" : `Edit ${initial?.name}`}
+          title={
+            mode === "create"
+              ? t("dialog.project.titleCreate")
+              : t("dialog.project.titleEdit", { name: initial?.name ?? "" })
+          }
         />
 
         <label className="project-form__field">
-          <span>Name</span>
+          <span>{t("dialog.project.nameLabel")}</span>
           <input
             ref={nameRef}
             type="text"
             value={name}
             disabled={mode === "edit"}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. research, product-x"
+            placeholder={t("dialog.project.namePlaceholder")}
             autoComplete="off"
             required
           />
           {!nameValid && name !== "" && (
             <span className="project-form__hint project-form__hint--error">
-              Lowercase, digits, _ or - only (max 63 chars).
+              {t("dialog.project.nameInlineErr")}
             </span>
           )}
         </label>
 
         <label className="project-form__field">
-          <span>Description (optional)</span>
+          <span>{t("dialog.project.descriptionLabel")}</span>
           <input
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Short summary shown on the card"
+            placeholder={t("dialog.project.descriptionPlaceholder")}
           />
         </label>
 
         <label className="project-form__field">
-          <span>System prompt</span>
+          <span>{t("dialog.project.systemPromptLabel")}</span>
           <textarea
             value={systemPrompt}
             onChange={(e) => setSystemPrompt(e.target.value)}
             rows={8}
-            placeholder="Instructions that apply to every chat in this project"
+            placeholder={t("dialog.project.systemPromptPlaceholder")}
           />
         </label>
 
@@ -217,58 +221,53 @@ export default function ProjectDialog({
               checked={appendMode}
               onChange={(e) => setAppendMode(e.target.checked)}
             />
-            <span>Append to base prompt (uncheck to replace)</span>
+            <span>{t("dialog.project.appendMode")}</span>
           </label>
 
           <label className="project-form__choice">
-            <span>Visibility</span>
+            <span>{t("dialog.project.visibilityLabel")}</span>
             <select
               value={visibility}
               onChange={(e) =>
                 setVisibility(e.target.value as ProjectVisibility)
               }
             >
-              <option value="public">Public</option>
-              <option value="private">Private (only you)</option>
+              <option value="public">{t("dialog.project.visibilityPublic")}</option>
+              <option value="private">{t("dialog.project.visibilityPrivate")}</option>
             </select>
           </label>
         </div>
 
         <div className="project-form__row">
           <label className="project-form__field">
-            <span>Last N turns (verbatim)</span>
+            <span>{t("dialog.project.lastNLabel")}</span>
             <input
               type="number"
               min={0}
               step={1}
               value={lastN}
               onChange={(e) => setLastN(e.target.value)}
-              placeholder="inherit global"
+              placeholder={t("dialog.project.lastNPlaceholder")}
             />
-            <span className="project-form__hint">
-              How many recent user/assistant turns to replay verbatim. Leave
-              blank to inherit.
-            </span>
+            <span className="project-form__hint">{t("dialog.project.lastNHint")}</span>
           </label>
 
           <label className="project-form__field">
-            <span>Hybrid recall K</span>
+            <span>{t("dialog.project.recallKLabel")}</span>
             <input
               type="number"
               min={0}
               step={1}
               value={recallK}
               onChange={(e) => setRecallK(e.target.value)}
-              placeholder="inherit global"
+              placeholder={t("dialog.project.recallKPlaceholder")}
             />
-            <span className="project-form__hint">
-              How many BM25 + vector hits to inject. Leave blank to inherit.
-            </span>
+            <span className="project-form__hint">{t("dialog.project.recallKHint")}</span>
           </label>
         </div>
 
         <label className="project-form__field">
-          <span>Languages</span>
+          <span>{t("dialog.project.languagesLabel")}</span>
           <div className="project-form__chips">
             {LANGUAGE_OPTIONS.map((opt) => {
               const checked = languages.includes(opt.code);
@@ -300,14 +299,11 @@ export default function ProjectDialog({
               );
             })}
           </div>
-          <span className="project-form__hint">
-            Every entity is authored in one of these and auto-translated to the
-            rest.
-          </span>
+          <span className="project-form__hint">{t("dialog.project.languagesHint")}</span>
         </label>
 
         <label className="project-form__field">
-          <span>Default language</span>
+          <span>{t("dialog.project.defaultLanguageLabel")}</span>
           <select
             value={defaultLanguage}
             onChange={(e) => setDefaultLanguage(e.target.value)}
@@ -319,19 +315,13 @@ export default function ProjectDialog({
               </option>
             ))}
           </select>
-          <span className="project-form__hint">
-            New entities created in this project start in this language unless
-            the user has overridden their preferred language.
-          </span>
+          <span className="project-form__hint">{t("dialog.project.defaultLanguageHint")}</span>
         </label>
 
         <label className="project-form__field">
-          <span>Available agents</span>
+          <span>{t("dialog.project.availableAgentsLabel")}</span>
           {allAgents.length === 0 ? (
-            <span className="project-form__hint">
-              No agents yet. Create one in the Agents tab — it is auto-linked to
-              the default project.
-            </span>
+            <span className="project-form__hint">{t("dialog.project.noAgentsHint")}</span>
           ) : (
             <div className="project-form__chips">
               {allAgents.map((a) => {
@@ -360,27 +350,28 @@ export default function ProjectDialog({
             </div>
           )}
           <span className="project-form__hint">
-            Checked agents can be mentioned with <code>@name</code> in this
-            project's chats.
+            <Trans
+              i18nKey="dialog.project.agentsHint"
+              components={{ code: <code /> }}
+            />
           </span>
         </label>
 
         <label className="project-form__field">
-          <span>Businesses</span>
+          <span>{t("dialog.project.businessesLabel")}</span>
           <label className="project-form__choice">
             <input
               type="checkbox"
               checked={autoBuildBusinesses}
               onChange={(e) => setAutoBuildBusinesses(e.target.checked)}
             />
-            <span>Auto-build businesses from contacts</span>
+            <span>{t("dialog.project.autoBuildLabel")}</span>
           </label>
           <span className="project-form__hint">
-            When on, the <code>business.auto_build</code> handler walks this
-            project's contacts every six hours, derives organisations from the{" "}
-            <code>company</code> field plus email/website domains, and enriches
-            new rows via <code>web_search</code>. Off by default to keep
-            web-tool cost predictable.
+            <Trans
+              i18nKey="dialog.project.autoBuildHint"
+              components={{ code: <code /> }}
+            />
           </span>
         </label>
 
@@ -401,14 +392,18 @@ export default function ProjectDialog({
             onClick={onClose}
             disabled={submitting}
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             type="submit"
             className="btn btn--send"
             disabled={submitting || !nameValid}
           >
-            {submitting ? "Saving…" : mode === "create" ? "Create" : "Save"}
+            {submitting
+              ? t("common.saving")
+              : mode === "create"
+                ? t("common.create")
+                : t("common.save")}
           </button>
         </Modal.Footer>
       </form>
@@ -417,6 +412,7 @@ export default function ProjectDialog({
 }
 
 function ProjectCalendarSection({ projectName }: { projectName: string }) {
+  const { t } = useTranslation();
   const [exceptions, setExceptions] = useState<CalendarException[]>([]);
 
   const reload = useCallback(async () => {
@@ -431,11 +427,8 @@ function ProjectCalendarSection({ projectName }: { projectName: string }) {
 
   return (
     <div className="project-form__section">
-      <h3 className="project-form__section-title">Project calendar</h3>
-      <p className="project-form__hint">
-        Non-working days specific to this project. Overrides the global calendar
-        for all users working in this project.
-      </p>
+      <h3 className="project-form__section-title">{t("dialog.project.calendarSection")}</h3>
+      <p className="project-form__hint">{t("dialog.project.calendarHint")}</p>
       <CalendarExceptionEditor
         exceptions={exceptions}
         canEdit
