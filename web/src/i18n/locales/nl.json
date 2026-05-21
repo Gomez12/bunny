@@ -348,6 +348,37 @@
       "newChatWithAgent": "Nieuwe chat met…"
     }
   },
+  "history": {
+    "showAria": "Versiegeschiedenis tonen",
+    "title": "Versiegeschiedenis",
+    "titleWithCount": "Versiegeschiedenis ({{count}})",
+    "headerWithName": "Geschiedenis — {{name}}",
+    "headerNoName": "Geschiedenis",
+    "loadingList": "Versies laden…",
+    "loadingDetail": "Snapshot laden…",
+    "emptyMessage": "Nog geen versies. Bewerkingen vanaf nu worden hier bijgehouden.",
+    "sidebarAria": "Versiegeschiedenis",
+    "versionPrefix": "v{{n}}",
+    "detailHeading": "Versie {{n}}",
+    "detailMetaWithUser": "{{source}} · {{when}} · {{user}}",
+    "detailMeta": "{{source}} · {{when}}",
+    "snapshotUnavailable": "Snapshot niet beschikbaar.",
+    "snapshotOversized": "Snapshot niet beschikbaar — payload overschreed de grootte-limiet en is niet opgeslagen.",
+    "pickPrompt": "Kies links een versie.",
+    "restoring": "Terugzetten…",
+    "restoreThis": "Deze versie terugzetten",
+    "confirmTitle": "Deze versie terugzetten?",
+    "confirmMessage": "De huidige stand wordt eerst als <code>pre_restore</code>-snapshot vastgelegd zodat je kunt terugrollen.",
+    "confirmLabel": "Terugzetten",
+    "source": {
+      "save": "Opgeslagen",
+      "preDelete": "Voor verwijderen",
+      "preRestore": "Voor terugzetten",
+      "restore": "Teruggezet",
+      "manual": "Handmatige snapshot",
+      "backfill": "Geïmporteerd"
+    }
+  },
   "composer": {
     "placeholder": "Bericht aan bunny… (Enter om te versturen, Shift+Enter voor nieuwe regel, @ om iemand te noemen)",
     "attachmentAlt": "bijlage {{n}}",

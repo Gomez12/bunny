@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import Modal from "./Modal";
 import ConfirmDialog from "./ConfirmDialog";
 import {
@@ -18,14 +20,24 @@ interface Props {
   onRestored?: () => void;
 }
 
-const SOURCE_LABELS: Record<string, string> = {
-  save: "Saved",
-  pre_delete: "Before delete",
-  pre_restore: "Before restore",
-  restore: "Restored",
-  manual: "Manual snapshot",
-  backfill: "Imported",
-};
+function sourceLabel(source: string, t: TFunction): string {
+  switch (source) {
+    case "save":
+      return t("history.source.save");
+    case "pre_delete":
+      return t("history.source.preDelete");
+    case "pre_restore":
+      return t("history.source.preRestore");
+    case "restore":
+      return t("history.source.restore");
+    case "manual":
+      return t("history.source.manual");
+    case "backfill":
+      return t("history.source.backfill");
+    default:
+      return source;
+  }
+}
 
 /**
  * Per-entity history modal — wraps `<Modal size="md">` with a sidebar
@@ -42,6 +54,7 @@ export default function EntityHistoryModal({
   onClose,
   onRestored,
 }: Props) {
+  const { t } = useTranslation();
   const [versions, setVersions] = useState<EntityVersionMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<EntityVersionDetail | null>(null);
@@ -122,20 +135,24 @@ export default function EntityHistoryModal({
         disableBackdropClose={confirmOpen || restoring}
       >
         <Modal.Header
-          title={`History${entityName ? ` — ${entityName}` : ""}`}
+          title={
+            entityName
+              ? t("history.headerWithName", { name: entityName })
+              : t("history.headerNoName")
+          }
         />
         <Modal.Body className="entity-history-modal__body">
           {loading ? (
-            <div className="loading-state">Loading versions…</div>
+            <div className="loading-state">{t("history.loadingList")}</div>
           ) : versions.length === 0 ? (
             <p style={{ padding: "16px", opacity: 0.6 }}>
-              No versions yet. Edits made from now on will be tracked here.
+              {t("history.emptyMessage")}
             </p>
           ) : (
             <div className="entity-history-modal__split">
               <nav
                 className="entity-history-modal__sidebar"
-                aria-label="Version history"
+                aria-label={t("history.sidebarAria")}
               >
                 <ul>
                   {versions.map((v) => {
@@ -153,13 +170,13 @@ export default function EntityHistoryModal({
                           aria-current={isActive ? "true" : undefined}
                         >
                           <span className="entity-history-modal__version">
-                            v{v.version}
+                            {t("history.versionPrefix", { n: v.version })}
                           </span>
                           <span className="entity-history-modal__time">
                             {formatRelative(v.createdAt)}
                           </span>
                           <span className="entity-history-modal__source">
-                            {SOURCE_LABELS[v.source] ?? v.source}
+                            {sourceLabel(v.source, t)}
                           </span>
                           {v.flags.length > 0 && (
                             <span
@@ -177,23 +194,29 @@ export default function EntityHistoryModal({
               </nav>
               <div className="entity-history-modal__detail">
                 {detailLoading ? (
-                  <div className="loading-state">Loading snapshot…</div>
+                  <div className="loading-state">{t("history.loadingDetail")}</div>
                 ) : selected ? (
                   <>
                     <header className="entity-history-modal__detail-head">
-                      <strong>Version {selected.version}</strong>
+                      <strong>{t("history.detailHeading", { n: selected.version })}</strong>
                       <span style={{ opacity: 0.6, marginLeft: 8 }}>
-                        {SOURCE_LABELS[selected.source] ?? selected.source} ·{" "}
-                        {formatRelative(selected.createdAt)}
-                        {selected.createdBy ? ` · ${selected.createdBy}` : ""}
+                        {selected.createdBy
+                          ? t("history.detailMetaWithUser", {
+                              source: sourceLabel(selected.source, t),
+                              when: formatRelative(selected.createdAt),
+                              user: selected.createdBy,
+                            })
+                          : t("history.detailMeta", {
+                              source: sourceLabel(selected.source, t),
+                              when: formatRelative(selected.createdAt),
+                            })}
                       </span>
                     </header>
                     {selected.snapshot === null ? (
                       <p style={{ opacity: 0.6 }}>
-                        Snapshot unavailable
                         {selected.flags.includes("oversized")
-                          ? " — payload exceeded the size cap and was not stored."
-                          : "."}
+                          ? t("history.snapshotOversized")
+                          : t("history.snapshotUnavailable")}
                       </p>
                     ) : (
                       <pre className="entity-history-modal__json">
@@ -202,7 +225,7 @@ export default function EntityHistoryModal({
                     )}
                   </>
                 ) : (
-                  <p style={{ opacity: 0.6 }}>Select a version on the left.</p>
+                  <p style={{ opacity: 0.6 }}>{t("history.pickPrompt")}</p>
                 )}
               </div>
             </div>
@@ -215,7 +238,7 @@ export default function EntityHistoryModal({
         </Modal.Body>
         <Modal.Footer>
           <button type="button" className="btn" onClick={onClose}>
-            Close
+            {t("common.close")}
           </button>
           <button
             type="button"
@@ -227,20 +250,20 @@ export default function EntityHistoryModal({
               restoring
             }
           >
-            {restoring ? "Restoring…" : "Restore this version"}
+            {restoring ? t("history.restoring") : t("history.restoreThis")}
           </button>
         </Modal.Footer>
       </Modal>
       <ConfirmDialog
         open={confirmOpen}
-        title="Restore this version?"
+        title={t("history.confirmTitle")}
         message={
-          <>
-            The current state will be captured as a <code>pre_restore</code>{" "}
-            snapshot first, so you can roll back.
-          </>
+          <Trans
+            i18nKey="history.confirmMessage"
+            components={{ code: <code /> }}
+          />
         }
-        confirmLabel="Restore"
+        confirmLabel={t("history.confirmLabel")}
         onConfirm={handleRestore}
         onCancel={() => setConfirmOpen(false)}
       />

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { History } from "../lib/icons";
 import { countEntityVersions } from "../api";
 import EntityHistoryModal from "./EntityHistoryModal";
@@ -31,6 +32,7 @@ export default function HistoryButton({
   onRestored,
   ariaLabel,
 }: Props) {
+  const { t } = useTranslation();
   const [count, setCount] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -63,13 +65,13 @@ export default function HistoryButton({
       <button
         type="button"
         className={cls}
-        aria-label={ariaLabel ?? "Show version history"}
+        aria-label={ariaLabel ?? t("history.showAria")}
         aria-haspopup="dialog"
         onClick={() => setOpen(true)}
         title={
           hasVersions
-            ? `Version history (${count})`
-            : "Version history"
+            ? t("history.titleWithCount", { count })
+            : t("history.title")
         }
       >
         <History size={14} />

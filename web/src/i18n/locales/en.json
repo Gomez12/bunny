@@ -348,6 +348,37 @@
       "newChatWithAgent": "New chat with…"
     }
   },
+  "history": {
+    "showAria": "Show version history",
+    "title": "Version history",
+    "titleWithCount": "Version history ({{count}})",
+    "headerWithName": "History — {{name}}",
+    "headerNoName": "History",
+    "loadingList": "Loading versions…",
+    "loadingDetail": "Loading snapshot…",
+    "emptyMessage": "No versions yet. Edits made from now on will be tracked here.",
+    "sidebarAria": "Version history",
+    "versionPrefix": "v{{n}}",
+    "detailHeading": "Version {{n}}",
+    "detailMetaWithUser": "{{source}} · {{when}} · {{user}}",
+    "detailMeta": "{{source}} · {{when}}",
+    "snapshotUnavailable": "Snapshot unavailable.",
+    "snapshotOversized": "Snapshot unavailable — payload exceeded the size cap and was not stored.",
+    "pickPrompt": "Select a version on the left.",
+    "restoring": "Restoring…",
+    "restoreThis": "Restore this version",
+    "confirmTitle": "Restore this version?",
+    "confirmMessage": "The current state will be captured as a <code>pre_restore</code> snapshot first, so you can roll back.",
+    "confirmLabel": "Restore",
+    "source": {
+      "save": "Saved",
+      "preDelete": "Before delete",
+      "preRestore": "Before restore",
+      "restore": "Restored",
+      "manual": "Manual snapshot",
+      "backfill": "Imported"
+    }
+  },
   "composer": {
     "placeholder": "Message bunny… (Enter to send, Shift+Enter for newline, @ to mention)",
     "attachmentAlt": "attachment {{n}}",
