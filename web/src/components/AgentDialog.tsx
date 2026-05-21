@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import type {
   Agent,
   AgentContextScope,
@@ -44,6 +45,7 @@ export default function AgentDialog({
   onClose,
   onSubmit,
 }: Props) {
+  const { t } = useTranslation();
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [systemPrompt, setSystemPrompt] = useState(initial?.systemPrompt ?? "");
@@ -99,15 +101,13 @@ export default function AgentDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nameValid) {
-      setError(
-        "Name must be lowercase letters, digits, _ or - (max 63 chars).",
-      );
+      setError(t("dialog.agent.errNameSlug"));
       return;
     }
     const parsedLastN = validateOverride(lastN);
     const parsedRecallK = validateOverride(recallK);
     if (parsedLastN === undefined || parsedRecallK === undefined) {
-      setError("Memory overrides must be blank or a non-negative integer.");
+      setError(t("dialog.agent.errMemoryOverride"));
       return;
     }
     setSubmitting(true);
@@ -140,45 +140,49 @@ export default function AgentDialog({
     <Modal onClose={onClose} size="md">
       <form onSubmit={handleSubmit} className="project-form">
         <Modal.Header
-          title={mode === "create" ? "New agent" : `Edit ${initial?.name}`}
+          title={
+            mode === "create"
+              ? t("dialog.agent.titleCreate")
+              : t("dialog.agent.titleEdit", { name: initial?.name ?? "" })
+          }
         />
 
         <label className="project-form__field">
-          <span>Name</span>
+          <span>{t("dialog.agent.nameLabel")}</span>
           <input
             ref={nameRef}
             type="text"
             value={name}
             disabled={mode === "edit"}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. researcher, code-reviewer"
+            placeholder={t("dialog.agent.namePlaceholder")}
             autoComplete="off"
             required
           />
           {!nameValid && name !== "" && (
             <span className="project-form__hint project-form__hint--error">
-              Lowercase, digits, _ or - only (max 63 chars).
+              {t("dialog.agent.nameInlineErr")}
             </span>
           )}
         </label>
 
         <label className="project-form__field">
-          <span>Description</span>
+          <span>{t("dialog.agent.descriptionLabel")}</span>
           <input
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="What does this agent do? Shown in @-mention hints."
+            placeholder={t("dialog.agent.descriptionPlaceholder")}
           />
         </label>
 
         <label className="project-form__field">
-          <span>System prompt</span>
+          <span>{t("dialog.agent.systemPromptLabel")}</span>
           <textarea
             value={systemPrompt}
             onChange={(e) => setSystemPrompt(e.target.value)}
             rows={10}
-            placeholder="The agent's identity and instructions."
+            placeholder={t("dialog.agent.systemPromptPlaceholder")}
           />
         </label>
 
@@ -189,31 +193,31 @@ export default function AgentDialog({
               checked={appendMode}
               onChange={(e) => setAppendMode(e.target.checked)}
             />
-            <span>Append to base prompt (uncheck to fully replace)</span>
+            <span>{t("dialog.agent.appendMode")}</span>
           </label>
           <label className="project-form__choice">
-            <span>Visibility</span>
+            <span>{t("dialog.agent.visibilityLabel")}</span>
             <select
               value={visibility}
               onChange={(e) => setVisibility(e.target.value as AgentVisibility)}
             >
-              <option value="private">Private (only you)</option>
-              <option value="public">Public</option>
+              <option value="private">{t("dialog.agent.visibilityPrivate")}</option>
+              <option value="public">{t("dialog.agent.visibilityPublic")}</option>
             </select>
           </label>
         </div>
 
         <div className="project-form__row">
           <label className="project-form__choice">
-            <span>Context scope</span>
+            <span>{t("dialog.agent.contextScopeLabel")}</span>
             <select
               value={contextScope}
               onChange={(e) =>
                 setContextScope(e.target.value as AgentContextScope)
               }
             >
-              <option value="full">Full — sees the whole session</option>
-              <option value="own">Own — only sees its own prior turns</option>
+              <option value="full">{t("dialog.agent.contextScopeFull")}</option>
+              <option value="own">{t("dialog.agent.contextScopeOwn")}</option>
             </select>
           </label>
           <label className="project-form__choice">
@@ -222,7 +226,7 @@ export default function AgentDialog({
               checked={knowsOtherAgents}
               onChange={(e) => setKnowsOtherAgents(e.target.checked)}
             />
-            <span>Aware of other agents (injected into the prompt)</span>
+            <span>{t("dialog.agent.knowsOtherAgents")}</span>
           </label>
         </div>
 
@@ -234,41 +238,44 @@ export default function AgentDialog({
               onChange={(e) => setIsSubagent(e.target.checked)}
             />
             <span>
-              Can be called as a subagent (via <code>call_agent</code>)
+              <Trans
+                i18nKey="dialog.agent.isSubagent"
+                components={{ code: <code /> }}
+              />
             </span>
           </label>
         </div>
 
         <label className="project-form__field">
-          <span>Tools</span>
+          <span>{t("dialog.agent.toolsLabel")}</span>
           <label className="project-form__choice">
             <input
               type="checkbox"
               checked={inheritAllTools}
               onChange={(e) => setTools(e.target.checked ? null : [])}
             />
-            <span>Inherit every registered tool</span>
+            <span>{t("dialog.agent.inheritAllTools")}</span>
           </label>
           {!inheritAllTools && (
             <div className="project-form__chips">
               {allTools.length === 0 && (
-                <span className="project-form__hint">No tools registered.</span>
+                <span className="project-form__hint">{t("dialog.agent.noToolsRegistered")}</span>
               )}
-              {allTools.map((t) => (
-                <label key={t} className="project-form__chip">
+              {allTools.map((tool) => (
+                <label key={tool} className="project-form__chip">
                   <input
                     type="checkbox"
-                    checked={tools?.includes(t) ?? false}
+                    checked={tools?.includes(tool) ?? false}
                     onChange={() =>
                       setTools((prev) => {
                         const list = prev ?? [];
-                        return list.includes(t)
-                          ? list.filter((x) => x !== t)
-                          : [...list, t];
+                        return list.includes(tool)
+                          ? list.filter((x) => x !== tool)
+                          : [...list, tool];
                       })
                     }
                   />
-                  <span>{t}</span>
+                  <span>{tool}</span>
                 </label>
               ))}
             </div>
@@ -276,11 +283,9 @@ export default function AgentDialog({
         </label>
 
         <label className="project-form__field">
-          <span>Allowed subagents</span>
+          <span>{t("dialog.agent.allowedSubagentsLabel")}</span>
           {subagentOptions.length === 0 ? (
-            <span className="project-form__hint">
-              No other agents are marked as subagent-callable yet.
-            </span>
+            <span className="project-form__hint">{t("dialog.agent.noSubagentCandidates")}</span>
           ) : (
             <div className="project-form__chips">
               {subagentOptions.map((a) => (
@@ -298,14 +303,17 @@ export default function AgentDialog({
             </div>
           )}
           <span className="project-form__hint">
-            When non-empty, this agent gains the <code>call_agent</code> tool.
+            <Trans
+              i18nKey="dialog.agent.subagentsHint"
+              components={{ code: <code /> }}
+            />
           </span>
         </label>
 
         <label className="project-form__field">
-          <span>Projects</span>
+          <span>{t("dialog.agent.projectsLabel")}</span>
           {allProjects.length === 0 ? (
-            <span className="project-form__hint">No projects available.</span>
+            <span className="project-form__hint">{t("dialog.agent.noProjectsAvailable")}</span>
           ) : (
             <div className="project-form__chips">
               {allProjects.map((p) => (
@@ -322,40 +330,33 @@ export default function AgentDialog({
               ))}
             </div>
           )}
-          <span className="project-form__hint">
-            Which projects this agent is available in.
-          </span>
+          <span className="project-form__hint">{t("dialog.agent.projectsHint")}</span>
         </label>
 
         <div className="project-form__row">
           <label className="project-form__field">
-            <span>Last N turns</span>
+            <span>{t("dialog.agent.lastNLabel")}</span>
             <input
               type="number"
               min={0}
               step={1}
               value={lastN}
               onChange={(e) => setLastN(e.target.value)}
-              placeholder="inherit"
+              placeholder={t("dialog.agent.lastNPlaceholder")}
             />
-            <span className="project-form__hint">
-              Blank = inherit project / global. Set low (e.g. 0–2) for one-shot
-              specialists.
-            </span>
+            <span className="project-form__hint">{t("dialog.agent.lastNHint")}</span>
           </label>
           <label className="project-form__field">
-            <span>Hybrid recall K</span>
+            <span>{t("dialog.agent.recallKLabel")}</span>
             <input
               type="number"
               min={0}
               step={1}
               value={recallK}
               onChange={(e) => setRecallK(e.target.value)}
-              placeholder="inherit"
+              placeholder={t("dialog.agent.recallKPlaceholder")}
             />
-            <span className="project-form__hint">
-              Blank = inherit. 0 disables recall entirely for this agent.
-            </span>
+            <span className="project-form__hint">{t("dialog.agent.recallKHint")}</span>
           </label>
         </div>
 
@@ -368,14 +369,18 @@ export default function AgentDialog({
             onClick={onClose}
             disabled={submitting}
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             type="submit"
             className="btn btn--send"
             disabled={submitting || !nameValid}
           >
-            {submitting ? "Saving…" : mode === "create" ? "Create" : "Save"}
+            {submitting
+              ? t("common.saving")
+              : mode === "create"
+                ? t("common.create")
+                : t("common.save")}
           </button>
         </Modal.Footer>
       </form>
