@@ -50,6 +50,105 @@
     }
   },
   "page": {
+    "settings": {
+      "nav": {
+        "profile": "Profile",
+        "apiKeys": "API keys",
+        "users": "Users",
+        "prompts": "Prompts",
+        "trash": "Trash",
+        "logs": "Logs",
+        "scriptRuntimes": "Script Runtimes",
+        "feedPatterns": "Feed Patterns",
+        "calendar": "Calendar"
+      },
+      "loading": "Loading…",
+      "profile": {
+        "heading": "Profile",
+        "username": "Username",
+        "role": "Role",
+        "displayName": "Display name",
+        "email": "Email",
+        "preferredLanguage": "Preferred language",
+        "followProjectDefault": "Follow project default",
+        "preferredLanguageHelp": "Determines the language you author new entities in and the first tab shown when you open existing entities. If a project doesn't support this language, we use that project's default.",
+        "defaultQuickChatProject": "Default Quick Chat project",
+        "noneActiveProject": "(none — use the active project)",
+        "defaultQuickChatHelp": "Project (and its agents) used when the Electron tray spawns a Quick Chat. Leave empty to fall back to whichever project is active in the main window.",
+        "chatDisplay": "Chat display",
+        "expandThink": "Expand think bubbles by default",
+        "expandTool": "Expand tool bubbles by default",
+        "saveProfile": "Save profile",
+        "passwordHeading": "Password",
+        "currentPassword": "Current password",
+        "newPassword": "New password",
+        "changePassword": "Change password",
+        "savedProfile": "Profile saved.",
+        "savedPassword": "Password updated.",
+        "errSaveFailed": "Save failed",
+        "errChangePasswordFailed": "Could not change password"
+      },
+      "soul": {
+        "heading": "Personal style & background (soul)",
+        "description": "A short personality + style profile spliced into every chat's system prompt so assistants speak in the register you prefer. Auto-curated hourly from your messages; edit freely — your text is the seed for the next refresh.",
+        "placeholder": "e.g. I prefer terse answers in Dutch, keep responses under 3 paragraphs, I'm a backend engineer and use Bun…",
+        "counter": "{{used}} / {{cap}}",
+        "statusLine": "Status: {{status}} · last refreshed: {{when}}",
+        "never": "never",
+        "unknownStatus": "?",
+        "saving": "Saving…",
+        "save": "Save soul",
+        "saved": "Soul saved.",
+        "errLoad": "Could not load soul",
+        "errSave": "Save failed"
+      },
+      "runtimes": {
+        "heading": "Script Runtimes",
+        "descriptionPrefix": "Configure executable paths for script execution. Bun/JavaScript always works without configuration. See ",
+        "descriptionLink": "docs",
+        "descriptionSuffix": " for .NET file-based run.",
+        "pathPlaceholder": "/path/to/{{label}}",
+        "saving": "Saving…",
+        "save": "Save",
+        "saved": "Saved.",
+        "errLoad": "Failed to load runtime config",
+        "errSave": "Failed to save.",
+        "rows": {
+          "dotnet": {
+            "label": "dotnet",
+            "help": "Path to the dotnet executable. .NET 10+ supports file-based run. Empty = C# execution disabled."
+          },
+          "python": {
+            "label": "python",
+            "help": "Path to the python executable. Empty = Python execution disabled."
+          },
+          "powershell": {
+            "label": "pwsh",
+            "help": "Path to PowerShell (pwsh). Empty = defaults to 'pwsh' on PATH."
+          },
+          "go": {
+            "label": "go",
+            "help": "Path to the Go executable. Empty = defaults to 'go' on PATH."
+          },
+          "bun": {
+            "label": "bun (override)",
+            "help": "Override the Bun executable path. Empty = uses the current Bun process (always available)."
+          }
+        }
+      },
+      "globalCalendar": {
+        "heading": "Global Calendar",
+        "description": "Non-working days set here apply across all projects and users unless overridden at a lower scope. Use \"Fetch holidays\" to auto-import national public holidays via an agent.",
+        "markWeekendsLabel": "Mark all weekends as non-working for year",
+        "markWeekends": "Mark weekends",
+        "marking": "Marking…",
+        "weekendsMarked": "Marked {{count}} new weekend days as non-working for {{year}}."
+      },
+      "userCalendar": {
+        "heading": "My Calendar",
+        "description": "Mark personal vacation days or working exceptions. Your calendar takes priority over all other scopes."
+      }
+    },
     "login": {
       "title": "Sign in to Bunny",
       "username": "Username",

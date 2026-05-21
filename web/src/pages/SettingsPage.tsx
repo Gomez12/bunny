@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type {
   AuthUser,
   CalendarException,
@@ -54,9 +55,11 @@ export default function SettingsPage({
   initialSub?: "logs";
   initialLogsErrorsOnly?: boolean;
 }) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>(
     initialSub && user.role === "admin" ? initialSub : "profile",
   );
+  const loadingFallback = <div className="app-loading">{t("page.settings.loading")}</div>;
 
   return (
     <div className="settings">
@@ -65,44 +68,44 @@ export default function SettingsPage({
           className={tab === "profile" ? "active" : ""}
           onClick={() => setTab("profile")}
         >
-          Profile
+          {t("page.settings.nav.profile")}
         </button>
         <button className={tab === "keys" ? "active" : ""} onClick={() => setTab("keys")}>
-          API keys
+          {t("page.settings.nav.apiKeys")}
         </button>
         {user.role === "admin" && (
           <button className={tab === "users" ? "active" : ""} onClick={() => setTab("users")}>
-            Users
+            {t("page.settings.nav.users")}
           </button>
         )}
         {user.role === "admin" && (
           <button className={tab === "prompts" ? "active" : ""} onClick={() => setTab("prompts")}>
-            Prompts
+            {t("page.settings.nav.prompts")}
           </button>
         )}
         {user.role === "admin" && (
           <button className={tab === "trash" ? "active" : ""} onClick={() => setTab("trash")}>
-            Trash
+            {t("page.settings.nav.trash")}
           </button>
         )}
         {user.role === "admin" && (
           <button className={tab === "logs" ? "active" : ""} onClick={() => setTab("logs")}>
-            Logs
+            {t("page.settings.nav.logs")}
           </button>
         )}
         {user.role === "admin" && (
           <button className={tab === "runtimes" ? "active" : ""} onClick={() => setTab("runtimes")}>
-            Script Runtimes
+            {t("page.settings.nav.scriptRuntimes")}
           </button>
         )}
         {user.role === "admin" && (
           <button className={tab === "feed_patterns" ? "active" : ""} onClick={() => setTab("feed_patterns")}>
-            Feed Patterns
+            {t("page.settings.nav.feedPatterns")}
           </button>
         )}
         {user.role === "admin" && (
           <button className={tab === "calendar" ? "active" : ""} onClick={() => setTab("calendar")}>
-            Calendar
+            {t("page.settings.nav.calendar")}
           </button>
         )}
       </nav>
@@ -115,17 +118,17 @@ export default function SettingsPage({
         {tab === "keys" && <ApiKeyList />}
         {tab === "users" && user.role === "admin" && <UserList currentUserId={user.id} />}
         {tab === "prompts" && user.role === "admin" && (
-          <Suspense fallback={<div className="app-loading">Loading…</div>}>
+          <Suspense fallback={loadingFallback}>
             <PromptsAdminTab />
           </Suspense>
         )}
         {tab === "trash" && user.role === "admin" && (
-          <Suspense fallback={<div className="app-loading">Loading…</div>}>
+          <Suspense fallback={loadingFallback}>
             <TrashTab />
           </Suspense>
         )}
         {tab === "logs" && user.role === "admin" && (
-          <Suspense fallback={<div className="app-loading">Loading…</div>}>
+          <Suspense fallback={loadingFallback}>
             <LogsTab initialErrorsOnly={initialLogsErrorsOnly} />
           </Suspense>
         )}
@@ -133,7 +136,7 @@ export default function SettingsPage({
           <ScriptRuntimesForm />
         )}
         {tab === "feed_patterns" && user.role === "admin" && (
-          <Suspense fallback={<div className="app-loading">Loading…</div>}>
+          <Suspense fallback={loadingFallback}>
             <FeedPatternsAdmin />
           </Suspense>
         )}
@@ -167,6 +170,7 @@ const LANGUAGE_OPTIONS: ReadonlyArray<{ code: string; name: string }> = [
 ];
 
 function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthUser) => void }) {
+  const { t } = useTranslation();
   const [displayName, setDisplayName] = useState(user.displayName ?? "");
   const [email, setEmail] = useState(user.email ?? "");
   const [expandThink, setExpandThink] = useState(user.expandThinkBubbles);
@@ -221,9 +225,9 @@ function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthU
         defaultQuickChatProject: defaultQcProject || null,
       });
       onUpdated({ ...u, uiPrefs: { ...(u.uiPrefs ?? {}), ...nextPrefs } });
-      setMsg("Profile saved.");
+      setMsg(t("page.settings.profile.savedProfile"));
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Save failed");
+      setErr(e instanceof Error ? e.message : t("page.settings.profile.errSaveFailed"));
     }
   };
 
@@ -235,41 +239,45 @@ function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthU
       await changeOwnPassword(currentPw, newPw);
       setCurrentPw("");
       setNewPw("");
-      setMsg("Password updated.");
+      setMsg(t("page.settings.profile.savedPassword"));
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Could not change password");
+      setErr(
+        e instanceof Error
+          ? e.message
+          : t("page.settings.profile.errChangePasswordFailed"),
+      );
     }
   };
 
   return (
     <div className="profile">
       <form onSubmit={save}>
-        <h2>Profile</h2>
+        <h2>{t("page.settings.profile.heading")}</h2>
         <div className="read-only">
           <div>
-            <span className="muted">Username</span>
+            <span className="muted">{t("page.settings.profile.username")}</span>
             <span>{user.username}</span>
           </div>
           <div>
-            <span className="muted">Role</span>
+            <span className="muted">{t("page.settings.profile.role")}</span>
             <span>{user.role}</span>
           </div>
         </div>
         <label>
-          <span>Display name</span>
+          <span>{t("page.settings.profile.displayName")}</span>
           <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
         </label>
         <label>
-          <span>Email</span>
+          <span>{t("page.settings.profile.email")}</span>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </label>
         <label>
-          <span>Preferred language</span>
+          <span>{t("page.settings.profile.preferredLanguage")}</span>
           <select
             value={preferredLang}
             onChange={(e) => setPreferredLang(e.target.value)}
           >
-            <option value="">Follow project default</option>
+            <option value="">{t("page.settings.profile.followProjectDefault")}</option>
             {LANGUAGE_OPTIONS.map((opt) => (
               <option key={opt.code} value={opt.code}>
                 {opt.code.toUpperCase()} · {opt.name}
@@ -277,18 +285,16 @@ function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthU
             ))}
           </select>
           <span className="muted" style={{ fontSize: 12 }}>
-            Determines the language you author new entities in and the first
-            tab shown when you open existing entities. If a project doesn't
-            support this language, we use that project's default.
+            {t("page.settings.profile.preferredLanguageHelp")}
           </span>
         </label>
         <label>
-          <span>Default Quick Chat project</span>
+          <span>{t("page.settings.profile.defaultQuickChatProject")}</span>
           <select
             value={defaultQcProject}
             onChange={(e) => setDefaultQcProject(e.target.value)}
           >
-            <option value="">(none — use the active project)</option>
+            <option value="">{t("page.settings.profile.noneActiveProject")}</option>
             {projects.map((p) => (
               <option key={p.name} value={p.name}>
                 {p.name}
@@ -296,19 +302,17 @@ function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthU
             ))}
           </select>
           <span className="muted" style={{ fontSize: 12 }}>
-            Project (and its agents) used when the Electron tray spawns a
-            Quick Chat. Leave empty to fall back to whichever project is
-            active in the main window.
+            {t("page.settings.profile.defaultQuickChatHelp")}
           </span>
         </label>
-        <h3>Chat display</h3>
+        <h3>{t("page.settings.profile.chatDisplay")}</h3>
         <label className="checkbox">
           <input
             type="checkbox"
             checked={expandThink}
             onChange={(e) => setExpandThink(e.target.checked)}
           />
-          <span>Expand think bubbles by default</span>
+          <span>{t("page.settings.profile.expandThink")}</span>
         </label>
         <label className="checkbox">
           <input
@@ -316,15 +320,15 @@ function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthU
             checked={expandTool}
             onChange={(e) => setExpandTool(e.target.checked)}
           />
-          <span>Expand tool bubbles by default</span>
+          <span>{t("page.settings.profile.expandTool")}</span>
         </label>
-        <button type="submit">Save profile</button>
+        <button type="submit">{t("page.settings.profile.saveProfile")}</button>
       </form>
 
       <form onSubmit={submitPw}>
-        <h2>Password</h2>
+        <h2>{t("page.settings.profile.passwordHeading")}</h2>
         <label>
-          <span>Current password</span>
+          <span>{t("page.settings.profile.currentPassword")}</span>
           <input
             type="password"
             value={currentPw}
@@ -333,7 +337,7 @@ function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthU
           />
         </label>
         <label>
-          <span>New password</span>
+          <span>{t("page.settings.profile.newPassword")}</span>
           <input
             type="password"
             value={newPw}
@@ -341,7 +345,7 @@ function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthU
             required
           />
         </label>
-        <button type="submit">Change password</button>
+        <button type="submit">{t("page.settings.profile.changePassword")}</button>
       </form>
 
       {msg && <div className="auth-ok">{msg}</div>}
@@ -357,6 +361,7 @@ function ProfileForm({ user, onUpdated }: { user: AuthUser; onUpdated: (u: AuthU
 }
 
 function SoulForm() {
+  const { t } = useTranslation();
   const [info, setInfo] = useState<SoulInfo | null>(null);
   const [draft, setDraft] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -372,12 +377,12 @@ function SoulForm() {
         setDraft(s.soul);
       })
       .catch((e) =>
-        setErr(e instanceof Error ? e.message : "Could not load soul"),
+        setErr(e instanceof Error ? e.message : t("page.settings.soul.errLoad")),
       );
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -388,9 +393,9 @@ function SoulForm() {
       const next = await updateOwnSoul(draft);
       setInfo(next);
       setDraft(next.soul);
-      setMsg("Soul saved.");
+      setMsg(t("page.settings.soul.saved"));
     } catch (e2) {
-      setErr(e2 instanceof Error ? e2.message : "Save failed");
+      setErr(e2 instanceof Error ? e2.message : t("page.settings.soul.errSave"));
     } finally {
       setSaving(false);
     }
@@ -400,23 +405,20 @@ function SoulForm() {
   const formatted =
     info?.refreshedAt != null
       ? new Date(info.refreshedAt).toLocaleString()
-      : "never";
+      : t("page.settings.soul.never");
 
   return (
     <form onSubmit={save}>
-      <h2>Personal style & background (soul)</h2>
+      <h2>{t("page.settings.soul.heading")}</h2>
       <p className="muted" style={{ fontSize: 13, lineHeight: 1.45 }}>
-        A short personality + style profile spliced into every chat's system
-        prompt so assistants speak in the register you prefer. Auto-curated
-        hourly from your messages; edit freely — your text is the seed for the
-        next refresh.
+        {t("page.settings.soul.description")}
       </p>
       <textarea
         value={draft}
         onChange={(e) => setDraft(e.target.value.slice(0, cap))}
         rows={10}
         style={{ width: "100%", fontFamily: "inherit", fontSize: 14 }}
-        placeholder="e.g. I prefer terse answers in Dutch, keep responses under 3 paragraphs, I'm a backend engineer and use Bun…"
+        placeholder={t("page.settings.soul.placeholder")}
       />
       <div
         className="muted"
@@ -427,14 +429,17 @@ function SoulForm() {
         }}
       >
         <span>
-          {draft.length} / {cap}
+          {t("page.settings.soul.counter", { used: draft.length, cap })}
         </span>
         <span>
-          Status: {info?.status ?? "?"} · last refreshed: {formatted}
+          {t("page.settings.soul.statusLine", {
+            status: info?.status ?? t("page.settings.soul.unknownStatus"),
+            when: formatted,
+          })}
         </span>
       </div>
       <button type="submit" disabled={saving}>
-        {saving ? "Saving…" : "Save soul"}
+        {saving ? t("page.settings.soul.saving") : t("page.settings.soul.save")}
       </button>
       {msg && <div className="auth-ok">{msg}</div>}
       {err && <div className="auth-error">{err}</div>}
@@ -444,39 +449,49 @@ function SoulForm() {
 
 // ── Script Runtimes Admin Form ────────────────────────────────────────────────
 
-const RUNTIME_ROWS: {
-  field: keyof ScriptRuntimes;
-  label: string;
-  help: string;
-}[] = [
-  {
-    field: "dotnetPath",
-    label: "dotnet",
-    help: "Path to the dotnet executable. .NET 10+ supports file-based run. Empty = C# execution disabled.",
-  },
-  {
-    field: "pythonPath",
-    label: "python",
-    help: "Path to the python executable. Empty = Python execution disabled.",
-  },
-  {
-    field: "powershellPath",
-    label: "pwsh",
-    help: "Path to PowerShell (pwsh). Empty = defaults to 'pwsh' on PATH.",
-  },
-  {
-    field: "goPath",
-    label: "go",
-    help: "Path to the Go executable. Empty = defaults to 'go' on PATH.",
-  },
-  {
-    field: "bunPath",
-    label: "bun (override)",
-    help: "Override the Bun executable path. Empty = uses the current Bun process (always available).",
-  },
+const RUNTIME_FIELDS: ReadonlyArray<keyof ScriptRuntimes> = [
+  "dotnetPath",
+  "pythonPath",
+  "powershellPath",
+  "goPath",
+  "bunPath",
 ];
 
+function runtimeRowText(
+  field: keyof ScriptRuntimes,
+  t: ReturnType<typeof useTranslation>["t"],
+): { label: string; help: string } {
+  switch (field) {
+    case "dotnetPath":
+      return {
+        label: t("page.settings.runtimes.rows.dotnet.label"),
+        help: t("page.settings.runtimes.rows.dotnet.help"),
+      };
+    case "pythonPath":
+      return {
+        label: t("page.settings.runtimes.rows.python.label"),
+        help: t("page.settings.runtimes.rows.python.help"),
+      };
+    case "powershellPath":
+      return {
+        label: t("page.settings.runtimes.rows.powershell.label"),
+        help: t("page.settings.runtimes.rows.powershell.help"),
+      };
+    case "goPath":
+      return {
+        label: t("page.settings.runtimes.rows.go.label"),
+        help: t("page.settings.runtimes.rows.go.help"),
+      };
+    case "bunPath":
+      return {
+        label: t("page.settings.runtimes.rows.bun.label"),
+        help: t("page.settings.runtimes.rows.bun.help"),
+      };
+  }
+}
+
 function ScriptRuntimesForm() {
+  const { t } = useTranslation();
   const [runtimes, setRuntimes] = useState<ScriptRuntimes | null>(null);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -485,10 +500,10 @@ function ScriptRuntimesForm() {
   useEffect(() => {
     fetchScriptRuntimes()
       .then(setRuntimes)
-      .catch(() => setErr("Failed to load runtime config"));
-  }, []);
+      .catch(() => setErr(t("page.settings.runtimes.errLoad")));
+  }, [t]);
 
-  if (!runtimes) return <div className="loading-state">Loading…</div>;
+  if (!runtimes) return <div className="loading-state">{t("page.settings.loading")}</div>;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -497,9 +512,9 @@ function ScriptRuntimesForm() {
     setErr(null);
     try {
       await patchScriptRuntimes(runtimes!);
-      setMsg("Saved.");
+      setMsg(t("page.settings.runtimes.saved"));
     } catch {
-      setErr("Failed to save.");
+      setErr(t("page.settings.runtimes.errSave"));
     } finally {
       setSaving(false);
     }
@@ -507,43 +522,47 @@ function ScriptRuntimesForm() {
 
   return (
     <form className="profile" onSubmit={handleSubmit}>
-      <h2>Script Runtimes</h2>
+      <h2>{t("page.settings.runtimes.heading")}</h2>
       <p className="muted" style={{ marginBottom: "16px" }}>
-        Configure executable paths for script execution. Bun/JavaScript always
-        works without configuration. See{" "}
+        {t("page.settings.runtimes.descriptionPrefix")}
         <a
           href="https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-run"
           target="_blank"
           rel="noopener noreferrer"
         >
-          docs
-        </a>{" "}
-        for .NET file-based run.
+          {t("page.settings.runtimes.descriptionLink")}
+        </a>
+        {t("page.settings.runtimes.descriptionSuffix")}
       </p>
 
-      {RUNTIME_ROWS.map(({ field, label, help }) => (
-        <div className="form-group" key={field}>
-          <label className="form-label" htmlFor={`runtime-${field}`}>
-            {label}
-          </label>
-          <input
-            id={`runtime-${field}`}
-            className="form-input"
-            type="text"
-            value={runtimes![field]}
-            onChange={(e) =>
-              setRuntimes((prev) => ({ ...prev!, [field]: e.target.value }))
-            }
-            placeholder={`/path/to/${label}`}
-          />
-          <p className="muted" style={{ fontSize: "12px", marginTop: "2px" }}>
-            {help}
-          </p>
-        </div>
-      ))}
+      {RUNTIME_FIELDS.map((field) => {
+        const { label, help } = runtimeRowText(field, t);
+        return (
+          <div className="form-group" key={field}>
+            <label className="form-label" htmlFor={`runtime-${field}`}>
+              {label}
+            </label>
+            <input
+              id={`runtime-${field}`}
+              className="form-input"
+              type="text"
+              value={runtimes![field]}
+              onChange={(e) =>
+                setRuntimes((prev) => ({ ...prev!, [field]: e.target.value }))
+              }
+              placeholder={t("page.settings.runtimes.pathPlaceholder", { label })}
+            />
+            <p className="muted" style={{ fontSize: "12px", marginTop: "2px" }}>
+              {help}
+            </p>
+          </div>
+        );
+      })}
 
       <button type="submit" disabled={saving} className="btn btn--primary">
-        {saving ? "Saving…" : "Save"}
+        {saving
+          ? t("page.settings.runtimes.saving")
+          : t("page.settings.runtimes.save")}
       </button>
       {msg && <div className="auth-ok" style={{ marginTop: "8px" }}>{msg}</div>}
       {err && <div className="auth-error" style={{ marginTop: "8px" }}>{err}</div>}
@@ -554,6 +573,7 @@ function ScriptRuntimesForm() {
 // ── Global Calendar Admin Section ─────────────────────────────────────────────
 
 function GlobalCalendarSection() {
+  const { t } = useTranslation();
   const [exceptions, setExceptions] = useState<CalendarException[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [weekendYear, setWeekendYear] = useState(new Date().getFullYear());
@@ -585,7 +605,12 @@ function GlobalCalendarSection() {
     setError(null);
     try {
       const { count } = await markWeekendsAsNonWorking(weekendYear);
-      setWeekendMsg(`Marked ${count} new weekend days as non-working for ${weekendYear}.`);
+      setWeekendMsg(
+        t("page.settings.globalCalendar.weekendsMarked", {
+          count,
+          year: weekendYear,
+        }),
+      );
       await reload();
     } catch (ex) {
       setError(ex instanceof Error ? ex.message : String(ex));
@@ -596,16 +621,16 @@ function GlobalCalendarSection() {
 
   return (
     <div className="profile">
-      <h2>Global Calendar</h2>
+      <h2>{t("page.settings.globalCalendar.heading")}</h2>
       <p className="muted" style={{ marginBottom: 16 }}>
-        Non-working days set here apply across all projects and users unless
-        overridden at a lower scope. Use "Fetch holidays" to auto-import national
-        public holidays via an agent.
+        {t("page.settings.globalCalendar.description")}
       </p>
 
       <form onSubmit={(e) => void handleMarkWeekends(e)} style={{ display: "flex", alignItems: "flex-end", gap: 8, marginBottom: 16 }}>
         <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 12, color: "var(--text-dim)" }}>Mark all weekends as non-working for year</span>
+          <span style={{ fontSize: 12, color: "var(--text-dim)" }}>
+            {t("page.settings.globalCalendar.markWeekendsLabel")}
+          </span>
           <input
             type="number"
             min={1970}
@@ -617,7 +642,9 @@ function GlobalCalendarSection() {
           />
         </label>
         <button type="submit" className="btn btn--sm" disabled={weekendBusy}>
-          {weekendBusy ? "Marking…" : "Mark weekends"}
+          {weekendBusy
+            ? t("page.settings.globalCalendar.marking")
+            : t("page.settings.globalCalendar.markWeekends")}
         </button>
         {weekendMsg && <span style={{ fontSize: 12, color: "var(--ok, #38a169)" }}>{weekendMsg}</span>}
       </form>
@@ -648,6 +675,7 @@ function GlobalCalendarSection() {
 // ── User Personal Calendar Section ───────────────────────────────────────────
 
 function UserCalendarSection() {
+  const { t } = useTranslation();
   const [exceptions, setExceptions] = useState<CalendarException[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -663,10 +691,9 @@ function UserCalendarSection() {
 
   return (
     <div>
-      <h2>My Calendar</h2>
+      <h2>{t("page.settings.userCalendar.heading")}</h2>
       <p className="muted" style={{ marginBottom: 16 }}>
-        Mark personal vacation days or working exceptions. Your calendar takes
-        priority over all other scopes.
+        {t("page.settings.userCalendar.description")}
       </p>
       {error && <div className="auth-error">{error}</div>}
       <CalendarExceptionEditor

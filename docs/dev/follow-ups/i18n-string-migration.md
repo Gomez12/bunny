@@ -78,7 +78,17 @@ order, highest-traffic first:
    CodeSecretsView, news-template renderers, dialog
    components) and the dynamic-key lookups (e.g.
    DIAGRAM_TYPE_LABELS) remain as component-family follow-ups.
-6. `pages/`.
+6. `pages/` — done 2026-05-21.
+   - `LoginPage` (form labels, submit + submitting state,
+     error fallback).
+   - `ChangePasswordPage` (forced/voluntary titles, forced
+     note, three form labels, submit + submitting, three
+     error variants).
+   - `SettingsPage` (nav, Suspense loading, profile +
+     password forms, SoulForm, ScriptRuntimesForm with a
+     static-key switch helper, GlobalCalendarSection,
+     UserCalendarSection). LANGUAGE_OPTIONS deliberately
+     keeps language names in their native script.
 7. The rest of `components/` (forms, menus, popovers).
 
 Each PR adds new keys to `en.json` / `nl.json`, runs

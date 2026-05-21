@@ -50,6 +50,105 @@
     }
   },
   "page": {
+    "settings": {
+      "nav": {
+        "profile": "Profiel",
+        "apiKeys": "API-sleutels",
+        "users": "Gebruikers",
+        "prompts": "Prompts",
+        "trash": "Prullenbak",
+        "logs": "Logs",
+        "scriptRuntimes": "Script-runtimes",
+        "feedPatterns": "Feed-patronen",
+        "calendar": "Kalender"
+      },
+      "loading": "Laden…",
+      "profile": {
+        "heading": "Profiel",
+        "username": "Gebruikersnaam",
+        "role": "Rol",
+        "displayName": "Weergavenaam",
+        "email": "E-mail",
+        "preferredLanguage": "Voorkeurstaal",
+        "followProjectDefault": "Volg project-standaard",
+        "preferredLanguageHelp": "Bepaalt de taal waarin je nieuwe entiteiten aanmaakt en het eerste tabblad bij het openen van bestaande entiteiten. Als een project deze taal niet ondersteunt, gebruiken we de project-standaard.",
+        "defaultQuickChatProject": "Standaard Quick Chat-project",
+        "noneActiveProject": "(geen — gebruik actief project)",
+        "defaultQuickChatHelp": "Project (en zijn agents) gebruikt wanneer de Electron-tray een Quick Chat opent. Laat leeg om terug te vallen op het project dat actief is in het hoofdvenster.",
+        "chatDisplay": "Chatweergave",
+        "expandThink": "Denkbubbels standaard uitklappen",
+        "expandTool": "Tool-bubbels standaard uitklappen",
+        "saveProfile": "Profiel opslaan",
+        "passwordHeading": "Wachtwoord",
+        "currentPassword": "Huidig wachtwoord",
+        "newPassword": "Nieuw wachtwoord",
+        "changePassword": "Wachtwoord wijzigen",
+        "savedProfile": "Profiel opgeslagen.",
+        "savedPassword": "Wachtwoord bijgewerkt.",
+        "errSaveFailed": "Opslaan mislukt",
+        "errChangePasswordFailed": "Kon wachtwoord niet wijzigen"
+      },
+      "soul": {
+        "heading": "Persoonlijke stijl & achtergrond (ziel)",
+        "description": "Een kort persoonlijkheids- + stijlprofiel dat in elke chat-systeemprompt wordt opgenomen zodat assistenten in jouw register spreken. Wordt automatisch elk uur uit je berichten gegenereerd; je mag vrij bewerken — je tekst is de basis voor de volgende verversing.",
+        "placeholder": "bv. Ik wil korte antwoorden in het Nederlands, houd reacties onder 3 alinea's, ik ben backend-engineer en gebruik Bun…",
+        "counter": "{{used}} / {{cap}}",
+        "statusLine": "Status: {{status}} · laatst ververst: {{when}}",
+        "never": "nooit",
+        "unknownStatus": "?",
+        "saving": "Opslaan…",
+        "save": "Ziel opslaan",
+        "saved": "Ziel opgeslagen.",
+        "errLoad": "Kon ziel niet laden",
+        "errSave": "Opslaan mislukt"
+      },
+      "runtimes": {
+        "heading": "Script-runtimes",
+        "descriptionPrefix": "Configureer paden naar uitvoerbare bestanden voor script-execution. Bun/JavaScript werkt altijd zonder configuratie. Zie ",
+        "descriptionLink": "documentatie",
+        "descriptionSuffix": " voor .NET file-based run.",
+        "pathPlaceholder": "/path/to/{{label}}",
+        "saving": "Opslaan…",
+        "save": "Opslaan",
+        "saved": "Opgeslagen.",
+        "errLoad": "Kon runtime-configuratie niet laden",
+        "errSave": "Opslaan mislukt.",
+        "rows": {
+          "dotnet": {
+            "label": "dotnet",
+            "help": "Pad naar het dotnet-executable. .NET 10+ ondersteunt file-based run. Leeg = C#-executie uitgeschakeld."
+          },
+          "python": {
+            "label": "python",
+            "help": "Pad naar het python-executable. Leeg = Python-executie uitgeschakeld."
+          },
+          "powershell": {
+            "label": "pwsh",
+            "help": "Pad naar PowerShell (pwsh). Leeg = standaard 'pwsh' op PATH."
+          },
+          "go": {
+            "label": "go",
+            "help": "Pad naar het Go-executable. Leeg = standaard 'go' op PATH."
+          },
+          "bun": {
+            "label": "bun (override)",
+            "help": "Override van het Bun-executable pad. Leeg = gebruikt het huidige Bun-proces (altijd beschikbaar)."
+          }
+        }
+      },
+      "globalCalendar": {
+        "heading": "Globale kalender",
+        "description": "Niet-werkbare dagen hier ingesteld gelden voor alle projecten en gebruikers, tenzij op een lager niveau overschreven. Gebruik \"Feestdagen ophalen\" om landelijke feestdagen via een agent automatisch te importeren.",
+        "markWeekendsLabel": "Alle weekenden als niet-werkbaar markeren voor jaar",
+        "markWeekends": "Weekenden markeren",
+        "marking": "Markeren…",
+        "weekendsMarked": "{{count}} nieuwe weekenddagen gemarkeerd als niet-werkbaar voor {{year}}."
+      },
+      "userCalendar": {
+        "heading": "Mijn kalender",
+        "description": "Markeer persoonlijke vakantiedagen of werk-uitzonderingen. Jouw kalender heeft voorrang boven alle andere scopes."
+      }
+    },
     "login": {
       "title": "Inloggen bij Bunny",
       "username": "Gebruikersnaam",
