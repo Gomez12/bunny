@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import EmptyState from "../components/EmptyState";
 import WhiteboardSidebar from "../components/WhiteboardSidebar";
 import EntityComposer from "../components/EntityComposer";
@@ -30,6 +31,7 @@ interface Props {
 }
 
 export default function WhiteboardTab({ project, onOpenInChat }: Props) {
+  const { t } = useTranslation();
   const [whiteboards, setWhiteboards] = useState<WhiteboardSummary[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [initialElements, setInitialElements] = useState<
@@ -246,7 +248,7 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
       let fullContent = "";
       const reader = res.body?.getReader();
       if (!reader) {
-        setError("No response body");
+        setError(t("tab.whiteboard.error.noResponseBody"));
         setStreaming(false);
         return;
       }
@@ -281,7 +283,7 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
 
       const parsed = extractElementsArray(fullContent);
       if (!parsed) {
-        setError("Could not extract valid JSON from the response");
+        setError(t("tab.whiteboard.error.noValidJson"));
         setStreaming(false);
         return;
       }
@@ -304,10 +306,14 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
           ),
         );
         setEditPreview(
-          `✓ Whiteboard updated (${restored.length} element${restored.length !== 1 ? "s" : ""})`,
+          restored.length === 1
+            ? t("tab.whiteboard.updatedOne")
+            : t("tab.whiteboard.updatedMany", { count: restored.length }),
         );
       } catch (e) {
-        const msg = `Invalid elements JSON: ${e}`;
+        const msg = t("tab.whiteboard.error.invalidElements", {
+          detail: String(e),
+        });
         setError(msg);
         setEditPreviewError(msg);
       }
@@ -342,7 +348,7 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
             {streaming && (
               <div className="wb-tab__overlay">
                 <span className="spinner" />
-                <span>AI is editing the whiteboard…</span>
+                <span>{t("tab.whiteboard.aiEditing")}</span>
               </div>
             )}
             {error && (
@@ -377,14 +383,14 @@ export default function WhiteboardTab({ project, onOpenInChat }: Props) {
               onSave={handleManualSave}
               streaming={streaming}
               dirty={dirty}
-              editPlaceholder="Describe changes to the whiteboard… (Enter to send)"
-              questionPlaceholder="Ask a question about the whiteboard… (opens Chat)"
+              editPlaceholder={t("tab.whiteboard.editPlaceholder")}
+              questionPlaceholder={t("tab.whiteboard.questionPlaceholder")}
             />
           </>
         ) : (
           <EmptyState
-            title="No whiteboards yet"
-            description="Create one to get started."
+            title={t("tab.whiteboard.emptyTitle")}
+            description={t("tab.whiteboard.emptyDescription")}
           />
         )}
       </div>

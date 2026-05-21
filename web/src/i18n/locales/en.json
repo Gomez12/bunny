@@ -128,6 +128,20 @@
         "save": "Save"
       }
     },
+    "whiteboard": {
+      "emptyTitle": "No whiteboards yet",
+      "emptyDescription": "Create one to get started.",
+      "aiEditing": "AI is editing the whiteboard…",
+      "editPlaceholder": "Describe changes to the whiteboard… (Enter to send)",
+      "questionPlaceholder": "Ask a question about the whiteboard… (opens Chat)",
+      "updatedOne": "✓ Whiteboard updated (1 element)",
+      "updatedMany": "✓ Whiteboard updated ({{count}} elements)",
+      "error": {
+        "noResponseBody": "No response body",
+        "noValidJson": "Could not extract valid JSON from the response",
+        "invalidElements": "Invalid elements JSON: {{detail}}"
+      }
+    },
     "workspace": {
       "a11y": {
         "sections": "Workspace sections"
