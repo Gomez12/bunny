@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { fetchProjectAgents, type Agent } from "../api";
 import { Bot } from "../lib/icons";
 import Modal from "./Modal";
@@ -22,6 +23,7 @@ export default function NewChatWithAgentDialog({
   onPick,
   onCancel,
 }: Props) {
+  const { t } = useTranslation();
   const [agents, setAgents] = useState<Agent[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,24 +53,32 @@ export default function NewChatWithAgentDialog({
 
   return (
     <Modal onClose={onCancel}>
-      <Modal.Header title="New chat with…" />
+      <Modal.Header title={t("dialog.newChatWithAgent.title")} />
       <p style={{ margin: "0 0 14px", opacity: 0.7, fontSize: 13 }}>
-        Pick an agent. A fresh session opens, pre-bound to them.
+        {t("dialog.newChatWithAgent.description")}
       </p>
-      {error && <div className="bubble__error">error: {error}</div>}
+      {error && (
+        <div className="bubble__error">
+          {t("tab.chat.errorLabel", { message: error })}
+        </div>
+      )}
       {!error && agents === null && (
-        <div style={{ opacity: 0.6 }}>Loading…</div>
+        <div style={{ opacity: 0.6 }}>{t("dialog.newChatWithAgent.loading")}</div>
       )}
       {!error && agents !== null && !hasAgents && (
         <div style={{ opacity: 0.7 }}>
-          No agents are linked to project <strong>{project}</strong>.
+          <Trans
+            i18nKey="dialog.newChatWithAgent.noAgents"
+            values={{ project }}
+            components={{ strong: <strong /> }}
+          />
         </div>
       )}
       {hasAgents && (
         <ul
           className="new-chat-agent-list"
           role="listbox"
-          aria-label="Available agents"
+          aria-label={t("dialog.newChatWithAgent.agentsAria")}
         >
           <li role="presentation" style={{ listStyle: "none" }}>
             <button
@@ -79,7 +89,7 @@ export default function NewChatWithAgentDialog({
               <Bot size={16} />
               <span className="new-chat-agent-name">@{defaultAgent}</span>
               <span className="new-chat-agent-hint">
-                {defaultMeta?.description || "default"}
+                {defaultMeta?.description || t("dialog.newChatWithAgent.defaultHint")}
               </span>
             </button>
           </li>
@@ -108,7 +118,7 @@ export default function NewChatWithAgentDialog({
       )}
       <Modal.Footer>
         <button type="button" className="btn" onClick={onCancel}>
-          Close
+          {t("common.close")}
         </button>
       </Modal.Footer>
     </Modal>

@@ -4,7 +4,69 @@
     "cancel": "Annuleren",
     "close": "Sluiten",
     "delete": "Verwijderen",
-    "edit": "Bewerken"
+    "edit": "Bewerken",
+    "save": "Opslaan",
+    "create": "Aanmaken",
+    "saving": "Opslaan…"
+  },
+  "dialog": {
+    "errors": {
+      "slugInvalid": "Naam moet beginnen met een letter of cijfer en mag alleen kleine letters, cijfers, '-' of '_' bevatten."
+    },
+    "codePicker": {
+      "title": "Codeprojecten",
+      "new": "Nieuw",
+      "empty": "Nog geen codeprojecten. Voeg er één toe om te beginnen.",
+      "status": {
+        "cloning": "Klonen",
+        "error": "Klonen mislukt",
+        "ready": "Gereed",
+        "idle": "Inactief"
+      }
+    },
+    "planningPicker": {
+      "title": "Planningprojecten",
+      "new": "Nieuw",
+      "empty": "Nog geen planningprojecten. Voeg er één toe om te beginnen."
+    },
+    "newChatWithAgent": {
+      "title": "Nieuwe chat met…",
+      "description": "Kies een agent. Er opent een verse sessie, vooraf aan deze agent gekoppeld.",
+      "loading": "Laden…",
+      "noAgents": "Er zijn geen agents gekoppeld aan project <strong>{{project}}</strong>.",
+      "agentsAria": "Beschikbare agents",
+      "defaultHint": "standaard"
+    },
+    "codeProject": {
+      "titleCreate": "Nieuw codeproject",
+      "titleEdit": "Codeproject bewerken",
+      "nameLabel": "Naam",
+      "namePlaceholder": "my-repo",
+      "nameHint": "Wordt als mapnaam gebruikt. Onveranderbaar na aanmaken.",
+      "descriptionLabel": "Beschrijving",
+      "gitUrlLabel": "Git-URL (optioneel)",
+      "gitUrlPlaceholder": "https://github.com/user/repo.git",
+      "gitUrlHint": "Alleen publieke repositories (https:// of git://). Laat leeg voor een lokale scratch-omgeving.",
+      "gitRefLabel": "Git-ref (optioneel)",
+      "gitRefPlaceholder": "main",
+      "gitRefHint": "Branch, tag of commit. Laat leeg om de remote-default te volgen.",
+      "errGitUrlScheme": "Git-URL moet beginnen met https:// of git://."
+    },
+    "planningProject": {
+      "titleCreate": "Nieuw planningproject",
+      "titleEdit": "Planningproject bewerken",
+      "nameLabel": "Naam",
+      "namePlaceholder": "q1-roadmap",
+      "nameHint": "Slug die in de URL en kiezer gebruikt wordt. Onveranderbaar na aanmaken.",
+      "descriptionLabel": "Beschrijving",
+      "startDateLabel": "Projectstart (optioneel)",
+      "startDateHint": "Vroegste datum waarop de planner wensen plaatst. Laat leeg om vandaag te gebruiken.",
+      "sprintDurationLabel": "Sprintduur (optioneel)",
+      "sprintDurationPlaceholder": "bv. 10",
+      "sprintDurationHint": "Werkbare dagen per sprint. 5 = wekelijks, 10 = tweewekelijks, 15 = drie weken. Laat leeg of 0 om sprint-indicatoren uit te schakelen.",
+      "errStartDate": "Startdatum moet in JJJJ-MM-DD-formaat zijn.",
+      "errSprintDuration": "Sprintduur moet een getal tussen 0 en 999 zijn."
+    }
   },
   "nav": {
     "groups": {

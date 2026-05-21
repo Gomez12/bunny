@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { PlanningProject } from "../api";
 import Modal from "./Modal";
 
@@ -23,6 +24,7 @@ export default function PlanningProjectDialog({
   onClose,
   onSubmit,
 }: Props) {
+  const { t } = useTranslation();
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [startDate, setStartDate] = useState(initial?.startDate ?? "");
@@ -55,15 +57,13 @@ export default function PlanningProjectDialog({
     if (!isEdit) {
       const slug = name.trim().toLowerCase();
       if (!SLUG_RE.test(slug)) {
-        setError(
-          "Name must start with a letter or digit and may contain only lowercase letters, digits, '-' or '_'.",
-        );
+        setError(t("dialog.errors.slugInvalid"));
         return;
       }
     }
     const sd = startDate.trim();
     if (sd && !ISO_DATE_RE.test(sd)) {
-      setError("Start date must be in YYYY-MM-DD format.");
+      setError(t("dialog.planningProject.errStartDate"));
       return;
     }
     let parsedSprint: number | null = null;
@@ -71,7 +71,7 @@ export default function PlanningProjectDialog({
     if (sdur !== "") {
       const n = Number(sdur);
       if (!Number.isFinite(n) || n < 0 || n > 999) {
-        setError("Sprint duration must be a number between 0 and 999.");
+        setError(t("dialog.planningProject.errSprintDuration"));
         return;
       }
       parsedSprint = n === 0 ? null : Math.floor(n);
@@ -104,24 +104,26 @@ export default function PlanningProjectDialog({
     <Modal onClose={onClose}>
       <form onSubmit={handleSubmit} className="project-form">
         <Modal.Header
-          title={isEdit ? "Edit planning project" : "New planning project"}
+          title={
+            isEdit
+              ? t("dialog.planningProject.titleEdit")
+              : t("dialog.planningProject.titleCreate")
+          }
         />
         <label className="project-form__field">
-          <span className="project-form__label">Name</span>
+          <span className="project-form__label">{t("dialog.planningProject.nameLabel")}</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="q1-roadmap"
+            placeholder={t("dialog.planningProject.namePlaceholder")}
             disabled={isEdit || busy}
             autoFocus={!isEdit}
             required={!isEdit}
           />
-          <span className="project-form__hint">
-            Slug used in the URL and picker. Immutable after creation.
-          </span>
+          <span className="project-form__hint">{t("dialog.planningProject.nameHint")}</span>
         </label>
         <label className="project-form__field">
-          <span className="project-form__label">Description</span>
+          <span className="project-form__label">{t("dialog.planningProject.descriptionLabel")}</span>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -130,35 +132,27 @@ export default function PlanningProjectDialog({
           />
         </label>
         <label className="project-form__field">
-          <span className="project-form__label">Project start (optional)</span>
+          <span className="project-form__label">{t("dialog.planningProject.startDateLabel")}</span>
           <input
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
             disabled={busy}
           />
-          <span className="project-form__hint">
-            Earliest date the scheduler will place wishes. Leave empty to use
-            today.
-          </span>
+          <span className="project-form__hint">{t("dialog.planningProject.startDateHint")}</span>
         </label>
         <label className="project-form__field">
-          <span className="project-form__label">
-            Sprint duration (optional)
-          </span>
+          <span className="project-form__label">{t("dialog.planningProject.sprintDurationLabel")}</span>
           <input
             type="number"
             min={0}
             max={999}
-            placeholder="e.g. 10"
+            placeholder={t("dialog.planningProject.sprintDurationPlaceholder")}
             value={sprintDurationDays}
             onChange={(e) => setSprintDurationDays(e.target.value)}
             disabled={busy}
           />
-          <span className="project-form__hint">
-            Working days per sprint. 5 = weekly, 10 = bi-weekly, 15 = three
-            weeks. Leave empty or 0 to disable sprint indicators.
-          </span>
+          <span className="project-form__hint">{t("dialog.planningProject.sprintDurationHint")}</span>
         </label>
         {error && (
           <div className="project-form__hint project-form__hint--error">
@@ -172,10 +166,14 @@ export default function PlanningProjectDialog({
             onClick={onClose}
             disabled={busy}
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button type="submit" className="btn btn--primary" disabled={busy}>
-            {busy ? "Saving…" : isEdit ? "Save" : "Create"}
+            {busy
+              ? t("common.saving")
+              : isEdit
+                ? t("common.save")
+                : t("common.create")}
           </button>
         </Modal.Footer>
       </form>

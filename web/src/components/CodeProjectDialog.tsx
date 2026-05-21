@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { CodeProject } from "../api";
 import Modal from "./Modal";
 
@@ -22,6 +23,7 @@ export default function CodeProjectDialog({
   onClose,
   onSubmit,
 }: Props) {
+  const { t } = useTranslation();
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [gitUrl, setGitUrl] = useState(initial?.gitUrl ?? "");
@@ -48,15 +50,13 @@ export default function CodeProjectDialog({
     if (!isEdit) {
       const trimmedName = name.trim().toLowerCase();
       if (!SLUG_RE.test(trimmedName)) {
-        setError(
-          "Name must start with a letter or digit and may contain only lowercase letters, digits, '-' or '_'.",
-        );
+        setError(t("dialog.errors.slugInvalid"));
         return;
       }
     }
     const trimmedUrl = gitUrl.trim();
     if (trimmedUrl && !/^(https?|git):\/\//i.test(trimmedUrl)) {
-      setError("Git URL must start with https:// or git://.");
+      setError(t("dialog.codeProject.errGitUrlScheme"));
       return;
     }
     setBusy(true);
@@ -86,24 +86,26 @@ export default function CodeProjectDialog({
     <Modal onClose={onClose}>
       <form onSubmit={handleSubmit} className="project-form">
         <Modal.Header
-          title={isEdit ? `Edit code project` : "New code project"}
+          title={
+            isEdit
+              ? t("dialog.codeProject.titleEdit")
+              : t("dialog.codeProject.titleCreate")
+          }
         />
         <label className="project-form__field">
-          <span className="project-form__label">Name</span>
+          <span className="project-form__label">{t("dialog.codeProject.nameLabel")}</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="my-repo"
+            placeholder={t("dialog.codeProject.namePlaceholder")}
             disabled={isEdit || busy}
             autoFocus={!isEdit}
             required={!isEdit}
           />
-          <span className="project-form__hint">
-            Used as a directory name. Immutable after creation.
-          </span>
+          <span className="project-form__hint">{t("dialog.codeProject.nameHint")}</span>
         </label>
         <label className="project-form__field">
-          <span className="project-form__label">Description</span>
+          <span className="project-form__label">{t("dialog.codeProject.descriptionLabel")}</span>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -112,30 +114,25 @@ export default function CodeProjectDialog({
           />
         </label>
         <label className="project-form__field">
-          <span className="project-form__label">Git URL (optional)</span>
+          <span className="project-form__label">{t("dialog.codeProject.gitUrlLabel")}</span>
           <input
             value={gitUrl}
             onChange={(e) => setGitUrl(e.target.value)}
-            placeholder="https://github.com/user/repo.git"
+            placeholder={t("dialog.codeProject.gitUrlPlaceholder")}
             disabled={isEdit || busy}
             type="url"
           />
-          <span className="project-form__hint">
-            Public repositories only (https:// or git://). Leave empty for a
-            local-only scratch area.
-          </span>
+          <span className="project-form__hint">{t("dialog.codeProject.gitUrlHint")}</span>
         </label>
         <label className="project-form__field">
-          <span className="project-form__label">Git ref (optional)</span>
+          <span className="project-form__label">{t("dialog.codeProject.gitRefLabel")}</span>
           <input
             value={gitRef}
             onChange={(e) => setGitRef(e.target.value)}
-            placeholder="main"
+            placeholder={t("dialog.codeProject.gitRefPlaceholder")}
             disabled={busy}
           />
-          <span className="project-form__hint">
-            Branch, tag or commit. Leave empty to follow the remote default.
-          </span>
+          <span className="project-form__hint">{t("dialog.codeProject.gitRefHint")}</span>
         </label>
         {error && (
           <div className="project-form__hint project-form__hint--error">
@@ -149,10 +146,14 @@ export default function CodeProjectDialog({
             onClick={onClose}
             disabled={busy}
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button type="submit" className="btn btn--primary" disabled={busy}>
-            {busy ? "Saving…" : isEdit ? "Save" : "Create"}
+            {busy
+              ? t("common.saving")
+              : isEdit
+                ? t("common.save")
+                : t("common.create")}
           </button>
         </Modal.Footer>
       </form>

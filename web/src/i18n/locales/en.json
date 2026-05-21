@@ -4,7 +4,69 @@
     "cancel": "Cancel",
     "close": "Close",
     "delete": "Delete",
-    "edit": "Edit"
+    "edit": "Edit",
+    "save": "Save",
+    "create": "Create",
+    "saving": "Saving…"
+  },
+  "dialog": {
+    "errors": {
+      "slugInvalid": "Name must start with a letter or digit and may contain only lowercase letters, digits, '-' or '_'."
+    },
+    "codePicker": {
+      "title": "Code projects",
+      "new": "New",
+      "empty": "No code projects yet. Add one to get started.",
+      "status": {
+        "cloning": "Cloning",
+        "error": "Clone failed",
+        "ready": "Ready",
+        "idle": "Idle"
+      }
+    },
+    "planningPicker": {
+      "title": "Planning projects",
+      "new": "New",
+      "empty": "No planning projects yet. Add one to get started."
+    },
+    "newChatWithAgent": {
+      "title": "New chat with…",
+      "description": "Pick an agent. A fresh session opens, pre-bound to them.",
+      "loading": "Loading…",
+      "noAgents": "No agents are linked to project <strong>{{project}}</strong>.",
+      "agentsAria": "Available agents",
+      "defaultHint": "default"
+    },
+    "codeProject": {
+      "titleCreate": "New code project",
+      "titleEdit": "Edit code project",
+      "nameLabel": "Name",
+      "namePlaceholder": "my-repo",
+      "nameHint": "Used as a directory name. Immutable after creation.",
+      "descriptionLabel": "Description",
+      "gitUrlLabel": "Git URL (optional)",
+      "gitUrlPlaceholder": "https://github.com/user/repo.git",
+      "gitUrlHint": "Public repositories only (https:// or git://). Leave empty for a local-only scratch area.",
+      "gitRefLabel": "Git ref (optional)",
+      "gitRefPlaceholder": "main",
+      "gitRefHint": "Branch, tag or commit. Leave empty to follow the remote default.",
+      "errGitUrlScheme": "Git URL must start with https:// or git://."
+    },
+    "planningProject": {
+      "titleCreate": "New planning project",
+      "titleEdit": "Edit planning project",
+      "nameLabel": "Name",
+      "namePlaceholder": "q1-roadmap",
+      "nameHint": "Slug used in the URL and picker. Immutable after creation.",
+      "descriptionLabel": "Description",
+      "startDateLabel": "Project start (optional)",
+      "startDateHint": "Earliest date the scheduler will place wishes. Leave empty to use today.",
+      "sprintDurationLabel": "Sprint duration (optional)",
+      "sprintDurationPlaceholder": "e.g. 10",
+      "sprintDurationHint": "Working days per sprint. 5 = weekly, 10 = bi-weekly, 15 = three weeks. Leave empty or 0 to disable sprint indicators.",
+      "errStartDate": "Start date must be in YYYY-MM-DD format.",
+      "errSprintDuration": "Sprint duration must be a number between 0 and 999."
+    }
   },
   "nav": {
     "groups": {

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Pencil, Plus, Trash2 } from "../lib/icons";
 import type { PlanningProject } from "../api";
 import Modal from "./Modal";
@@ -23,21 +24,20 @@ export default function PlanningProjectPickerDialog({
   onEdit,
   onDelete,
 }: Props) {
+  const { t } = useTranslation();
   if (!open) return null;
   return (
     <Modal onClose={onClose}>
-      <Modal.Header title="Planning projects" />
+      <Modal.Header title={t("dialog.planningPicker.title")} />
       <div className="code-picker">
         <div className="code-picker__header">
           <button type="button" className="btn btn--primary" onClick={onNew}>
-            <Plus size={14} /> New
+            <Plus size={14} /> {t("dialog.planningPicker.new")}
           </button>
         </div>
         <ul className="code-picker__list">
           {items.length === 0 && (
-            <li className="code-picker__empty">
-              No planning projects yet. Add one to get started.
-            </li>
+            <li className="code-picker__empty">{t("dialog.planningPicker.empty")}</li>
           )}
           {items.map((pp) => {
             const isActive = pp.id === activeId;
@@ -60,8 +60,8 @@ export default function PlanningProjectPickerDialog({
                   type="button"
                   className="btn btn--icon"
                   onClick={() => onEdit(pp)}
-                  title="Edit"
-                  aria-label="Edit"
+                  title={t("common.edit")}
+                  aria-label={t("common.edit")}
                 >
                   <Pencil size={14} />
                 </button>
@@ -69,8 +69,8 @@ export default function PlanningProjectPickerDialog({
                   type="button"
                   className="btn btn--icon"
                   onClick={() => onDelete(pp)}
-                  title="Delete"
-                  aria-label="Delete"
+                  title={t("common.delete")}
+                  aria-label={t("common.delete")}
                 >
                   <Trash2 size={14} />
                 </button>
@@ -81,7 +81,7 @@ export default function PlanningProjectPickerDialog({
       </div>
       <Modal.Footer>
         <button type="button" className="btn btn--ghost" onClick={onClose}>
-          Close
+          {t("common.close")}
         </button>
       </Modal.Footer>
     </Modal>

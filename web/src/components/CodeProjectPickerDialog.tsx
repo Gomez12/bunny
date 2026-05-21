@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import {
   AlertCircle,
   CheckCircle,
@@ -37,21 +39,20 @@ export default function CodeProjectPickerDialog({
   onEdit,
   onDelete,
 }: Props) {
+  const { t } = useTranslation();
   if (!open) return null;
   return (
     <Modal onClose={onClose}>
-      <Modal.Header title="Code projects" />
+      <Modal.Header title={t("dialog.codePicker.title")} />
       <div className="code-picker">
         <div className="code-picker__header">
           <button type="button" className="btn btn--primary" onClick={onNew}>
-            <Plus size={14} /> New
+            <Plus size={14} /> {t("dialog.codePicker.new")}
           </button>
         </div>
         <ul className="code-picker__list">
           {items.length === 0 && (
-            <li className="code-picker__empty">
-              No code projects yet. Add one to get started.
-            </li>
+            <li className="code-picker__empty">{t("dialog.codePicker.empty")}</li>
           )}
           {items.map((cp) => {
             const isActive = cp.id === activeId;
@@ -71,14 +72,14 @@ export default function CodeProjectPickerDialog({
                   )}
                 </button>
                 <span className="code-picker__status">
-                  <PickerStatusIcon status={cp.gitStatus} />
+                  <PickerStatusIcon status={cp.gitStatus} t={t} />
                 </span>
                 <button
                   type="button"
                   className="btn btn--icon"
                   onClick={() => onEdit(cp)}
-                  title="Edit"
-                  aria-label="Edit"
+                  title={t("common.edit")}
+                  aria-label={t("common.edit")}
                 >
                   <Pencil size={14} />
                 </button>
@@ -86,8 +87,8 @@ export default function CodeProjectPickerDialog({
                   type="button"
                   className="btn btn--icon"
                   onClick={() => onDelete(cp)}
-                  title="Delete"
-                  aria-label="Delete"
+                  title={t("common.delete")}
+                  aria-label={t("common.delete")}
                 >
                   <Trash2 size={14} />
                 </button>
@@ -98,34 +99,40 @@ export default function CodeProjectPickerDialog({
       </div>
       <Modal.Footer>
         <button type="button" className="btn btn--ghost" onClick={onClose}>
-          Close
+          {t("common.close")}
         </button>
       </Modal.Footer>
     </Modal>
   );
 }
 
-function PickerStatusIcon({ status }: { status: CodeProject["gitStatus"] }) {
+function PickerStatusIcon({
+  status,
+  t,
+}: {
+  status: CodeProject["gitStatus"];
+  t: TFunction;
+}) {
   if (status === "cloning")
     return (
-      <span className="status-dot status-dot--busy" title="Cloning">
+      <span className="status-dot status-dot--busy" title={t("dialog.codePicker.status.cloning")}>
         <Loader2 {...ICON_DEFAULTS} size={14} />
       </span>
     );
   if (status === "error")
     return (
-      <span className="status-dot status-dot--err" title="Clone failed">
+      <span className="status-dot status-dot--err" title={t("dialog.codePicker.status.error")}>
         <AlertCircle size={14} />
       </span>
     );
   if (status === "ready")
     return (
-      <span className="status-dot status-dot--ok" title="Ready">
+      <span className="status-dot status-dot--ok" title={t("dialog.codePicker.status.ready")}>
         <CheckCircle size={14} />
       </span>
     );
   return (
-    <span className="status-dot" title="Idle">
+    <span className="status-dot" title={t("dialog.codePicker.status.idle")}>
       <Info size={14} />
     </span>
   );
