@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { fetchProjectAgents, type Agent, type NewsTopic } from "../api";
 import { X } from "../lib/icons";
 import Modal from "./Modal";
@@ -24,12 +26,28 @@ type Props = {
   onSubmit: (value: TopicDialogValue) => void | Promise<void>;
 };
 
-const CRON_PRESETS: Array<{ label: string; value: string }> = [
-  { label: "Every hour", value: "0 * * * *" },
-  { label: "Every 6 hours", value: "0 */6 * * *" },
-  { label: "Daily 07:00", value: "0 7 * * *" },
-  { label: "Weekly Mon 08:00", value: "0 8 * * 1" },
+const CRON_PRESETS: Array<{ key: "hourly" | "every6h" | "daily7" | "weeklyMon8"; value: string }> = [
+  { key: "hourly", value: "0 * * * *" },
+  { key: "every6h", value: "0 */6 * * *" },
+  { key: "daily7", value: "0 7 * * *" },
+  { key: "weeklyMon8", value: "0 8 * * 1" },
 ];
+
+function presetLabel(
+  key: (typeof CRON_PRESETS)[number]["key"],
+  t: TFunction,
+): string {
+  switch (key) {
+    case "hourly":
+      return t("dialog.topic.preset.hourly");
+    case "every6h":
+      return t("dialog.topic.preset.every6h");
+    case "daily7":
+      return t("dialog.topic.preset.daily7");
+    case "weeklyMon8":
+      return t("dialog.topic.preset.weeklyMon8");
+  }
+}
 
 function defaultFromInitial(initial?: NewsTopic): TopicDialogValue {
   if (initial) {
@@ -71,6 +89,7 @@ export default function TopicDialog({
   onCancel,
   onSubmit,
 }: Props) {
+  const { t } = useTranslation();
   const [value, setValue] = useState<TopicDialogValue>(() =>
     defaultFromInitial(initial),
   );
@@ -118,9 +137,9 @@ export default function TopicDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!value.name.trim()) return setError("Name is required");
-    if (!value.agent) return setError("Agent is required");
-    if (!value.updateCron.trim()) return setError("Update cron is required");
+    if (!value.name.trim()) return setError(t("dialog.topic.errNameRequired"));
+    if (!value.agent) return setError(t("dialog.topic.errAgentRequired"));
+    if (!value.updateCron.trim()) return setError(t("dialog.topic.errUpdateCronRequired"));
 
     const payload: TopicDialogValue = {
       ...value,
@@ -141,22 +160,24 @@ export default function TopicDialog({
   return (
     <Modal onClose={onCancel} size="md">
       <form onSubmit={handleSubmit}>
-        <Modal.Header title={initial ? "Edit news topic" : "New news topic"} />
+        <Modal.Header
+          title={initial ? t("dialog.topic.titleEdit") : t("dialog.topic.titleCreate")}
+        />
 
         <div className="modal__body">
           <label className="field">
-            <span className="field__label">Name</span>
+            <span className="field__label">{t("dialog.topic.nameLabel")}</span>
             <input
               className="field__input"
               value={value.name}
               onChange={(e) => setValue({ ...value, name: e.target.value })}
-              placeholder="AI industry news"
+              placeholder={t("dialog.topic.namePlaceholder")}
               required
             />
           </label>
 
           <label className="field">
-            <span className="field__label">Description</span>
+            <span className="field__label">{t("dialog.topic.descriptionLabel")}</span>
             <textarea
               className="field__input"
               rows={2}
@@ -164,41 +185,39 @@ export default function TopicDialog({
               onChange={(e) =>
                 setValue({ ...value, description: e.target.value })
               }
-              placeholder="What this topic is about (helps the agent focus)"
+              placeholder={t("dialog.topic.descriptionPlaceholder")}
             />
           </label>
 
           <label className="field">
-            <span className="field__label">Agent</span>
+            <span className="field__label">{t("dialog.topic.agentLabel")}</span>
             <select
               className="field__input"
               value={value.agent}
               onChange={(e) => setValue({ ...value, agent: e.target.value })}
               required
             >
-              <option value="">Select an agent…</option>
+              <option value="">{t("dialog.topic.agentSelect")}</option>
               {agentOptions.map((a) => (
                 <option key={a.name} value={a.name}>
                   {a.name}
                 </option>
               ))}
             </select>
-            <span className="field__hint">
-              Only agents linked to this project are listed.
-            </span>
+            <span className="field__hint">{t("dialog.topic.agentHint")}</span>
           </label>
 
           <div className="field">
-            <span className="field__label">Search terms</span>
+            <span className="field__label">{t("dialog.topic.termsLabel")}</span>
             <div className="field__chips">
-              {value.terms.map((t) => (
-                <span key={t} className="chip">
-                  {t}
+              {value.terms.map((term) => (
+                <span key={term} className="chip">
+                  {term}
                   <button
                     type="button"
                     className="chip__remove"
-                    onClick={() => removeTerm(t)}
-                    aria-label={`Remove ${t}`}
+                    onClick={() => removeTerm(term)}
+                    aria-label={t("dialog.topic.removeTermAria", { term })}
                   >
                     <X size={12} />
                   </button>
@@ -216,23 +235,21 @@ export default function TopicDialog({
                     addTerm();
                   }
                 }}
-                placeholder="Add a term and press Enter"
+                placeholder={t("dialog.topic.termInputPlaceholder")}
               />
               <button
                 type="button"
                 className="btn btn--secondary"
                 onClick={addTerm}
               >
-                Add
+                {t("dialog.topic.addTerm")}
               </button>
             </div>
-            <span className="field__hint">
-              Leave empty to let the agent propose terms on the first run.
-            </span>
+            <span className="field__hint">{t("dialog.topic.termsHint")}</span>
           </div>
 
           <label className="field">
-            <span className="field__label">Update schedule (cron)</span>
+            <span className="field__label">{t("dialog.topic.updateCronLabel")}</span>
             <input
               className="field__input"
               value={value.updateCron}
@@ -249,14 +266,14 @@ export default function TopicDialog({
                   className="btn btn--ghost btn--xs"
                   onClick={() => setValue({ ...value, updateCron: p.value })}
                 >
-                  {p.label}
+                  {presetLabel(p.key, t)}
                 </button>
               ))}
             </div>
           </label>
 
           <div className="field">
-            <span className="field__label">Renew terms</span>
+            <span className="field__label">{t("dialog.topic.renewLabel")}</span>
             <div className="field__radios">
               <label>
                 <input
@@ -265,7 +282,7 @@ export default function TopicDialog({
                   checked={renewMode === "never"}
                   onChange={() => setRenewMode("never")}
                 />
-                Never
+                {t("dialog.topic.renewNever")}
               </label>
               <label>
                 <input
@@ -274,7 +291,7 @@ export default function TopicDialog({
                   checked={renewMode === "always"}
                   onChange={() => setRenewMode("always")}
                 />
-                Regenerate every run
+                {t("dialog.topic.renewAlways")}
               </label>
               <label>
                 <input
@@ -283,7 +300,7 @@ export default function TopicDialog({
                   checked={renewMode === "scheduled"}
                   onChange={() => setRenewMode("scheduled")}
                 />
-                Scheduled
+                {t("dialog.topic.renewScheduled")}
               </label>
             </div>
             {renewMode === "scheduled" && (
@@ -298,7 +315,7 @@ export default function TopicDialog({
 
           <label className="field">
             <span className="field__label">
-              Max items per run: {value.maxItemsPerRun}
+              {t("dialog.topic.maxItemsLabel", { count: value.maxItemsPerRun })}
             </span>
             <input
               type="range"
@@ -319,7 +336,7 @@ export default function TopicDialog({
                 setValue({ ...value, enabled: e.target.checked })
               }
             />
-            <span>Enabled (scheduler will run this topic)</span>
+            <span>{t("dialog.topic.enabledLabel")}</span>
           </label>
 
           {error && <div className="modal__error">{error}</div>}
@@ -327,10 +344,14 @@ export default function TopicDialog({
 
         <Modal.Footer>
           <button type="button" className="btn" onClick={onCancel}>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button type="submit" className="btn btn--send" disabled={submitting}>
-            {submitting ? "Saving…" : initial ? "Save" : "Create"}
+            {submitting
+              ? t("common.saving")
+              : initial
+                ? t("common.save")
+                : t("common.create")}
           </button>
         </Modal.Footer>
       </form>

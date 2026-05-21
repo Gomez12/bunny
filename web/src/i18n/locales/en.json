@@ -188,6 +188,38 @@
       "runTitle": "Run this card with the assigned agent",
       "runBtn": "▶ Run"
     },
+    "topic": {
+      "titleCreate": "New news topic",
+      "titleEdit": "Edit news topic",
+      "nameLabel": "Name",
+      "namePlaceholder": "AI industry news",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "What this topic is about (helps the agent focus)",
+      "agentLabel": "Agent",
+      "agentSelect": "Select an agent…",
+      "agentHint": "Only agents linked to this project are listed.",
+      "termsLabel": "Search terms",
+      "removeTermAria": "Remove {{term}}",
+      "termInputPlaceholder": "Add a term and press Enter",
+      "addTerm": "Add",
+      "termsHint": "Leave empty to let the agent propose terms on the first run.",
+      "updateCronLabel": "Update schedule (cron)",
+      "preset": {
+        "hourly": "Every hour",
+        "every6h": "Every 6 hours",
+        "daily7": "Daily 07:00",
+        "weeklyMon8": "Weekly Mon 08:00"
+      },
+      "renewLabel": "Renew terms",
+      "renewNever": "Never",
+      "renewAlways": "Regenerate every run",
+      "renewScheduled": "Scheduled",
+      "maxItemsLabel": "Max items per run: {{count}}",
+      "enabledLabel": "Enabled (scheduler will run this topic)",
+      "errNameRequired": "Name is required",
+      "errAgentRequired": "Agent is required",
+      "errUpdateCronRequired": "Update cron is required"
+    },
     "skill": {
       "titleCreate": "New skill",
       "titleEdit": "Edit {{name}}",

@@ -188,6 +188,38 @@
       "runTitle": "Voer deze kaart uit met de toegewezen agent",
       "runBtn": "▶ Uitvoeren"
     },
+    "topic": {
+      "titleCreate": "Nieuw nieuws-onderwerp",
+      "titleEdit": "Nieuws-onderwerp bewerken",
+      "nameLabel": "Naam",
+      "namePlaceholder": "AI-nieuws",
+      "descriptionLabel": "Beschrijving",
+      "descriptionPlaceholder": "Waar dit onderwerp over gaat (helpt de agent focus te houden)",
+      "agentLabel": "Agent",
+      "agentSelect": "Kies een agent…",
+      "agentHint": "Alleen agents gekoppeld aan dit project staan in de lijst.",
+      "termsLabel": "Zoektermen",
+      "removeTermAria": "{{term}} verwijderen",
+      "termInputPlaceholder": "Term toevoegen en op Enter drukken",
+      "addTerm": "Toevoegen",
+      "termsHint": "Laat leeg om de agent bij de eerste run termen voor te laten stellen.",
+      "updateCronLabel": "Update-schema (cron)",
+      "preset": {
+        "hourly": "Elk uur",
+        "every6h": "Elke 6 uur",
+        "daily7": "Dagelijks 07:00",
+        "weeklyMon8": "Wekelijks ma 08:00"
+      },
+      "renewLabel": "Termen vernieuwen",
+      "renewNever": "Nooit",
+      "renewAlways": "Bij elke run opnieuw genereren",
+      "renewScheduled": "Gepland",
+      "maxItemsLabel": "Max items per run: {{count}}",
+      "enabledLabel": "Ingeschakeld (scheduler voert dit onderwerp uit)",
+      "errNameRequired": "Naam is verplicht",
+      "errAgentRequired": "Agent is verplicht",
+      "errUpdateCronRequired": "Update-cron is verplicht"
+    },
     "skill": {
       "titleCreate": "Nieuwe skill",
       "titleEdit": "{{name}} bewerken",
