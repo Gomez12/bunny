@@ -37,6 +37,35 @@
       "agentsAria": "Beschikbare agents",
       "defaultHint": "standaard"
     },
+    "whiteboardPicker": {
+      "title": "Whiteboard invoegen",
+      "loading": "Laden...",
+      "empty": "Nog geen whiteboards in dit project.",
+      "liveBtn": "Live",
+      "liveTitle": "Wordt automatisch bijgewerkt als het whiteboard verandert",
+      "staticBtn": "Statisch",
+      "staticTitle": "Snapshot — bevroren op het moment van invoegen"
+    },
+    "script": {
+      "titleCreate": "Nieuw script",
+      "titleEdit": "Script bewerken",
+      "nameLabel": "Naam",
+      "namePlaceholder": "my-script",
+      "namePlaceholderTemp": "automatisch gegenereerd indien leeg",
+      "languageLabel": "Taal",
+      "descriptionLabel": "Beschrijving",
+      "scratchLabel": "Scratch-script (tijdelijk — standaard verborgen, geen naam vereist)",
+      "language": {
+        "javascript": "JavaScript",
+        "typescript": "TypeScript",
+        "csharp": "C# / .NET",
+        "python": "Python",
+        "bash": "Bash / Shell",
+        "powershell": "PowerShell",
+        "go": "Go",
+        "sql": "SQL"
+      }
+    },
     "skill": {
       "titleCreate": "Nieuwe skill",
       "titleEdit": "{{name}} bewerken",

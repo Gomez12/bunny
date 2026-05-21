@@ -37,6 +37,35 @@
       "agentsAria": "Available agents",
       "defaultHint": "default"
     },
+    "whiteboardPicker": {
+      "title": "Insert Whiteboard",
+      "loading": "Loading...",
+      "empty": "No whiteboards in this project yet.",
+      "liveBtn": "Live",
+      "liveTitle": "Updates automatically when the whiteboard changes",
+      "staticBtn": "Static",
+      "staticTitle": "Snapshot — frozen at insert time"
+    },
+    "script": {
+      "titleCreate": "New script",
+      "titleEdit": "Edit script",
+      "nameLabel": "Name",
+      "namePlaceholder": "my-script",
+      "namePlaceholderTemp": "auto-generated if empty",
+      "languageLabel": "Language",
+      "descriptionLabel": "Description",
+      "scratchLabel": "Scratch script (temp — hidden by default, no name required)",
+      "language": {
+        "javascript": "JavaScript",
+        "typescript": "TypeScript",
+        "csharp": "C# / .NET",
+        "python": "Python",
+        "bash": "Bash / Shell",
+        "powershell": "PowerShell",
+        "go": "Go",
+        "sql": "SQL"
+      }
+    },
     "skill": {
       "titleCreate": "New skill",
       "titleEdit": "Edit {{name}}",

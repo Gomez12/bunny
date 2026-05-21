@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { fetchWhiteboards, type WhiteboardSummary } from "../api";
 import Modal from "./Modal";
 
@@ -13,6 +14,7 @@ export default function WhiteboardPickerDialog({
   onPick,
   onClose,
 }: Props) {
+  const { t } = useTranslation();
   const [whiteboards, setWhiteboards] = useState<WhiteboardSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -24,12 +26,14 @@ export default function WhiteboardPickerDialog({
 
   return (
     <Modal onClose={onClose}>
-      <Modal.Header title="Insert Whiteboard" />
+      <Modal.Header title={t("dialog.whiteboardPicker.title")} />
       {loading ? (
-        <p style={{ padding: 16, color: "var(--text-dim)" }}>Loading...</p>
+        <p style={{ padding: 16, color: "var(--text-dim)" }}>
+          {t("dialog.whiteboardPicker.loading")}
+        </p>
       ) : whiteboards.length === 0 ? (
         <p style={{ padding: 16, color: "var(--text-dim)" }}>
-          No whiteboards in this project yet.
+          {t("dialog.whiteboardPicker.empty")}
         </p>
       ) : (
         <ul className="wb-picker__list">
@@ -45,16 +49,16 @@ export default function WhiteboardPickerDialog({
                 <button
                   className="btn btn--sm"
                   onClick={() => onPick(wb.id, "live")}
-                  title="Updates automatically when the whiteboard changes"
+                  title={t("dialog.whiteboardPicker.liveTitle")}
                 >
-                  Live
+                  {t("dialog.whiteboardPicker.liveBtn")}
                 </button>
                 <button
                   className="btn btn--sm"
                   onClick={() => onPick(wb.id, "static")}
-                  title="Snapshot — frozen at insert time"
+                  title={t("dialog.whiteboardPicker.staticTitle")}
                 >
-                  Static
+                  {t("dialog.whiteboardPicker.staticBtn")}
                 </button>
               </div>
             </li>
@@ -63,7 +67,7 @@ export default function WhiteboardPickerDialog({
       )}
       <Modal.Footer>
         <button className="btn" onClick={onClose}>
-          Close
+          {t("common.close")}
         </button>
       </Modal.Footer>
     </Modal>

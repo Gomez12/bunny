@@ -1,17 +1,40 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import Modal from "./Modal";
 import type { ScriptLanguage } from "../api";
 
-const LANGUAGES: { value: ScriptLanguage; label: string }[] = [
-  { value: "javascript", label: "JavaScript" },
-  { value: "typescript", label: "TypeScript" },
-  { value: "csharp", label: "C# / .NET" },
-  { value: "python", label: "Python" },
-  { value: "bash", label: "Bash / Shell" },
-  { value: "powershell", label: "PowerShell" },
-  { value: "go", label: "Go" },
-  { value: "sql", label: "SQL" },
+const LANGUAGE_VALUES: ScriptLanguage[] = [
+  "javascript",
+  "typescript",
+  "csharp",
+  "python",
+  "bash",
+  "powershell",
+  "go",
+  "sql",
 ];
+
+function languageLabel(value: ScriptLanguage, t: TFunction): string {
+  switch (value) {
+    case "javascript":
+      return t("dialog.script.language.javascript");
+    case "typescript":
+      return t("dialog.script.language.typescript");
+    case "csharp":
+      return t("dialog.script.language.csharp");
+    case "python":
+      return t("dialog.script.language.python");
+    case "bash":
+      return t("dialog.script.language.bash");
+    case "powershell":
+      return t("dialog.script.language.powershell");
+    case "go":
+      return t("dialog.script.language.go");
+    case "sql":
+      return t("dialog.script.language.sql");
+  }
+}
 
 interface Props {
   mode: "create" | "edit";
@@ -39,6 +62,7 @@ export default function ScriptDialog({
   onClose,
   error,
 }: Props) {
+  const { t } = useTranslation();
   const [name, setName] = useState(initialName);
   const [description, setDescription] = useState(initialDescription);
   const [language, setLanguage] = useState<ScriptLanguage>(initialLanguage);
@@ -53,12 +77,18 @@ export default function ScriptDialog({
 
   return (
     <Modal onClose={onClose}>
-      <Modal.Header title={mode === "create" ? "New script" : "Edit script"} />
+      <Modal.Header
+        title={
+          mode === "create"
+            ? t("dialog.script.titleCreate")
+            : t("dialog.script.titleEdit")
+        }
+      />
       <form onSubmit={handleSubmit}>
         <Modal.Body>
           <div className="form-group">
             <label className="form-label" htmlFor="script-name">
-              Name {nameRequired && <span aria-hidden="true">*</span>}
+              {t("dialog.script.nameLabel")} {nameRequired && <span aria-hidden="true">*</span>}
             </label>
             <input
               id="script-name"
@@ -66,7 +96,11 @@ export default function ScriptDialog({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value.toLowerCase())}
-              placeholder={isTemp ? "auto-generated if empty" : "my-script"}
+              placeholder={
+                isTemp
+                  ? t("dialog.script.namePlaceholderTemp")
+                  : t("dialog.script.namePlaceholder")
+              }
               required={nameRequired}
               pattern={nameRequired ? "[a-z0-9][a-z0-9_\\-]{0,63}" : undefined}
             />
@@ -74,7 +108,7 @@ export default function ScriptDialog({
 
           <div className="form-group">
             <label className="form-label" htmlFor="script-lang">
-              Language
+              {t("dialog.script.languageLabel")}
             </label>
             <select
               id="script-lang"
@@ -82,9 +116,9 @@ export default function ScriptDialog({
               value={language}
               onChange={(e) => setLanguage(e.target.value as ScriptLanguage)}
             >
-              {LANGUAGES.map((l) => (
-                <option key={l.value} value={l.value}>
-                  {l.label}
+              {LANGUAGE_VALUES.map((value) => (
+                <option key={value} value={value}>
+                  {languageLabel(value, t)}
                 </option>
               ))}
             </select>
@@ -92,7 +126,7 @@ export default function ScriptDialog({
 
           <div className="form-group">
             <label className="form-label" htmlFor="script-description">
-              Description
+              {t("dialog.script.descriptionLabel")}
             </label>
             <input
               id="script-description"
@@ -112,7 +146,7 @@ export default function ScriptDialog({
                 onChange={(e) => setIsTemp(e.target.checked)}
               />
               <label htmlFor="script-temp" className="form-label" style={{ marginBottom: 0 }}>
-                Scratch script (temp — hidden by default, no name required)
+                {t("dialog.script.scratchLabel")}
               </label>
             </div>
           )}
@@ -123,10 +157,10 @@ export default function ScriptDialog({
         </Modal.Body>
         <Modal.Footer>
           <button type="button" className="btn btn--secondary" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button type="submit" className="btn btn--primary">
-            {mode === "create" ? "Create" : "Save"}
+            {mode === "create" ? t("common.create") : t("common.save")}
           </button>
         </Modal.Footer>
       </form>
