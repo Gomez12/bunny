@@ -188,6 +188,22 @@
       "deleteConfirmFile": "\"{{name}}\" verwijderen?",
       "deleteConfirmDir": "\"{{name}}\" en de inhoud verwijderen?"
     },
+    "businesses": {
+      "searchPlaceholder": "Zoek in bedrijven...",
+      "newBusiness": "+ Nieuw bedrijf",
+      "autoBuild": "Auto-aanmaken uit contacten",
+      "autoBuildBusy": "Bezig…",
+      "autoBuildTitle": "Doorloopt alle contacten en maakt bedrijven aan voor unieke bedrijfs- / domeincombinaties. Per project opt-in.",
+      "emptyTitle": "Nog geen bedrijven",
+      "emptyDescription": "Maak er handmatig één aan, of zet auto-aanmaken aan om ze uit je contacten af te leiden.",
+      "emptySearch": "Geen bedrijven gevonden voor je zoekopdracht.",
+      "refreshSoul": "Ziel nu verversen",
+      "refreshFailed": "Verversen mislukt: HTTP {{status}}",
+      "autoBuiltTag": "auto-aangemaakt",
+      "countOne": "1 bedrijf",
+      "countMany": "{{count}} bedrijven",
+      "deleteConfirm": "\"{{name}}\" verwijderen? Het gaat naar de prullenbak. Gekoppelde contacten blijven; alleen de affiliatie-koppelingen worden verwijderd."
+    },
     "code": {
       "emptyNoneTitle": "Nog geen codeprojecten",
       "emptyNoneDescription": "Maak er één aan voor een repository of een lokale werkmap.",

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import EmptyState from "../components/EmptyState";
 import ConfirmDialog from "../components/ConfirmDialog";
 import HistoryButton from "../components/HistoryButton";
@@ -29,6 +30,7 @@ type DialogState =
   | { kind: "edit"; business: Business };
 
 export default function BusinessesTab({ project, currentUser }: Props) {
+  const { t } = useTranslation();
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -100,7 +102,7 @@ export default function BusinessesTab({ project, currentUser }: Props) {
     try {
       const res = await refreshBusinessSoul(project, b.id);
       if (!res.ok) {
-        alert(`Refresh failed: HTTP ${res.status}`);
+        alert(t("tab.businesses.refreshFailed", { status: res.status }));
         return;
       }
       const reader = res.body?.getReader();
@@ -133,7 +135,7 @@ export default function BusinessesTab({ project, currentUser }: Props) {
             <input
               className="contacts-tab__search"
               type="text"
-              placeholder="Search businesses..."
+              placeholder={t("tab.businesses.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -145,16 +147,18 @@ export default function BusinessesTab({ project, currentUser }: Props) {
             className="contacts-tab__toolbar-btn btn--accent"
             onClick={() => setDialog({ kind: "create" })}
           >
-            + New Business
+            {t("tab.businesses.newBusiness")}
           </button>
           {currentUser.role === "admin" && (
             <button
               className="contacts-tab__toolbar-btn"
               onClick={handleAutoBuild}
               disabled={autoBuildBusy}
-              title="Walk every contact and create businesses for unique company / domain combos. Opt-in per project."
+              title={t("tab.businesses.autoBuildTitle")}
             >
-              {autoBuildBusy ? "Building…" : "Auto-build from contacts"}
+              {autoBuildBusy
+                ? t("tab.businesses.autoBuildBusy")
+                : t("tab.businesses.autoBuild")}
             </button>
           )}
         </div>
@@ -173,11 +177,11 @@ export default function BusinessesTab({ project, currentUser }: Props) {
 
         {businesses.length === 0 && !debouncedSearch ? (
           <EmptyState
-            title="No businesses yet"
-            description="Create one manually, or enable auto-build to derive them from your contacts."
+            title={t("tab.businesses.emptyTitle")}
+            description={t("tab.businesses.emptyDescription")}
           />
         ) : businesses.length === 0 ? (
-          <EmptyState size="sm" title="No businesses match your search." />
+          <EmptyState size="sm" title={t("tab.businesses.emptySearch")} />
         ) : (
           <div className="contacts-grid">
             {businesses.map((b) => (
@@ -232,7 +236,9 @@ export default function BusinessesTab({ project, currentUser }: Props) {
                 {(b.tags.length > 0 || b.source === "auto_from_contacts") && (
                   <div className="contact-card__tags">
                     {b.source === "auto_from_contacts" && (
-                      <span className="contact-card__tag">auto-built</span>
+                      <span className="contact-card__tag">
+                        {t("tab.businesses.autoBuiltTag")}
+                      </span>
                     )}
                     {b.tags.slice(0, 3).map((tag) => (
                       <span key={tag} className="contact-card__tag">
@@ -263,7 +269,7 @@ export default function BusinessesTab({ project, currentUser }: Props) {
                         void handleSoulRefresh(b);
                       }}
                       disabled={b.soulStatus === "refreshing"}
-                      title="Refresh soul now"
+                      title={t("tab.businesses.refreshSoul")}
                     >
                       <RefreshCw size={12} strokeWidth={1.75} />
                     </button>
@@ -273,7 +279,7 @@ export default function BusinessesTab({ project, currentUser }: Props) {
                         e.stopPropagation();
                         setConfirmDelete({ id: b.id, name: b.name });
                       }}
-                      title="Delete"
+                      title={t("common.delete")}
                     >
                       &times;
                     </button>
@@ -285,7 +291,9 @@ export default function BusinessesTab({ project, currentUser }: Props) {
         )}
 
         <div className="businesses-tab__count">
-          {businesses.length} business{businesses.length === 1 ? "" : "es"}
+          {businesses.length === 1
+            ? t("tab.businesses.countOne")
+            : t("tab.businesses.countMany", { count: businesses.length })}
         </div>
       </div>
 
@@ -307,8 +315,10 @@ export default function BusinessesTab({ project, currentUser }: Props) {
       {confirmDelete && (
         <ConfirmDialog
           open={true}
-          message={`Delete "${confirmDelete.name}"? It will move to Trash. Linked contacts stay; only the affiliation links are dropped.`}
-          confirmLabel="Delete"
+          message={t("tab.businesses.deleteConfirm", {
+            name: confirmDelete.name,
+          })}
+          confirmLabel={t("common.delete")}
           onCancel={() => setConfirmDelete(null)}
           onConfirm={() => void handleDelete(confirmDelete.id)}
         />

@@ -188,6 +188,22 @@
       "deleteConfirmFile": "Delete \"{{name}}\"?",
       "deleteConfirmDir": "Delete \"{{name}}\" and its contents?"
     },
+    "businesses": {
+      "searchPlaceholder": "Search businesses...",
+      "newBusiness": "+ New Business",
+      "autoBuild": "Auto-build from contacts",
+      "autoBuildBusy": "Building…",
+      "autoBuildTitle": "Walk every contact and create businesses for unique company / domain combos. Opt-in per project.",
+      "emptyTitle": "No businesses yet",
+      "emptyDescription": "Create one manually, or enable auto-build to derive them from your contacts.",
+      "emptySearch": "No businesses match your search.",
+      "refreshSoul": "Refresh soul now",
+      "refreshFailed": "Refresh failed: HTTP {{status}}",
+      "autoBuiltTag": "auto-built",
+      "countOne": "1 business",
+      "countMany": "{{count}} businesses",
+      "deleteConfirm": "Delete \"{{name}}\"? It will move to Trash. Linked contacts stay; only the affiliation links are dropped."
+    },
     "code": {
       "emptyNoneTitle": "No code projects yet",
       "emptyNoneDescription": "Create one to hold a repository or a local scratch folder.",
