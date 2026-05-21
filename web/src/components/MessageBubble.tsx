@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { resolveBubbleLabel } from "../lib/messageLabel";
 import { useDefaultAgent } from "../contexts/DefaultAgentContext";
 
@@ -71,6 +72,7 @@ export default function MessageBubble({
   selectedIndex,
   onSelectIndex,
 }: Props) {
+  const { t } = useTranslation();
   const defaultAgent = useDefaultAgent();
   const { label, kind } = resolveBubbleLabel({
     role,
@@ -120,14 +122,14 @@ export default function MessageBubble({
     <div className={`bubble bubble--${role}${agentClass}${editingClass}`}>
       <div className="bubble__role">
         {label}
-        {edited && <span className="bubble__edited-tag">(edited)</span>}
+        {edited && <span className="bubble__edited-tag">{t("chat.bubble.editedTag")}</span>}
         {showNav && (
-          <span className="bubble__regen-nav" aria-label="Regenerated versions">
+          <span className="bubble__regen-nav" aria-label={t("chat.bubble.regenAria")}>
             <button
               type="button"
               disabled={active === 0 || !onSelectIndex}
               onClick={() => onSelectIndex?.(Math.max(0, active - 1))}
-              title="Previous version"
+              title={t("chat.bubble.prevVersion")}
             >
               ‹
             </button>
@@ -138,7 +140,7 @@ export default function MessageBubble({
               type="button"
               disabled={active === total - 1 || !onSelectIndex}
               onClick={() => onSelectIndex?.(Math.min(total - 1, active + 1))}
-              title="Next version"
+              title={t("chat.bubble.nextVersion")}
             >
               ›
             </button>
@@ -151,7 +153,7 @@ export default function MessageBubble({
             <button
               type="button"
               className="bubble__action"
-              title="Edit message"
+              title={t("chat.bubble.editMessage")}
               onClick={startEdit}
             >
               ✎
@@ -161,7 +163,7 @@ export default function MessageBubble({
             <button
               type="button"
               className="bubble__action"
-              title="Regenerate (keep this version as alternate)"
+              title={t("chat.bubble.regenerate")}
               disabled={busy}
               onClick={() => wrap(async () => actions!.onRegenerate!())}
             >
@@ -172,7 +174,7 @@ export default function MessageBubble({
             <button
               type="button"
               className="bubble__action"
-              title="Fork into a new Quick Chat"
+              title={t("chat.bubble.fork")}
               disabled={busy}
               onClick={() => wrap(async () => actions!.onFork!())}
             >
@@ -188,7 +190,7 @@ export default function MessageBubble({
               className="bubble__edit-textarea"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="Edit your message…"
+              placeholder={t("chat.bubble.editPlaceholder")}
               autoFocus
             />
             <div className="bubble__edit-buttons">
@@ -198,7 +200,7 @@ export default function MessageBubble({
                 disabled={busy || !draft.trim()}
                 onClick={() => wrap(async () => actions!.onSave!(draft))}
               >
-                Save
+                {t("chat.bubble.save")}
               </button>
               {canSaveAndRegen && (
                 <button
@@ -209,7 +211,7 @@ export default function MessageBubble({
                     wrap(async () => actions!.onSaveAndRegenerate!(draft))
                   }
                 >
-                  Save &amp; regenerate
+                  {t("chat.bubble.saveAndRegen")}
                 </button>
               )}
               {canFork && (
@@ -218,9 +220,9 @@ export default function MessageBubble({
                   className="btn btn--ghost"
                   disabled={busy || !draft.trim()}
                   onClick={() => wrap(async () => actions!.onFork!(draft))}
-                  title="Fork this conversation into a new Quick Chat with the edited message — does not modify the current session"
+                  title={t("chat.bubble.forkBtnTitle")}
                 >
-                  Fork
+                  {t("chat.bubble.forkBtn")}
                 </button>
               )}
               <button
@@ -229,7 +231,7 @@ export default function MessageBubble({
                 disabled={busy}
                 onClick={cancelEdit}
               >
-                Cancel
+                {t("chat.bubble.cancel")}
               </button>
             </div>
           </div>

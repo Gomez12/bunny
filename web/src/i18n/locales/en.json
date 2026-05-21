@@ -49,6 +49,47 @@
       "newChatWithAgent": "New chat with…"
     }
   },
+  "chat": {
+    "reasoning": {
+      "thinking": "thinking"
+    },
+    "queue": {
+      "position": "⏸ In queue (position {{position}})",
+      "waitedBefore": "Waited earlier: {{seconds}}s"
+    },
+    "stats": {
+      "seconds": "{{value}}s",
+      "tokens": "{{count}} tok",
+      "tokensPerSec": "{{value}} tok/s",
+      "promptTokensTitle": "prompt tokens"
+    },
+    "bubble": {
+      "editedTag": "(edited)",
+      "regenAria": "Regenerated versions",
+      "prevVersion": "Previous version",
+      "nextVersion": "Next version",
+      "editMessage": "Edit message",
+      "regenerate": "Regenerate (keep this version as alternate)",
+      "fork": "Fork into a new Quick Chat",
+      "editPlaceholder": "Edit your message…",
+      "save": "Save",
+      "saveAndRegen": "Save & regenerate",
+      "forkBtn": "Fork",
+      "forkBtnTitle": "Fork this conversation into a new Quick Chat with the edited message — does not modify the current session",
+      "cancel": "Cancel"
+    },
+    "askUser": {
+      "youAnswered": "You answered",
+      "pickMultipleTitle": "Allow picking more than one option",
+      "pickMultiple": "Pick multiple",
+      "optionAria": "Option {{n}}",
+      "placeholderEmpty": "Type your answer…",
+      "placeholderOr": "Or write your own…",
+      "errPickFirst": "Pick an option or type an answer first.",
+      "sending": "Sending…",
+      "send": "Send answer"
+    }
+  },
   "page": {
     "settings": {
       "nav": {

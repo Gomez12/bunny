@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 interface QueueWaitBadgeProps {
   position: number;
   waitedTotalMs: number;
@@ -7,16 +9,19 @@ export default function QueueWaitBadge({
   position,
   waitedTotalMs,
 }: QueueWaitBadgeProps) {
+  const { t } = useTranslation();
   return (
     <div
       className="bubble__pending bubble__pending--queued"
       title={
         waitedTotalMs > 0
-          ? `Eerder gewacht: ${(waitedTotalMs / 1000).toFixed(1)}s`
+          ? t("chat.queue.waitedBefore", {
+              seconds: (waitedTotalMs / 1000).toFixed(1),
+            })
           : undefined
       }
     >
-      ⏸ In wachtrij (positie {position})
+      {t("chat.queue.position", { position })}
     </div>
   );
 }

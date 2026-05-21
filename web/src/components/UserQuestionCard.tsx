@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { PendingUserQuestion } from "../hooks/useSSEChat";
 
 interface Props {
@@ -18,6 +19,7 @@ interface Props {
  * visible in the transcript so the conversation reads back cleanly.
  */
 export default function UserQuestionCard({ question, onSubmit }: Props) {
+  const { t } = useTranslation();
   const { options, allowCustom, submittedAnswer } = question;
 
   // The LLM-supplied `multiSelect` is a hint, not a hard contract. We let the
@@ -106,7 +108,7 @@ export default function UserQuestionCard({ question, onSubmit }: Props) {
   async function handleSubmit() {
     const answer = resolveAnswer();
     if (!answer) {
-      setError("Pick an option or type an answer first.");
+      setError(t("chat.askUser.errPickFirst"));
       return;
     }
     setError(null);
@@ -125,7 +127,7 @@ export default function UserQuestionCard({ question, onSubmit }: Props) {
       <div className="askuser askuser--answered">
         <div className="askuser__question">{question.question}</div>
         <div className="askuser__answer">
-          <span className="askuser__answer-label">You answered</span>
+          <span className="askuser__answer-label">{t("chat.askUser.youAnswered")}</span>
           <pre className="askuser__answer-text">{submittedAnswer}</pre>
         </div>
       </div>
@@ -137,14 +139,14 @@ export default function UserQuestionCard({ question, onSubmit }: Props) {
       <div className="askuser__header">
         <div className="askuser__question">{question.question}</div>
         {showModeToggle && (
-          <label className="askuser__mode-toggle" title="Allow picking more than one option">
+          <label className="askuser__mode-toggle" title={t("chat.askUser.pickMultipleTitle")}>
             <input
               type="checkbox"
               checked={multiSelect}
               onChange={toggleMode}
               disabled={disabled}
             />
-            <span>Pick multiple</span>
+            <span>{t("chat.askUser.pickMultiple")}</span>
           </label>
         )}
       </div>
@@ -176,7 +178,7 @@ export default function UserQuestionCard({ question, onSubmit }: Props) {
                     onChange={(e) => editDraft(i, e.target.value)}
                     onFocus={() => toggleOption(i)}
                     disabled={disabled}
-                    aria-label={`Option ${i + 1}`}
+                    aria-label={t("chat.askUser.optionAria", { n: i + 1 })}
                   />
                 </label>
               </li>
@@ -207,8 +209,8 @@ export default function UserQuestionCard({ question, onSubmit }: Props) {
               className="askuser__custom-input"
               placeholder={
                 options.length === 0
-                  ? "Type your answer…"
-                  : "Or write your own…"
+                  ? t("chat.askUser.placeholderEmpty")
+                  : t("chat.askUser.placeholderOr")
               }
               value={custom}
               onChange={(e) => {
@@ -230,7 +232,7 @@ export default function UserQuestionCard({ question, onSubmit }: Props) {
           onClick={() => void handleSubmit()}
           disabled={disabled}
         >
-          {busy ? "Sending…" : "Send answer"}
+          {busy ? t("chat.askUser.sending") : t("chat.askUser.send")}
         </button>
       </div>
     </div>

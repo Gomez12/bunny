@@ -49,6 +49,47 @@
       "newChatWithAgent": "Nieuwe chat met…"
     }
   },
+  "chat": {
+    "reasoning": {
+      "thinking": "denken"
+    },
+    "queue": {
+      "position": "⏸ In wachtrij (positie {{position}})",
+      "waitedBefore": "Eerder gewacht: {{seconds}}s"
+    },
+    "stats": {
+      "seconds": "{{value}}s",
+      "tokens": "{{count}} tok",
+      "tokensPerSec": "{{value}} tok/s",
+      "promptTokensTitle": "prompt-tokens"
+    },
+    "bubble": {
+      "editedTag": "(bewerkt)",
+      "regenAria": "Hergegenereerde versies",
+      "prevVersion": "Vorige versie",
+      "nextVersion": "Volgende versie",
+      "editMessage": "Bericht bewerken",
+      "regenerate": "Opnieuw genereren (huidige versie blijft als alternatief bewaard)",
+      "fork": "Forken naar een nieuwe Quick Chat",
+      "editPlaceholder": "Bewerk je bericht…",
+      "save": "Opslaan",
+      "saveAndRegen": "Opslaan & opnieuw genereren",
+      "forkBtn": "Forken",
+      "forkBtnTitle": "Fork dit gesprek naar een nieuwe Quick Chat met het bewerkte bericht — wijzigt de huidige sessie niet",
+      "cancel": "Annuleren"
+    },
+    "askUser": {
+      "youAnswered": "Jij antwoordde",
+      "pickMultipleTitle": "Meerdere opties toestaan",
+      "pickMultiple": "Meerdere kiezen",
+      "optionAria": "Optie {{n}}",
+      "placeholderEmpty": "Typ je antwoord…",
+      "placeholderOr": "Of schrijf je eigen…",
+      "errPickFirst": "Kies een optie of typ eerst een antwoord.",
+      "sending": "Versturen…",
+      "send": "Antwoord versturen"
+    }
+  },
   "page": {
     "settings": {
       "nav": {
