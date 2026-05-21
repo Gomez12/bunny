@@ -49,6 +49,27 @@
       "newChatWithAgent": "New chat with…"
     }
   },
+  "composer": {
+    "placeholder": "Message bunny… (Enter to send, Shift+Enter for newline, @ to mention)",
+    "attachmentAlt": "attachment {{n}}",
+    "removeAttachment": "remove attachment",
+    "mention": {
+      "kindAgent": "agent",
+      "kindUser": "user"
+    },
+    "agentPickerAria": "Chat agent — currently @{{agent}}",
+    "agentMenuDefault": "default",
+    "attachImage": "Attach image",
+    "send": "Send",
+    "stop": "Stop",
+    "error": {
+      "unsupportedImage": "'{{name}}': only PNG/JPEG/GIF/WEBP images are supported",
+      "imageTooLarge": "'{{name}}' exceeds the {{limit}} MB limit",
+      "tooManyImages": "at most {{max}} images per message",
+      "readFailed": "failed to read '{{name}}': {{detail}}",
+      "unknownError": "unknown"
+    }
+  },
   "sidebar": {
     "newChat": "+ New chat",
     "newQuick": "+ Quick",

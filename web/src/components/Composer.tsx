@@ -7,6 +7,7 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
+import { useTranslation } from "react-i18next";
 import {
   fetchProjectAgents,
   fetchUserDirectory,
@@ -132,6 +133,7 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer(
   },
   ref,
 ) {
+  const { t } = useTranslation();
   const [value, setValue] = useState("");
   const [agents, setAgents] = useState<Agent[]>([]);
   const [agentPickerOpen, setAgentPickerOpen] = useState(false);
@@ -169,7 +171,7 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer(
         kind: "agent",
         token: a.name,
         label: a.name,
-        hint: a.description || "agent",
+        hint: a.description || t("composer.mention.kindAgent"),
       }));
     const userItems: Suggestion[] = users
       .filter((u) => !q || match(u.username) || (u.displayName ? match(u.displayName) : false))
@@ -177,10 +179,10 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer(
         kind: "user",
         token: u.username,
         label: u.username,
-        hint: u.displayName ?? "user",
+        hint: u.displayName ?? t("composer.mention.kindUser"),
       }));
     return [...agentItems, ...userItems].slice(0, MAX_SUGGESTIONS);
-  }, [mention, agents, users]);
+  }, [mention, agents, users, t]);
 
   // Reset highlight when the suggestion list shape changes.
   useEffect(() => {
@@ -210,22 +212,35 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer(
     for (const f of list) {
       const mime = resolveImageMime(f);
       if (!mime) {
-        setAttachError(`'${f.name}': only PNG/JPEG/GIF/WEBP images are supported`);
+        setAttachError(t("composer.error.unsupportedImage", { name: f.name }));
         continue;
       }
       if (f.size > MAX_IMAGE_BYTES) {
-        setAttachError(`'${f.name}' exceeds the ${MAX_IMAGE_BYTES / 1024 / 1024} MB limit`);
+        setAttachError(
+          t("composer.error.imageTooLarge", {
+            name: f.name,
+            limit: MAX_IMAGE_BYTES / 1024 / 1024,
+          }),
+        );
         continue;
       }
       if (attachments.length + next.length >= MAX_IMAGES) {
-        setAttachError(`at most ${MAX_IMAGES} images per message`);
+        setAttachError(t("composer.error.tooManyImages", { max: MAX_IMAGES }));
         break;
       }
       try {
         const attachment = await uploadImageForDataUrl(f, mime);
         next.push(attachment);
       } catch (err) {
-        setAttachError(`failed to read '${f.name}': ${err instanceof Error ? err.message : "unknown"}`);
+        setAttachError(
+          t("composer.error.readFailed", {
+            name: f.name,
+            detail:
+              err instanceof Error
+                ? err.message
+                : t("composer.error.unknownError"),
+          }),
+        );
       }
     }
     if (next.length > 0) setAttachments((prev) => [...prev, ...next]);
@@ -338,11 +353,11 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer(
           <div className="composer__attachments">
             {attachments.map((a, i) => (
               <div key={i} className="composer__thumb">
-                <img src={a.dataUrl} alt={`attachment ${i + 1}`} />
+                <img src={a.dataUrl} alt={t("composer.attachmentAlt", { n: i + 1 })} />
                 <button
                   type="button"
                   className="composer__thumb-remove"
-                  aria-label="remove attachment"
+                  aria-label={t("composer.removeAttachment")}
                   onClick={() => removeAttachment(i)}
                 >
                   ×
@@ -366,7 +381,7 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer(
         <textarea
           ref={taRef}
           className="composer__input"
-          placeholder="Message bunny… (Enter to send, Shift+Enter for newline, @ to mention)"
+          placeholder={t("composer.placeholder")}
           rows={1}
           value={value}
           onChange={(e) => {
@@ -422,7 +437,11 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer(
               >
                 <span
                   className={`mention-popup__badge mention-popup__badge--${s.kind}`}
-                  title={s.kind}
+                  title={
+                    s.kind === "agent"
+                      ? t("composer.mention.kindAgent")
+                      : t("composer.mention.kindUser")
+                  }
                 >
                   {s.kind === "agent" ? "A" : "U"}
                 </span>
@@ -442,8 +461,8 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer(
             disabled={disabled}
             aria-haspopup="listbox"
             aria-expanded={agentPickerOpen}
-            aria-label={`Chat agent — currently @${activeAgent}`}
-            title={`Chat agent — currently @${activeAgent}`}
+            aria-label={t("composer.agentPickerAria", { agent: activeAgent })}
+            title={t("composer.agentPickerAria", { agent: activeAgent })}
           >
             <Bot {...ICON_DEFAULTS} />
             <span className="composer__agent-pill-label">@{activeAgent}</span>
@@ -468,7 +487,7 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer(
                 <span className="composer__agent-menu-label">
                   @{defaultAgent}
                 </span>
-                <span className="composer__agent-menu-hint">default</span>
+                <span className="composer__agent-menu-hint">{t("composer.agentMenuDefault")}</span>
               </li>
               {agents
                 .filter((a) => a.name !== defaultAgent)
@@ -508,15 +527,15 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer(
           className="btn btn--attach"
           onClick={() => fileRef.current?.click()}
           disabled={disabled || attachments.length >= MAX_IMAGES}
-          title="Attach image"
-          aria-label="Attach image"
+          title={t("composer.attachImage")}
+          aria-label={t("composer.attachImage")}
         >
           📎
         </button>
       )}
       {streaming ? (
         <button type="button" className="btn btn--stop" onClick={onAbort}>
-          <span className="spinner spinner--on-dark" /> Stop
+          <span className="spinner spinner--on-dark" /> {t("composer.stop")}
         </button>
       ) : (
         <button
@@ -524,7 +543,7 @@ const Composer = forwardRef<ComposerHandle, Props>(function Composer(
           className="btn btn--send"
           disabled={(!value.trim() && attachments.length === 0) || disabled}
         >
-          Send
+          {t("composer.send")}
         </button>
       )}
     </form>

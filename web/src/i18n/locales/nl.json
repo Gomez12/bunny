@@ -49,6 +49,27 @@
       "newChatWithAgent": "Nieuwe chat met…"
     }
   },
+  "composer": {
+    "placeholder": "Bericht aan bunny… (Enter om te versturen, Shift+Enter voor nieuwe regel, @ om iemand te noemen)",
+    "attachmentAlt": "bijlage {{n}}",
+    "removeAttachment": "bijlage verwijderen",
+    "mention": {
+      "kindAgent": "agent",
+      "kindUser": "gebruiker"
+    },
+    "agentPickerAria": "Chat-agent — momenteel @{{agent}}",
+    "agentMenuDefault": "standaard",
+    "attachImage": "Afbeelding toevoegen",
+    "send": "Versturen",
+    "stop": "Stop",
+    "error": {
+      "unsupportedImage": "'{{name}}': alleen PNG/JPEG/GIF/WEBP-afbeeldingen worden ondersteund",
+      "imageTooLarge": "'{{name}}' overschrijdt de limiet van {{limit}} MB",
+      "tooManyImages": "maximaal {{max}} afbeeldingen per bericht",
+      "readFailed": "kon '{{name}}' niet lezen: {{detail}}",
+      "unknownError": "onbekend"
+    }
+  },
   "sidebar": {
     "newChat": "+ Nieuwe chat",
     "newQuick": "+ Quick",
