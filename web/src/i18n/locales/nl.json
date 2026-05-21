@@ -49,6 +49,29 @@
       "newChatWithAgent": "Nieuwe chat met…"
     }
   },
+  "page": {
+    "login": {
+      "title": "Inloggen bij Bunny",
+      "username": "Gebruikersnaam",
+      "password": "Wachtwoord",
+      "submit": "Inloggen",
+      "submitting": "Inloggen…",
+      "errorFallback": "Inloggen mislukt"
+    },
+    "changePassword": {
+      "titleForced": "Kies een nieuw wachtwoord",
+      "titleVoluntary": "Wachtwoord wijzigen",
+      "forcedNote": "Je bent ingelogd met het initiële wachtwoord. Kies eerst je eigen wachtwoord voordat je verder gaat.",
+      "currentPassword": "Huidig wachtwoord",
+      "newPassword": "Nieuw wachtwoord",
+      "confirmPassword": "Bevestig nieuw wachtwoord",
+      "submit": "Wachtwoord opslaan",
+      "submitting": "Opslaan…",
+      "errorTooShort": "Wachtwoord moet minimaal 6 tekens zijn",
+      "errorMismatch": "Wachtwoorden komen niet overeen",
+      "errorFallback": "Kon wachtwoord niet wijzigen"
+    }
+  },
   "tab": {
     "projects": {
       "title": "Projecten",

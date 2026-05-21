@@ -49,6 +49,29 @@
       "newChatWithAgent": "New chat with…"
     }
   },
+  "page": {
+    "login": {
+      "title": "Sign in to Bunny",
+      "username": "Username",
+      "password": "Password",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "errorFallback": "Login failed"
+    },
+    "changePassword": {
+      "titleForced": "Set a new password",
+      "titleVoluntary": "Change your password",
+      "forcedNote": "You're signed in with the initial password. Please pick your own before continuing.",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "submit": "Save password",
+      "submitting": "Saving…",
+      "errorTooShort": "Password must be at least 6 characters",
+      "errorMismatch": "Passwords do not match",
+      "errorFallback": "Could not change password"
+    }
+  },
   "tab": {
     "projects": {
       "title": "Projects",

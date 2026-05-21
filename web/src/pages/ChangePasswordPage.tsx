@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { changeOwnPassword, type AuthUser } from "../api";
 import Rabbit from "../components/Rabbit";
 
@@ -9,6 +10,7 @@ export default function ChangePasswordPage({
   user: AuthUser;
   onDone: () => void;
 }) {
+  const { t } = useTranslation();
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -19,15 +21,17 @@ export default function ChangePasswordPage({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPw.length < 6) return setError("Password must be at least 6 characters");
-    if (newPw !== confirmPw) return setError("Passwords do not match");
+    if (newPw.length < 6) return setError(t("page.changePassword.errorTooShort"));
+    if (newPw !== confirmPw) return setError(t("page.changePassword.errorMismatch"));
     setBusy(true);
     setError(null);
     try {
       await changeOwnPassword(currentPw, newPw);
       onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not change password");
+      setError(
+        err instanceof Error ? err.message : t("page.changePassword.errorFallback"),
+      );
     } finally {
       setBusy(false);
     }
@@ -39,15 +43,17 @@ export default function ChangePasswordPage({
         <div className="auth-hero" aria-hidden="true">
           <Rabbit size={160} />
         </div>
-        <h1>{forced ? "Set a new password" : "Change your password"}</h1>
+        <h1>
+          {forced
+            ? t("page.changePassword.titleForced")
+            : t("page.changePassword.titleVoluntary")}
+        </h1>
         {forced && (
-          <p className="auth-note">
-            You're signed in with the initial password. Please pick your own before continuing.
-          </p>
+          <p className="auth-note">{t("page.changePassword.forcedNote")}</p>
         )}
         {!forced && (
           <label>
-            <span>Current password</span>
+            <span>{t("page.changePassword.currentPassword")}</span>
             <input
               type="password"
               value={currentPw}
@@ -57,11 +63,11 @@ export default function ChangePasswordPage({
           </label>
         )}
         <label>
-          <span>New password</span>
+          <span>{t("page.changePassword.newPassword")}</span>
           <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} required />
         </label>
         <label>
-          <span>Confirm new password</span>
+          <span>{t("page.changePassword.confirmPassword")}</span>
           <input
             type="password"
             value={confirmPw}
@@ -71,7 +77,9 @@ export default function ChangePasswordPage({
         </label>
         {error && <div className="auth-error">{error}</div>}
         <button type="submit" disabled={busy}>
-          {busy ? "Saving…" : "Save password"}
+          {busy
+            ? t("page.changePassword.submitting")
+            : t("page.changePassword.submit")}
         </button>
       </form>
     </div>
