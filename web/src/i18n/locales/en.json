@@ -37,6 +37,21 @@
       "agentsAria": "Available agents",
       "defaultHint": "default"
     },
+    "skill": {
+      "titleCreate": "New skill",
+      "titleEdit": "Edit {{name}}",
+      "nameLabel": "Name",
+      "namePlaceholder": "my-skill",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "What this skill does and when to use it",
+      "visibilityLabel": "Visibility",
+      "visibilityPrivate": "Private",
+      "visibilityPublic": "Public",
+      "skillMdLabel": "SKILL.md",
+      "projectsLegend": "Available in projects",
+      "errNameRequired": "Name is required",
+      "errNameSlug": "Name must be lowercase letters, digits, - or _ (1-63 chars)"
+    },
     "codeProject": {
       "titleCreate": "New code project",
       "titleEdit": "Edit code project",

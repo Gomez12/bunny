@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { Project, Skill, SkillVisibility } from "../api";
 import Modal from "./Modal";
 
@@ -25,6 +26,7 @@ export default function SkillDialog({
   onClose,
   onSubmit,
 }: Props) {
+  const { t } = useTranslation();
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [visibility, setVisibility] = useState<SkillVisibility>(
@@ -54,11 +56,11 @@ export default function SkillDialog({
     e.preventDefault();
     const trimmedName = name.trim().toLowerCase();
     if (!trimmedName) {
-      setError("Name is required");
+      setError(t("dialog.skill.errNameRequired"));
       return;
     }
     if (!/^[a-z0-9][a-z0-9_-]{0,62}$/.test(trimmedName)) {
-      setError("Name must be lowercase letters, digits, - or _ (1-63 chars)");
+      setError(t("dialog.skill.errNameSlug"));
       return;
     }
     setSubmitting(true);
@@ -83,45 +85,49 @@ export default function SkillDialog({
     <Modal onClose={onClose} size="md">
       <form onSubmit={handleSubmit} className="project-form">
         <Modal.Header
-          title={mode === "create" ? "New skill" : `Edit ${initial?.name}`}
+          title={
+            mode === "create"
+              ? t("dialog.skill.titleCreate")
+              : t("dialog.skill.titleEdit", { name: initial?.name ?? "" })
+          }
         />
 
         <label className="project-form__field">
-          <span>Name</span>
+          <span>{t("dialog.skill.nameLabel")}</span>
           <input
             ref={nameRef}
             type="text"
             value={name}
             disabled={mode === "edit"}
             onChange={(e) => setName(e.target.value)}
-            placeholder="my-skill"
+            placeholder={t("dialog.skill.namePlaceholder")}
             required
           />
         </label>
 
         <label className="project-form__field">
-          <span>Description</span>
+          <span>{t("dialog.skill.descriptionLabel")}</span>
           <input
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="What this skill does and when to use it"
+            placeholder={t("dialog.skill.descriptionPlaceholder")}
           />
         </label>
 
         <label className="project-form__choice">
-          <span>Visibility</span>
+          <span>{t("dialog.skill.visibilityLabel")}</span>
           <select
             value={visibility}
             onChange={(e) => setVisibility(e.target.value as SkillVisibility)}
           >
-            <option value="private">Private</option>
-            <option value="public">Public</option>
+            <option value="private">{t("dialog.skill.visibilityPrivate")}</option>
+            <option value="public">{t("dialog.skill.visibilityPublic")}</option>
           </select>
         </label>
 
         <label className="project-form__field">
-          <span>SKILL.md</span>
+          <span>{t("dialog.skill.skillMdLabel")}</span>
           <textarea
             className="project-form__prompt"
             value={skillMd}
@@ -136,7 +142,7 @@ export default function SkillDialog({
         </label>
 
         <fieldset className="project-form__fieldset">
-          <legend>Available in projects</legend>
+          <legend>{t("dialog.skill.projectsLegend")}</legend>
           <div className="project-form__chips">
             {allProjects.map((p) => (
               <label key={p.name} className="project-form__chip">
@@ -160,10 +166,14 @@ export default function SkillDialog({
             onClick={onClose}
             disabled={submitting}
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button type="submit" className="btn btn--send" disabled={submitting}>
-            {submitting ? "Saving…" : mode === "create" ? "Create" : "Save"}
+            {submitting
+              ? t("common.saving")
+              : mode === "create"
+                ? t("common.create")
+                : t("common.save")}
           </button>
         </Modal.Footer>
       </form>

@@ -37,6 +37,21 @@
       "agentsAria": "Beschikbare agents",
       "defaultHint": "standaard"
     },
+    "skill": {
+      "titleCreate": "Nieuwe skill",
+      "titleEdit": "{{name}} bewerken",
+      "nameLabel": "Naam",
+      "namePlaceholder": "my-skill",
+      "descriptionLabel": "Beschrijving",
+      "descriptionPlaceholder": "Wat deze skill doet en wanneer hij gebruikt wordt",
+      "visibilityLabel": "Zichtbaarheid",
+      "visibilityPrivate": "Privé",
+      "visibilityPublic": "Publiek",
+      "skillMdLabel": "SKILL.md",
+      "projectsLegend": "Beschikbaar in projecten",
+      "errNameRequired": "Naam is verplicht",
+      "errNameSlug": "Naam moet bestaan uit kleine letters, cijfers, - of _ (1-63 tekens)"
+    },
     "codeProject": {
       "titleCreate": "Nieuw codeproject",
       "titleEdit": "Codeproject bewerken",
